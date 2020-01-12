@@ -1,0 +1,7 @@
+[package]
+name = "oxur"
+version = "0.1.0"
+authors = ["Duncan McGreggor <oubiwann@gmail.com>"]
+edition = "2018"
+
+[dependencies]
