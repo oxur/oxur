@@ -5,3 +5,22 @@ authors = ["Duncan McGreggor <oubiwann@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+lexpr = "0.2.3"
+colored = "1.7"
+
+    [dependencies.proc-macro2]
+    version = "1.0"
+    features = ["span-locations"]
+
+    [dependencies.syn]
+    version = "1.0.13"
+    default-features = false
+    features = ["parsing", "full", "extra-traits"]
+
+[[bin]]
+name = "dump-ast"
+path = "src/dump.rs"
+
+[[bin]]
+name = "sexp"
+path = "src/sexp.rs"
