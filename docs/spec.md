@@ -9,7 +9,9 @@
 ```
 
 ```lisp
-;; Comment
+;;; Module-level comment
+;; Code-block-levelm comment
+; End-of-line-level comment
 ```
 
 TODO: Doc comments
@@ -31,31 +33,21 @@ Characters not supported by Rust will be converted to characters that are suppor
 
 ```rust
 mod math {
-    type Complex = (f64, f64);
+
     fn sin(f: f64) -> f64 {
         /* ... */
     }
-    fn cos(f: f64) -> f64 {
-        /* ... */
-    }
-    fn tan(f: f64) -> f64 {
-        /* ... */
-    }
+
 }
 ```
 
 ```lisp
-(mod math
-  (type Complex (f64 f64)
-  (fn sin (f: f64) -> f64
-    ;;
-    )
-  (fn cos (f: f64) -> f64
-    ;;
-    )
-  (fn tan (f: f64) -> f64
-    ;;
-    )))
+(ns math)
+
+(defn ^f64 sin
+  [^f64 f]
+  ;;
+  )
 ```
 
 ### Extern Crates
@@ -68,10 +60,12 @@ extern crate foo as _;
 ```
 
 ```lisp
-(extern-crate pcrs
-              std
-              std :as ruststd
-              foo :as _)
+(extern
+  (:crate
+    [pcrs]
+    [std]
+    [std :as ruststd]
+    [foo :as _]))
 ```
 
 ### Imports
@@ -84,10 +78,14 @@ use quux::*;
 ```
 
 ```lisp
-(use (std::option::Option (Some None))
-     (std::collections::hash-map (self HashMap))
-     (self::foo::Zoo :as _)
-     (quux::*))
+(ns
+  (:require
+    [code.written.in.oxur :as oxur])
+  (:import
+    (std.option.Option (Some None))
+    (std.collections.hash-map (self HashMap))
+    (self.foo.Zoo :as _)
+    (quux :refer :all))
 ```
 
 ### Functions
@@ -99,7 +97,7 @@ fn main() {
 ```
 
 ```lisp
-(fn main ()
+(defn main []
   (println! "Hello, world!"))
 ```
 
