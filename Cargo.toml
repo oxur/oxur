@@ -5,8 +5,8 @@ authors = ["Oxur Group <https://github.com/oxur>"]
 edition = "2018"
 
 [dependencies]
-lexpr = "0.2.3"
 colored = "1.7"
+nom = "5.1.0"
 
     [dependencies.proc-macro2]
     version = "1.0"
@@ -22,5 +22,5 @@ name = "dump-ast"
 path = "src/ast/main.rs"
 
 [[bin]]
-name = "sexp"
-path = "src/sexp/main.rs"
+name = "parser"
+path = "src/parser/main.rs"
