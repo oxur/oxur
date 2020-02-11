@@ -18,17 +18,14 @@
 //!     }
 
 use std::borrow::Cow;
-use std::env;
 use std::ffi::OsStr;
 use std::fmt::{self, Display};
-use std::fs;
-use std::io::{self, Write};
+use std::io::{self};
 use std::path::{Path, PathBuf};
-use std::process;
 
 use colored::Colorize;
 
-enum Error {
+pub enum Error {
     IncorrectUsage,
     ReadFile(io::Error),
     ParseFile {
@@ -52,35 +49,6 @@ impl Display for Error {
             } => render_location(f, error, filepath, source_code),
         }
     }
-}
-
-fn main() {
-    if let Err(error) = try_main() {
-        let _ = writeln!(io::stderr(), "{}", error);
-        process::exit(1);
-    }
-}
-
-fn try_main() -> Result<(), Error> {
-    let mut args = env::args_os();
-    let _ = args.next(); // executable name
-
-    let filepath = match (args.next(), args.next()) {
-        (Some(arg), None) => PathBuf::from(arg),
-        _ => return Err(Error::IncorrectUsage),
-    };
-
-    let code = fs::read_to_string(&filepath).map_err(Error::ReadFile)?;
-    let syntax = syn::parse_file(&code).map_err({
-        |error| Error::ParseFile {
-            error,
-            filepath,
-            source_code: code,
-        }
-    })?;
-    println!("{:#?}", syntax);
-
-    Ok(())
 }
 
 // Render a rustc-style error message, including colors.

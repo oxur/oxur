@@ -1,3 +1,5 @@
+default: build
+
 $(HOME)/.cargo/bin/evcxr:
 	@cargo install evcxr_repl
 
@@ -9,3 +11,12 @@ $(HOME)/.cargo/bin/oxischeme:
 
 oxischeme: $(HOME)/.cargo/bin/oxischeme
 	oxischeme
+
+build:
+	@cargo build
+	@rm bin/*
+	@cargo install --path . --root .
+
+rebuild:
+	@cargo clean
+	$(MAKE) build

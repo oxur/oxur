@@ -1,7 +1,7 @@
 [package]
 name = "oxur"
-version = "0.1.0"
-authors = ["Duncan McGreggor <oubiwann@gmail.com>"]
+version = "0.0.1"
+authors = ["Oxur Group <https://github.com/oxur>"]
 edition = "2018"
 
 [dependencies]
@@ -19,8 +19,8 @@ colored = "1.7"
 
 [[bin]]
 name = "dump-ast"
-path = "src/dump.rs"
+path = "src/ast/main.rs"
 
 [[bin]]
 name = "sexp"
-path = "src/sexp.rs"
+path = "src/sexp/main.rs"
