@@ -1,194 +1,389 @@
-//! Add document command implementation
+//! Enhanced add command with interactive onboarding
 
 use anyhow::{Context, Result};
 use colored::*;
 use design::doc::*;
-use design::index::DocumentIndex;
+use design::extract::*;
+use design::filename::*;
+use design::normalize::*;
+use design::prompt::*;
+use design::state::StateManager;
 use std::fs;
-use std::path::PathBuf;
-
-/// Format a step header
-fn step_header(num: u32, title: &str) -> String {
-    format!("{} {}", format!("Step {}:", num).cyan().bold(), title.cyan())
-}
-
-/// Format a success message
-fn success(msg: &str) -> String {
-    format!("  {} {}", "✓".green(), msg)
-}
-
-/// Format a skip message
-fn skip(msg: &str) -> String {
-    format!("  {} {}", "→".yellow(), msg)
-}
+use std::path::{Path, PathBuf};
 
 /// Add a new document with full processing
-pub fn add_document(index: &DocumentIndex, doc_path: &str, dry_run: bool) -> Result<()> {
+pub fn add_document(
+    state_mgr: &mut StateManager,
+    doc_path: &str,
+    dry_run: bool,
+    interactive: bool,
+    auto_yes: bool,
+) -> Result<()> {
     if dry_run {
         println!("{}\n", "DRY RUN MODE - No changes will be made".yellow().bold());
     }
 
     println!("{} {}\n", "Adding document:".bold(), doc_path);
 
-    let mut path = PathBuf::from(doc_path);
+    let path = PathBuf::from(doc_path);
 
     // Validate file exists
     if !path.exists() {
         anyhow::bail!("File not found: {}", doc_path);
     }
 
-    let project_dir = PathBuf::from(index.docs_dir());
+    // Read content
+    let mut content = fs::read_to_string(&path).context("Failed to read file")?;
 
-    // Step 1: Number Assignment
-    let mut filename = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?
-        .to_string();
-
-    // Track simulated path for dry-run mode
-    let mut simulated_path = path.clone();
-
-    if !has_number_prefix(&filename) {
-        println!("{}", step_header(1, "Assigning number"));
-
-        let next_num = index.next_number();
-        println!("  Assigning number: {:04}", next_num);
-
-        if !dry_run {
-            path = add_number_prefix(&path, next_num)
-                .with_context(|| format!("Failed to add number prefix to {}", path.display()))?;
-
-            let new_filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
-            println!("{}\n", success(&format!("Renamed to: {}", new_filename)));
-        } else {
-            filename = format!("{:04}-{}", next_num, filename);
-            simulated_path = path.with_file_name(&filename);
-            println!("{}\n", success(&format!("Would rename to: {}", filename)));
-        }
-    } else {
-        println!("{}\n", skip("File already has number prefix"));
+    // Step 0: Validate it's markdown
+    if !is_valid_markdown(&content) {
+        anyhow::bail!("File doesn't appear to be valid markdown");
     }
 
-    // Step 2: Move to Project Directory
-    let in_project = is_in_project_dir(&path, &project_dir).unwrap_or(false);
-
-    if !in_project {
-        println!("{}", step_header(2, "Moving to project directory"));
-
-        if !dry_run {
-            path = move_to_project(&path, &project_dir)
-                .with_context(|| format!("Failed to move {} to project", path.display()))?;
-
-            println!("{}\n", success(&format!("Moved to: {}", path.display())));
-        } else {
-            simulated_path = project_dir.join(&filename);
-            println!("{}\n", success(&format!("Would move to: {}", simulated_path.display())));
+    // Analyze content for issues
+    let issues = analyze_markdown(&content);
+    if !issues.is_empty() {
+        println!("{}", "Content Issues Detected:".yellow().bold());
+        for issue in &issues {
+            println!("  {} {}", "⚠".yellow(), issue);
         }
-    } else {
-        println!("{}\n", skip("File already in project directory"));
+        println!();
+
+        if interactive && !auto_yes {
+            let should_normalize = prompt_confirm("Apply automatic normalization?", true)?;
+
+            if should_normalize {
+                content = normalize_markdown(&content);
+                println!("  {} Content normalized\n", "✓".green());
+            }
+        } else if auto_yes {
+            content = normalize_markdown(&content);
+            println!("  {} Content normalized\n", "✓".green());
+        }
     }
 
-    // Step 3: State Directory Placement
-    let check_path = if dry_run { &simulated_path } else { &path };
-    if !is_in_state_dir(check_path) {
-        println!("{}", step_header(3, "Moving to draft directory"));
+    // Extract metadata from content
+    let extracted = ExtractedMetadata::from_content(&content);
 
-        if !dry_run {
-            path = move_to_state_dir(&path, DocState::Draft, &project_dir)
-                .with_context(|| format!("Failed to move {} to draft directory", path.display()))?;
-
-            println!("{}\n", success(&format!("Moved to: {}", path.display())));
-        } else {
-            simulated_path = project_dir.join(DocState::Draft.directory()).join(&filename);
-            println!("{}\n", success(&format!("Would move to: {}", simulated_path.display())));
-        }
+    // Step 1: Determine title
+    let title = if interactive && !auto_yes {
+        determine_title_interactive(&extracted, &path)?
     } else {
-        println!("{}\n", skip("File already in state directory"));
+        determine_title_auto(&extracted, &path)
+    };
+
+    println!("{}", "Step 1: Title".cyan().bold());
+    println!("  Title: {}\n", title.bold());
+
+    // Step 2: Number assignment and filename sanitization
+    let number = state_mgr.next_number();
+    let new_filename = build_filename(number, &title);
+
+    println!("{}", "Step 2: Number & Filename".cyan().bold());
+    println!("  Number: {:04}", number);
+    println!("  New filename: {}\n", new_filename.bold());
+
+    if interactive && !auto_yes {
+        let confirmed = prompt_confirm("Proceed with this filename?", true)?;
+        if !confirmed {
+            anyhow::bail!("User cancelled");
+        }
     }
 
-    // Step 4: Add/Update YAML Headers
-    println!("{}", step_header(4, "Processing headers"));
-
-    let content = fs::read_to_string(&path).context("Failed to read file")?;
-
-    // Use simulated path for header processing in dry-run mode
-    let header_path = if dry_run { &simulated_path } else { &path };
-    let updated_content =
-        ensure_valid_headers(header_path, &content).context("Failed to ensure valid headers")?;
-
-    if content != updated_content {
-        if !dry_run {
-            fs::write(&path, &updated_content).context("Failed to write headers")?;
-            println!("{}\n", success("Added/updated headers"));
-        } else {
-            println!("{}\n", success("Would add/update headers"));
-        }
+    // Step 3: Determine author
+    let author = if interactive && !auto_yes {
+        determine_author_interactive(&extracted)?
     } else {
-        println!("{}\n", skip("Headers already complete"));
+        determine_author_auto(&extracted)
+    };
+
+    println!("{}", "Step 3: Author".cyan().bold());
+    println!("  Author: {}\n", author.bold());
+
+    // Step 4: Determine initial state
+    let state = if interactive && !auto_yes {
+        determine_state_interactive(&extracted)?
+    } else {
+        extracted.state_hint.unwrap_or(DocState::Draft)
+    };
+
+    println!("{}", "Step 4: Initial State".cyan().bold());
+    println!("  State: {}\n", state.as_str().bold());
+
+    // Step 5: Build complete metadata
+    let today = chrono::Local::now().naive_local().date();
+    let metadata = DocMetadata {
+        number,
+        title: title.clone(),
+        author: author.clone(),
+        created: today,
+        updated: today,
+        state,
+        supersedes: None,
+        superseded_by: None,
+    };
+
+    // Step 6: Process content
+    println!("{}", "Step 5: Processing Content".cyan().bold());
+
+    // Strip existing frontmatter if present
+    if extracted.has_frontmatter {
+        content = strip_frontmatter(&content);
+        println!("  {} Removed existing frontmatter", "✓".green());
     }
 
-    // Step 5: Sync State with Directory
-    println!("{}", step_header(5, "Syncing state with directory"));
+    // Normalize content
+    content = content.trim().to_string();
+    if !content.is_empty() && !content.ends_with('\n') {
+        content.push('\n');
+    }
 
-    // In dry-run mode, state will already match since we'd be in draft dir
+    // Build new content with proper frontmatter
+    let frontmatter = build_yaml_frontmatter(&metadata);
+    let new_content = frontmatter + &content;
+
+    println!("  {} Added complete YAML frontmatter\n", "✓".green());
+
+    // Calculate final path
+    let state_dir = PathBuf::from(state_mgr.docs_dir()).join(state.directory());
+    let final_path = state_dir.join(&new_filename);
+
     if dry_run {
-        // The simulated path is in the draft directory, so state will match
-        println!("{}\n", skip("State would match directory"));
+        println!("{}", "Would create:".bold());
+        println!("  {}\n", final_path.display());
+        return Ok(());
+    }
+
+    // Step 7: Move to correct location
+    println!("{}", "Step 6: Moving to Repository".cyan().bold());
+
+    fs::create_dir_all(&state_dir)?;
+
+    // Write the new file
+    fs::write(&final_path, new_content).context("Failed to write file")?;
+
+    println!("  {} Created: {}\n", "✓".green(), final_path.display());
+
+    // Step 8: Git add
+    println!("{}", "Step 7: Git Staging".cyan().bold());
+    if let Err(e) = design::git::git_add(&final_path) {
+        println!("  {} Git staging failed: {}", "⚠".yellow(), e);
     } else {
-        // Re-read content if we might have updated it
-        let content = if content != updated_content {
-            fs::read_to_string(&path).context("Failed to read file")?
-        } else {
-            content
-        };
+        println!("  {} Staged with git\n", "✓".green());
+    }
 
-        let synced_content =
-            sync_state_with_directory(&path, &content).context("Failed to sync state")?;
+    // Step 9: Update state
+    state_mgr.record_file_change(&final_path)?;
 
-        if content != synced_content {
-            fs::write(&path, &synced_content).context("Failed to write synced content")?;
-            println!("{}\n", success("Updated state to match directory"));
-        } else {
-            println!("{}\n", skip("State already matches directory"));
+    // Step 10: Offer to delete original if different
+    if path != final_path && path.exists() && interactive && !auto_yes {
+        let should_delete =
+            prompt_confirm(&format!("Delete original file at {}?", path.display()), false)?;
+
+        if should_delete {
+            fs::remove_file(&path)?;
+            println!("  {} Deleted original file\n", "✓".green());
         }
     }
 
-    // Step 6: Git Add
-    println!("{}", step_header(6, "Adding to git"));
+    println!("\n{} Successfully added: {}", "✓".green().bold(), new_filename.bold());
 
-    if !dry_run {
-        design::git::git_add(&path).context("Failed to git add")?;
+    Ok(())
+}
 
-        println!("{}\n", success(&format!("Git staged: {}", path.display())));
+fn determine_title_interactive(extracted: &ExtractedMetadata, path: &Path) -> Result<String> {
+    let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+
+    let default = extracted
+        .title
+        .as_ref()
+        .or(extracted.first_heading.as_ref())
+        .cloned()
+        .unwrap_or_else(|| filename_to_title(filename));
+
+    prompt_with_default("Document title", &default)
+}
+
+fn determine_title_auto(extracted: &ExtractedMetadata, path: &Path) -> String {
+    extracted.title.clone().or_else(|| extracted.first_heading.clone()).unwrap_or_else(|| {
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+        filename_to_title(filename)
+    })
+}
+
+fn determine_author_interactive(extracted: &ExtractedMetadata) -> Result<String> {
+    let git_author = std::process::Command::new("git")
+        .args(["config", "user.name"])
+        .output()
+        .ok()
+        .and_then(|out| String::from_utf8(out.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "Unknown Author".to_string());
+
+    let default = extracted.author.as_ref().unwrap_or(&git_author);
+
+    prompt_with_default("Author", default)
+}
+
+fn determine_author_auto(extracted: &ExtractedMetadata) -> String {
+    extracted.author.clone().unwrap_or_else(|| design::git::get_author(std::path::Path::new(".")))
+}
+
+fn determine_state_interactive(extracted: &ExtractedMetadata) -> Result<DocState> {
+    let states = DocState::all_state_names();
+    let default_idx = if let Some(hint) = extracted.state_hint {
+        DocState::all_states().iter().position(|&s| s == hint).unwrap_or(0)
     } else {
-        println!("{}\n", success(&format!("Would git stage: {}", simulated_path.display())));
+        0 // Draft
+    };
+
+    let selected = prompt_select("Initial state", &states, default_idx)?;
+    Ok(DocState::from_str_flexible(&selected).unwrap_or(DocState::Draft))
+}
+
+/// Show preview of what will happen when adding a file
+pub fn preview_add(doc_path: &str, state_mgr: &StateManager) -> Result<()> {
+    let path = PathBuf::from(doc_path);
+
+    if !path.exists() {
+        anyhow::bail!("File not found: {}", doc_path);
     }
 
-    // Step 7: Update Index
-    println!("{}", step_header(7, "Updating index"));
+    let content = fs::read_to_string(&path)?;
 
-    if !dry_run {
-        // Reload index to pick up the new file
-        let updated_index =
-            DocumentIndex::new(index.docs_dir()).context("Failed to reload index")?;
-
-        // Run update-index command
-        crate::commands::update_index::update_index(&updated_index)
-            .context("Failed to update index")?;
-    } else {
-        println!("{}\n", success("Would update index"));
+    if !is_valid_markdown(&content) {
+        anyhow::bail!("File doesn't appear to be valid markdown");
     }
 
-    // Final summary
-    let final_path = if dry_run { &simulated_path } else { &path };
-    let final_filename = final_path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+    let extracted = ExtractedMetadata::from_content(&content);
 
-    if !dry_run {
-        println!("\n{} Successfully added document: {}", "✓".green().bold(), final_filename.bold());
-    } else {
-        println!("\n{} Would add document: {}", "→".yellow().bold(), final_filename.bold());
+    let title = determine_title_auto(&extracted, &path);
+    let author = determine_author_auto(&extracted);
+    let state = extracted.state_hint.unwrap_or(DocState::Draft);
+    let number = state_mgr.next_number();
+    let new_filename = build_filename(number, &title);
+
+    let final_path =
+        PathBuf::from(state_mgr.docs_dir()).join(state.directory()).join(&new_filename);
+
+    // Analyze for issues
+    let issues = analyze_markdown(&content);
+
+    println!("\n{}", "Preview of Changes".bold().underline());
+    println!();
+
+    // Current state
+    println!("{}", "Current:".cyan().bold());
+    println!("  Location: {}", path.display());
+    println!("  Filename: {}", path.file_name().unwrap_or_default().to_string_lossy());
+    println!("  Has frontmatter: {}", if extracted.has_frontmatter { "Yes" } else { "No" });
+    if let Some(ref t) = extracted.title {
+        println!("  Detected title: {}", t);
     }
+    if let Some(ref a) = extracted.author {
+        println!("  Detected author: {}", a);
+    }
+    println!();
+
+    // After state
+    println!("{}", "After:".green().bold());
+    println!("  Location: {}", final_path.display());
+    println!("  Filename: {}", new_filename);
+    println!("  Number: {:04}", number);
+    println!("  Title: {}", title);
+    println!("  Author: {}", author);
+    println!("  State: {}", state.as_str());
+    println!();
+
+    // Issues
+    if !issues.is_empty() {
+        println!("{}", "Content Issues:".yellow().bold());
+        for issue in &issues {
+            println!("  {} {}", "⚠".yellow(), issue);
+        }
+        println!();
+    }
+
+    Ok(())
+}
+
+/// Add multiple documents using glob patterns
+pub fn add_batch(
+    state_mgr: &mut StateManager,
+    patterns: Vec<String>,
+    dry_run: bool,
+    interactive: bool,
+) -> Result<()> {
+    use glob::glob;
+
+    let mut files = Vec::new();
+
+    // Expand patterns
+    for pattern in patterns {
+        for path in glob(&pattern)?.flatten() {
+            if path.is_file() {
+                // Only include markdown files
+                if let Some(ext) = path.extension() {
+                    if ext == "md" {
+                        files.push(path);
+                    }
+                }
+            }
+        }
+    }
+
+    if files.is_empty() {
+        println!("No markdown files found matching patterns");
+        return Ok(());
+    }
+
+    println!("{} Found {} file(s)\n", "→".cyan(), files.len());
+
+    // Show files and confirm
+    for file in &files {
+        println!("  - {}", file.display());
+    }
+    println!();
+
+    if interactive {
+        let confirmed = prompt_confirm(&format!("Add all {} file(s)?", files.len()), true)?;
+
+        if !confirmed {
+            println!("Cancelled.");
+            return Ok(());
+        }
+    }
+
+    let mut succeeded = 0;
+    let mut failed = 0;
+
+    for (idx, file) in files.iter().enumerate() {
+        println!("\n{} [{}/{}] Processing: {}", "→".cyan(), idx + 1, files.len(), file.display());
+        println!("{}", "─".repeat(60));
+
+        match add_document(
+            state_mgr,
+            file.to_str().unwrap(),
+            dry_run,
+            false, // Non-interactive for batch
+            true,  // Auto-yes
+        ) {
+            Ok(_) => {
+                succeeded += 1;
+            }
+            Err(e) => {
+                eprintln!("{} Failed: {}\n", "✗".red(), e);
+                failed += 1;
+            }
+        }
+    }
+
+    println!(
+        "\n{} Batch complete: {} succeeded, {} failed",
+        if failed == 0 { "✓".green().bold() } else { "⚠".yellow().bold() },
+        succeeded,
+        failed
+    );
 
     Ok(())
 }

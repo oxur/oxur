@@ -5,9 +5,13 @@
 
 pub mod doc;
 pub mod errors;
+pub mod extract;
+pub mod filename;
 pub mod git;
 pub mod index;
 pub mod index_sync;
+pub mod normalize;
+pub mod prompt;
 pub mod state;
 pub mod theme;
 

@@ -84,7 +84,16 @@ fn main() -> Result<()> {
         Commands::Transition { path, state } => transition_document(&index, &path, &state),
         Commands::SyncLocation { path } => sync_location(&index, &path),
         Commands::UpdateIndex => update_index(&index),
-        Commands::Add { path, dry_run } => add_document(&index, &path, dry_run),
+        Commands::Add { path, dry_run, interactive, yes, preview } => {
+            if preview {
+                preview_add(&path, &state_mgr)
+            } else {
+                add_document(&mut state_mgr, &path, dry_run, interactive, yes)
+            }
+        }
+        Commands::AddBatch { patterns, dry_run, interactive } => {
+            add_batch(&mut state_mgr, patterns, dry_run, interactive)
+        }
         Commands::Scan { fix, verbose } => scan_documents(&mut state_mgr, fix, verbose),
     };
 

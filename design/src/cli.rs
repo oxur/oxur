@@ -101,6 +101,32 @@ pub enum Commands {
         /// Show what would be done without making changes
         #[arg(long)]
         dry_run: bool,
+
+        /// Interactive mode (prompt for metadata)
+        #[arg(short, long)]
+        interactive: bool,
+
+        /// Auto-yes to prompts (non-interactive with defaults)
+        #[arg(short = 'y', long)]
+        yes: bool,
+
+        /// Show preview without making changes
+        #[arg(long)]
+        preview: bool,
+    },
+
+    /// Add multiple documents (supports glob patterns)
+    AddBatch {
+        /// File patterns (e.g., *.md, ~/docs/*.md)
+        patterns: Vec<String>,
+
+        /// Show what would be done without making changes
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Interactive mode (confirm before adding)
+        #[arg(short, long)]
+        interactive: bool,
     },
 
     /// Scan filesystem and update document state

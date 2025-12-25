@@ -12,7 +12,7 @@ pub mod transition;
 pub mod update_index;
 pub mod validate;
 
-pub use add::add_document;
+pub use add::{add_batch, add_document, preview_add};
 pub use add_headers::add_headers;
 pub use index::generate_index;
 pub use list::list_documents;
