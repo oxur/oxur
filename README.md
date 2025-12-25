@@ -72,12 +72,12 @@ Copyright © 2020, Oxur Group
 
 Licensed under either of:
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
 
 at your option.
 
 <!-- Named page links below: /-->
 
-[logo]: https://raw.githubusercontent.com/oxur/oxur/master/images/logo/v1-tiny.jpg
-[logo-large]: https://raw.githubusercontent.com/oxur/oxur/master/images/logo/v1.jpg
+[logo]: https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v1-tiny.jpg
+[logo-large]: https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v1.jpg
