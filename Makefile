@@ -1,22 +1,15 @@
 default: build
 
-$(HOME)/.cargo/bin/evcxr:
-	@cargo install evcxr_repl
-
-evcxr: $(HOME)/.cargo/bin/evcxr
-	evcxr
-
-$(HOME)/.cargo/bin/oxischeme:
-	@cargo install oxischeme
-
-oxischeme: $(HOME)/.cargo/bin/oxischeme
-	oxischeme
-
 build:
+	@echo "Building oxur..."
 	@cargo build
-	@rm bin/*
-	@cargo install --path . --root .
 
-rebuild:
-	@cargo clean
-	$(MAKE) build
+lint:
+	@echo "Running linter..."
+	@cargo clippy
+
+test:
+	@echo "Running tests..."
+	@cargo test
+
+check: build lint test

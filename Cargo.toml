@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = [
+    "design",
+    # Future crates will be added here:
+    # "rast",
+    # "lang",
+    # "repl",
+    # "cli",
+]
+
+# Workspace-wide dependencies (shared versions)
+[workspace.dependencies]
+clap = { version = "4.5", features = ["derive", "cargo"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.8"
+anyhow = "1.0"
+thiserror = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2.5"
+regex = "1.10"
+colored = "2.1"
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.10"
+
+# Package metadata shared by all crates
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Duncan McGreggor <duncan@example.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/oxur/oxur"

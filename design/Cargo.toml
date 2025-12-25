@@ -1,0 +1,35 @@
+[package]
+name = "design"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Design documentation and management tools for Oxur"
+
+# This is both a library and a binary
+[[bin]]
+name = "oxd"
+path = "src/main.rs"
+
+[lib]
+name = "design"
+path = "src/lib.rs"
+
+[dependencies]
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+toml.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+walkdir.workspace = true
+regex.workspace = true
+colored.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+tempfile.workspace = true
