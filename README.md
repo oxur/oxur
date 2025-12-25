@@ -79,5 +79,5 @@ at your option.
 
 <!-- Named page links below: /-->
 
-[logo]: https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v1-tiny.jpg
-[logo-large]: https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v1.jpg
+[logo]: https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v2.3-250x.png
+[logo-large]: https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v2.3-1000x.png
