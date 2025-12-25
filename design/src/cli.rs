@@ -18,7 +18,7 @@ pub struct Cli {
 pub enum Commands {
     /// List all design documents
     List {
-        /// Filter by state (draft, under-review, final, superseded)
+        /// Filter by state (draft, under-review, revised, accepted, active, final, deferred, rejected, withdrawn, superseded)
         #[arg(short, long)]
         state: Option<String>,
 
@@ -59,5 +59,26 @@ pub enum Commands {
         /// Output format (markdown or json)
         #[arg(short, long, default_value = "markdown")]
         format: String,
+    },
+
+    /// Add or update YAML frontmatter headers
+    AddHeaders {
+        /// Path to document
+        path: String,
+    },
+
+    /// Transition document to a new state
+    Transition {
+        /// Path to document
+        path: String,
+
+        /// New state (draft, under-review, revised, accepted, active, final, deferred, rejected, withdrawn, superseded)
+        state: String,
+    },
+
+    /// Move document to directory matching its state header
+    SyncLocation {
+        /// Path to document
+        path: String,
     },
 }

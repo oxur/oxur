@@ -31,8 +31,16 @@ fn main() -> Result<()> {
             validate_documents(&index, fix)?;
         }
         Commands::Index { format } => {
-            eprintln!("Index generation not yet implemented");
-            eprintln!("Format: {}", format);
+            generate_index(&index, &format)?;
+        }
+        Commands::AddHeaders { path } => {
+            add_headers(&path)?;
+        }
+        Commands::Transition { path, state } => {
+            transition_document(&index, &path, &state)?;
+        }
+        Commands::SyncLocation { path } => {
+            sync_location(&index, &path)?;
         }
     }
 
