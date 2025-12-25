@@ -81,4 +81,7 @@ pub enum Commands {
         /// Path to document
         path: String,
     },
+
+    /// Synchronize the index with documents on filesystem
+    UpdateIndex,
 }

@@ -1,30 +1,15 @@
-# Oxur Design Documents
+# Design Document Index
 
-This directory contains all design documents, architectural decisions, and technical specifications for the Oxur project.
+This index is automatically generated. Do not edit manually.
 
-## Document States
-
-- **Draft** - Work in progress, open for discussion
-- **Under Review** - Complete but awaiting approval
-- **Final** - Approved and implemented
-- **Superseded** - Replaced by a newer document
-
-## Document Index
+## All Documents by Number
 
 | Number | Title | State | Updated |
-|--------|-------|-------|---------|
+|--------|-------|-------|----------|
 | 0001 | Oxur: A Letter of Intent | Draft | 2025-12-25 |
 
-## Adding New Documents
+## Documents by State
 
-Use the design CLI tool:
+### Draft
 
-```bash
-cargo run -p design -- new "Your Document Title"
-```
-
-This will create a new document in `01-drafts/` with the next available number.
-
-## Document Template
-
-All design documents follow a standard template with YAML frontmatter. See `templates/design-doc-template.md`.
+- [0001 - Oxur: A Letter of Intent](01-draft/0001-oxur-letter-of-intent.md)

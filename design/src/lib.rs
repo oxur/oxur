@@ -6,6 +6,7 @@
 pub mod doc;
 pub mod git;
 pub mod index;
+pub mod index_sync;
 
 pub use doc::{
     add_missing_headers, build_yaml_frontmatter, extract_number_from_filename,

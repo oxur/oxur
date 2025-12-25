@@ -42,6 +42,9 @@ fn main() -> Result<()> {
         Commands::SyncLocation { path } => {
             sync_location(&index, &path)?;
         }
+        Commands::UpdateIndex => {
+            update_index(&index)?;
+        }
     }
 
     Ok(())
