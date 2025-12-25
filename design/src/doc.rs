@@ -399,3 +399,139 @@ pub fn add_missing_headers(
         Ok((new_content, added_fields))
     }
 }
+
+// ============================================================================
+// Task 4.1: Number Assignment Functions
+// ============================================================================
+
+/// Check if filename has a number prefix (e.g., 0001-, 0042-)
+pub fn has_number_prefix(filename: &str) -> bool {
+    let re = Regex::new(r"^\d{4}-").unwrap();
+    re.is_match(filename)
+}
+
+/// Rename file to include number prefix
+pub fn add_number_prefix(path: &Path, number: u32) -> Result<PathBuf, std::io::Error> {
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid filename"))?;
+
+    let new_filename = format!("{:04}-{}", number, filename);
+    let new_path = path.with_file_name(new_filename);
+
+    std::fs::rename(path, &new_path)?;
+
+    Ok(new_path)
+}
+
+// ============================================================================
+// Task 4.2: Directory Placement Functions
+// ============================================================================
+
+/// Check if a path is within the project directory
+pub fn is_in_project_dir(file_path: &Path, project_dir: &Path) -> Result<bool, std::io::Error> {
+    let abs_file = file_path.canonicalize()?;
+    let abs_project = project_dir.canonicalize()?;
+
+    Ok(abs_file.starts_with(abs_project))
+}
+
+/// Check if a path is in one of the state directories
+pub fn is_in_state_dir(file_path: &Path) -> bool {
+    if let Some(parent) = file_path.parent() {
+        if let Some(dir_name) = parent.file_name().and_then(|n| n.to_str()) {
+            return DocState::from_directory(dir_name).is_some();
+        }
+    }
+    false
+}
+
+/// Get the state from the file's current directory
+pub fn state_from_directory(file_path: &Path) -> Option<DocState> {
+    file_path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .and_then(DocState::from_directory)
+}
+
+/// Move file to project directory
+pub fn move_to_project(file_path: &Path, project_dir: &Path) -> Result<PathBuf, std::io::Error> {
+    let filename = file_path.file_name().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid filename")
+    })?;
+
+    let new_path = project_dir.join(filename);
+    std::fs::rename(file_path, &new_path)?;
+
+    Ok(new_path)
+}
+
+/// Move file to a state directory
+pub fn move_to_state_dir(
+    file_path: &Path,
+    state: DocState,
+    project_dir: &Path,
+) -> Result<PathBuf, std::io::Error> {
+    let filename = file_path.file_name().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid filename")
+    })?;
+
+    let state_dir = project_dir.join(state.directory());
+    std::fs::create_dir_all(&state_dir)?;
+
+    let new_path = state_dir.join(filename);
+    std::fs::rename(file_path, &new_path)?;
+
+    Ok(new_path)
+}
+
+// ============================================================================
+// Task 4.3: Header Processing Functions
+// ============================================================================
+
+/// Check if content has YAML frontmatter
+pub fn has_frontmatter(content: &str) -> bool {
+    content.trim_start().starts_with("---\n")
+}
+
+/// Check if frontmatter has placeholder values
+pub fn has_placeholder_values(content: &str) -> bool {
+    content.contains("number: NNNN")
+        || content.contains("number: 0\n")
+        || content.contains("author: Unknown")
+        || content.contains("title: \"\"")
+}
+
+/// Ensure document has complete, valid headers
+pub fn ensure_valid_headers(path: &Path, content: &str) -> Result<String, DocError> {
+    if !has_frontmatter(content) || has_placeholder_values(content) {
+        let (new_content, _) = add_missing_headers(path, content)?;
+        Ok(new_content)
+    } else {
+        Ok(content.to_string())
+    }
+}
+
+// ============================================================================
+// Task 4.4: State Synchronization Functions
+// ============================================================================
+
+/// Sync document state with its directory location
+pub fn sync_state_with_directory(path: &Path, content: &str) -> Result<String, DocError> {
+    // Get state from directory
+    let dir_state = state_from_directory(path).ok_or_else(|| {
+        DocError::InvalidFormat("Document not in a state directory".to_string())
+    })?;
+
+    // Parse document to get current state
+    let doc = DesignDoc::parse(content, path.to_path_buf())?;
+
+    // If states don't match, update the content
+    if doc.metadata.state != dir_state {
+        DesignDoc::update_state(content, dir_state)
+    } else {
+        Ok(content.to_string())
+    }
+}

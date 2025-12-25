@@ -45,6 +45,9 @@ fn main() -> Result<()> {
         Commands::UpdateIndex => {
             update_index(&index)?;
         }
+        Commands::Add { path, dry_run } => {
+            add_document(&index, &path, dry_run)?;
+        }
     }
 
     Ok(())

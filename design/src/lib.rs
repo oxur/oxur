@@ -9,8 +9,10 @@ pub mod index;
 pub mod index_sync;
 
 pub use doc::{
-    add_missing_headers, build_yaml_frontmatter, extract_number_from_filename,
-    extract_title_from_content, DesignDoc, DocError, DocMetadata, DocState,
+    add_missing_headers, add_number_prefix, build_yaml_frontmatter, ensure_valid_headers,
+    extract_number_from_filename, extract_title_from_content, has_frontmatter, has_number_prefix,
+    has_placeholder_values, is_in_project_dir, is_in_state_dir, move_to_project, move_to_state_dir,
+    state_from_directory, sync_state_with_directory, DesignDoc, DocError, DocMetadata, DocState,
 };
 pub use index::DocumentIndex;
 

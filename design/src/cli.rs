@@ -84,4 +84,14 @@ pub enum Commands {
 
     /// Synchronize the index with documents on filesystem
     UpdateIndex,
+
+    /// Add a new document with full processing
+    Add {
+        /// Path to document file
+        path: String,
+
+        /// Show what would be done without making changes
+        #[arg(long)]
+        dry_run: bool,
+    },
 }

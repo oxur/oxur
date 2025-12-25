@@ -1,5 +1,6 @@
 //! Command implementations
 
+pub mod add;
 pub mod add_headers;
 pub mod index;
 pub mod list;
@@ -10,6 +11,7 @@ pub mod transition;
 pub mod update_index;
 pub mod validate;
 
+pub use add::add_document;
 pub use add_headers::add_headers;
 pub use index::generate_index;
 pub use list::list_documents;
