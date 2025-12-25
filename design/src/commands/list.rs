@@ -11,17 +11,21 @@ pub fn list_documents(
     verbose: bool,
 ) -> Result<()> {
     let docs = if let Some(state_str) = state_filter {
-        let state = match state_str.to_lowercase().as_str() {
-            "draft" => DocState::Draft,
-            "under-review" | "review" => DocState::UnderReview,
-            "final" => DocState::Final,
-            "superseded" => DocState::Superseded,
-            _ => {
-                eprintln!("{}", format!("Unknown state: {}", state_str).red());
+        match DocState::from_str_flexible(&state_str) {
+            Some(state) => index.by_state(state),
+            None => {
+                eprintln!(
+                    "{} Unknown state: {}",
+                    "ERROR:".red().bold(),
+                    state_str
+                );
+                eprintln!(
+                    "Valid states: {}",
+                    DocState::all_state_names().join(", ")
+                );
                 return Ok(());
             }
-        };
-        index.by_state(state)
+        }
     } else {
         index.all()
     };
@@ -33,7 +37,13 @@ pub fn list_documents(
         let state_color = match doc.metadata.state {
             DocState::Draft => "yellow",
             DocState::UnderReview => "cyan",
+            DocState::Revised => "magenta",
+            DocState::Accepted => "green",
+            DocState::Active => "bright green",
             DocState::Final => "green",
+            DocState::Deferred => "blue",
+            DocState::Rejected => "red",
+            DocState::Withdrawn => "bright black",
             DocState::Superseded => "red",
         };
 

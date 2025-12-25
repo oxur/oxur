@@ -2,28 +2,15 @@
 
 use anyhow::Result;
 use chrono::Local;
+use design::doc::DocState;
+use design::git;
 use design::index::DocumentIndex;
 use std::fs;
 use std::path::PathBuf;
 
 pub fn new_document(index: &DocumentIndex, title: String, author: Option<String>) -> Result<()> {
     let number = index.next_number();
-    let author = author.unwrap_or_else(|| {
-        // Try to get from git config
-        std::process::Command::new("git")
-            .args(["config", "user.name"])
-            .output()
-            .ok()
-            .and_then(|output| {
-                if output.status.success() {
-                    String::from_utf8(output.stdout).ok()
-                } else {
-                    None
-                }
-            })
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| "Unknown Author".to_string())
-    });
+    let author = author.unwrap_or_else(|| git::get_author("."));
 
     let today = Local::now().naive_local().date();
 
@@ -83,7 +70,8 @@ superseded-by: null
             .collect::<String>()
     );
 
-    let docs_dir = PathBuf::from(index.docs_dir()).join("01-drafts");
+    // Use the new directory naming scheme
+    let docs_dir = PathBuf::from(index.docs_dir()).join(DocState::Draft.directory());
     fs::create_dir_all(&docs_dir)?;
 
     let path = docs_dir.join(&filename);
