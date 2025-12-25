@@ -12,10 +12,7 @@ use std::path::{Path, PathBuf};
 
 /// Synchronize the index with documents on filesystem
 pub fn update_index(index: &DocumentIndex) -> Result<()> {
-    println!(
-        "{}\n",
-        "Synchronizing index with documents...".bold()
-    );
+    println!("{}\n", "Synchronizing index with documents...".bold());
 
     let docs_dir = PathBuf::from(index.docs_dir());
     let index_path = docs_dir.join("00-index.md");
@@ -30,15 +27,13 @@ pub fn update_index(index: &DocumentIndex) -> Result<()> {
     }
 
     // Read current index
-    let current_content =
-        fs::read_to_string(&index_path).context("Failed to read index file")?;
+    let current_content = fs::read_to_string(&index_path).context("Failed to read index file")?;
 
     // Parse current index
     let parsed = ParsedIndex::parse(&current_content).context("Failed to parse index")?;
 
     // Get all docs from filesystem
-    let doc_paths =
-        get_docs_from_filesystem(&docs_dir).context("Failed to scan documents")?;
+    let doc_paths = get_docs_from_filesystem(&docs_dir).context("Failed to scan documents")?;
 
     // Build document map
     let doc_map = build_doc_map(&doc_paths);
@@ -85,10 +80,7 @@ pub fn update_index(index: &DocumentIndex) -> Result<()> {
     // Report formatting changes
     if formatting_changed && all_changes.is_empty() {
         println!("{}", "Formatting:".bold());
-        println!(
-            "  {} Applied spacing and formatting cleanup",
-            "✓".green()
-        );
+        println!("  {} Applied spacing and formatting cleanup", "✓".green());
         println!();
     }
 
@@ -98,11 +90,7 @@ pub fn update_index(index: &DocumentIndex) -> Result<()> {
     // Summary
     let change_count = all_changes.len();
     if change_count > 0 {
-        println!(
-            "{} {} change(s) applied to index",
-            "Summary:".bold(),
-            change_count
-        );
+        println!("{} {} change(s) applied to index", "Summary:".bold(), change_count);
     } else {
         println!("{} Formatting cleanup applied", "Summary:".bold());
     }
@@ -118,25 +106,16 @@ fn apply_change(
     _docs_dir: &Path,
 ) -> Result<String> {
     match change {
-        IndexChange::TableAdd {
-            number,
-            title,
-            state,
-            updated,
-        } => add_to_table(content, number, title, state, updated),
-        IndexChange::TableUpdate {
-            number,
-            field,
-            new,
-            ..
-        } => update_table_field(content, number, field, new),
+        IndexChange::TableAdd { number, title, state, updated } => {
+            add_to_table(content, number, title, state, updated)
+        }
+        IndexChange::TableUpdate { number, field, new, .. } => {
+            update_table_field(content, number, field, new)
+        }
         IndexChange::TableRemove { number } => remove_from_table(content, number),
-        IndexChange::SectionAdd {
-            state,
-            number,
-            title,
-            path,
-        } => add_to_section(content, state, number, title, path),
+        IndexChange::SectionAdd { state, number, title, path } => {
+            add_to_section(content, state, number, title, path)
+        }
         IndexChange::SectionRemove { state, path } => remove_from_section(content, state, path),
     }
 }
@@ -178,10 +157,8 @@ fn add_to_table(
                 if let Ok(row_num) = row_num_str.parse::<u32>() {
                     if doc_num < row_num {
                         // Insert before this row
-                        result.push(format!(
-                            "| {} | {} | {} | {} |",
-                            number, title, state, updated
-                        ));
+                        result
+                            .push(format!("| {} | {} | {} | {} |", number, title, state, updated));
                         inserted = true;
                     }
                 }
@@ -195,10 +172,7 @@ fn add_to_table(
             let next_line = lines.get(idx + 1).unwrap_or(&"");
             if !next_line.starts_with('|') {
                 result.pop();
-                result.push(format!(
-                    "| {} | {} | {} | {} |",
-                    number, title, state, updated
-                ));
+                result.push(format!("| {} | {} | {} | {} |", number, title, state, updated));
                 result.push(line.to_string());
                 inserted = true;
                 in_table = false;

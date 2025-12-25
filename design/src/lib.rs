@@ -4,9 +4,11 @@
 //! in the Oxur project.
 
 pub mod doc;
+pub mod errors;
 pub mod git;
 pub mod index;
 pub mod index_sync;
+pub mod theme;
 
 pub use doc::{
     add_missing_headers, add_number_prefix, build_yaml_frontmatter, ensure_valid_headers,

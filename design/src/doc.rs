@@ -458,9 +458,9 @@ pub fn state_from_directory(file_path: &Path) -> Option<DocState> {
 
 /// Move file to project directory
 pub fn move_to_project(file_path: &Path, project_dir: &Path) -> Result<PathBuf, std::io::Error> {
-    let filename = file_path.file_name().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid filename")
-    })?;
+    let filename = file_path
+        .file_name()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid filename"))?;
 
     let new_path = project_dir.join(filename);
     std::fs::rename(file_path, &new_path)?;
@@ -474,9 +474,9 @@ pub fn move_to_state_dir(
     state: DocState,
     project_dir: &Path,
 ) -> Result<PathBuf, std::io::Error> {
-    let filename = file_path.file_name().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid filename")
-    })?;
+    let filename = file_path
+        .file_name()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid filename"))?;
 
     let state_dir = project_dir.join(state.directory());
     std::fs::create_dir_all(&state_dir)?;
@@ -521,9 +521,8 @@ pub fn ensure_valid_headers(path: &Path, content: &str) -> Result<String, DocErr
 /// Sync document state with its directory location
 pub fn sync_state_with_directory(path: &Path, content: &str) -> Result<String, DocError> {
     // Get state from directory
-    let dir_state = state_from_directory(path).ok_or_else(|| {
-        DocError::InvalidFormat("Document not in a state directory".to_string())
-    })?;
+    let dir_state = state_from_directory(path)
+        .ok_or_else(|| DocError::InvalidFormat("Document not in a state directory".to_string()))?;
 
     // Parse document to get current state
     let doc = DesignDoc::parse(content, path.to_path_buf())?;

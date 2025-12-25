@@ -24,10 +24,7 @@ pub fn transition_document(
     let content = fs::read_to_string(&path).context("Failed to read file")?;
 
     let content = if !content.trim_start().starts_with("---") {
-        println!(
-            "{}",
-            "Document missing headers, adding them automatically...".yellow()
-        );
+        println!("{}", "Document missing headers, adding them automatically...".yellow());
         let (new_content, _) = design::doc::add_missing_headers(&path, &content)?;
         fs::write(&path, &new_content).context("Failed to write headers")?;
         new_content
@@ -36,19 +33,14 @@ pub fn transition_document(
     };
 
     // Parse document to get current state
-    let doc =
-        DesignDoc::parse(&content, path.clone()).context("Failed to parse document")?;
+    let doc = DesignDoc::parse(&content, path.clone()).context("Failed to parse document")?;
 
     let current_state = doc.metadata.state;
 
     // Parse new state
     let new_state = DocState::from_str_flexible(new_state_str).ok_or_else(|| {
         let valid_states = DocState::all_state_names().join(", ");
-        anyhow::anyhow!(
-            "Unsupported state '{}'. Valid states are: {}",
-            new_state_str,
-            valid_states
-        )
+        anyhow::anyhow!("Unsupported state '{}'. Valid states are: {}", new_state_str, valid_states)
     })?;
 
     // Check if already in that state
@@ -64,9 +56,7 @@ pub fn transition_document(
     fs::write(&path, updated_content).context("Failed to write updated content")?;
 
     // Move to new state directory
-    let filename = path
-        .file_name()
-        .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
+    let filename = path.file_name().ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
 
     let new_dir = PathBuf::from(index.docs_dir()).join(new_state.directory());
     let new_path = new_dir.join(filename);

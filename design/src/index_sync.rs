@@ -31,10 +31,7 @@ impl ParsedIndex {
         let table_entries = parse_table(content);
         let state_sections = parse_state_sections(content);
 
-        Ok(ParsedIndex {
-            table_entries,
-            state_sections,
-        })
+        Ok(ParsedIndex { table_entries, state_sections })
     }
 }
 
@@ -119,10 +116,7 @@ fn parse_state_sections(content: &str) -> HashMap<String, Vec<String>> {
                 // Extract path from markdown link: - [0001 - Title](path/to/file.md)
                 if let Some(caps) = re.captures(line) {
                     if let Some(path) = caps.get(1) {
-                        sections
-                            .get_mut(state)
-                            .unwrap()
-                            .push(path.as_str().to_string());
+                        sections.get_mut(state).unwrap().push(path.as_str().to_string());
                     }
                 }
             }
@@ -146,11 +140,7 @@ pub fn get_docs_from_filesystem(docs_dir: impl AsRef<Path>) -> Result<Vec<PathBu
             continue;
         }
 
-        for entry in WalkDir::new(&state_dir)
-            .max_depth(1)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(&state_dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_file() {
                 if let Some(ext) = entry.path().extension() {
                     if ext == "md" {
@@ -183,31 +173,11 @@ pub fn build_doc_map(doc_paths: &[PathBuf]) -> HashMap<String, DesignDoc> {
 /// Types of changes that can occur
 #[derive(Debug, Clone)]
 pub enum IndexChange {
-    TableAdd {
-        number: String,
-        title: String,
-        state: String,
-        updated: String,
-    },
-    TableUpdate {
-        number: String,
-        field: String,
-        old: String,
-        new: String,
-    },
-    TableRemove {
-        number: String,
-    },
-    SectionAdd {
-        state: String,
-        number: String,
-        title: String,
-        path: String,
-    },
-    SectionRemove {
-        state: String,
-        path: String,
-    },
+    TableAdd { number: String, title: String, state: String, updated: String },
+    TableUpdate { number: String, field: String, old: String, new: String },
+    TableRemove { number: String },
+    SectionAdd { state: String, number: String, title: String, path: String },
+    SectionRemove { state: String, path: String },
 }
 
 impl IndexChange {
@@ -216,23 +186,13 @@ impl IndexChange {
             IndexChange::TableAdd { number, title, .. } => {
                 format!("Add to table: {} - {}", number, title)
             }
-            IndexChange::TableUpdate {
-                number,
-                field,
-                old,
-                new,
-            } => {
+            IndexChange::TableUpdate { number, field, old, new } => {
                 format!("Update {}: {} ({} → {})", number, field, old, new)
             }
             IndexChange::TableRemove { number } => {
                 format!("Remove from table: {}", number)
             }
-            IndexChange::SectionAdd {
-                state,
-                number,
-                title,
-                ..
-            } => {
+            IndexChange::SectionAdd { state, number, title, .. } => {
                 format!("Add to {}: {} - {}", state, number, title)
             }
             IndexChange::SectionRemove { state, path } => {
@@ -296,9 +256,7 @@ pub fn compute_table_changes(
     // Check for entries in table that no longer exist
     for number in parsed.table_entries.keys() {
         if !doc_map.contains_key(number) {
-            changes.push(IndexChange::TableRemove {
-                number: number.clone(),
-            });
+            changes.push(IndexChange::TableRemove { number: number.clone() });
         }
     }
 
@@ -326,11 +284,7 @@ pub fn compute_section_changes(
 
     // Check each state section
     for (state_name, expected_docs) in expected_by_state {
-        let current_paths = parsed
-            .state_sections
-            .get(&state_name)
-            .cloned()
-            .unwrap_or_default();
+        let current_paths = parsed.state_sections.get(&state_name).cloned().unwrap_or_default();
 
         // Build set of current paths for quick lookup
         let current_set: HashSet<String> = current_paths.iter().cloned().collect();

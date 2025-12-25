@@ -25,10 +25,7 @@ fn skip(msg: &str) -> String {
 /// Add a new document with full processing
 pub fn add_document(index: &DocumentIndex, doc_path: &str, dry_run: bool) -> Result<()> {
     if dry_run {
-        println!(
-            "{}\n",
-            "DRY RUN MODE - No changes will be made".yellow().bold()
-        );
+        println!("{}\n", "DRY RUN MODE - No changes will be made".yellow().bold());
     }
 
     println!("{} {}\n", "Adding document:".bold(), doc_path);
@@ -62,10 +59,7 @@ pub fn add_document(index: &DocumentIndex, doc_path: &str, dry_run: bool) -> Res
             path = add_number_prefix(&path, next_num)
                 .with_context(|| format!("Failed to add number prefix to {}", path.display()))?;
 
-            let new_filename = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown");
+            let new_filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
             println!("{}\n", success(&format!("Renamed to: {}", new_filename)));
         } else {
             filename = format!("{:04}-{}", next_num, filename);
@@ -89,10 +83,7 @@ pub fn add_document(index: &DocumentIndex, doc_path: &str, dry_run: bool) -> Res
             println!("{}\n", success(&format!("Moved to: {}", path.display())));
         } else {
             simulated_path = project_dir.join(&filename);
-            println!(
-                "{}\n",
-                success(&format!("Would move to: {}", simulated_path.display()))
-            );
+            println!("{}\n", success(&format!("Would move to: {}", simulated_path.display())));
         }
     } else {
         println!("{}\n", skip("File already in project directory"));
@@ -104,17 +95,13 @@ pub fn add_document(index: &DocumentIndex, doc_path: &str, dry_run: bool) -> Res
         println!("{}", step_header(3, "Moving to draft directory"));
 
         if !dry_run {
-            path = move_to_state_dir(&path, DocState::Draft, &project_dir).with_context(|| {
-                format!("Failed to move {} to draft directory", path.display())
-            })?;
+            path = move_to_state_dir(&path, DocState::Draft, &project_dir)
+                .with_context(|| format!("Failed to move {} to draft directory", path.display()))?;
 
             println!("{}\n", success(&format!("Moved to: {}", path.display())));
         } else {
             simulated_path = project_dir.join(DocState::Draft.directory()).join(&filename);
-            println!(
-                "{}\n",
-                success(&format!("Would move to: {}", simulated_path.display()))
-            );
+            println!("{}\n", success(&format!("Would move to: {}", simulated_path.display())));
         }
     } else {
         println!("{}\n", skip("File already in state directory"));
@@ -175,10 +162,7 @@ pub fn add_document(index: &DocumentIndex, doc_path: &str, dry_run: bool) -> Res
 
         println!("{}\n", success(&format!("Git staged: {}", path.display())));
     } else {
-        println!(
-            "{}\n",
-            success(&format!("Would git stage: {}", simulated_path.display()))
-        );
+        println!("{}\n", success(&format!("Would git stage: {}", simulated_path.display())));
     }
 
     // Step 7: Update Index
@@ -198,23 +182,12 @@ pub fn add_document(index: &DocumentIndex, doc_path: &str, dry_run: bool) -> Res
 
     // Final summary
     let final_path = if dry_run { &simulated_path } else { &path };
-    let final_filename = final_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("unknown");
+    let final_filename = final_path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
 
     if !dry_run {
-        println!(
-            "\n{} Successfully added document: {}",
-            "✓".green().bold(),
-            final_filename.bold()
-        );
+        println!("\n{} Successfully added document: {}", "✓".green().bold(), final_filename.bold());
     } else {
-        println!(
-            "\n{} Would add document: {}",
-            "→".yellow().bold(),
-            final_filename.bold()
-        );
+        println!("\n{} Would add document: {}", "→".yellow().bold(), final_filename.bold());
     }
 
     Ok(())

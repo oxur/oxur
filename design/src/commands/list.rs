@@ -4,6 +4,7 @@ use anyhow::Result;
 use colored::*;
 use design::doc::DocState;
 use design::index::DocumentIndex;
+use design::theme;
 
 pub fn list_documents(
     index: &DocumentIndex,
@@ -14,15 +15,8 @@ pub fn list_documents(
         match DocState::from_str_flexible(&state_str) {
             Some(state) => index.by_state(state),
             None => {
-                eprintln!(
-                    "{} Unknown state: {}",
-                    "ERROR:".red().bold(),
-                    state_str
-                );
-                eprintln!(
-                    "Valid states: {}",
-                    DocState::all_state_names().join(", ")
-                );
+                eprintln!("{} Unknown state: {}", "ERROR:".red().bold(), state_str);
+                eprintln!("Valid states: {}", DocState::all_state_names().join(", "));
                 return Ok(());
             }
         }
@@ -34,24 +28,15 @@ pub fn list_documents(
     println!();
 
     for doc in &docs {
-        let state_color = match doc.metadata.state {
-            DocState::Draft => "yellow",
-            DocState::UnderReview => "cyan",
-            DocState::Revised => "magenta",
-            DocState::Accepted => "green",
-            DocState::Active => "bright green",
-            DocState::Final => "green",
-            DocState::Deferred => "blue",
-            DocState::Rejected => "red",
-            DocState::Withdrawn => "bright black",
-            DocState::Superseded => "red",
-        };
-
-        let number = format!("{:04}", doc.metadata.number);
         let state = doc.metadata.state.as_str();
 
         if verbose {
-            println!("{} {} [{}]", number.bold(), doc.metadata.title, state.color(state_color));
+            println!(
+                "{} {} [{}]",
+                theme::doc_number(doc.metadata.number),
+                doc.metadata.title,
+                theme::state_badge(state)
+            );
             println!("  Author: {}", doc.metadata.author);
             println!("  Created: {} | Updated: {}", doc.metadata.created, doc.metadata.updated);
             if let Some(supersedes) = doc.metadata.supersedes {
@@ -62,7 +47,12 @@ pub fn list_documents(
             }
             println!();
         } else {
-            println!("{} {} [{}]", number.bold(), doc.metadata.title, state.color(state_color));
+            println!(
+                "{} {} [{}]",
+                theme::doc_number(doc.metadata.number),
+                doc.metadata.title,
+                theme::state_badge(state)
+            );
         }
     }
 

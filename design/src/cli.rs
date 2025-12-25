@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "oxd")]
 #[command(about = "Oxur Design Documentation Manager", long_about = None)]
+#[command(after_help = "Use 'oxd <command> --help' for more information about a command.")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -17,6 +18,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// List all design documents
+    #[command(visible_alias = "ls")]
     List {
         /// Filter by state (draft, under-review, revised, accepted, active, final, deferred, rejected, withdrawn, superseded)
         #[arg(short, long)]
@@ -48,6 +50,7 @@ pub enum Commands {
     },
 
     /// Validate all documents
+    #[command(visible_alias = "check")]
     Validate {
         /// Fix issues automatically where possible
         #[arg(short, long)]
@@ -55,6 +58,7 @@ pub enum Commands {
     },
 
     /// Generate the index file (00-index.md)
+    #[command(visible_alias = "gen-index")]
     Index {
         /// Output format (markdown or json)
         #[arg(short, long, default_value = "markdown")]
@@ -62,12 +66,14 @@ pub enum Commands {
     },
 
     /// Add or update YAML frontmatter headers
+    #[command(visible_alias = "headers")]
     AddHeaders {
         /// Path to document
         path: String,
     },
 
     /// Transition document to a new state
+    #[command(visible_alias = "mv")]
     Transition {
         /// Path to document
         path: String,
@@ -77,12 +83,14 @@ pub enum Commands {
     },
 
     /// Move document to directory matching its state header
+    #[command(visible_alias = "sync")]
     SyncLocation {
         /// Path to document
         path: String,
     },
 
     /// Synchronize the index with documents on filesystem
+    #[command(visible_alias = "sync-index")]
     UpdateIndex,
 
     /// Add a new document with full processing

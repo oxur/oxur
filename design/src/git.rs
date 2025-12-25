@@ -15,10 +15,8 @@ pub fn get_author(path: impl AsRef<Path>) -> String {
     let path = path.as_ref();
 
     // Try to get author from git log (first commit)
-    let output = Command::new("git")
-        .args(["log", "--format=%an", "--reverse", "--"])
-        .arg(path)
-        .output();
+    let output =
+        Command::new("git").args(["log", "--format=%an", "--reverse", "--"]).arg(path).output();
 
     if let Ok(output) = output {
         if output.status.success() {
@@ -53,10 +51,8 @@ pub fn get_author(path: impl AsRef<Path>) -> String {
 pub fn get_created_date(path: impl AsRef<Path>) -> NaiveDate {
     let path = path.as_ref();
 
-    let output = Command::new("git")
-        .args(["log", "--format=%ai", "--reverse", "--"])
-        .arg(path)
-        .output();
+    let output =
+        Command::new("git").args(["log", "--format=%ai", "--reverse", "--"]).arg(path).output();
 
     if let Ok(output) = output {
         if output.status.success() {
@@ -80,10 +76,7 @@ pub fn get_created_date(path: impl AsRef<Path>) -> NaiveDate {
 pub fn get_updated_date(path: impl AsRef<Path>) -> NaiveDate {
     let path = path.as_ref();
 
-    let output = Command::new("git")
-        .args(["log", "--format=%ai", "-1", "--"])
-        .arg(path)
-        .output();
+    let output = Command::new("git").args(["log", "--format=%ai", "-1", "--"]).arg(path).output();
 
     if let Ok(output) = output {
         if output.status.success() {
@@ -131,11 +124,8 @@ pub fn git_mv(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
 pub fn git_add(path: impl AsRef<Path>) -> Result<()> {
     let path = path.as_ref();
 
-    let output = Command::new("git")
-        .arg("add")
-        .arg(path)
-        .output()
-        .context("Failed to execute git add")?;
+    let output =
+        Command::new("git").arg("add").arg(path).output().context("Failed to execute git add")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -172,10 +162,7 @@ pub fn is_tracked(path: impl AsRef<Path>) -> bool {
 
 /// Get the git repository root directory
 pub fn get_repo_root() -> Option<std::path::PathBuf> {
-    let output = Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .ok()?;
+    let output = Command::new("git").args(["rev-parse", "--show-toplevel"]).output().ok()?;
 
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);

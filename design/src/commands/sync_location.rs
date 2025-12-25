@@ -20,10 +20,7 @@ pub fn sync_location(index: &DocumentIndex, doc_path: &str) -> Result<()> {
     let content = fs::read_to_string(&path).context("Failed to read file")?;
 
     let content = if !content.trim_start().starts_with("---") {
-        println!(
-            "{}",
-            "Document missing headers, adding them automatically...".yellow()
-        );
+        println!("{}", "Document missing headers, adding them automatically...".yellow());
         let (new_content, _) = design::doc::add_missing_headers(&path, &content)?;
         fs::write(&path, &new_content).context("Failed to write headers")?;
         new_content
@@ -32,8 +29,7 @@ pub fn sync_location(index: &DocumentIndex, doc_path: &str) -> Result<()> {
     };
 
     // Parse document to get header state
-    let doc =
-        DesignDoc::parse(&content, path.clone()).context("Failed to parse document")?;
+    let doc = DesignDoc::parse(&content, path.clone()).context("Failed to parse document")?;
 
     let header_state = doc.metadata.state;
 
@@ -41,9 +37,8 @@ pub fn sync_location(index: &DocumentIndex, doc_path: &str) -> Result<()> {
     let target_dir = PathBuf::from(index.docs_dir()).join(header_state.directory());
 
     // Check current directory
-    let current_dir = path
-        .parent()
-        .ok_or_else(|| anyhow::anyhow!("Cannot determine current directory"))?;
+    let current_dir =
+        path.parent().ok_or_else(|| anyhow::anyhow!("Cannot determine current directory"))?;
 
     // Canonicalize for comparison (handle . and ..)
     let current_dir_canonical = current_dir.canonicalize().unwrap_or(current_dir.to_path_buf());
@@ -67,9 +62,7 @@ pub fn sync_location(index: &DocumentIndex, doc_path: &str) -> Result<()> {
     }
 
     // Move the file
-    let filename = path
-        .file_name()
-        .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
+    let filename = path.file_name().ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
     let target_path = target_dir.join(filename);
 
     design::git::git_mv(&path, &target_path).context("Failed to move document")?;
