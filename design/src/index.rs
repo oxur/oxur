@@ -1,6 +1,7 @@
 //! Document index management
 
 use crate::doc::{DesignDoc, DocState};
+use crate::state::DocumentState;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
@@ -90,5 +91,39 @@ impl DocumentIndex {
     /// Get the docs directory path
     pub fn docs_dir(&self) -> &Path {
         &self.docs_dir
+    }
+
+    /// Create index from state (for fast loading from cache)
+    pub fn from_state(state: &DocumentState, docs_dir: impl AsRef<Path>) -> Result<Self> {
+        let docs_dir = docs_dir.as_ref().to_path_buf();
+        let mut docs = HashMap::new();
+
+        for record in state.documents.values() {
+            let doc = DesignDoc {
+                metadata: record.metadata.clone(),
+                content: String::new(), // Don't load content unless needed
+                path: docs_dir.join(&record.path),
+            };
+            docs.insert(record.metadata.number, doc);
+        }
+
+        Ok(DocumentIndex { docs, docs_dir })
+    }
+
+    /// Get document with lazy content loading
+    pub fn get_with_content(&self, number: u32) -> Option<DesignDoc> {
+        let doc = self.docs.get(&number)?;
+
+        // If content is empty, load it
+        if doc.content.is_empty() {
+            if let Ok(content) = std::fs::read_to_string(&doc.path) {
+                // Parse to get just the body content (after frontmatter)
+                if let Ok(parsed) = DesignDoc::parse(&content, doc.path.clone()) {
+                    return Some(parsed);
+                }
+            }
+        }
+
+        Some(doc.clone())
     }
 }

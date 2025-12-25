@@ -102,4 +102,16 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+
+    /// Scan filesystem and update document state
+    #[command(visible_alias = "rescan")]
+    Scan {
+        /// Fix issues automatically where possible
+        #[arg(short, long)]
+        fix: bool,
+
+        /// Show detailed validation output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }

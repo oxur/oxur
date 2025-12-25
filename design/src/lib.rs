@@ -8,6 +8,7 @@ pub mod errors;
 pub mod git;
 pub mod index;
 pub mod index_sync;
+pub mod state;
 pub mod theme;
 
 pub use doc::{

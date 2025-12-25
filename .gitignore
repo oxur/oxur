@@ -16,6 +16,9 @@ Cargo.lock  # Include this for applications, exclude for libraries
 # Documentation build artifacts
 /design/docs/.build/
 
+# Design document state (local cache)
+**/.oxd/
+
 # CI/CD
 .coverage/
 
