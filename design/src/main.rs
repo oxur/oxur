@@ -9,7 +9,7 @@ use design::state::StateManager;
 mod cli;
 mod commands;
 
-use cli::{Cli, Commands};
+use cli::{Cli, Commands, DebugCommands};
 use commands::*;
 
 fn main() -> Result<()> {
@@ -95,6 +95,23 @@ fn main() -> Result<()> {
             add_batch(&mut state_mgr, patterns, dry_run, interactive)
         }
         Commands::Scan { fix, verbose } => scan_documents(&mut state_mgr, fix, verbose),
+        Commands::Debug(debug_cmd) => match debug_cmd {
+            DebugCommands::State { number, format } => {
+                if let Some(num) = number {
+                    show_document_state(&state_mgr, num)
+                } else {
+                    show_state(&state_mgr, &format)
+                }
+            }
+            DebugCommands::Checksums { verbose } => show_checksums(&state_mgr, verbose),
+            DebugCommands::Stats => show_stats(&state_mgr),
+            DebugCommands::Diff => show_diff(&state_mgr),
+            DebugCommands::Orphans => show_orphans(&state_mgr),
+            DebugCommands::Verify { number } => verify_document(&state_mgr, number),
+        },
+        Commands::Search { query, state, metadata, case_sensitive } => {
+            search(&state_mgr, &query, state, metadata, case_sensitive)
+        }
     };
 
     if let Err(e) = result {

@@ -16,6 +16,41 @@ pub struct Cli {
 }
 
 #[derive(Subcommand)]
+pub enum DebugCommands {
+    /// Show state information
+    State {
+        /// Document number (optional, shows all if omitted)
+        number: Option<u32>,
+
+        /// Output format (json, table, summary)
+        #[arg(short, long, default_value = "table")]
+        format: String,
+    },
+
+    /// Show checksums and dirty files
+    Checksums {
+        /// Show all files, not just dirty ones
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Show repository statistics
+    Stats,
+
+    /// Show diff between state and filesystem
+    Diff,
+
+    /// Show orphaned entries
+    Orphans,
+
+    /// Verify a specific document
+    Verify {
+        /// Document number
+        number: u32,
+    },
+}
+
+#[derive(Subcommand)]
 pub enum Commands {
     /// List all design documents
     #[command(visible_alias = "ls")]
@@ -139,5 +174,28 @@ pub enum Commands {
         /// Show detailed validation output
         #[arg(short, long)]
         verbose: bool,
+    },
+
+    /// Debug and introspection commands
+    #[command(subcommand)]
+    Debug(DebugCommands),
+
+    /// Search documents
+    #[command(visible_alias = "grep")]
+    Search {
+        /// Search query
+        query: String,
+
+        /// Filter by state
+        #[arg(short, long)]
+        state: Option<String>,
+
+        /// Search only in metadata (YAML frontmatter)
+        #[arg(short, long)]
+        metadata: bool,
+
+        /// Case-sensitive search
+        #[arg(short = 'I', long)]
+        case_sensitive: bool,
     },
 }

@@ -126,6 +126,37 @@ fn parse_state_sections(content: &str) -> HashMap<String, Vec<String>> {
     sections
 }
 
+/// Get all git-tracked markdown files in the docs directory
+pub fn get_git_tracked_docs(docs_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
+    use std::process::Command;
+
+    let docs_dir = docs_dir.as_ref();
+
+    // Run git ls-files to get tracked files
+    let output = Command::new("git")
+        .args(["ls-files", "--full-name"])
+        .arg(docs_dir)
+        .current_dir(docs_dir.parent().unwrap_or(docs_dir))
+        .output()?;
+
+    if !output.status.success() {
+        // Fall back to filesystem if git fails
+        return get_docs_from_filesystem(docs_dir);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let base_dir = docs_dir.parent().unwrap_or(docs_dir);
+
+    let files: Vec<PathBuf> = stdout
+        .lines()
+        .filter(|line| line.ends_with(".md"))
+        .map(|line| base_dir.join(line))
+        .filter(|path| path.exists())
+        .collect();
+
+    Ok(files)
+}
+
 /// Get all markdown files in state directories (using walkdir, not git)
 pub fn get_docs_from_filesystem(docs_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
     use walkdir::WalkDir;
