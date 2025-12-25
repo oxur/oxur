@@ -12,3 +12,10 @@ Cargo.lock
 **/*.rs.bk
 .DS_Store
 images/logo/cave-painting-*.jpg
+
+# AI
+
+.claude
+
+# Misc
+/workbench
