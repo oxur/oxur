@@ -394,3 +394,67 @@ fn remove_from_section(content: &str, state: &str, path: &str) -> Result<String>
 
     Ok(result.join("\n"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_update_index_no_index_file() {
+        let temp = TempDir::new().unwrap();
+        let index = DocumentIndex::new(temp.path()).unwrap();
+
+        // Should handle missing index gracefully
+        let result = update_index(&index);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_update_index_with_empty_index() {
+        let temp = TempDir::new().unwrap();
+        let index = DocumentIndex::new(temp.path()).unwrap();
+
+        // Create an empty index file
+        let index_path = temp.path().join("00-index.md");
+        fs::write(
+            &index_path,
+            "# Design Document Index\n\n## All Documents by Number\n\n| Number | Title | State | Updated |\n|--------|-------|-------|----------|\n",
+        )
+        .unwrap();
+
+        let result = update_index(&index);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_update_index_with_valid_index() {
+        let temp = TempDir::new().unwrap();
+        let index = DocumentIndex::new(temp.path()).unwrap();
+
+        // Create a valid index file with a document entry
+        let index_path = temp.path().join("00-index.md");
+        fs::write(
+            &index_path,
+            r#"# Design Document Index
+
+## All Documents by Number
+
+| Number | Title | State | Updated |
+|--------|-------|-------|----------|
+| 0001 | Test Doc | Draft | 2024-01-01 |
+
+## Documents by State
+
+### Draft
+
+- [0001 - Test Doc](01-draft/0001-test.md)
+"#,
+        )
+        .unwrap();
+
+        let result = update_index(&index);
+        assert!(result.is_ok());
+    }
+}

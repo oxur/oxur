@@ -387,3 +387,169 @@ pub fn add_batch(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use design::extract::ExtractedMetadata;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_determine_title_auto_with_heading() {
+        let content = "# Heading Title\n\nContent";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("test.md");
+        fs::write(&path, content).unwrap();
+
+        let title = determine_title_auto(&extracted, &path);
+        // Should extract from heading
+        assert!(!title.is_empty());
+    }
+
+    #[test]
+    fn test_determine_title_auto_from_heading() {
+        let content = "# Heading Title\n\nContent";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("test.md");
+        fs::write(&path, content).unwrap();
+
+        let title = determine_title_auto(&extracted, &path);
+        assert_eq!(title, "Heading Title");
+    }
+
+    #[test]
+    fn test_determine_title_auto_from_filename() {
+        let content = "Just some content";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("my-test-document.md");
+        fs::write(&path, content).unwrap();
+
+        let title = determine_title_auto(&extracted, &path);
+        assert_eq!(title, "My Test Document");
+    }
+
+    #[test]
+    fn test_determine_author_auto_with_extraction() {
+        let content = "# Test\n\nSome content";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let author = determine_author_auto(&extracted);
+        // Should get author from git or extraction
+        assert!(!author.is_empty());
+    }
+
+    #[test]
+    fn test_determine_author_auto_from_git() {
+        let content = "No author in content";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let author = determine_author_auto(&extracted);
+        // Should fall back to git author (not testing exact value as it depends on git config)
+        assert!(!author.is_empty());
+    }
+
+    #[test]
+    fn test_preview_add_valid_markdown() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(
+            &file_path,
+            "---\ntitle: Test Doc\n---\n\n# Test Document\n\nContent here.",
+        )
+        .unwrap();
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_preview_add_file_not_found() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let result = preview_add("/nonexistent/file.md", &state_mgr);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("File not found"));
+    }
+
+    #[test]
+    fn test_preview_add_with_minimal_content() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Title\n\nSome content").unwrap();
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        // Should work with minimal markdown
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_file_not_found() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let result = add_document(&mut state_mgr, "/nonexistent/file.md", false, false, true);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("File not found"));
+    }
+
+    #[test]
+    fn test_add_document_dry_run() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test Document\n\nContent here.").unwrap();
+
+        // Dry run should succeed but not create files
+        let result = add_document(
+            &mut state_mgr,
+            file_path.to_str().unwrap(),
+            true,  // dry_run
+            false, // not interactive
+            true,  // auto_yes
+        );
+        assert!(result.is_ok());
+
+        // Check that no numbered file was created
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            assert!(fs::read_dir(&draft_dir).unwrap().next().is_none());
+        }
+    }
+
+    #[test]
+    fn test_add_batch_no_files() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let result = add_batch(&mut state_mgr, vec!["*.nonexistent".to_string()], false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_batch_with_markdown_files() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Create some test markdown files
+        fs::write(temp.path().join("test1.md"), "# Test 1").unwrap();
+        fs::write(temp.path().join("test2.md"), "# Test 2").unwrap();
+        fs::write(temp.path().join("test.txt"), "Not markdown").unwrap();
+
+        let pattern = format!("{}/*.md", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], true, false); // dry_run mode
+        assert!(result.is_ok());
+    }
+}
