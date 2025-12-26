@@ -52,10 +52,7 @@ fn test_lex_error_unexpected_eof() {
 #[test]
 fn test_parse_error_unexpected_token() {
     let pos = Position::new(0, 1, 1);
-    let error = ParseError::UnexpectedToken {
-        token: "foo".to_string(),
-        pos,
-    };
+    let error = ParseError::UnexpectedToken { token: "foo".to_string(), pos };
     let output = format!("{}", error);
     assert!(output.contains("foo"));
 }
@@ -63,11 +60,8 @@ fn test_parse_error_unexpected_token() {
 #[test]
 fn test_parse_error_expected() {
     let pos = Position::new(0, 1, 1);
-    let error = ParseError::Expected {
-        expected: "symbol".to_string(),
-        found: "number".to_string(),
-        pos,
-    };
+    let error =
+        ParseError::Expected { expected: "symbol".to_string(), found: "number".to_string(), pos };
     let output = format!("{}", error);
     assert!(output.contains("symbol"));
     assert!(output.contains("number"));

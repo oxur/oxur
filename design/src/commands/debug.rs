@@ -622,9 +622,9 @@ fn state_from_directory(path: &std::path::Path) -> Option<DocState> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     use design::doc::DocMetadata;
     use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
     use std::fs;
     use tempfile::TempDir;
 

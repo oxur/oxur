@@ -115,10 +115,10 @@ fn generate_json_index(index: &DocumentIndex) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     use design::doc::{DocMetadata, DocState};
     use design::index::DocumentIndex;
     use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
     use tempfile::TempDir;
 
     fn create_test_index_with_docs() -> (DocumentIndex, TempDir) {

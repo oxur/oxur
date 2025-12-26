@@ -1,6 +1,6 @@
+use oxur_ast::ast::*;
 use oxur_ast::builder::AstBuilder;
 use oxur_ast::sexp::Parser;
-use oxur_ast::ast::*;
 
 #[test]
 fn test_build_simple_crate() {

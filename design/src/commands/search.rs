@@ -183,14 +183,19 @@ pub fn search_advanced(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     use design::doc::{DocMetadata, DocState};
     use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
+    use serial_test::serial;
     use std::fs;
     use tempfile::TempDir;
-    use serial_test::serial;
 
-    fn create_test_doc_with_content(number: u32, title: &str, state: DocState, extra_content: &str) -> String {
+    fn create_test_doc_with_content(
+        number: u32,
+        title: &str,
+        state: DocState,
+        extra_content: &str,
+    ) -> String {
         format!(
             r#"---
 number: {}
@@ -205,7 +210,11 @@ state: {}
 
 {}
 "#,
-            number, title, state.as_str(), title, extra_content
+            number,
+            title,
+            state.as_str(),
+            title,
+            extra_content
         )
     }
 
@@ -213,11 +222,7 @@ state: {}
         let repo_path = temp.path();
 
         // Initialize git repo
-        std::process::Command::new("git")
-            .arg("init")
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
+        std::process::Command::new("git").arg("init").current_dir(&repo_path).output().unwrap();
 
         std::process::Command::new("git")
             .args(&["config", "user.name", "Test User"])
@@ -309,9 +314,7 @@ state: {}
         let temp = TempDir::new().unwrap();
         let state_mgr = setup_git_repo_with_docs(&temp);
 
-        let result = in_dir(temp.path(), || {
-            search(&state_mgr, "important", None, false, false)
-        });
+        let result = in_dir(temp.path(), || search(&state_mgr, "important", None, false, false));
 
         assert!(result.is_ok());
     }
@@ -322,9 +325,7 @@ state: {}
         let temp = TempDir::new().unwrap();
         let state_mgr = setup_git_repo_with_docs(&temp);
 
-        let result = in_dir(temp.path(), || {
-            search(&state_mgr, "Important", None, false, true)
-        });
+        let result = in_dir(temp.path(), || search(&state_mgr, "Important", None, false, true));
 
         assert!(result.is_ok());
     }
@@ -335,9 +336,7 @@ state: {}
         let temp = TempDir::new().unwrap();
         let state_mgr = setup_git_repo_with_docs(&temp);
 
-        let result = in_dir(temp.path(), || {
-            search(&state_mgr, "IMPORTANT", None, false, false)
-        });
+        let result = in_dir(temp.path(), || search(&state_mgr, "IMPORTANT", None, false, false));
 
         assert!(result.is_ok());
     }
@@ -375,9 +374,7 @@ state: {}
         let temp = TempDir::new().unwrap();
         let state_mgr = setup_git_repo_with_docs(&temp);
 
-        let result = in_dir(temp.path(), || {
-            search(&state_mgr, "author", None, true, false)
-        });
+        let result = in_dir(temp.path(), || search(&state_mgr, "author", None, true, false));
 
         assert!(result.is_ok());
     }
@@ -439,9 +436,7 @@ state: {}
             regex: false,
         };
 
-        let result = in_dir(temp.path(), || {
-            search_advanced(&state_mgr, "testing", options)
-        });
+        let result = in_dir(temp.path(), || search_advanced(&state_mgr, "testing", options));
 
         assert!(result.is_ok());
     }

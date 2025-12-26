@@ -1,6 +1,6 @@
+use oxur_ast::ast::*;
 use oxur_ast::builder::AstBuilder;
 use oxur_ast::sexp::Parser;
-use oxur_ast::ast::*;
 
 // ===== Empty Statement Tests =====
 
@@ -367,7 +367,7 @@ fn test_nested_expr_in_stmt_id_generation() {
     match stmt.kind {
         StmtKind::Semi(ref expr) => {
             assert!(expr.id.0 < 100); // Sanity check
-            // The expr ID should be different from stmt ID
+                                      // The expr ID should be different from stmt ID
             assert_ne!(expr.id, stmt.id);
         }
         _ => panic!("Expected Semi statement"),

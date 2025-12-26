@@ -67,10 +67,8 @@ fn test_nil_new() {
 #[test]
 fn test_list_new() {
     let pos = Position::new(0, 1, 1);
-    let elements = vec![
-        SExp::Symbol(Symbol::new("foo", pos)),
-        SExp::Number(Number::new("42", pos)),
-    ];
+    let elements =
+        vec![SExp::Symbol(Symbol::new("foo", pos)), SExp::Number(Number::new("42", pos))];
     let list = List::new(elements.clone(), pos);
     assert_eq!(list.elements.len(), 2);
     assert_eq!(list.pos, pos);

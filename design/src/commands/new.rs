@@ -88,10 +88,10 @@ superseded-by: null
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     use design::doc::{DocMetadata, DocState};
     use design::index::DocumentIndex;
     use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
     use tempfile::TempDir;
 
     fn create_test_index() -> (DocumentIndex, TempDir) {
@@ -165,11 +165,8 @@ mod tests {
         let (index, _temp) = create_test_index();
 
         // Title with spaces and special characters
-        let result = new_document(
-            &index,
-            "Test: Document & More!".to_string(),
-            Some("Test".to_string()),
-        );
+        let result =
+            new_document(&index, "Test: Document & More!".to_string(), Some("Test".to_string()));
         assert!(result.is_ok());
 
         // Verify sanitized filename (special chars removed, spaces become dashes)

@@ -461,11 +461,8 @@ mod tests {
         let state_mgr = StateManager::new(temp.path()).unwrap();
 
         let file_path = temp.path().join("test.md");
-        fs::write(
-            &file_path,
-            "---\ntitle: Test Doc\n---\n\n# Test Document\n\nContent here.",
-        )
-        .unwrap();
+        fs::write(&file_path, "---\ntitle: Test Doc\n---\n\n# Test Document\n\nContent here.")
+            .unwrap();
 
         let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
         assert!(result.is_ok());

@@ -84,13 +84,13 @@ pub fn sync_location(index: &DocumentIndex, doc_path: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     use design::doc::{DocMetadata, DocState};
     use design::index::DocumentIndex;
     use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
+    use serial_test::serial;
     use std::fs;
     use tempfile::TempDir;
-    use serial_test::serial;
 
     fn create_test_doc_with_state(state: DocState) -> String {
         format!(
@@ -115,11 +115,7 @@ Test content.
         let repo_path = temp.path().to_path_buf();
 
         // Initialize git repo
-        std::process::Command::new("git")
-            .arg("init")
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
+        std::process::Command::new("git").arg("init").current_dir(&repo_path).output().unwrap();
 
         std::process::Command::new("git")
             .args(&["config", "user.name", "Test User"])
@@ -218,9 +214,7 @@ Test content.
             .unwrap();
 
         // Sync location - should report already in correct place (must run in repo directory)
-        let result = in_dir(&repo_path, || {
-            sync_location(&index, doc_path.to_str().unwrap())
-        });
+        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
         assert!(result.is_ok());
 
         // File should still be in same place
@@ -256,9 +250,7 @@ Test content.
             .unwrap();
 
         // Sync location - should move to Final directory (must run in repo directory)
-        let result = in_dir(&repo_path, || {
-            sync_location(&index, doc_path.to_str().unwrap())
-        });
+        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
         assert!(result.is_ok());
 
         // File should be moved
@@ -298,9 +290,7 @@ Test content.
             .unwrap();
 
         // Sync location - should add headers automatically (must run in repo directory)
-        let result = in_dir(&repo_path, || {
-            sync_location(&index, doc_path.to_str().unwrap())
-        });
+        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
         assert!(result.is_ok());
 
         // Verify headers were added (document should remain in draft after adding headers)
@@ -342,9 +332,7 @@ Test content.
         assert!(!rejected_dir.exists());
 
         // Sync location - should create target directory (must run in repo directory)
-        let result = in_dir(&repo_path, || {
-            sync_location(&index, doc_path.to_str().unwrap())
-        });
+        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
         assert!(result.is_ok());
 
         // Verify directory was created and file was moved
@@ -383,9 +371,7 @@ Test content.
             .unwrap();
 
         // Sync location (must run in repo directory for git mv)
-        let result = in_dir(&repo_path, || {
-            sync_location(&index, doc_path.to_str().unwrap())
-        });
+        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
         assert!(result.is_ok());
 
         // Verify content is preserved
@@ -432,10 +418,13 @@ Test content.
                 .unwrap();
 
             // Sync location (must run in repo directory for git mv)
-            let result = in_dir(&repo_path, || {
-                sync_location(&index, doc_path.to_str().unwrap())
-            });
-            assert!(result.is_ok(), "Failed to sync {} to {}", dir_state.as_str(), header_state.as_str());
+            let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
+            assert!(
+                result.is_ok(),
+                "Failed to sync {} to {}",
+                dir_state.as_str(),
+                header_state.as_str()
+            );
 
             // Verify moved to correct directory
             let target_dir = repo_path.join(header_state.directory());

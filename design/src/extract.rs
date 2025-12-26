@@ -338,7 +338,10 @@ mod tests {
     #[test]
     fn test_analyze_markdown_long_lines() {
         let long_line = "a".repeat(150);
-        let content = format!("# Title\n\n{}\n{}\n{}\n{}\n{}\n{}", long_line, long_line, long_line, long_line, long_line, long_line);
+        let content = format!(
+            "# Title\n\n{}\n{}\n{}\n{}\n{}\n{}",
+            long_line, long_line, long_line, long_line, long_line, long_line
+        );
         let issues = analyze_markdown(&content);
 
         assert!(issues.iter().any(|i| i.contains("long lines")));
@@ -346,7 +349,8 @@ mod tests {
 
     #[test]
     fn test_analyze_markdown_perfect() {
-        let content = "# Title\n\nThis is a well-formatted document.\n\n- Bullet 1\n- Bullet 2\n\nAll good!";
+        let content =
+            "# Title\n\nThis is a well-formatted document.\n\n- Bullet 1\n- Bullet 2\n\nAll good!";
         let issues = analyze_markdown(content);
 
         // Should have no issues or only minor ones

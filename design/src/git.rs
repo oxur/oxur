@@ -235,7 +235,12 @@ mod tests {
             .expect("Failed to add file");
 
         Command::new("git")
-            .args(["commit", "-m", "Test commit", &format!("--author={} <test@example.com>", author)])
+            .args([
+                "commit",
+                "-m",
+                "Test commit",
+                &format!("--author={} <test@example.com>", author),
+            ])
             .current_dir(repo.path())
             .output()
             .expect("Failed to commit");
@@ -251,9 +256,7 @@ mod tests {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "test.md", "content", "Original Author");
 
-            let author = in_dir(repo.path(), || {
-                get_author("test.md")
-            });
+            let author = in_dir(repo.path(), || get_author("test.md"));
 
             assert_eq!(author, "Original Author");
         }
@@ -268,11 +271,7 @@ mod tests {
 
             // Second commit by different author
             fs::write(repo.path().join("test.md"), "v2").unwrap();
-            Command::new("git")
-                .args(["add", "test.md"])
-                .current_dir(repo.path())
-                .output()
-                .unwrap();
+            Command::new("git").args(["add", "test.md"]).current_dir(repo.path()).output().unwrap();
             Command::new("git")
                 .args([
                     "commit",
@@ -284,9 +283,7 @@ mod tests {
                 .output()
                 .unwrap();
 
-            let author = in_dir(repo.path(), || {
-                get_author("test.md")
-            });
+            let author = in_dir(repo.path(), || get_author("test.md"));
 
             // Should return first author, not second
             assert_eq!(author, "Original Author");
@@ -300,9 +297,7 @@ mod tests {
             // Create file but don't commit
             fs::write(repo.path().join("untracked.md"), "content").unwrap();
 
-            let author = in_dir(repo.path(), || {
-                get_author("untracked.md")
-            });
+            let author = in_dir(repo.path(), || get_author("untracked.md"));
 
             // Should fallback to git config user.name
             assert_eq!(author, "Test Author");
@@ -314,9 +309,7 @@ mod tests {
             let temp = TempDir::new().unwrap();
             fs::write(temp.path().join("file.md"), "content").unwrap();
 
-            let author = in_dir(temp.path(), || {
-                get_author("file.md")
-            });
+            let author = in_dir(temp.path(), || get_author("file.md"));
 
             // Should fallback to git config user.name when not in git repo
             // (will be global config value, or "Unknown Author" if not set)
@@ -354,11 +347,7 @@ mod tests {
 
             // Second commit
             fs::write(repo.path().join("test.md"), "v2").unwrap();
-            Command::new("git")
-                .args(["add", "test.md"])
-                .current_dir(repo.path())
-                .output()
-                .unwrap();
+            Command::new("git").args(["add", "test.md"]).current_dir(repo.path()).output().unwrap();
             Command::new("git")
                 .args(["commit", "-m", "Update"])
                 .current_dir(repo.path())
@@ -412,11 +401,7 @@ mod tests {
 
             // Second commit
             fs::write(repo.path().join("test.md"), "v2").unwrap();
-            Command::new("git")
-                .args(["add", "test.md"])
-                .current_dir(repo.path())
-                .output()
-                .unwrap();
+            Command::new("git").args(["add", "test.md"]).current_dir(repo.path()).output().unwrap();
             Command::new("git")
                 .args(["commit", "-m", "Update"])
                 .current_dir(repo.path())

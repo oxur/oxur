@@ -1,5 +1,5 @@
 use oxur_ast::builder::AstBuilder;
-use oxur_ast::sexp::{Parser, print_sexp};
+use oxur_ast::sexp::{print_sexp, Parser};
 
 #[test]
 fn test_parse_and_build_simple_crate() {
@@ -23,7 +23,8 @@ fn test_parse_and_build_simple_crate() {
 
 #[test]
 fn test_round_trip_crate() {
-    let input = r#"(Crate :attrs () :items () :spans (ModSpans :inner-span (Span :lo 0 :hi 10)) :id 0)"#;
+    let input =
+        r#"(Crate :attrs () :items () :spans (ModSpans :inner-span (Span :lo 0 :hi 10)) :id 0)"#;
 
     // Parse
     let sexp = Parser::parse_str(input).unwrap();

@@ -182,8 +182,6 @@ title: "Update Test"
 
         // Verify file was actually written
         let new_metadata = fs::metadata(&file_path).unwrap();
-        assert!(
-            new_metadata.modified().unwrap() >= original_metadata.modified().unwrap()
-        );
+        assert!(new_metadata.modified().unwrap() >= original_metadata.modified().unwrap());
     }
 }

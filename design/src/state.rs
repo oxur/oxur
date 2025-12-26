@@ -709,10 +709,10 @@ mod document_state_tests {
 #[cfg(test)]
 mod checksum_tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
     use std::thread::sleep;
     use std::time::Duration;
+    use tempfile::TempDir;
 
     #[test]
     fn test_compute_checksum_empty() {
@@ -722,10 +722,7 @@ mod checksum_tests {
 
         let checksum = compute_checksum(&file_path).unwrap();
         // SHA-256 of empty string
-        assert_eq!(
-            checksum,
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        );
+        assert_eq!(checksum, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
     }
 
     #[test]

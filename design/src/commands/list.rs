@@ -63,10 +63,10 @@ pub fn list_documents(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     use design::doc::DocMetadata;
     use design::index::DocumentIndex;
     use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
     use tempfile::TempDir;
 
     fn create_test_index() -> DocumentIndex {

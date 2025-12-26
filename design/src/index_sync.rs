@@ -574,7 +574,9 @@ mod tests {
 
         // Should detect state change
         assert!(!changes.is_empty());
-        let has_state_update = changes.iter().any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "state"));
+        let has_state_update = changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "state"));
         assert!(has_state_update);
     }
 }

@@ -33,9 +33,7 @@ mod tests {
 
     // Helper to create a chain of errors
     fn create_error_chain() -> anyhow::Error {
-        anyhow!("root cause")
-            .context("intermediate error")
-            .context("top level error")
+        anyhow!("root cause").context("intermediate error").context("top level error")
     }
 
     #[test]

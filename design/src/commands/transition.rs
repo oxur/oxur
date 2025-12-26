@@ -80,13 +80,13 @@ pub fn transition_document(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
     use design::doc::{DocMetadata, DocState};
     use design::index::DocumentIndex;
     use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
+    use serial_test::serial;
     use std::fs;
     use tempfile::TempDir;
-    use serial_test::serial;
 
     fn create_test_doc_with_state(state: DocState) -> String {
         format!(
@@ -111,11 +111,7 @@ Test content.
         let repo_path = temp.path().to_path_buf();
 
         // Initialize git repo
-        std::process::Command::new("git")
-            .arg("init")
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
+        std::process::Command::new("git").arg("init").current_dir(&repo_path).output().unwrap();
 
         std::process::Command::new("git")
             .args(&["config", "user.name", "Test User"])
@@ -245,9 +241,8 @@ Test content.
             .unwrap();
 
         // Transition to Final (must run in repo directory for git mv)
-        let result = in_dir(&repo_path, || {
-            transition_document(&index, doc_path.to_str().unwrap(), "Final")
-        });
+        let result =
+            in_dir(&repo_path, || transition_document(&index, doc_path.to_str().unwrap(), "Final"));
         assert!(result.is_ok());
 
         // Verify file was moved
@@ -432,9 +427,8 @@ Test content.
         assert!(path2.exists());
 
         // Transition UnderReview -> Accepted
-        let result = in_dir(&repo_path, || {
-            transition_document(&index, path2.to_str().unwrap(), "Accepted")
-        });
+        let result =
+            in_dir(&repo_path, || transition_document(&index, path2.to_str().unwrap(), "Accepted"));
         assert!(result.is_ok());
 
         let accepted_dir = repo_path.join("04-accepted");

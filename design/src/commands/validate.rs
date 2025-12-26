@@ -325,8 +325,8 @@ fn apply_fixes(index: &DocumentIndex, issues: &[ValidationIssue]) -> Result<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use design::doc::DocState;
     use chrono::NaiveDate;
+    use design::doc::DocState;
     use std::fs;
     use tempfile::TempDir;
 
@@ -434,10 +434,8 @@ mod tests {
         };
         assert!(fixable.can_auto_fix());
 
-        let not_fixable = ValidationIssue::DuplicateNumber {
-            number: 1,
-            paths: vec!["a.md".to_string()],
-        };
+        let not_fixable =
+            ValidationIssue::DuplicateNumber { number: 1, paths: vec!["a.md".to_string()] };
         assert!(!not_fixable.can_auto_fix());
     }
 
@@ -523,9 +521,7 @@ mod tests {
 
     #[test]
     fn test_in_index_not_on_disk_issue() {
-        let issue = ValidationIssue::InIndexNotOnDisk {
-            number: "0099".to_string(),
-        };
+        let issue = ValidationIssue::InIndexNotOnDisk { number: "0099".to_string() };
 
         assert_eq!(issue.severity(), "ERROR");
         assert!(!issue.can_auto_fix());
@@ -533,9 +529,7 @@ mod tests {
 
     #[test]
     fn test_missing_headers_issue() {
-        let issue = ValidationIssue::MissingHeaders {
-            path: "test.md".to_string(),
-        };
+        let issue = ValidationIssue::MissingHeaders { path: "test.md".to_string() };
 
         assert_eq!(issue.severity(), "WARNING");
         assert!(issue.can_auto_fix());

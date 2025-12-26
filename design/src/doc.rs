@@ -814,11 +814,8 @@ mod parsing_tests {
             supersedes: None,
             superseded_by: None,
         };
-        let doc = DesignDoc {
-            metadata,
-            content: "test".to_string(),
-            path: PathBuf::from("test.md"),
-        };
+        let doc =
+            DesignDoc { metadata, content: "test".to_string(), path: PathBuf::from("test.md") };
 
         assert_eq!(doc.filename(), "0042-my-cool-feature.md");
     }
@@ -835,11 +832,8 @@ mod parsing_tests {
             supersedes: None,
             superseded_by: None,
         };
-        let doc = DesignDoc {
-            metadata,
-            content: "test".to_string(),
-            path: PathBuf::from("test.md"),
-        };
+        let doc =
+            DesignDoc { metadata, content: "test".to_string(), path: PathBuf::from("test.md") };
 
         assert_eq!(doc.filename(), "0001-test-document.md");
     }
@@ -1004,8 +998,8 @@ mod frontmatter_tests {
 #[cfg(test)]
 mod file_operations_tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_is_in_state_dir() {
@@ -1102,8 +1096,8 @@ mod file_operations_tests {
 #[cfg(test)]
 mod property_tests {
     use super::*;
-    use proptest::prelude::*;
     use chrono::NaiveDate;
+    use proptest::prelude::*;
 
     proptest! {
         #[test]

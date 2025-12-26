@@ -261,7 +261,8 @@ mod tests {
             fs::write(temp.path().join("0001-valid.md"), content).unwrap();
 
             // Create invalid document (malformed frontmatter)
-            fs::write(temp.path().join("0002-invalid.md"), "---\nbroken yaml:\n  -\n---\n# Bad").unwrap();
+            fs::write(temp.path().join("0002-invalid.md"), "---\nbroken yaml:\n  -\n---\n# Bad")
+                .unwrap();
 
             let index = DocumentIndex::new(temp.path()).unwrap();
 

@@ -52,10 +52,7 @@ fn test_mod_spans_new() {
 fn test_mod_spans_custom() {
     let inner = Span::new(0, 100);
     let inject = Span::new(10, 20);
-    let mod_spans = ModSpans {
-        inner_span: inner,
-        inject_use_span: inject,
-    };
+    let mod_spans = ModSpans { inner_span: inner, inject_use_span: inject };
     assert_eq!(mod_spans.inner_span, inner);
     assert_eq!(mod_spans.inject_use_span, inject);
 }
@@ -107,10 +104,7 @@ fn test_delimiter_variants() {
 
 #[test]
 fn test_lit_string() {
-    let lit = Lit {
-        kind: LitKind::Str("hello".to_string()),
-        span: Span::new(0, 5),
-    };
+    let lit = Lit { kind: LitKind::Str("hello".to_string()), span: Span::new(0, 5) };
 
     match lit.kind {
         LitKind::Str(ref s) => assert_eq!(s, "hello"),
@@ -120,10 +114,7 @@ fn test_lit_string() {
 
 #[test]
 fn test_lit_int() {
-    let lit = Lit {
-        kind: LitKind::Int(42),
-        span: Span::new(0, 2),
-    };
+    let lit = Lit { kind: LitKind::Int(42), span: Span::new(0, 2) };
 
     match lit.kind {
         LitKind::Int(n) => assert_eq!(n, 42),
@@ -133,10 +124,7 @@ fn test_lit_int() {
 
 #[test]
 fn test_lit_negative_int() {
-    let lit = Lit {
-        kind: LitKind::Int(-100),
-        span: Span::new(0, 4),
-    };
+    let lit = Lit { kind: LitKind::Int(-100), span: Span::new(0, 4) };
 
     match lit.kind {
         LitKind::Int(n) => assert_eq!(n, -100),
@@ -155,10 +143,7 @@ fn test_expr_kind_macro_call() {
 
 #[test]
 fn test_expr_kind_lit() {
-    let lit = Lit {
-        kind: LitKind::Int(123),
-        span: Span::DUMMY,
-    };
+    let lit = Lit { kind: LitKind::Int(123), span: Span::DUMMY };
     let kind = ExprKind::Lit(lit);
 
     assert!(matches!(kind, ExprKind::Lit(_)));
@@ -180,10 +165,7 @@ fn test_mac_args_empty() {
 
 #[test]
 fn test_mac_args_eq() {
-    let args = MacArgs::Eq {
-        eq_span: Span::new(0, 1),
-        tokens: TokenStream::Empty,
-    };
+    let args = MacArgs::Eq { eq_span: Span::new(0, 1), tokens: TokenStream::Empty };
     assert!(matches!(args, MacArgs::Eq { .. }));
 }
 
@@ -270,10 +252,7 @@ fn test_fn_header_new() {
 
 #[test]
 fn test_fn_decl_new() {
-    let decl = FnDecl {
-        inputs: vec![],
-        output: FnRetTy::Default(Span::DUMMY),
-    };
+    let decl = FnDecl { inputs: vec![], output: FnRetTy::Default(Span::DUMMY) };
 
     assert_eq!(decl.inputs.len(), 0);
     assert!(matches!(decl.output, FnRetTy::Default(_)));
@@ -287,15 +266,8 @@ fn test_fn_sig_new() {
         constness: Constness::Const,
         ext: Extern::None,
     };
-    let decl = FnDecl {
-        inputs: vec![],
-        output: FnRetTy::Default(Span::DUMMY),
-    };
-    let sig = FnSig {
-        header,
-        decl,
-        span: Span::DUMMY,
-    };
+    let decl = FnDecl { inputs: vec![], output: FnRetTy::Default(Span::DUMMY) };
+    let sig = FnSig { header, decl, span: Span::DUMMY };
 
     assert!(matches!(sig.header.safety, Safety::Unsafe));
     assert!(matches!(sig.header.constness, Constness::Const));
@@ -358,11 +330,7 @@ fn test_extern_explicit() {
 #[test]
 fn test_path_segment_new() {
     let ident = Ident::new("std", Span::DUMMY);
-    let seg = PathSegment {
-        ident,
-        id: NodeId(0),
-        args: None,
-    };
+    let seg = PathSegment { ident, id: NodeId(0), args: None };
 
     assert_eq!(seg.ident.name, "std");
     assert!(seg.args.is_none());

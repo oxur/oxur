@@ -1,6 +1,6 @@
+use oxur_ast::ast::*;
 use oxur_ast::builder::AstBuilder;
 use oxur_ast::sexp::Parser;
-use oxur_ast::ast::*;
 
 // ===== Block Building Tests =====
 
@@ -168,18 +168,16 @@ fn test_build_expr_mac_call_with_delimited_args() {
     let expr = builder.build_expr(&sexp).unwrap();
 
     match expr.kind {
-        ExprKind::MacCall(mac_call) => {
-            match mac_call.args {
-                MacArgs::Delimited { delim, tokens, .. } => {
-                    assert!(matches!(delim, Delimiter::Bracket));
-                    match tokens {
-                        TokenStream::Source(ref s) => assert_eq!(s, "1, 2, 3"),
-                        _ => panic!("Expected Source token stream"),
-                    }
+        ExprKind::MacCall(mac_call) => match mac_call.args {
+            MacArgs::Delimited { delim, tokens, .. } => {
+                assert!(matches!(delim, Delimiter::Bracket));
+                match tokens {
+                    TokenStream::Source(ref s) => assert_eq!(s, "1, 2, 3"),
+                    _ => panic!("Expected Source token stream"),
                 }
-                _ => panic!("Expected Delimited args"),
             }
-        }
+            _ => panic!("Expected Delimited args"),
+        },
         _ => panic!("Expected MacCall"),
     }
 }
