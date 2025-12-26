@@ -316,4 +316,330 @@ mod tests {
             assert!(result.is_ok(), "Failed for state: {}", state.as_str());
         }
     }
+
+    // Tests for list_documents_with_state and --removed flag
+
+    fn create_test_state_manager_with_removed() -> (StateManager, TempDir) {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let mut state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        // Add some normal documents
+        for (num, title, doc_state) in [
+            (1, "Active Doc", DocState::Active),
+            (2, "Draft Doc", DocState::Draft),
+        ] {
+            let meta = DocMetadata {
+                number: num,
+                title: title.to_string(),
+                author: "Test Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state: doc_state,
+                supersedes: None,
+                superseded_by: None,
+            };
+            state_mgr.state_mut().upsert(
+                num,
+                DocumentRecord {
+                    metadata: meta,
+                    path: format!("{}/{:04}-{}.md", doc_state.directory(), num, title.to_lowercase().replace(' ', "-")),
+                    checksum: "abc123".to_string(),
+                    file_size: 100,
+                    modified: chrono::Utc::now(),
+                },
+            );
+        }
+
+        // Add removed documents
+        for (num, title, doc_state) in [
+            (3, "Removed Doc", DocState::Removed),
+            (4, "Overwritten Doc", DocState::Overwritten),
+        ] {
+            let meta = DocMetadata {
+                number: num,
+                title: title.to_string(),
+                author: "Test Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+                state: doc_state,
+                supersedes: None,
+                superseded_by: None,
+            };
+            let path = format!("{}/{:04}-{}.md", doc_state.directory(), num, title.to_lowercase().replace(' ', "-"));
+            state_mgr.state_mut().upsert(
+                num,
+                DocumentRecord {
+                    metadata: meta,
+                    path,
+                    checksum: "abc123".to_string(),
+                    file_size: 100,
+                    modified: chrono::Utc::now(),
+                },
+            );
+        }
+
+        (state_mgr, temp)
+    }
+
+    #[test]
+    fn test_list_documents_with_state_no_removed() {
+        let (state_mgr, _temp) = create_test_state_manager_with_removed();
+        let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
+
+        // List without --removed flag should work
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_documents_with_state_removed_flag() {
+        let (state_mgr, _temp) = create_test_state_manager_with_removed();
+        let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
+
+        // List with --removed flag should work
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_documents_with_state_removed_verbose() {
+        let (state_mgr, _temp) = create_test_state_manager_with_removed();
+        let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
+
+        // List with --removed and --verbose should work
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, true, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_documents_with_state_removed_no_state_mgr() {
+        let index = create_test_index();
+
+        // List with --removed but no state manager should handle gracefully
+        let result = list_documents_with_state(&index, None, None, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_removed_documents_empty() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        // No removed documents
+        let result = list_removed_documents(&state_mgr, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_removed_documents_with_files() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let mut state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        // Add removed document with file present
+        let meta = DocMetadata {
+            number: 1,
+            title: "Removed Doc".to_string(),
+            author: "Test Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Removed,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let dustbin_path = docs_dir.join(".dustbin/0001-removed-doc.md");
+        fs::create_dir_all(dustbin_path.parent().unwrap()).unwrap();
+        fs::write(&dustbin_path, "test content").unwrap();
+
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: ".dustbin/0001-removed-doc.md".to_string(),
+                checksum: "abc123".to_string(),
+                file_size: 100,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        // Should show file exists (deleted=false)
+        let result = list_removed_documents(&state_mgr, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_removed_documents_without_files() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let mut state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        // Add removed document without file (deleted)
+        let meta = DocMetadata {
+            number: 1,
+            title: "Deleted Doc".to_string(),
+            author: "Test Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Removed,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: ".dustbin/0001-deleted-doc.md".to_string(),
+                checksum: "abc123".to_string(),
+                file_size: 100,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        // Should show file doesn't exist (deleted=true)
+        let result = list_removed_documents(&state_mgr, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_removed_documents_verbose_with_files() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let mut state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        let meta = DocMetadata {
+            number: 1,
+            title: "Removed Doc".to_string(),
+            author: "Test Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Removed,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let dustbin_path = docs_dir.join(".dustbin/0001-removed-doc.md");
+        fs::create_dir_all(dustbin_path.parent().unwrap()).unwrap();
+        fs::write(&dustbin_path, "test content").unwrap();
+
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: ".dustbin/0001-removed-doc.md".to_string(),
+                checksum: "abc123".to_string(),
+                file_size: 100,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        // Verbose mode should show location
+        let result = list_removed_documents(&state_mgr, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_removed_documents_mixed_overwritten_and_removed() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let mut state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        // Add both Removed and Overwritten documents
+        for (num, title, doc_state) in [
+            (1, "Removed Doc", DocState::Removed),
+            (2, "Overwritten Doc", DocState::Overwritten),
+        ] {
+            let meta = DocMetadata {
+                number: num,
+                title: title.to_string(),
+                author: "Test Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+                state: doc_state,
+                supersedes: None,
+                superseded_by: None,
+            };
+
+            state_mgr.state_mut().upsert(
+                num,
+                DocumentRecord {
+                    metadata: meta,
+                    path: format!("{}/{:04}-{}.md", doc_state.directory(), num, title.to_lowercase().replace(' ', "-")),
+                    checksum: "abc123".to_string(),
+                    file_size: 100,
+                    modified: chrono::Utc::now(),
+                },
+            );
+        }
+
+        // Should show both types
+        let result = list_removed_documents(&state_mgr, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_removed_documents_long_title_truncation() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let mut state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        // Add document with very long title (should truncate)
+        let long_title = "This is a very long title that should be truncated in the output to fit the column width".to_string();
+        let meta = DocMetadata {
+            number: 1,
+            title: long_title,
+            author: "Test Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Removed,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: ".dustbin/0001-long-title.md".to_string(),
+                checksum: "abc123".to_string(),
+                file_size: 100,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        // Should handle truncation without panic
+        let result = list_removed_documents(&state_mgr, false);
+        assert!(result.is_ok());
+    }
 }
