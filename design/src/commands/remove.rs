@@ -40,7 +40,7 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
     let current_path = state_mgr.docs_dir().join(&doc.path);
 
     println!("  Document: {} - {}", format!("{:04}", doc_number).yellow(), doc_title.white());
-    println!("  Current state: {}", format!("{}", current_state.as_str()).cyan());
+    println!("  Current state: {}", current_state.as_str().cyan());
     println!();
 
     // Check if already removed
