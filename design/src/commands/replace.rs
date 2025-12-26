@@ -222,3 +222,294 @@ fn merge_metadata(
         superseded_by,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+    use design::state::DocumentRecord;
+    use serial_test::serial;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn setup_git_repo(temp_dir: &std::path::Path) {
+        use std::process::Command;
+        Command::new("git").args(["init"]).current_dir(temp_dir).output().ok();
+        Command::new("git")
+            .args(["config", "user.name", "Test"])
+            .current_dir(temp_dir)
+            .output()
+            .ok();
+        Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(temp_dir)
+            .output()
+            .ok();
+    }
+
+    fn create_test_doc(
+        temp: &TempDir,
+        num: u32,
+        title: &str,
+        with_frontmatter: bool,
+    ) -> PathBuf {
+        let content = if with_frontmatter {
+            format!(
+                "---\nnumber: {}\ntitle: \"{}\"\nauthor: \"Test Author\"\ncreated: 2024-01-01\nupdated: 2024-01-01\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nTest content",
+                num, title
+            )
+        } else {
+            format!("# {}\n\nTest content without frontmatter", title)
+        };
+
+        let path = temp.path().join(format!("new-doc-{}.md", num));
+        fs::write(&path, content).unwrap();
+        path
+    }
+
+    fn create_test_state_manager(temp: &TempDir) -> StateManager {
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+        setup_git_repo(temp.path());
+
+        let mut state_mgr = StateManager::new(&docs_dir).unwrap();
+
+        // Add test document
+        let meta = DocMetadata {
+            number: 1,
+            title: "Old Doc".to_string(),
+            author: "Old Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let doc_path = docs_dir.join("05-active/0001-old-doc.md");
+        fs::create_dir_all(doc_path.parent().unwrap()).unwrap();
+        let content = format!(
+            "---\n{}\n---\n\nOld content",
+            serde_yaml::to_string(&meta).unwrap().trim_start_matches("---\n")
+        );
+        fs::write(&doc_path, content).unwrap();
+
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["commit", "-m", "Initial"])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: "05-active/0001-old-doc.md".to_string(),
+                checksum: "abc123".to_string(),
+                file_size: 100,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        state_mgr
+    }
+
+    #[test]
+    #[serial]
+    fn test_replace_by_number() {
+        let temp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        let mut state_mgr = create_test_state_manager(&temp);
+        let new_doc = create_test_doc(&temp, 2, "New Doc", true);
+
+        let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap());
+        assert!(result.is_ok());
+
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn test_replace_by_path() {
+        let temp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        let mut state_mgr = create_test_state_manager(&temp);
+        let new_doc = create_test_doc(&temp, 2, "New Doc", true);
+
+        let result = execute(&mut state_mgr, "old-doc", new_doc.to_str().unwrap());
+        assert!(result.is_ok());
+
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+
+    #[test]
+    fn test_replace_old_not_found() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = create_test_state_manager(&temp);
+        let new_doc = create_test_doc(&temp, 2, "New Doc", true);
+
+        let result = execute(&mut state_mgr, "999", new_doc.to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_replace_new_file_not_found() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = create_test_state_manager(&temp);
+
+        let result = execute(&mut state_mgr, "1", "/nonexistent/file.md");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_replace_without_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        let mut state_mgr = create_test_state_manager(&temp);
+        let new_doc = create_test_doc(&temp, 2, "New Doc", false);
+
+        let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap());
+        assert!(result.is_ok());
+
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn test_replace_preserves_number_and_created() {
+        let temp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        let mut state_mgr = create_test_state_manager(&temp);
+        let old_doc = state_mgr.state().get(1).unwrap();
+        let old_created = old_doc.metadata.created;
+
+        let new_doc = create_test_doc(&temp, 2, "New Doc", true);
+        execute(&mut state_mgr, "1", new_doc.to_str().unwrap()).unwrap();
+
+        let updated_doc = state_mgr.state().get(1).unwrap();
+        assert_eq!(updated_doc.metadata.number, 1);
+        assert_eq!(updated_doc.metadata.created, old_created);
+        assert_eq!(updated_doc.metadata.title, "New Doc");
+
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn test_replace_creates_dustbin_overwritten() {
+        let temp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        let mut state_mgr = create_test_state_manager(&temp);
+        let new_doc = create_test_doc(&temp, 2, "New Doc", true);
+
+        execute(&mut state_mgr, "1", new_doc.to_str().unwrap()).unwrap();
+
+        let dustbin = temp.path().join("docs/.dustbin/overwritten");
+        assert!(dustbin.exists());
+        let files: Vec<_> = fs::read_dir(&dustbin).unwrap().collect();
+        assert_eq!(files.len(), 1);
+
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn test_replace_new_doc_in_draft() {
+        let temp = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        let mut state_mgr = create_test_state_manager(&temp);
+        let new_doc = create_test_doc(&temp, 2, "New Doc", true);
+
+        execute(&mut state_mgr, "1", new_doc.to_str().unwrap()).unwrap();
+
+        let draft_dir = temp.path().join("docs/01-draft");
+        assert!(draft_dir.exists());
+        let new_file = draft_dir.join("0001-new-doc.md");
+        assert!(new_file.exists());
+
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+
+    #[test]
+    fn test_merge_metadata_preserves_number() {
+        let old_meta = DocMetadata {
+            number: 42,
+            title: "Old".to_string(),
+            author: "Old Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: Some(10),
+            superseded_by: None,
+        };
+
+        let new_meta = DocMetadata {
+            number: 999,
+            title: "New".to_string(),
+            author: "New Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: Some(50),
+        };
+
+        let merged = merge_metadata(&old_meta, &new_meta, 42);
+
+        assert_eq!(merged.number, 42);
+        assert_eq!(merged.created, old_meta.created);
+        assert_eq!(merged.title, "New");
+        assert_eq!(merged.author, "New Author");
+        assert_eq!(merged.state, DocState::Draft);
+    }
+
+    #[test]
+    fn test_merge_metadata_falls_back_to_old() {
+        let old_meta = DocMetadata {
+            number: 42,
+            title: "Old".to_string(),
+            author: "Old Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let new_meta = DocMetadata {
+            number: 999,
+            title: "Untitled Document".to_string(),
+            author: "Unknown Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let merged = merge_metadata(&old_meta, &new_meta, 42);
+
+        assert_eq!(merged.title, "Old");
+        assert_eq!(merged.author, "Old Author");
+    }
+}
