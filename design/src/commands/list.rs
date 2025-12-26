@@ -329,10 +329,9 @@ mod tests {
         let mut state_mgr = StateManager::new(&docs_dir).unwrap();
 
         // Add some normal documents
-        for (num, title, doc_state) in [
-            (1, "Active Doc", DocState::Active),
-            (2, "Draft Doc", DocState::Draft),
-        ] {
+        for (num, title, doc_state) in
+            [(1, "Active Doc", DocState::Active), (2, "Draft Doc", DocState::Draft)]
+        {
             let meta = DocMetadata {
                 number: num,
                 title: title.to_string(),
@@ -347,7 +346,12 @@ mod tests {
                 num,
                 DocumentRecord {
                     metadata: meta,
-                    path: format!("{}/{:04}-{}.md", doc_state.directory(), num, title.to_lowercase().replace(' ', "-")),
+                    path: format!(
+                        "{}/{:04}-{}.md",
+                        doc_state.directory(),
+                        num,
+                        title.to_lowercase().replace(' ', "-")
+                    ),
                     checksum: "abc123".to_string(),
                     file_size: 100,
                     modified: chrono::Utc::now(),
@@ -356,10 +360,9 @@ mod tests {
         }
 
         // Add removed documents
-        for (num, title, doc_state) in [
-            (3, "Removed Doc", DocState::Removed),
-            (4, "Overwritten Doc", DocState::Overwritten),
-        ] {
+        for (num, title, doc_state) in
+            [(3, "Removed Doc", DocState::Removed), (4, "Overwritten Doc", DocState::Overwritten)]
+        {
             let meta = DocMetadata {
                 number: num,
                 title: title.to_string(),
@@ -370,7 +373,12 @@ mod tests {
                 supersedes: None,
                 superseded_by: None,
             };
-            let path = format!("{}/{:04}-{}.md", doc_state.directory(), num, title.to_lowercase().replace(' ', "-"));
+            let path = format!(
+                "{}/{:04}-{}.md",
+                doc_state.directory(),
+                num,
+                title.to_lowercase().replace(' ', "-")
+            );
             state_mgr.state_mut().upsert(
                 num,
                 DocumentRecord {
@@ -572,10 +580,9 @@ mod tests {
         let mut state_mgr = StateManager::new(&docs_dir).unwrap();
 
         // Add both Removed and Overwritten documents
-        for (num, title, doc_state) in [
-            (1, "Removed Doc", DocState::Removed),
-            (2, "Overwritten Doc", DocState::Overwritten),
-        ] {
+        for (num, title, doc_state) in
+            [(1, "Removed Doc", DocState::Removed), (2, "Overwritten Doc", DocState::Overwritten)]
+        {
             let meta = DocMetadata {
                 number: num,
                 title: title.to_string(),
@@ -591,7 +598,12 @@ mod tests {
                 num,
                 DocumentRecord {
                     metadata: meta,
-                    path: format!("{}/{:04}-{}.md", doc_state.directory(), num, title.to_lowercase().replace(' ', "-")),
+                    path: format!(
+                        "{}/{:04}-{}.md",
+                        doc_state.directory(),
+                        num,
+                        title.to_lowercase().replace(' ', "-")
+                    ),
                     checksum: "abc123".to_string(),
                     file_size: 100,
                     modified: chrono::Utc::now(),

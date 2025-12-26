@@ -375,9 +375,7 @@ mod tests {
 
         let content = format!(
             "---\n{}\n---\n\nTest content",
-            serde_yaml::to_string(&updated_doc.metadata)
-                .unwrap()
-                .trim_start_matches("---\n")
+            serde_yaml::to_string(&updated_doc.metadata).unwrap().trim_start_matches("---\n")
         );
         fs::write(&overwritten_path, content).unwrap();
 

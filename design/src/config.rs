@@ -66,11 +66,11 @@ impl Config {
             return Ok(None);
         }
 
-        let contents = std::fs::read_to_string(&config_path)
-            .context("Failed to read .oxd/config.toml")?;
+        let contents =
+            std::fs::read_to_string(&config_path).context("Failed to read .oxd/config.toml")?;
 
-        let config: PartialConfig = toml::from_str(&contents)
-            .context("Failed to parse .oxd/config.toml")?;
+        let config: PartialConfig =
+            toml::from_str(&contents).context("Failed to parse .oxd/config.toml")?;
 
         Ok(Some(config))
     }

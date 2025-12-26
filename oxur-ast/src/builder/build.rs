@@ -187,10 +187,7 @@ mod tests {
     fn test_build_span_empty_list() {
         let mut builder = AstBuilder::new();
 
-        let span_sexp = SExp::List(List {
-            elements: vec![],
-            pos: dummy_pos(),
-        });
+        let span_sexp = SExp::List(List { elements: vec![], pos: dummy_pos() });
 
         let result = builder.build_span(&span_sexp);
         assert!(result.is_ok());
@@ -202,9 +199,7 @@ mod tests {
         let mut builder = AstBuilder::new();
 
         let span_sexp = SExp::List(List {
-            elements: vec![
-                SExp::Symbol(Symbol { value: "Span".to_string(), pos: dummy_pos() }),
-            ],
+            elements: vec![SExp::Symbol(Symbol { value: "Span".to_string(), pos: dummy_pos() })],
             pos: dummy_pos(),
         });
 
@@ -221,9 +216,7 @@ mod tests {
         let mut builder = AstBuilder::new();
 
         let span_sexp = SExp::List(List {
-            elements: vec![
-                SExp::Symbol(Symbol { value: "NotSpan".to_string(), pos: dummy_pos() }),
-            ],
+            elements: vec![SExp::Symbol(Symbol { value: "NotSpan".to_string(), pos: dummy_pos() })],
             pos: dummy_pos(),
         });
 
@@ -266,9 +259,10 @@ mod tests {
         let mut builder = AstBuilder::new();
 
         let mod_spans_sexp = SExp::List(List {
-            elements: vec![
-                SExp::Symbol(Symbol { value: "ModSpans".to_string(), pos: dummy_pos() }),
-            ],
+            elements: vec![SExp::Symbol(Symbol {
+                value: "ModSpans".to_string(),
+                pos: dummy_pos(),
+            })],
             pos: dummy_pos(),
         });
 
@@ -283,10 +277,7 @@ mod tests {
     fn test_build_items_list_empty() {
         let mut builder = AstBuilder::new();
 
-        let items_sexp = SExp::List(List {
-            elements: vec![],
-            pos: dummy_pos(),
-        });
+        let items_sexp = SExp::List(List { elements: vec![], pos: dummy_pos() });
 
         let result = builder.build_items_list(&items_sexp);
         assert!(result.is_ok());
@@ -297,10 +288,7 @@ mod tests {
     fn test_build_crate_empty_list_error() {
         let mut builder = AstBuilder::new();
 
-        let crate_sexp = SExp::List(List {
-            elements: vec![],
-            pos: dummy_pos(),
-        });
+        let crate_sexp = SExp::List(List { elements: vec![], pos: dummy_pos() });
 
         let result = builder.build_crate(&crate_sexp);
         assert!(result.is_err());
@@ -311,9 +299,10 @@ mod tests {
         let mut builder = AstBuilder::new();
 
         let crate_sexp = SExp::List(List {
-            elements: vec![
-                SExp::Symbol(Symbol { value: "NotCrate".to_string(), pos: dummy_pos() }),
-            ],
+            elements: vec![SExp::Symbol(Symbol {
+                value: "NotCrate".to_string(),
+                pos: dummy_pos(),
+            })],
             pos: dummy_pos(),
         });
 
@@ -326,9 +315,7 @@ mod tests {
         let mut builder = AstBuilder::new();
 
         let crate_sexp = SExp::List(List {
-            elements: vec![
-                SExp::Symbol(Symbol { value: "Crate".to_string(), pos: dummy_pos() }),
-            ],
+            elements: vec![SExp::Symbol(Symbol { value: "Crate".to_string(), pos: dummy_pos() })],
             pos: dummy_pos(),
         });
 
@@ -376,7 +363,10 @@ mod tests {
                         SExp::Keyword(Keyword { name: "inner-span".to_string(), pos: dummy_pos() }),
                         SExp::List(List {
                             elements: vec![
-                                SExp::Symbol(Symbol { value: "Span".to_string(), pos: dummy_pos() }),
+                                SExp::Symbol(Symbol {
+                                    value: "Span".to_string(),
+                                    pos: dummy_pos(),
+                                }),
                                 SExp::Keyword(Keyword { name: "lo".to_string(), pos: dummy_pos() }),
                                 SExp::Number(Number { value: "1".to_string(), pos: dummy_pos() }),
                                 SExp::Keyword(Keyword { name: "hi".to_string(), pos: dummy_pos() }),

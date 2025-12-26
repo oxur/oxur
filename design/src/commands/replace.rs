@@ -247,12 +247,7 @@ mod tests {
             .ok();
     }
 
-    fn create_test_doc(
-        temp: &TempDir,
-        num: u32,
-        title: &str,
-        with_frontmatter: bool,
-    ) -> PathBuf {
+    fn create_test_doc(temp: &TempDir, num: u32, title: &str, with_frontmatter: bool) -> PathBuf {
         let content = if with_frontmatter {
             format!(
                 "---\nnumber: {}\ntitle: \"{}\"\nauthor: \"Test Author\"\ncreated: 2024-01-01\nupdated: 2024-01-01\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nTest content",

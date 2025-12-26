@@ -139,10 +139,7 @@ mod tests {
 
     #[test]
     fn test_expect_string_success() {
-        let s = SExp::String(StringLit {
-            value: "hello".to_string(),
-            pos: dummy_pos(),
-        });
+        let s = SExp::String(StringLit { value: "hello".to_string(), pos: dummy_pos() });
         let result = expect_string(&s);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "hello");
@@ -238,10 +235,7 @@ mod tests {
     #[test]
     fn test_parse_kwargs_empty() {
         let list = List {
-            elements: vec![SExp::Symbol(Symbol {
-                value: "Node".to_string(),
-                pos: dummy_pos(),
-            })],
+            elements: vec![SExp::Symbol(Symbol { value: "Node".to_string(), pos: dummy_pos() })],
             pos: dummy_pos(),
         };
 

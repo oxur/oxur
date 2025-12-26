@@ -86,7 +86,10 @@ pub(crate) fn scan_on_startup(state_mgr: &mut StateManager, command: &Commands) 
 }
 
 /// Create document index from state with filesystem fallback
-pub(crate) fn create_document_index(state_mgr: &StateManager, docs_dir: &str) -> Result<DocumentIndex> {
+pub(crate) fn create_document_index(
+    state_mgr: &StateManager,
+    docs_dir: &str,
+) -> Result<DocumentIndex> {
     match DocumentIndex::from_state(state_mgr.state(), docs_dir) {
         Ok(idx) => Ok(idx),
         Err(_) => {
@@ -184,11 +187,7 @@ This is a test document.
         .unwrap();
 
         // Initialize git repo for state manager
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(docs_dir)
-            .output()
-            .unwrap();
+        std::process::Command::new("git").args(["init"]).current_dir(docs_dir).output().unwrap();
 
         std::process::Command::new("git")
             .args(["add", "."])
@@ -210,11 +209,7 @@ This is a test document.
         let temp = setup_test_docs_dir();
         let cli = Cli {
             docs_dir: temp.path().to_str().unwrap().to_string(),
-            command: Commands::List {
-                state: None,
-                verbose: false,
-                removed: false,
-            },
+            command: Commands::List { state: None, verbose: false, removed: false },
         };
 
         let result = setup_state_manager(&cli);
@@ -230,10 +225,7 @@ This is a test document.
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
 
         // When command is Scan, should skip the scan
-        let command = Commands::Scan {
-            fix: false,
-            verbose: false,
-        };
+        let command = Commands::Scan { fix: false, verbose: false };
 
         let result = scan_on_startup(&mut state_mgr, &command);
         assert!(result.is_ok());
@@ -245,11 +237,7 @@ This is a test document.
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
 
         // When command is not Scan, should perform scan
-        let command = Commands::List {
-            state: None,
-            verbose: false,
-            removed: false,
-        };
+        let command = Commands::List { state: None, verbose: false, removed: false };
 
         let result = scan_on_startup(&mut state_mgr, &command);
         assert!(result.is_ok());
@@ -281,11 +269,7 @@ updated: 2024-01-02
         )
         .unwrap();
 
-        let command = Commands::List {
-            state: None,
-            verbose: false,
-            removed: false,
-        };
+        let command = Commands::List { state: None, verbose: false, removed: false };
 
         // This should detect the new file
         let result = scan_on_startup(&mut state_mgr, &command);
@@ -322,11 +306,7 @@ updated: 2024-01-02
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
 
-        let command = Commands::List {
-            state: None,
-            verbose: false,
-            removed: false,
-        };
+        let command = Commands::List { state: None, verbose: false, removed: false };
 
         let result = execute_command(command, &index, &mut state_mgr);
         assert!(result.is_ok());
@@ -338,10 +318,7 @@ updated: 2024-01-02
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
 
-        let command = Commands::Show {
-            number: 1,
-            metadata_only: false,
-        };
+        let command = Commands::Show { number: 1, metadata_only: false };
 
         let result = execute_command(command, &index, &mut state_mgr);
         assert!(result.is_ok());
@@ -353,10 +330,7 @@ updated: 2024-01-02
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
 
-        let command = Commands::Show {
-            number: 9999,
-            metadata_only: false,
-        };
+        let command = Commands::Show { number: 9999, metadata_only: false };
 
         let result = execute_command(command, &index, &mut state_mgr);
         assert!(result.is_err());

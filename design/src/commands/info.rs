@@ -71,11 +71,7 @@ fn show_overview(state_mgr: &StateManager) -> Result<()> {
             *counts.entry(doc.metadata.state).or_insert(0) += 1;
         }
 
-        println!(
-            "{} {} total",
-            "Documents:".cyan().bold(),
-            total.to_string().yellow()
-        );
+        println!("{} {} total", "Documents:".cyan().bold(), total.to_string().yellow());
 
         // Show top states
         let mut state_counts: Vec<_> = counts.iter().collect();
@@ -121,11 +117,7 @@ fn show_states() -> Result<()> {
     for state in states {
         // State name
         let state_name = state.as_str();
-        println!(
-            "  {:<15} {}",
-            state_name.yellow().bold(),
-            state.description().white()
-        );
+        println!("  {:<15} {}", state_name.yellow().bold(), state.description().white());
 
         // Directory
         let dir = state.directory();
@@ -134,10 +126,7 @@ fn show_states() -> Result<()> {
     }
 
     println!("{}", "Usage:".cyan().bold());
-    println!(
-        "  Transition a document: {}",
-        "oxd transition <doc> <state>".yellow()
-    );
+    println!("  Transition a document: {}", "oxd transition <doc> <state>".yellow());
     println!("  List by state: {}", "oxd list --state <state>".yellow());
     println!();
 
@@ -154,65 +143,29 @@ fn show_fields() -> Result<()> {
     println!();
 
     print_field("number", "Document number (4-digit integer)", Some("42"));
-    print_field(
-        "title",
-        "Document title",
-        Some("\"Feature Design: Advanced Caching\""),
-    );
+    print_field("title", "Document title", Some("\"Feature Design: Advanced Caching\""));
     print_field("state", "Current document state", Some("draft"));
-    println!(
-        "         {} {}",
-        "Note:".dimmed(),
-        "Valid states: oxd info states".dimmed()
-    );
+    println!("         {} {}", "Note:".dimmed(), "Valid states: oxd info states".dimmed());
     println!();
     print_field("created", "Creation date (YYYY-MM-DD)", Some("2025-01-15"));
-    println!(
-        "         {} {}",
-        "Note:".dimmed(),
-        "Auto-extracted from git if missing".dimmed()
-    );
+    println!("         {} {}", "Note:".dimmed(), "Auto-extracted from git if missing".dimmed());
     println!();
     print_field("updated", "Last update date (YYYY-MM-DD)", Some("2025-01-20"));
-    println!(
-        "         {} {}",
-        "Note:".dimmed(),
-        "Auto-updated on transitions".dimmed()
-    );
+    println!("         {} {}", "Note:".dimmed(), "Auto-updated on transitions".dimmed());
     println!();
     print_field("author", "Document author name", Some("\"Jane Developer\""));
-    println!(
-        "         {} {}",
-        "Note:".dimmed(),
-        "Auto-extracted from git if missing".dimmed()
-    );
+    println!("         {} {}", "Note:".dimmed(), "Auto-extracted from git if missing".dimmed());
     println!();
 
     // Optional fields
     println!("{}", "Optional Fields:".cyan().bold());
     println!();
 
-    print_field(
-        "supersedes",
-        "Number of document this supersedes",
-        Some("41"),
-    );
-    println!(
-        "         {} {}",
-        "Note:".dimmed(),
-        "Used when document replaces another".dimmed()
-    );
+    print_field("supersedes", "Number of document this supersedes", Some("41"));
+    println!("         {} {}", "Note:".dimmed(), "Used when document replaces another".dimmed());
     println!();
-    print_field(
-        "superseded-by",
-        "Number of document that supersedes this",
-        Some("43"),
-    );
-    println!(
-        "         {} {}",
-        "Note:".dimmed(),
-        "Auto-set when document is superseded".dimmed()
-    );
+    print_field("superseded-by", "Number of document that supersedes this", Some("43"));
+    println!("         {} {}", "Note:".dimmed(), "Auto-set when document is superseded".dimmed());
     println!();
 
     // Example
@@ -230,25 +183,15 @@ fn show_fields() -> Result<()> {
 
     // Commands
     println!("{}", "Related Commands:".cyan().bold());
-    println!(
-        "  {}  Add missing headers to a document",
-        "oxd add-headers <doc>".yellow()
-    );
-    println!(
-        "  {}  Check all documents for valid headers",
-        "oxd validate".yellow()
-    );
+    println!("  {}  Add missing headers to a document", "oxd add-headers <doc>".yellow());
+    println!("  {}  Check all documents for valid headers", "oxd validate".yellow());
     println!();
 
     Ok(())
 }
 
 fn print_field(name: &str, description: &str, example: Option<&str>) {
-    println!(
-        "  {:<15} {}",
-        name.yellow().bold(),
-        description.white()
-    );
+    println!("  {:<15} {}", name.yellow().bold(), description.white());
     if let Some(ex) = example {
         println!("  {:<15} Example: {}", "", ex.cyan());
     }
@@ -266,11 +209,7 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
 
     // Project paths
     println!("{}", "Project:".green().bold());
-    println!(
-        "  {:<18} {}",
-        "Root:".white(),
-        config.project_root.display().to_string().cyan()
-    );
+    println!("  {:<18} {}", "Root:".white(), config.project_root.display().to_string().cyan());
     println!(
         "  {:<18} {}",
         "Docs Directory:".white(),
@@ -280,11 +219,7 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
 
     // Data sources
     println!("{}", "Data Sources:".green().bold());
-    println!(
-        "  {:<18} {}",
-        "State File:".white(),
-        config.state_file.display().to_string().cyan()
-    );
+    println!("  {:<18} {}", "State File:".white(), config.state_file.display().to_string().cyan());
     println!();
 
     // Dustbin
@@ -310,11 +245,7 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
     println!(
         "  {:<18} {}",
         "Auto-stage:".white(),
-        if config.auto_stage_git {
-            "enabled".green()
-        } else {
-            "disabled".yellow()
-        }
+        if config.auto_stage_git { "enabled".green() } else { "disabled".yellow() }
     );
     println!();
 
@@ -334,11 +265,7 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
     ];
 
     for state in states {
-        println!(
-            "  {:<18} → {}",
-            state.as_str().white(),
-            state.directory().cyan()
-        );
+        println!("  {:<18} → {}", state.as_str().white(), state.directory().cyan());
     }
     println!();
 
@@ -363,8 +290,8 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
 }
 
 fn show_stats(state_mgr: &StateManager) -> Result<()> {
-    use std::collections::HashMap;
     use design::doc::DocState;
+    use std::collections::HashMap;
 
     let all_docs = state_mgr.state().all();
 
@@ -374,11 +301,7 @@ fn show_stats(state_mgr: &StateManager) -> Result<()> {
 
     // Document counts
     println!("{}", "Document Counts:".green().bold());
-    println!(
-        "  {:<20} {}",
-        "Total Documents:".white(),
-        all_docs.len().to_string().yellow().bold()
-    );
+    println!("  {:<20} {}", "Total Documents:".white(), all_docs.len().to_string().yellow().bold());
     println!();
 
     // By state
@@ -445,10 +368,7 @@ fn show_stats(state_mgr: &StateManager) -> Result<()> {
     }
 
     // Check dustbin
-    let in_dustbin = all_docs
-        .iter()
-        .filter(|d| d.metadata.state.is_in_dustbin())
-        .count();
+    let in_dustbin = all_docs.iter().filter(|d| d.metadata.state.is_in_dustbin()).count();
 
     if in_dustbin > 0 {
         println!(
@@ -486,17 +406,10 @@ fn show_dirs(state_mgr: &StateManager) -> Result<()> {
     let docs_dir = state_mgr.docs_dir();
     println!("{}/", docs_dir.file_name().unwrap().to_string_lossy());
     println!("├── {}  {}", ".oxd/".cyan(), "(state tracking)".dimmed());
-    println!(
-        "│   └── {}  {}",
-        "state.json".cyan(),
-        "(document state)".dimmed()
-    );
+    println!("│   └── {}  {}", "state.json".cyan(), "(document state)".dimmed());
 
     // Dustbin
-    let dustbin_count = all_docs
-        .iter()
-        .filter(|d| d.metadata.state.is_in_dustbin())
-        .count();
+    let dustbin_count = all_docs.iter().filter(|d| d.metadata.state.is_in_dustbin()).count();
 
     if dustbin_count > 0 {
         println!(
