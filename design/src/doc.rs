@@ -534,3 +534,621 @@ pub fn sync_state_with_directory(path: &Path, content: &str) -> Result<String, D
         Ok(content.to_string())
     }
 }
+
+#[cfg(test)]
+mod docstate_tests {
+    use super::*;
+
+    #[test]
+    fn test_as_str_all_states() {
+        assert_eq!(DocState::Draft.as_str(), "Draft");
+        assert_eq!(DocState::UnderReview.as_str(), "Under Review");
+        assert_eq!(DocState::Revised.as_str(), "Revised");
+        assert_eq!(DocState::Accepted.as_str(), "Accepted");
+        assert_eq!(DocState::Active.as_str(), "Active");
+        assert_eq!(DocState::Final.as_str(), "Final");
+        assert_eq!(DocState::Deferred.as_str(), "Deferred");
+        assert_eq!(DocState::Rejected.as_str(), "Rejected");
+        assert_eq!(DocState::Withdrawn.as_str(), "Withdrawn");
+        assert_eq!(DocState::Superseded.as_str(), "Superseded");
+    }
+
+    #[test]
+    fn test_directory_all_states() {
+        assert_eq!(DocState::Draft.directory(), "01-draft");
+        assert_eq!(DocState::UnderReview.directory(), "02-under-review");
+        assert_eq!(DocState::Revised.directory(), "03-revised");
+        assert_eq!(DocState::Accepted.directory(), "04-accepted");
+        assert_eq!(DocState::Active.directory(), "05-active");
+        assert_eq!(DocState::Final.directory(), "06-final");
+        assert_eq!(DocState::Deferred.directory(), "07-deferred");
+        assert_eq!(DocState::Rejected.directory(), "08-rejected");
+        assert_eq!(DocState::Withdrawn.directory(), "09-withdrawn");
+        assert_eq!(DocState::Superseded.directory(), "10-superseded");
+    }
+
+    #[test]
+    fn test_from_str_flexible_canonical() {
+        assert_eq!(DocState::from_str_flexible("draft"), Some(DocState::Draft));
+        assert_eq!(DocState::from_str_flexible("under review"), Some(DocState::UnderReview));
+        assert_eq!(DocState::from_str_flexible("revised"), Some(DocState::Revised));
+        assert_eq!(DocState::from_str_flexible("accepted"), Some(DocState::Accepted));
+        assert_eq!(DocState::from_str_flexible("active"), Some(DocState::Active));
+        assert_eq!(DocState::from_str_flexible("final"), Some(DocState::Final));
+        assert_eq!(DocState::from_str_flexible("deferred"), Some(DocState::Deferred));
+        assert_eq!(DocState::from_str_flexible("rejected"), Some(DocState::Rejected));
+        assert_eq!(DocState::from_str_flexible("withdrawn"), Some(DocState::Withdrawn));
+        assert_eq!(DocState::from_str_flexible("superseded"), Some(DocState::Superseded));
+    }
+
+    #[test]
+    fn test_from_str_flexible_case_insensitive() {
+        assert_eq!(DocState::from_str_flexible("DRAFT"), Some(DocState::Draft));
+        assert_eq!(DocState::from_str_flexible("Draft"), Some(DocState::Draft));
+        assert_eq!(DocState::from_str_flexible("DRaFT"), Some(DocState::Draft));
+        assert_eq!(DocState::from_str_flexible("UNDER REVIEW"), Some(DocState::UnderReview));
+    }
+
+    #[test]
+    fn test_from_str_flexible_aliases() {
+        assert_eq!(DocState::from_str_flexible("review"), Some(DocState::UnderReview));
+        assert_eq!(DocState::from_str_flexible("underreview"), Some(DocState::UnderReview));
+    }
+
+    #[test]
+    fn test_from_str_flexible_with_hyphens() {
+        assert_eq!(DocState::from_str_flexible("under-review"), Some(DocState::UnderReview));
+        assert_eq!(DocState::from_str_flexible("under_review"), Some(DocState::UnderReview));
+    }
+
+    #[test]
+    fn test_from_str_flexible_whitespace() {
+        assert_eq!(DocState::from_str_flexible("  draft  "), Some(DocState::Draft));
+        assert_eq!(DocState::from_str_flexible("  under review  "), Some(DocState::UnderReview));
+    }
+
+    #[test]
+    fn test_from_str_flexible_invalid() {
+        assert_eq!(DocState::from_str_flexible("invalid"), None);
+        assert_eq!(DocState::from_str_flexible(""), None);
+        assert_eq!(DocState::from_str_flexible("pending"), None);
+    }
+
+    #[test]
+    fn test_from_directory_canonical() {
+        assert_eq!(DocState::from_directory("01-draft"), Some(DocState::Draft));
+        assert_eq!(DocState::from_directory("02-under-review"), Some(DocState::UnderReview));
+        assert_eq!(DocState::from_directory("03-revised"), Some(DocState::Revised));
+        assert_eq!(DocState::from_directory("04-accepted"), Some(DocState::Accepted));
+        assert_eq!(DocState::from_directory("05-active"), Some(DocState::Active));
+        assert_eq!(DocState::from_directory("06-final"), Some(DocState::Final));
+        assert_eq!(DocState::from_directory("07-deferred"), Some(DocState::Deferred));
+        assert_eq!(DocState::from_directory("08-rejected"), Some(DocState::Rejected));
+        assert_eq!(DocState::from_directory("09-withdrawn"), Some(DocState::Withdrawn));
+        assert_eq!(DocState::from_directory("10-superseded"), Some(DocState::Superseded));
+    }
+
+    #[test]
+    fn test_from_directory_legacy() {
+        // Legacy directory names
+        assert_eq!(DocState::from_directory("01-drafts"), Some(DocState::Draft));
+        assert_eq!(DocState::from_directory("03-final"), Some(DocState::Final));
+        assert_eq!(DocState::from_directory("04-superseded"), Some(DocState::Superseded));
+    }
+
+    #[test]
+    fn test_from_directory_invalid() {
+        assert_eq!(DocState::from_directory("invalid"), None);
+        assert_eq!(DocState::from_directory("11-unknown"), None);
+        assert_eq!(DocState::from_directory("draft"), None);
+    }
+
+    #[test]
+    fn test_all_states_count() {
+        let states = DocState::all_states();
+        assert_eq!(states.len(), 10);
+    }
+
+    #[test]
+    fn test_all_states_complete() {
+        let states = DocState::all_states();
+        assert!(states.contains(&DocState::Draft));
+        assert!(states.contains(&DocState::UnderReview));
+        assert!(states.contains(&DocState::Revised));
+        assert!(states.contains(&DocState::Accepted));
+        assert!(states.contains(&DocState::Active));
+        assert!(states.contains(&DocState::Final));
+        assert!(states.contains(&DocState::Deferred));
+        assert!(states.contains(&DocState::Rejected));
+        assert!(states.contains(&DocState::Withdrawn));
+        assert!(states.contains(&DocState::Superseded));
+    }
+
+    #[test]
+    fn test_all_state_names() {
+        let names = DocState::all_state_names();
+        assert_eq!(names.len(), 10);
+        assert!(names.contains(&"Draft"));
+        assert!(names.contains(&"Under Review"));
+        assert!(names.contains(&"Final"));
+    }
+
+    #[test]
+    fn test_serde_serialization() {
+        let state = DocState::Draft;
+        let json = serde_json::to_string(&state).unwrap();
+        assert_eq!(json, "\"Draft\"");
+    }
+
+    #[test]
+    fn test_serde_deserialization_valid() {
+        let json = "\"Draft\"";
+        let state: DocState = serde_json::from_str(json).unwrap();
+        assert_eq!(state, DocState::Draft);
+
+        let json = "\"under review\"";
+        let state: DocState = serde_json::from_str(json).unwrap();
+        assert_eq!(state, DocState::UnderReview);
+    }
+
+    #[test]
+    fn test_serde_deserialization_invalid() {
+        let json = "\"invalid state\"";
+        let result: Result<DocState, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_state_equality() {
+        assert_eq!(DocState::Draft, DocState::Draft);
+        assert_ne!(DocState::Draft, DocState::Final);
+    }
+
+    #[test]
+    fn test_state_round_trip() {
+        for state in DocState::all_states() {
+            // as_str -> from_str_flexible
+            let str_repr = state.as_str();
+            assert_eq!(DocState::from_str_flexible(str_repr), Some(state));
+
+            // directory -> from_directory
+            let dir_repr = state.directory();
+            assert_eq!(DocState::from_directory(dir_repr), Some(state));
+        }
+    }
+}
+
+#[cfg(test)]
+mod parsing_tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    fn create_test_doc_content(state: &str) -> String {
+        format!(
+            "---\nnumber: 42\ntitle: \"Test Document\"\nauthor: \"Test Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: {}\nsupersedes: null\nsuperseded-by: null\n---\n\n# Test Document\n\nThis is the content.",
+            state
+        )
+    }
+
+    #[test]
+    fn test_parse_valid_document() {
+        let content = create_test_doc_content("Draft");
+        let result = DesignDoc::parse(&content, PathBuf::from("test.md"));
+
+        assert!(result.is_ok());
+        let doc = result.unwrap();
+        assert_eq!(doc.metadata.number, 42);
+        assert_eq!(doc.metadata.title, "Test Document");
+        assert_eq!(doc.metadata.author, "Test Author");
+        assert_eq!(doc.metadata.state, DocState::Draft);
+        assert!(doc.content.contains("# Test Document"));
+    }
+
+    #[test]
+    fn test_parse_all_states() {
+        for state in DocState::all_states() {
+            let content = create_test_doc_content(state.as_str());
+            let result = DesignDoc::parse(&content, PathBuf::from("test.md"));
+
+            assert!(result.is_ok());
+            let doc = result.unwrap();
+            assert_eq!(doc.metadata.state, state);
+        }
+    }
+
+    #[test]
+    fn test_parse_missing_frontmatter() {
+        let content = "# Just Content\n\nNo frontmatter here.";
+        let result = DesignDoc::parse(content, PathBuf::from("test.md"));
+
+        assert!(result.is_err());
+        match result {
+            Err(DocError::InvalidFormat(msg)) => assert!(msg.contains("Missing YAML frontmatter")),
+            _ => panic!("Expected InvalidFormat error"),
+        }
+    }
+
+    #[test]
+    fn test_parse_malformed_yaml() {
+        let content = "---\nthis is not yaml\njust random text\n---\n\nContent";
+        let result = DesignDoc::parse(content, PathBuf::from("test.md"));
+
+        assert!(result.is_err());
+        match result {
+            Err(DocError::InvalidFormat(msg)) => assert!(msg.contains("YAML parse error")),
+            _ => panic!("Expected InvalidFormat error"),
+        }
+    }
+
+    #[test]
+    fn test_parse_with_supersedes() {
+        let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Final\nsupersedes: 41\nsuperseded-by: null\n---\n\nContent";
+        let result = DesignDoc::parse(content, PathBuf::from("test.md"));
+
+        assert!(result.is_ok());
+        let doc = result.unwrap();
+        assert_eq!(doc.metadata.supersedes, Some(41));
+        assert_eq!(doc.metadata.superseded_by, None);
+    }
+
+    #[test]
+    fn test_parse_with_superseded_by() {
+        let content = "---\nnumber: 41\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Superseded\nsupersedes: null\nsuperseded-by: 42\n---\n\nContent";
+        let result = DesignDoc::parse(content, PathBuf::from("test.md"));
+
+        assert!(result.is_ok());
+        let doc = result.unwrap();
+        assert_eq!(doc.metadata.supersedes, None);
+        assert_eq!(doc.metadata.superseded_by, Some(42));
+    }
+
+    #[test]
+    fn test_filename_generation() {
+        let metadata = DocMetadata {
+            number: 42,
+            title: "My Cool Feature".to_string(),
+            author: "Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+        let doc = DesignDoc {
+            metadata,
+            content: "test".to_string(),
+            path: PathBuf::from("test.md"),
+        };
+
+        assert_eq!(doc.filename(), "0042-my-cool-feature.md");
+    }
+
+    #[test]
+    fn test_filename_special_chars() {
+        let metadata = DocMetadata {
+            number: 1,
+            title: "Test!!! Document???".to_string(),
+            author: "Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+        let doc = DesignDoc {
+            metadata,
+            content: "test".to_string(),
+            path: PathBuf::from("test.md"),
+        };
+
+        assert_eq!(doc.filename(), "0001-test-document.md");
+    }
+
+    #[test]
+    fn test_extract_title_from_heading() {
+        let content = "# Main Title\n\nSome content here.";
+        let title = extract_title_from_content(content, "0001-test.md");
+        assert_eq!(title, "Main Title");
+    }
+
+    #[test]
+    fn test_extract_title_from_filename() {
+        let content = "No headings here.";
+        let title = extract_title_from_content(content, "0042-my-feature.md");
+        assert_eq!(title, "My Feature");
+    }
+
+    #[test]
+    fn test_extract_title_fallback() {
+        let content = "No headings here.";
+        let title = extract_title_from_content(content, "invalid-filename");
+        assert_eq!(title, "Untitled Document");
+    }
+
+    #[test]
+    fn test_extract_number_from_filename() {
+        assert_eq!(extract_number_from_filename("0001-test.md"), 1);
+        assert_eq!(extract_number_from_filename("0042-feature.md"), 42);
+        assert_eq!(extract_number_from_filename("9999-doc.md"), 9999);
+    }
+
+    #[test]
+    fn test_extract_number_no_prefix() {
+        assert_eq!(extract_number_from_filename("test.md"), 0);
+        assert_eq!(extract_number_from_filename("no-number.md"), 0);
+    }
+
+    #[test]
+    fn test_has_number_prefix() {
+        assert!(has_number_prefix("0001-test.md"));
+        assert!(has_number_prefix("9999-doc.md"));
+        assert!(!has_number_prefix("test.md"));
+        assert!(!has_number_prefix("001-short.md"));
+    }
+
+    #[test]
+    fn test_has_frontmatter() {
+        assert!(has_frontmatter("---\ntitle: Test\n---\nContent"));
+        assert!(has_frontmatter("  ---\ntitle: Test\n---\nContent"));
+        assert!(!has_frontmatter("# No frontmatter"));
+        assert!(!has_frontmatter(""));
+    }
+
+    #[test]
+    fn test_has_placeholder_values() {
+        assert!(has_placeholder_values("number: NNNN\ntitle: Test"));
+        assert!(has_placeholder_values("number: 0\ntitle: Test"));
+        assert!(has_placeholder_values("author: Unknown\ntitle: Test"));
+        assert!(has_placeholder_values("title: \"\""));
+        assert!(!has_placeholder_values("number: 42\ntitle: Real Title\nauthor: Real Author"));
+    }
+}
+
+#[cfg(test)]
+mod frontmatter_tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn test_build_yaml_frontmatter_complete() {
+        let metadata = DocMetadata {
+            number: 42,
+            title: "Test Document".to_string(),
+            author: "Test Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            state: DocState::Draft,
+            supersedes: Some(41),
+            superseded_by: Some(43),
+        };
+
+        let yaml = build_yaml_frontmatter(&metadata);
+
+        assert!(yaml.starts_with("---\n"));
+        assert!(yaml.contains("number: 42\n"));
+        assert!(yaml.contains("title: \"Test Document\"\n"));
+        assert!(yaml.contains("author: \"Test Author\"\n"));
+        assert!(yaml.contains("state: Draft\n"));
+        assert!(yaml.contains("supersedes: 41\n"));
+        assert!(yaml.contains("superseded-by: 43\n"));
+        assert!(yaml.ends_with("---\n\n"));
+    }
+
+    #[test]
+    fn test_build_yaml_frontmatter_nulls() {
+        let metadata = DocMetadata {
+            number: 1,
+            title: "Test".to_string(),
+            author: "Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let yaml = build_yaml_frontmatter(&metadata);
+
+        assert!(yaml.contains("supersedes: null\n"));
+        assert!(yaml.contains("superseded-by: null\n"));
+    }
+
+    #[test]
+    fn test_build_yaml_all_states() {
+        for state in DocState::all_states() {
+            let metadata = DocMetadata {
+                number: 1,
+                title: "Test".to_string(),
+                author: "Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state,
+                supersedes: None,
+                superseded_by: None,
+            };
+
+            let yaml = build_yaml_frontmatter(&metadata);
+            assert!(yaml.contains(&format!("state: {}\n", state.as_str())));
+        }
+    }
+
+    #[test]
+    fn test_update_yaml_field_exists() {
+        let content = "---\ntitle: Old Title\nauthor: Someone\n---\nContent";
+        let updated = DesignDoc::update_yaml_field(content, "title", "New Title").unwrap();
+
+        assert!(updated.contains("title: New Title"));
+        assert!(!updated.contains("Old Title"));
+    }
+
+    #[test]
+    fn test_update_yaml_field_not_found() {
+        let content = "---\ntitle: Title\nauthor: Someone\n---\nContent";
+        let updated = DesignDoc::update_yaml_field(content, "nonexistent", "value").unwrap();
+
+        // Should not modify if field doesn't exist
+        assert_eq!(updated, content);
+    }
+
+    #[test]
+    fn test_update_state_field() {
+        let content = "---\ntitle: Test\nstate: Draft\nupdated: 2024-01-01\n---\nContent";
+        let updated = DesignDoc::update_state(content, DocState::Final).unwrap();
+
+        assert!(updated.contains("state: Final"));
+        // Updated date should change (we can't test exact date but can verify it changed)
+        assert!(updated.contains("updated:"));
+    }
+}
+
+#[cfg(test)]
+mod file_operations_tests {
+    use super::*;
+    use tempfile::TempDir;
+    use std::fs;
+
+    #[test]
+    fn test_is_in_state_dir() {
+        // Paths in state directories
+        assert!(is_in_state_dir(Path::new("project/01-draft/doc.md")));
+        assert!(is_in_state_dir(Path::new("project/06-final/doc.md")));
+        assert!(is_in_state_dir(Path::new("/abs/path/02-under-review/doc.md")));
+
+        // Paths not in state directories
+        assert!(!is_in_state_dir(Path::new("project/doc.md")));
+        assert!(!is_in_state_dir(Path::new("project/other-dir/doc.md")));
+    }
+
+    #[test]
+    fn test_state_from_directory() {
+        assert_eq!(
+            state_from_directory(Path::new("project/01-draft/doc.md")),
+            Some(DocState::Draft)
+        );
+        assert_eq!(
+            state_from_directory(Path::new("project/06-final/doc.md")),
+            Some(DocState::Final)
+        );
+        assert_eq!(state_from_directory(Path::new("project/doc.md")), None);
+    }
+
+    #[test]
+    fn test_move_to_project() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path();
+
+        // Create a file in a subdirectory
+        let subdir = project_dir.join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        let file_path = subdir.join("test.md");
+        fs::write(&file_path, "content").unwrap();
+
+        // Move to project root
+        let new_path = move_to_project(&file_path, project_dir).unwrap();
+
+        assert_eq!(new_path, project_dir.join("test.md"));
+        assert!(new_path.exists());
+        assert!(!file_path.exists());
+    }
+
+    #[test]
+    fn test_move_to_state_dir() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path();
+
+        // Create a file in project root
+        let file_path = project_dir.join("test.md");
+        fs::write(&file_path, "content").unwrap();
+
+        // Move to Draft state directory
+        let new_path = move_to_state_dir(&file_path, DocState::Draft, project_dir).unwrap();
+
+        assert_eq!(new_path, project_dir.join("01-draft/test.md"));
+        assert!(new_path.exists());
+        assert!(!file_path.exists());
+    }
+
+    #[test]
+    fn test_move_to_state_dir_creates_directory() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path();
+
+        let file_path = project_dir.join("test.md");
+        fs::write(&file_path, "content").unwrap();
+
+        // State directory doesn't exist yet
+        assert!(!project_dir.join("01-draft").exists());
+
+        // Should create it
+        move_to_state_dir(&file_path, DocState::Draft, project_dir).unwrap();
+
+        assert!(project_dir.join("01-draft").exists());
+    }
+
+    #[test]
+    fn test_add_number_prefix() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "content").unwrap();
+
+        let new_path = add_number_prefix(&file_path, 42).unwrap();
+
+        assert_eq!(new_path.file_name().unwrap(), "0042-test.md");
+        assert!(new_path.exists());
+        assert!(!file_path.exists());
+    }
+}
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+    use chrono::NaiveDate;
+
+    proptest! {
+        #[test]
+        fn state_as_str_from_str_round_trip(state in prop::sample::select(DocState::all_states())) {
+            let str_repr = state.as_str();
+            prop_assert_eq!(DocState::from_str_flexible(str_repr), Some(state));
+        }
+
+        #[test]
+        fn state_directory_from_directory_round_trip(state in prop::sample::select(DocState::all_states())) {
+            let dir_repr = state.directory();
+            prop_assert_eq!(DocState::from_directory(dir_repr), Some(state));
+        }
+
+        #[test]
+        fn extract_number_is_consistent(num in 0u32..10000) {
+            let filename = format!("{:04}-test.md", num);
+            prop_assert_eq!(extract_number_from_filename(&filename), num);
+        }
+
+        #[test]
+        fn has_number_prefix_consistency(num in 0u32..10000, title in "[a-z]+") {
+            let filename = format!("{:04}-{}.md", num, title);
+            prop_assert!(has_number_prefix(&filename));
+        }
+
+        #[test]
+        fn yaml_frontmatter_starts_and_ends_correctly(
+            num in 1u32..10000,
+            state in prop::sample::select(DocState::all_states())
+        ) {
+            let metadata = DocMetadata {
+                number: num,
+                title: "Test".to_string(),
+                author: "Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state,
+                supersedes: None,
+                superseded_by: None,
+            };
+
+            let yaml = build_yaml_frontmatter(&metadata);
+            prop_assert!(yaml.starts_with("---\n"));
+            prop_assert!(yaml.ends_with("---\n\n"));
+        }
+    }
+}

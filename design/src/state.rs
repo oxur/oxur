@@ -484,3 +484,343 @@ impl ScanResult {
         self.new_files.len() + self.changed.len() + self.deleted.len()
     }
 }
+
+#[cfg(test)]
+mod document_state_tests {
+    use super::*;
+    use crate::doc::DocState;
+    use chrono::NaiveDate;
+    use tempfile::TempDir;
+
+    fn create_test_metadata(number: u32) -> DocMetadata {
+        DocMetadata {
+            number,
+            title: format!("Test Doc {}", number),
+            author: "Test Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        }
+    }
+
+    fn create_test_record(number: u32) -> DocumentRecord {
+        DocumentRecord {
+            metadata: create_test_metadata(number),
+            path: format!("01-draft/00{:02}-test.md", number),
+            checksum: "abc123".to_string(),
+            file_size: 1024,
+            modified: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn test_new_state() {
+        let state = DocumentState::new();
+        assert_eq!(state.version, 1);
+        assert_eq!(state.next_number, 1);
+        assert!(state.documents.is_empty());
+    }
+
+    #[test]
+    fn test_upsert_new() {
+        let mut state = DocumentState::new();
+        let record = create_test_record(1);
+
+        state.upsert(1, record.clone());
+
+        assert_eq!(state.documents.len(), 1);
+        assert!(state.get(1).is_some());
+        assert_eq!(state.next_number, 2);
+    }
+
+    #[test]
+    fn test_upsert_update() {
+        let mut state = DocumentState::new();
+        let record1 = create_test_record(1);
+        state.upsert(1, record1);
+
+        let mut record2 = create_test_record(1);
+        record2.metadata.title = "Updated Title".to_string();
+        state.upsert(1, record2);
+
+        assert_eq!(state.documents.len(), 1);
+        assert_eq!(state.get(1).unwrap().metadata.title, "Updated Title");
+    }
+
+    #[test]
+    fn test_upsert_updates_next_number() {
+        let mut state = DocumentState::new();
+
+        state.upsert(5, create_test_record(5));
+        assert_eq!(state.next_number, 6);
+
+        state.upsert(3, create_test_record(3));
+        assert_eq!(state.next_number, 6); // Shouldn't decrease
+
+        state.upsert(10, create_test_record(10));
+        assert_eq!(state.next_number, 11);
+    }
+
+    #[test]
+    fn test_remove_existing() {
+        let mut state = DocumentState::new();
+        state.upsert(1, create_test_record(1));
+
+        let removed = state.remove(1);
+        assert!(removed.is_some());
+        assert_eq!(state.documents.len(), 0);
+    }
+
+    #[test]
+    fn test_remove_nonexistent() {
+        let mut state = DocumentState::new();
+        let removed = state.remove(999);
+        assert!(removed.is_none());
+    }
+
+    #[test]
+    fn test_get_existing() {
+        let mut state = DocumentState::new();
+        state.upsert(1, create_test_record(1));
+
+        let record = state.get(1);
+        assert!(record.is_some());
+        assert_eq!(record.unwrap().metadata.number, 1);
+    }
+
+    #[test]
+    fn test_get_nonexistent() {
+        let state = DocumentState::new();
+        assert!(state.get(999).is_none());
+    }
+
+    #[test]
+    fn test_all_sorted() {
+        let mut state = DocumentState::new();
+        state.upsert(3, create_test_record(3));
+        state.upsert(1, create_test_record(1));
+        state.upsert(2, create_test_record(2));
+
+        let all = state.all();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].metadata.number, 1);
+        assert_eq!(all[1].metadata.number, 2);
+        assert_eq!(all[2].metadata.number, 3);
+    }
+
+    #[test]
+    fn test_all_empty() {
+        let state = DocumentState::new();
+        assert!(state.all().is_empty());
+    }
+
+    #[test]
+    fn test_by_state() {
+        let mut state = DocumentState::new();
+
+        let mut record1 = create_test_record(1);
+        record1.metadata.state = DocState::Draft;
+        state.upsert(1, record1);
+
+        let mut record2 = create_test_record(2);
+        record2.metadata.state = DocState::Final;
+        state.upsert(2, record2);
+
+        let mut record3 = create_test_record(3);
+        record3.metadata.state = DocState::Draft;
+        state.upsert(3, record3);
+
+        let drafts = state.by_state(DocState::Draft);
+        assert_eq!(drafts.len(), 2);
+
+        let finals = state.by_state(DocState::Final);
+        assert_eq!(finals.len(), 1);
+
+        let active = state.by_state(DocState::Active);
+        assert!(active.is_empty());
+    }
+
+    #[test]
+    fn test_save_and_load() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join(".oxd");
+
+        let mut state = DocumentState::new();
+        state.upsert(1, create_test_record(1));
+        state.upsert(2, create_test_record(2));
+
+        // Save
+        state.save(&state_dir).unwrap();
+
+        // Verify file exists
+        assert!(state_dir.join("state.json").exists());
+        assert!(state_dir.join(".gitignore").exists());
+
+        // Load
+        let loaded = DocumentState::load(&state_dir).unwrap();
+        assert_eq!(loaded.documents.len(), 2);
+        assert!(loaded.get(1).is_some());
+        assert!(loaded.get(2).is_some());
+        assert_eq!(loaded.next_number, state.next_number);
+    }
+
+    #[test]
+    fn test_load_nonexistent() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join(".oxd");
+
+        let state = DocumentState::load(&state_dir).unwrap();
+        assert_eq!(state.version, 1);
+        assert!(state.documents.is_empty());
+        assert_eq!(state.next_number, 1);
+    }
+
+    #[test]
+    fn test_save_creates_gitignore() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join(".oxd");
+
+        let state = DocumentState::new();
+        state.save(&state_dir).unwrap();
+
+        let gitignore = state_dir.join(".gitignore");
+        assert!(gitignore.exists());
+
+        let content = fs::read_to_string(gitignore).unwrap();
+        assert_eq!(content, "*\n");
+    }
+
+    #[test]
+    fn test_save_atomic() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join(".oxd");
+
+        let state = DocumentState::new();
+        state.save(&state_dir).unwrap();
+
+        // Temp file should not exist after save
+        assert!(!state_dir.join("state.json.tmp").exists());
+        assert!(state_dir.join("state.json").exists());
+    }
+}
+
+#[cfg(test)]
+mod checksum_tests {
+    use super::*;
+    use tempfile::TempDir;
+    use std::fs;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    #[test]
+    fn test_compute_checksum_empty() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("empty.txt");
+        fs::write(&file_path, "").unwrap();
+
+        let checksum = compute_checksum(&file_path).unwrap();
+        // SHA-256 of empty string
+        assert_eq!(
+            checksum,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn test_compute_checksum_content() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.txt");
+        fs::write(&file_path, "Hello, World!").unwrap();
+
+        let checksum = compute_checksum(&file_path).unwrap();
+        assert!(!checksum.is_empty());
+        assert_eq!(checksum.len(), 64); // SHA-256 is 64 hex chars
+    }
+
+    #[test]
+    fn test_compute_checksum_deterministic() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.txt");
+        fs::write(&file_path, "Same content").unwrap();
+
+        let checksum1 = compute_checksum(&file_path).unwrap();
+        let checksum2 = compute_checksum(&file_path).unwrap();
+
+        assert_eq!(checksum1, checksum2);
+    }
+
+    #[test]
+    fn test_compute_checksum_different_content() {
+        let temp = TempDir::new().unwrap();
+
+        let file1 = temp.path().join("file1.txt");
+        fs::write(&file1, "Content A").unwrap();
+
+        let file2 = temp.path().join("file2.txt");
+        fs::write(&file2, "Content B").unwrap();
+
+        let checksum1 = compute_checksum(&file1).unwrap();
+        let checksum2 = compute_checksum(&file2).unwrap();
+
+        assert_ne!(checksum1, checksum2);
+    }
+
+    #[test]
+    fn test_file_changed_same_content() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.txt");
+        fs::write(&file_path, "Content").unwrap();
+
+        let checksum = compute_checksum(&file_path).unwrap();
+        let changed = file_changed(&file_path, &checksum).unwrap();
+
+        assert!(!changed);
+    }
+
+    #[test]
+    fn test_file_changed_different_content() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.txt");
+        fs::write(&file_path, "Original").unwrap();
+
+        let checksum = compute_checksum(&file_path).unwrap();
+
+        // Modify file
+        fs::write(&file_path, "Modified").unwrap();
+        let changed = file_changed(&file_path, &checksum).unwrap();
+
+        assert!(changed);
+    }
+
+    #[test]
+    fn test_file_metadata() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.txt");
+        let content = "Hello, World!";
+        fs::write(&file_path, content).unwrap();
+
+        let (size, modified) = file_metadata(&file_path).unwrap();
+
+        assert_eq!(size, content.len() as u64);
+        assert!(modified <= Utc::now());
+    }
+
+    #[test]
+    fn test_file_metadata_tracks_changes() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.txt");
+
+        fs::write(&file_path, "Short").unwrap();
+        let (size1, _) = file_metadata(&file_path).unwrap();
+
+        sleep(Duration::from_millis(10));
+
+        fs::write(&file_path, "Much longer content here").unwrap();
+        let (size2, mtime2) = file_metadata(&file_path).unwrap();
+
+        assert_ne!(size1, size2);
+        assert!(mtime2 > Utc::now() - chrono::Duration::seconds(5));
+    }
+}
