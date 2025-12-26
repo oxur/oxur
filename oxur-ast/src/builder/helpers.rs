@@ -100,11 +100,11 @@ use crate::sexp::HasPosition;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sexp::{Nil, Number, StringLit};
+    use crate::sexp::{Number, StringLit};
     use crate::Position;
 
     fn dummy_pos() -> Position {
-        Position { line: 1, column: 1 }
+        Position { line: 1, column: 1, offset: 0 }
     }
 
     #[test]
