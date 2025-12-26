@@ -824,3 +824,176 @@ mod checksum_tests {
         assert!(mtime2 > Utc::now() - chrono::Duration::seconds(5));
     }
 }
+
+#[cfg(test)]
+mod scan_result_tests {
+    use super::*;
+
+    #[test]
+    fn test_scan_result_new() {
+        let result = ScanResult::new();
+        assert!(result.new_files.is_empty());
+        assert!(result.changed.is_empty());
+        assert!(result.deleted.is_empty());
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_has_changes_empty() {
+        let result = ScanResult::new();
+        assert!(!result.has_changes());
+    }
+
+    #[test]
+    fn test_has_changes_with_new() {
+        let mut result = ScanResult::new();
+        result.new_files.push(1);
+        assert!(result.has_changes());
+    }
+
+    #[test]
+    fn test_has_changes_with_changed() {
+        let mut result = ScanResult::new();
+        result.changed.push(1);
+        assert!(result.has_changes());
+    }
+
+    #[test]
+    fn test_has_changes_with_deleted() {
+        let mut result = ScanResult::new();
+        result.deleted.push(1);
+        assert!(result.has_changes());
+    }
+
+    #[test]
+    fn test_total_changes() {
+        let mut result = ScanResult::new();
+        result.new_files.push(1);
+        result.new_files.push(2);
+        result.changed.push(3);
+        result.deleted.push(4);
+        result.deleted.push(5);
+        result.deleted.push(6);
+
+        assert_eq!(result.total_changes(), 6);
+    }
+
+    #[test]
+    fn test_total_changes_empty() {
+        let result = ScanResult::new();
+        assert_eq!(result.total_changes(), 0);
+    }
+}
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn checksum_is_deterministic(content in "\\PC{0,1000}") {
+            use std::io::Write;
+            let temp = tempfile::NamedTempFile::new().unwrap();
+            temp.as_file().write_all(content.as_bytes()).unwrap();
+
+            let checksum1 = compute_checksum(temp.path()).unwrap();
+            let checksum2 = compute_checksum(temp.path()).unwrap();
+
+            prop_assert_eq!(checksum1, checksum2);
+        }
+
+        #[test]
+        fn checksum_is_64_hex_chars(content in "\\PC{0,500}") {
+            use std::io::Write;
+            let temp = tempfile::NamedTempFile::new().unwrap();
+            temp.as_file().write_all(content.as_bytes()).unwrap();
+
+            let checksum = compute_checksum(temp.path()).unwrap();
+            prop_assert_eq!(checksum.len(), 64);
+            prop_assert!(checksum.chars().all(|c| c.is_ascii_hexdigit()));
+        }
+
+        #[test]
+        fn next_number_always_increases(insertions in prop::collection::vec(1u32..100, 1..10)) {
+            let mut state = DocumentState::new();
+            let mut expected_next = 1u32;
+
+            for num in insertions {
+                state.upsert(num, create_test_record(num));
+                if num >= expected_next {
+                    expected_next = num + 1;
+                }
+                prop_assert_eq!(state.next_number, expected_next);
+            }
+        }
+
+        #[test]
+        fn upsert_and_get_consistency(num in 1u32..1000) {
+            let mut state = DocumentState::new();
+            let record = create_test_record(num);
+
+            state.upsert(num, record.clone());
+            let retrieved = state.get(num);
+
+            prop_assert!(retrieved.is_some());
+            prop_assert_eq!(retrieved.unwrap().metadata.number, num);
+        }
+
+        #[test]
+        fn remove_actually_removes(num in 1u32..1000) {
+            let mut state = DocumentState::new();
+            state.upsert(num, create_test_record(num));
+
+            prop_assert!(state.get(num).is_some());
+
+            state.remove(num);
+
+            prop_assert!(state.get(num).is_none());
+        }
+
+        #[test]
+        fn save_load_round_trip(nums in prop::collection::vec(1u32..100, 0..10)) {
+            let temp = tempfile::TempDir::new().unwrap();
+            let state_dir = temp.path().join(".oxd");
+
+            let mut state = DocumentState::new();
+            for num in &nums {
+                state.upsert(*num, create_test_record(*num));
+            }
+
+            state.save(&state_dir).unwrap();
+            let loaded = DocumentState::load(&state_dir).unwrap();
+
+            // Use unique count since HashMap deduplicates
+            let unique_nums: std::collections::HashSet<_> = nums.iter().collect();
+            prop_assert_eq!(loaded.documents.len(), unique_nums.len());
+
+            for num in nums {
+                prop_assert!(loaded.get(num).is_some());
+            }
+        }
+    }
+
+    fn create_test_record(number: u32) -> DocumentRecord {
+        use crate::doc::DocState;
+        use chrono::NaiveDate;
+
+        DocumentRecord {
+            metadata: crate::doc::DocMetadata {
+                number,
+                title: format!("Test {}", number),
+                author: "Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state: DocState::Draft,
+                supersedes: None,
+                superseded_by: None,
+            },
+            path: format!("01-draft/{:04}-test.md", number),
+            checksum: format!("checksum{}", number),
+            file_size: 1024,
+            modified: Utc::now(),
+        }
+    }
+}

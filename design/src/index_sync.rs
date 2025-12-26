@@ -358,6 +358,227 @@ pub fn compute_section_changes(
     changes
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SAMPLE_INDEX: &str = r#"# Design Documents Index
+
+## All Documents by Number
+
+| Number | Title | State | Updated |
+|--------|-------|-------|---------|
+| 0001 | First Doc | Draft | 2024-01-01 |
+| 0002 | Second Doc | Final | 2024-01-02 |
+
+### Draft
+
+- [0001 - First Doc](01-draft/0001-first-doc.md)
+
+### Final
+
+- [0002 - Second Doc](06-final/0002-second-doc.md)
+"#;
+
+    #[test]
+    fn test_parse_table_basic() {
+        let entries = parse_table(SAMPLE_INDEX);
+        assert_eq!(entries.len(), 2);
+        assert!(entries.contains_key("0001"));
+        assert!(entries.contains_key("0002"));
+    }
+
+    #[test]
+    fn test_parse_table_entry_fields() {
+        let entries = parse_table(SAMPLE_INDEX);
+        let entry = entries.get("0001").unwrap();
+
+        assert_eq!(entry.number, "0001");
+        assert_eq!(entry.title, "First Doc");
+        assert_eq!(entry.state, "Draft");
+        assert_eq!(entry.updated, "2024-01-01");
+    }
+
+    #[test]
+    fn test_parse_table_empty() {
+        let empty = "# No table here";
+        let entries = parse_table(empty);
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn test_parse_state_sections_basic() {
+        let sections = parse_state_sections(SAMPLE_INDEX);
+        assert!(sections.contains_key("Draft"));
+        assert!(sections.contains_key("Final"));
+    }
+
+    #[test]
+    fn test_parse_state_sections_paths() {
+        let sections = parse_state_sections(SAMPLE_INDEX);
+        let draft_docs = sections.get("Draft").unwrap();
+
+        assert_eq!(draft_docs.len(), 1);
+        assert_eq!(draft_docs[0], "01-draft/0001-first-doc.md");
+    }
+
+    #[test]
+    fn test_parse_index_complete() {
+        let parsed = ParsedIndex::parse(SAMPLE_INDEX).unwrap();
+
+        assert_eq!(parsed.table_entries.len(), 2);
+        assert_eq!(parsed.state_sections.len(), 2);
+    }
+
+    #[test]
+    fn test_index_change_descriptions() {
+        let add = IndexChange::TableAdd {
+            number: "0042".to_string(),
+            title: "New Doc".to_string(),
+            state: "Draft".to_string(),
+            updated: "2024-01-01".to_string(),
+        };
+        assert!(add.description().contains("Add to table"));
+        assert!(add.description().contains("0042"));
+
+        let update = IndexChange::TableUpdate {
+            number: "0001".to_string(),
+            field: "state".to_string(),
+            old: "Draft".to_string(),
+            new: "Final".to_string(),
+        };
+        assert!(update.description().contains("Update"));
+        assert!(update.description().contains("Draft → Final"));
+
+        let remove = IndexChange::TableRemove { number: "0099".to_string() };
+        assert!(remove.description().contains("Remove"));
+
+        let section_add = IndexChange::SectionAdd {
+            state: "Draft".to_string(),
+            number: "0042".to_string(),
+            title: "New".to_string(),
+            path: "01-draft/0042-new.md".to_string(),
+        };
+        assert!(section_add.description().contains("Add to Draft"));
+
+        let section_remove = IndexChange::SectionRemove {
+            state: "Draft".to_string(),
+            path: "01-draft/old.md".to_string(),
+        };
+        assert!(section_remove.description().contains("Remove from Draft"));
+    }
+
+    #[test]
+    fn test_build_doc_map_empty() {
+        let map = build_doc_map(&[]);
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn test_compute_table_changes_add() {
+        use chrono::NaiveDate;
+
+        let parsed = ParsedIndex { table_entries: HashMap::new(), state_sections: HashMap::new() };
+
+        let mut doc_map = HashMap::new();
+        let doc = DesignDoc {
+            metadata: crate::doc::DocMetadata {
+                number: 42,
+                title: "New Doc".to_string(),
+                author: "Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state: DocState::Draft,
+                supersedes: None,
+                superseded_by: None,
+            },
+            content: "content".to_string(),
+            path: PathBuf::from("01-draft/0042-new-doc.md"),
+        };
+        doc_map.insert("0042".to_string(), doc);
+
+        let changes = compute_table_changes(&parsed, &doc_map);
+
+        assert_eq!(changes.len(), 1);
+        match &changes[0] {
+            IndexChange::TableAdd { number, title, .. } => {
+                assert_eq!(number, "0042");
+                assert_eq!(title, "New Doc");
+            }
+            _ => panic!("Expected TableAdd"),
+        }
+    }
+
+    #[test]
+    fn test_compute_table_changes_remove() {
+        let mut table_entries = HashMap::new();
+        table_entries.insert(
+            "0099".to_string(),
+            IndexEntry {
+                number: "0099".to_string(),
+                title: "Old Doc".to_string(),
+                state: "Draft".to_string(),
+                updated: "2024-01-01".to_string(),
+            },
+        );
+
+        let parsed = ParsedIndex { table_entries, state_sections: HashMap::new() };
+        let doc_map = HashMap::new(); // Empty - doc was deleted
+
+        let changes = compute_table_changes(&parsed, &doc_map);
+
+        assert_eq!(changes.len(), 1);
+        match &changes[0] {
+            IndexChange::TableRemove { number } => {
+                assert_eq!(number, "0099");
+            }
+            _ => panic!("Expected TableRemove"),
+        }
+    }
+
+    #[test]
+    fn test_compute_table_changes_update_state() {
+        use chrono::NaiveDate;
+
+        let mut table_entries = HashMap::new();
+        table_entries.insert(
+            "0042".to_string(),
+            IndexEntry {
+                number: "0042".to_string(),
+                title: "Doc".to_string(),
+                state: "Draft".to_string(),
+                updated: "2024-01-01".to_string(),
+            },
+        );
+
+        let parsed = ParsedIndex { table_entries, state_sections: HashMap::new() };
+
+        let mut doc_map = HashMap::new();
+        let doc = DesignDoc {
+            metadata: crate::doc::DocMetadata {
+                number: 42,
+                title: "Doc".to_string(),
+                author: "Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state: DocState::Final, // Changed!
+                supersedes: None,
+                superseded_by: None,
+            },
+            content: "content".to_string(),
+            path: PathBuf::from("06-final/0042-doc.md"),
+        };
+        doc_map.insert("0042".to_string(), doc);
+
+        let changes = compute_table_changes(&parsed, &doc_map);
+
+        // Should detect state change
+        assert!(!changes.is_empty());
+        let has_state_update = changes.iter().any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "state"));
+        assert!(has_state_update);
+    }
+}
+
 /// Clean up section formatting for consistent spacing
 pub fn cleanup_formatting(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();
