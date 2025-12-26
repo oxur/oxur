@@ -14,7 +14,15 @@ Achieve **95%+ test coverage** through systematic, intelligent test development.
 - Continue iterating until threshold is met
 - If you encounter obstacles, document them but **keep going**
 
-### 2. Tests Must Pass - No Exceptions
+### 2. Warnings Are There For A Reason
+
+- Fixing warnings is a bug prevention measure
+- Deprecation warnings will bite you with breaks eventually
+- Warnings are a bad user experience and may cause them to lose confidence in the project
+- Do NOT ignore warnings; when you see then, fix them
+- You may temporarily set warning fix tasks to a lower priority, but you MUST return to them
+
+### 3. Tests Must Pass - No Exceptions
 
 - **Zero broken tests** is the only acceptable state
 - A broken test indicates one of three things:
@@ -24,7 +32,7 @@ Achieve **95%+ test coverage** through systematic, intelligent test development.
 - **Never** accept broken tests as "okay" or "not critical"
 - **Never** mark tests with `#[ignore]` to hide failures
 
-### 3. Fix Root Causes, Not Symptoms
+### 4. Fix Root Causes, Not Symptoms
 
 When a test fails, follow this process:
 
@@ -56,7 +64,7 @@ When a test fails, follow this process:
 - ❌ Making tests less strict to avoid failures
 - ✅ Understanding the contract, then ensuring both code and tests honor it
 
-### 4. Systematic Coverage Approach
+### 5. Systematic Coverage Approach
 
 Follow this order:
 
@@ -95,7 +103,7 @@ Systematically test:
   - Invalid state transitions
 ```
 
-### 5. Progress Tracking
+### 6. Progress Tracking
 
 After each testing session, report:
 
