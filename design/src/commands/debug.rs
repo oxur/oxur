@@ -618,3 +618,163 @@ fn state_from_directory(path: &std::path::Path) -> Option<DocState> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use design::doc::DocMetadata;
+    use design::state::{DocumentRecord, DocumentState};
+    use chrono::NaiveDate;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_state_manager() -> (StateManager, TempDir) {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Add a few test documents
+        for (num, title, doc_state) in [
+            (1, "First Doc", DocState::Draft),
+            (2, "Second Doc", DocState::Final),
+            (3, "Third Doc", DocState::Active),
+        ] {
+            let meta = DocMetadata {
+                number: num,
+                title: title.to_string(),
+                author: "Test Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, num).unwrap(),
+                state: doc_state,
+                supersedes: None,
+                superseded_by: None,
+            };
+            state_mgr.state_mut().upsert(
+                num,
+                DocumentRecord {
+                    metadata: meta,
+                    path: format!("{:04}-test.md", num),
+                    checksum: "abc123def456789012345678".to_string(),
+                    file_size: num as u64 * 1000,
+                    modified: chrono::Utc::now(),
+                },
+            );
+        }
+
+        (state_mgr, temp)
+    }
+
+    #[test]
+    fn test_format_size_bytes() {
+        assert_eq!(format_size(0), "0 B");
+        assert_eq!(format_size(500), "500 B");
+        assert_eq!(format_size(1023), "1023 B");
+    }
+
+    #[test]
+    fn test_format_size_kilobytes() {
+        assert_eq!(format_size(1024), "1.0 KB");
+        assert_eq!(format_size(1536), "1.5 KB");
+        assert_eq!(format_size(10240), "10.0 KB");
+    }
+
+    #[test]
+    fn test_format_size_megabytes() {
+        assert_eq!(format_size(1024 * 1024), "1.0 MB");
+        assert_eq!(format_size(1024 * 1024 * 2), "2.0 MB");
+        assert_eq!(format_size(1024 * 1024 + 512 * 1024), "1.5 MB");
+    }
+
+    #[test]
+    fn test_show_state_json() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = show_state(&state_mgr, "json");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_state_table() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = show_state(&state_mgr, "table");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_state_summary() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = show_state(&state_mgr, "summary");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_state_default_format() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        // Unknown format should default to table
+        let result = show_state(&state_mgr, "unknown");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_document_state_exists() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = show_document_state(&state_mgr, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_document_state_not_found() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = show_document_state(&state_mgr, 9999);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_show_checksums_no_files() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        // Files don't exist, so all should be missing
+        let result = show_checksums(&state_mgr, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_checksums_verbose() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = show_checksums(&state_mgr, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_checksums_with_files() {
+        let (mut state_mgr, temp) = create_test_state_manager();
+
+        // Create an actual file
+        let file_path = temp.path().join("0001-test.md");
+        fs::write(&file_path, "test content").unwrap();
+
+        // Update the state to point to this file
+        let checksum = compute_checksum(&file_path).unwrap();
+        let meta = DocMetadata {
+            number: 1,
+            title: "Test Doc".to_string(),
+            author: "Test".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: "0001-test.md".to_string(),
+                checksum,
+                file_size: 12,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        let result = show_checksums(&state_mgr, true);
+        assert!(result.is_ok());
+    }
+}
