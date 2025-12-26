@@ -1862,7 +1862,12 @@ state: draft
         let mut state = DocumentState::new();
 
         // Create records with different states
-        for (num, doc_state) in [(1, DocState::Draft), (2, DocState::Final), (3, DocState::Draft), (4, DocState::Active)] {
+        for (num, doc_state) in [
+            (1, DocState::Draft),
+            (2, DocState::Final),
+            (3, DocState::Draft),
+            (4, DocState::Active),
+        ] {
             let mut record = create_test_record(num);
             record.metadata.state = doc_state;
             state.upsert(num, record);

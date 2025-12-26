@@ -653,7 +653,8 @@ mod tests {
                 DocumentRecord {
                     metadata: meta,
                     path: format!("{:04}-test.md", num),
-                    checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
+                    checksum: "abc123def456789012345678901234567890123456789012345678901234"
+                        .to_string(),
                     file_size: num as u64 * 1000,
                     modified: chrono::Utc::now(),
                 },
@@ -913,7 +914,8 @@ mod tests {
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
 
         // Add document with very long title
-        let long_title = "This is a very long title that exceeds 38 characters and should be truncated";
+        let long_title =
+            "This is a very long title that exceeds 38 characters and should be truncated";
         let meta = DocMetadata {
             number: 1,
             title: long_title.to_string(),
@@ -929,7 +931,8 @@ mod tests {
             DocumentRecord {
                 metadata: meta,
                 path: "0001-test.md".to_string(),
-                checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
+                checksum: "abc123def456789012345678901234567890123456789012345678901234"
+                    .to_string(),
                 file_size: 1000,
                 modified: chrono::Utc::now(),
             },
@@ -959,7 +962,8 @@ mod tests {
             DocumentRecord {
                 metadata: meta,
                 path: "0002-test.md".to_string(),
-                checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
+                checksum: "abc123def456789012345678901234567890123456789012345678901234"
+                    .to_string(),
                 file_size: 1000,
                 modified: chrono::Utc::now(),
             },
@@ -989,7 +993,8 @@ mod tests {
             DocumentRecord {
                 metadata: meta,
                 path: "0001-test.md".to_string(),
-                checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
+                checksum: "abc123def456789012345678901234567890123456789012345678901234"
+                    .to_string(),
                 file_size: 1000,
                 modified: chrono::Utc::now(),
             },

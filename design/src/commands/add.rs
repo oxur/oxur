@@ -570,7 +570,8 @@ mod tests {
 
         let file_path = temp.path().join("test.md");
         // Content with issues (trailing spaces, inconsistent bullets, etc.)
-        fs::write(&file_path, "# Test\n\nLine with trailing spaces  \n* item 1\n- item 2\n").unwrap();
+        fs::write(&file_path, "# Test\n\nLine with trailing spaces  \n* item 1\n- item 2\n")
+            .unwrap();
 
         let result = add_document(
             &mut state_mgr,
@@ -588,7 +589,8 @@ mod tests {
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
 
         let file_path = temp.path().join("test.md");
-        let content = "---\ntitle: Old Title\nauthor: Old Author\n---\n\n# Test Document\n\nContent.";
+        let content =
+            "---\ntitle: Old Title\nauthor: Old Author\n---\n\n# Test Document\n\nContent.";
         fs::write(&file_path, content).unwrap();
 
         let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
@@ -1115,9 +1117,8 @@ mod tests {
         let extracted = ExtractedMetadata::from_content(content);
 
         // What the interactive mode would use as default
-        let git_author_result = std::process::Command::new("git")
-            .args(["config", "user.name"])
-            .output();
+        let git_author_result =
+            std::process::Command::new("git").args(["config", "user.name"]).output();
 
         let default_author = if let Ok(output) = git_author_result {
             String::from_utf8(output.stdout)
@@ -1393,12 +1394,13 @@ mod tests {
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
 
         let file_path = temp.path().join("test.md");
-        fs::write(&file_path, "# Test\n\nContent with trailing spaces  \n* item1\n- item2\n").unwrap();
+        fs::write(&file_path, "# Test\n\nContent with trailing spaces  \n* item1\n- item2\n")
+            .unwrap();
 
         let result = add_document(
             &mut state_mgr,
             file_path.to_str().unwrap(),
-            true,  // dry_run
+            true, // dry_run
             false,
             false,
         );

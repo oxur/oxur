@@ -702,9 +702,15 @@ mod tests {
 
         // Should have state, title, and updated changes
         assert!(changes.len() >= 3);
-        assert!(changes.iter().any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "state")));
-        assert!(changes.iter().any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "title")));
-        assert!(changes.iter().any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "updated")));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "state")));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "title")));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::TableUpdate { field, .. } if field == "updated")));
     }
 
     #[test]
@@ -806,10 +812,7 @@ mod tests {
             table_entries: HashMap::new(),
             state_sections: {
                 let mut sections = HashMap::new();
-                sections.insert(
-                    "Draft".to_string(),
-                    vec!["01-draft/0042-old-doc.md".to_string()],
-                );
+                sections.insert("Draft".to_string(), vec!["01-draft/0042-old-doc.md".to_string()]);
                 sections
             },
         };
@@ -896,10 +899,7 @@ mod tests {
         std::fs::create_dir_all(&draft_dir).ok();
         std::fs::create_dir_all(&final_dir).ok();
 
-        let parsed = ParsedIndex {
-            table_entries: HashMap::new(),
-            state_sections: HashMap::new(),
-        };
+        let parsed = ParsedIndex { table_entries: HashMap::new(), state_sections: HashMap::new() };
 
         let mut doc_map = HashMap::new();
 
@@ -942,10 +942,12 @@ mod tests {
         let changes = compute_section_changes(&parsed, &doc_map, &docs_dir);
 
         // Should have additions for both states
-        let has_draft_add =
-            changes.iter().any(|c| matches!(c, IndexChange::SectionAdd { state, .. } if state == "Draft"));
-        let has_final_add =
-            changes.iter().any(|c| matches!(c, IndexChange::SectionAdd { state, .. } if state == "Final"));
+        let has_draft_add = changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::SectionAdd { state, .. } if state == "Draft"));
+        let has_final_add = changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::SectionAdd { state, .. } if state == "Final"));
 
         assert!(has_draft_add);
         assert!(has_final_add);
@@ -1639,9 +1641,15 @@ End
         let changes = compute_table_changes(&parsed, &doc_map);
 
         // Should have updates for 0001, add for 0004, remove for 0003
-        assert!(changes.iter().any(|c| matches!(c, IndexChange::TableUpdate { number, .. } if number == "0001")));
-        assert!(changes.iter().any(|c| matches!(c, IndexChange::TableAdd { number, .. } if number == "0004")));
-        assert!(changes.iter().any(|c| matches!(c, IndexChange::TableRemove { number } if number == "0003")));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::TableUpdate { number, .. } if number == "0001")));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::TableAdd { number, .. } if number == "0004")));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, IndexChange::TableRemove { number } if number == "0003")));
     }
 
     #[test]
@@ -1653,10 +1661,7 @@ End
         let docs_dir = temp_dir.join("test_path_strip");
         std::fs::create_dir_all(&docs_dir).ok();
 
-        let parsed = ParsedIndex {
-            table_entries: HashMap::new(),
-            state_sections: HashMap::new(),
-        };
+        let parsed = ParsedIndex { table_entries: HashMap::new(), state_sections: HashMap::new() };
 
         let mut doc_map = HashMap::new();
 

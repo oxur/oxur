@@ -1203,7 +1203,8 @@ mod file_operations_tests {
     fn test_add_missing_headers_with_broken_frontmatter() {
         let temp = TempDir::new().unwrap();
         let file_path = temp.path().join("0042-test-doc.md");
-        let content = "---\nbroken yaml here\nno valid structure\n---\n\n# Test Document\n\nContent";
+        let content =
+            "---\nbroken yaml here\nno valid structure\n---\n\n# Test Document\n\nContent";
 
         let (new_content, added_fields) = add_missing_headers(&file_path, content).unwrap();
 

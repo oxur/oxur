@@ -373,7 +373,8 @@ mod tests {
         fs::write(draft_dir.join("0001-valid.md"), valid_content).unwrap();
 
         // Create an invalid document (missing frontmatter)
-        fs::write(draft_dir.join("0002-invalid.md"), "Just plain text without frontmatter").unwrap();
+        fs::write(draft_dir.join("0002-invalid.md"), "Just plain text without frontmatter")
+            .unwrap();
 
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
 

@@ -146,7 +146,8 @@ mod tests {
         let mut reader = Cursor::new(input);
         let mut writer = Vec::new();
 
-        let result = prompt_with_default_impl(&mut reader, &mut writer, "Name", "default_name").unwrap();
+        let result =
+            prompt_with_default_impl(&mut reader, &mut writer, "Name", "default_name").unwrap();
         assert_eq!(result, "default_name");
 
         let output = String::from_utf8(writer).unwrap();
@@ -159,7 +160,8 @@ mod tests {
         let mut reader = Cursor::new(input);
         let mut writer = Vec::new();
 
-        let result = prompt_with_default_impl(&mut reader, &mut writer, "Name", "default_name").unwrap();
+        let result =
+            prompt_with_default_impl(&mut reader, &mut writer, "Name", "default_name").unwrap();
         assert_eq!(result, "custom_value");
     }
 
@@ -169,7 +171,8 @@ mod tests {
         let mut reader = Cursor::new(input);
         let mut writer = Vec::new();
 
-        let result = prompt_with_default_impl(&mut reader, &mut writer, "Name", "default_name").unwrap();
+        let result =
+            prompt_with_default_impl(&mut reader, &mut writer, "Name", "default_name").unwrap();
         assert_eq!(result, "custom_value");
     }
 

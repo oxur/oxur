@@ -541,11 +541,7 @@ mod tests {
     fn test_duplicate_number_description_multiple_paths() {
         let issue = ValidationIssue::DuplicateNumber {
             number: 123,
-            paths: vec![
-                "path1.md".to_string(),
-                "path2.md".to_string(),
-                "path3.md".to_string(),
-            ],
+            paths: vec!["path1.md".to_string(), "path2.md".to_string(), "path3.md".to_string()],
         };
         let desc = issue.description();
         assert!(desc.contains("0123"));
@@ -600,9 +596,7 @@ mod tests {
 
     #[test]
     fn test_in_index_not_on_disk_description() {
-        let issue = ValidationIssue::InIndexNotOnDisk {
-            number: "0050".to_string(),
-        };
+        let issue = ValidationIssue::InIndexNotOnDisk { number: "0050".to_string() };
         let desc = issue.description();
         assert!(desc.contains("0050"));
         assert!(desc.contains("non-existent file"));
@@ -610,9 +604,7 @@ mod tests {
 
     #[test]
     fn test_missing_headers_description() {
-        let issue = ValidationIssue::MissingHeaders {
-            path: "/docs/no-headers.md".to_string(),
-        };
+        let issue = ValidationIssue::MissingHeaders { path: "/docs/no-headers.md".to_string() };
         let desc = issue.description();
         assert!(desc.contains("missing YAML headers"));
         assert!(desc.contains("/docs/no-headers.md"));
@@ -644,19 +636,15 @@ mod tests {
 
     #[test]
     fn test_missing_headers_fix_description() {
-        let issue = ValidationIssue::MissingHeaders {
-            path: "test.md".to_string(),
-        };
+        let issue = ValidationIssue::MissingHeaders { path: "test.md".to_string() };
         let fix = issue.fix_description().unwrap();
         assert!(fix.contains("oxd add-headers"));
     }
 
     #[test]
     fn test_non_fixable_issues_have_no_fix_description() {
-        let duplicate = ValidationIssue::DuplicateNumber {
-            number: 1,
-            paths: vec!["a.md".to_string()],
-        };
+        let duplicate =
+            ValidationIssue::DuplicateNumber { number: 1, paths: vec!["a.md".to_string()] };
         assert!(duplicate.fix_description().is_none());
 
         let missing_ref = ValidationIssue::MissingReference {
@@ -673,9 +661,7 @@ mod tests {
         };
         assert!(date_order.fix_description().is_none());
 
-        let in_index_not_disk = ValidationIssue::InIndexNotOnDisk {
-            number: "0001".to_string(),
-        };
+        let in_index_not_disk = ValidationIssue::InIndexNotOnDisk { number: "0001".to_string() };
         assert!(in_index_not_disk.fix_description().is_none());
     }
 
@@ -900,7 +886,8 @@ mod tests {
         );
 
         // Create an index file that doesn't include the document
-        let index_content = "# Design Documents\n\n| Number | Title | State |\n|--------|-------|-------|\n";
+        let index_content =
+            "# Design Documents\n\n| Number | Title | State |\n|--------|-------|-------|\n";
         fs::write(temp.path().join("00-index.md"), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
@@ -1245,11 +1232,8 @@ mod tests {
     fn test_all_severity_levels() {
         // Test all ERROR severities
         assert_eq!(
-            ValidationIssue::DuplicateNumber {
-                number: 1,
-                paths: vec!["a.md".to_string()]
-            }
-            .severity(),
+            ValidationIssue::DuplicateNumber { number: 1, paths: vec!["a.md".to_string()] }
+                .severity(),
             "ERROR"
         );
         assert_eq!(
@@ -1322,11 +1306,8 @@ mod tests {
         assert!(ValidationIssue::MissingHeaders { path: "test.md".to_string() }.can_auto_fix());
 
         // Non-fixable variants
-        assert!(!ValidationIssue::DuplicateNumber {
-            number: 1,
-            paths: vec!["a.md".to_string()]
-        }
-        .can_auto_fix());
+        assert!(!ValidationIssue::DuplicateNumber { number: 1, paths: vec!["a.md".to_string()] }
+            .can_auto_fix());
 
         assert!(!ValidationIssue::MissingReference {
             doc_num: 1,
@@ -1342,7 +1323,6 @@ mod tests {
         }
         .can_auto_fix());
 
-        assert!(!ValidationIssue::InIndexNotOnDisk { number: "0001".to_string() }
-            .can_auto_fix());
+        assert!(!ValidationIssue::InIndexNotOnDisk { number: "0001".to_string() }.can_auto_fix());
     }
 }

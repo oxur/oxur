@@ -575,8 +575,8 @@ mod tests {
 - [0001 - First](draft/0001-first.md)
 "#;
 
-        let result = add_to_section(content, "Final", "0002", "Second", "final/0002-second.md")
-            .unwrap();
+        let result =
+            add_to_section(content, "Final", "0002", "Second", "final/0002-second.md").unwrap();
         assert!(result.contains("### Final"));
         assert!(result.contains("- [0002 - Second](final/0002-second.md)"));
     }
@@ -671,9 +671,7 @@ mod tests {
         let content = r#"| 0001 | First | Draft | 2024-01-01 |
 | 0002 | Second | Draft | 2024-01-02 |"#;
 
-        let change = IndexChange::TableRemove {
-            number: "0001".to_string(),
-        };
+        let change = IndexChange::TableRemove { number: "0001".to_string() };
 
         let doc_map = HashMap::new();
         let result = apply_change(content, &change, &doc_map, Path::new("/tmp")).unwrap();
