@@ -321,3 +321,225 @@ fn apply_fixes(index: &DocumentIndex, issues: &[ValidationIssue]) -> Result<()> 
     println!("\n{} {} issue(s) fixed", "✓".green().bold(), fixed);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use design::doc::{DocMetadata, DocState};
+    use design::state::{DocumentRecord, DocumentState};
+    use chrono::NaiveDate;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_doc_file(
+        temp: &TempDir,
+        number: u32,
+        title: &str,
+        state: DocState,
+        created: NaiveDate,
+        updated: NaiveDate,
+    ) {
+        let content = format!(
+            "---\nnumber: {}\ntitle: \"{}\"\nauthor: \"Test\"\ncreated: {}\nupdated: {}\nstate: {}\n---\n\n# {}\n\nContent",
+            number, title, created, updated, state.as_str(), title
+        );
+        fs::write(temp.path().join(format!("{:04}-test.md", number)), content).unwrap();
+    }
+
+    fn create_valid_index() -> DocumentIndex {
+        let temp = TempDir::new().unwrap();
+
+        // Create some valid documents
+        create_test_doc_file(
+            &temp,
+            1,
+            "Doc 1",
+            DocState::Draft,
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 1, 10).unwrap(),
+        );
+        create_test_doc_file(
+            &temp,
+            2,
+            "Doc 2",
+            DocState::Final,
+            NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 2, 10).unwrap(),
+        );
+
+        DocumentIndex::new(temp.path()).unwrap()
+    }
+
+    #[test]
+    fn test_validate_no_issues() {
+        let index = create_valid_index();
+
+        let result = validate_documents(&index, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_empty_index() {
+        let temp = TempDir::new().unwrap();
+        let index = DocumentIndex::new(temp.path()).unwrap();
+
+        let result = validate_documents(&index, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_with_fix_mode() {
+        let index = create_valid_index();
+
+        let result = validate_documents(&index, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validation_issue_severity() {
+        let duplicate = ValidationIssue::DuplicateNumber {
+            number: 1,
+            paths: vec!["a.md".to_string(), "b.md".to_string()],
+        };
+        assert_eq!(duplicate.severity(), "ERROR");
+
+        let warning = ValidationIssue::StateDirectoryMismatch {
+            doc_num: 1,
+            yaml_state: "Draft".to_string(),
+            dir_state: "Final".to_string(),
+            path: "test.md".to_string(),
+        };
+        assert_eq!(warning.severity(), "WARNING");
+    }
+
+    #[test]
+    fn test_validation_issue_description() {
+        let issue = ValidationIssue::MissingReference {
+            doc_num: 1,
+            ref_type: "supersedes".to_string(),
+            ref_num: 99,
+        };
+        let desc = issue.description();
+        assert!(desc.contains("0001"));
+        assert!(desc.contains("0099"));
+        assert!(desc.contains("supersedes"));
+    }
+
+    #[test]
+    fn test_validation_issue_can_auto_fix() {
+        let fixable = ValidationIssue::StateDirectoryMismatch {
+            doc_num: 1,
+            yaml_state: "Draft".to_string(),
+            dir_state: "Final".to_string(),
+            path: "test.md".to_string(),
+        };
+        assert!(fixable.can_auto_fix());
+
+        let not_fixable = ValidationIssue::DuplicateNumber {
+            number: 1,
+            paths: vec!["a.md".to_string()],
+        };
+        assert!(!not_fixable.can_auto_fix());
+    }
+
+    #[test]
+    fn test_validation_issue_fix_description() {
+        let issue = ValidationIssue::NotInIndex {
+            doc_num: 1,
+            title: "Test".to_string(),
+            path: "test.md".to_string(),
+        };
+        let fix_msg = issue.fix_description();
+        assert!(fix_msg.is_some());
+        assert!(fix_msg.unwrap().contains("update-index"));
+    }
+
+    #[test]
+    fn test_duplicate_number_issue() {
+        let issue = ValidationIssue::DuplicateNumber {
+            number: 42,
+            paths: vec!["path1.md".to_string(), "path2.md".to_string()],
+        };
+
+        assert_eq!(issue.severity(), "ERROR");
+        assert!(!issue.can_auto_fix());
+        let desc = issue.description();
+        assert!(desc.contains("0042"));
+        assert!(desc.contains("2 files"));
+    }
+
+    #[test]
+    fn test_missing_reference_issue() {
+        let issue = ValidationIssue::MissingReference {
+            doc_num: 10,
+            ref_type: "superseded-by".to_string(),
+            ref_num: 20,
+        };
+
+        assert_eq!(issue.severity(), "ERROR");
+        assert!(!issue.can_auto_fix());
+        assert!(issue.fix_description().is_none());
+    }
+
+    #[test]
+    fn test_date_order_issue() {
+        let issue = ValidationIssue::DateOrderIssue {
+            doc_num: 5,
+            created: "2024-02-01".to_string(),
+            updated: "2024-01-01".to_string(),
+        };
+
+        assert_eq!(issue.severity(), "WARNING");
+        let desc = issue.description();
+        assert!(desc.contains("0005"));
+        assert!(desc.contains("2024-02-01"));
+        assert!(desc.contains("2024-01-01"));
+    }
+
+    #[test]
+    fn test_state_directory_mismatch_issue() {
+        let issue = ValidationIssue::StateDirectoryMismatch {
+            doc_num: 3,
+            yaml_state: "Draft".to_string(),
+            dir_state: "Final".to_string(),
+            path: "03-draft/test.md".to_string(),
+        };
+
+        assert_eq!(issue.severity(), "WARNING");
+        assert!(issue.can_auto_fix());
+        assert!(issue.fix_description().unwrap().contains("sync-location"));
+    }
+
+    #[test]
+    fn test_not_in_index_issue() {
+        let issue = ValidationIssue::NotInIndex {
+            doc_num: 7,
+            title: "New Doc".to_string(),
+            path: "0007-new.md".to_string(),
+        };
+
+        assert_eq!(issue.severity(), "WARNING");
+        assert!(issue.can_auto_fix());
+    }
+
+    #[test]
+    fn test_in_index_not_on_disk_issue() {
+        let issue = ValidationIssue::InIndexNotOnDisk {
+            number: "0099".to_string(),
+        };
+
+        assert_eq!(issue.severity(), "ERROR");
+        assert!(!issue.can_auto_fix());
+    }
+
+    #[test]
+    fn test_missing_headers_issue() {
+        let issue = ValidationIssue::MissingHeaders {
+            path: "test.md".to_string(),
+        };
+
+        assert_eq!(issue.severity(), "WARNING");
+        assert!(issue.can_auto_fix());
+        assert!(issue.fix_description().unwrap().contains("add-headers"));
+    }
+}
