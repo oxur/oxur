@@ -183,9 +183,7 @@ pub fn search_advanced(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
-    use design::doc::{DocMetadata, DocState};
-    use design::state::{DocumentRecord, DocumentState};
+    use design::doc::DocState;
     use serial_test::serial;
     use std::fs;
     use tempfile::TempDir;

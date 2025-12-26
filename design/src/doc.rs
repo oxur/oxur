@@ -860,6 +860,35 @@ mod parsing_tests {
     }
 
     #[test]
+    fn test_extract_title_empty_word_in_filename() {
+        let content = "No headings here.";
+        let title = extract_title_from_content(content, "0042-test--double-dash.md");
+        assert_eq!(title, "Test  Double Dash");
+    }
+
+    #[test]
+    fn test_extract_title_single_char_words() {
+        let content = "No headings here.";
+        let title = extract_title_from_content(content, "0042-a-b-c.md");
+        assert_eq!(title, "A B C");
+    }
+
+    #[test]
+    fn test_extract_title_with_whitespace_heading() {
+        let content = "  # Title With Spaces  \n\nContent";
+        let title = extract_title_from_content(content, "0042-test.md");
+        assert_eq!(title, "Title With Spaces");
+    }
+
+    #[test]
+    fn test_extract_title_filename_with_empty_segments() {
+        let content = "No headings here.";
+        let title = extract_title_from_content(content, "0042-test--extra.md");
+        // This creates empty strings from double dashes, but still produces a title
+        assert!(title.contains("Test") && title.contains("Extra"));
+    }
+
+    #[test]
     fn test_extract_number_from_filename() {
         assert_eq!(extract_number_from_filename("0001-test.md"), 1);
         assert_eq!(extract_number_from_filename("0042-feature.md"), 42);
@@ -870,6 +899,11 @@ mod parsing_tests {
     fn test_extract_number_no_prefix() {
         assert_eq!(extract_number_from_filename("test.md"), 0);
         assert_eq!(extract_number_from_filename("no-number.md"), 0);
+    }
+
+    #[test]
+    fn test_extract_number_invalid_parse() {
+        assert_eq!(extract_number_from_filename("999999999999999999999-test.md"), 0);
     }
 
     #[test]
@@ -1014,6 +1048,12 @@ mod file_operations_tests {
     }
 
     #[test]
+    fn test_is_in_state_dir_root_path() {
+        assert!(!is_in_state_dir(Path::new("/")));
+        assert!(!is_in_state_dir(Path::new("doc.md")));
+    }
+
+    #[test]
     fn test_state_from_directory() {
         assert_eq!(
             state_from_directory(Path::new("project/01-draft/doc.md")),
@@ -1090,6 +1130,166 @@ mod file_operations_tests {
         assert_eq!(new_path.file_name().unwrap(), "0042-test.md");
         assert!(new_path.exists());
         assert!(!file_path.exists());
+    }
+
+    #[test]
+    fn test_is_in_project_dir_valid() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path();
+        let file_path = project_dir.join("test.md");
+        fs::write(&file_path, "content").unwrap();
+
+        let result = is_in_project_dir(&file_path, project_dir).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_is_in_project_dir_outside() {
+        let temp1 = TempDir::new().unwrap();
+        let temp2 = TempDir::new().unwrap();
+        let project_dir = temp1.path();
+        let file_path = temp2.path().join("test.md");
+        fs::write(&file_path, "content").unwrap();
+
+        let result = is_in_project_dir(&file_path, project_dir).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_add_missing_headers_no_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0042-test-doc.md");
+        let content = "# Test Document\n\nSome content here.";
+
+        let (new_content, added_fields) = add_missing_headers(&file_path, content).unwrap();
+
+        assert!(new_content.starts_with("---\n"));
+        assert!(new_content.contains("number: 42"));
+        assert!(new_content.contains("title: \"Test Document\""));
+        assert!(new_content.contains("state: Draft"));
+        assert_eq!(added_fields.len(), 8);
+        assert!(added_fields.contains(&"number".to_string()));
+    }
+
+    #[test]
+    fn test_add_missing_headers_with_valid_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0042-test-doc.md");
+        let content = "---\nnumber: 100\ntitle: \"Existing Title\"\nauthor: \"Existing Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\n# Test Document\n\nContent";
+
+        let (new_content, added_fields) = add_missing_headers(&file_path, content).unwrap();
+
+        assert!(new_content.contains("number: 100"));
+        assert!(new_content.contains("title: \"Existing Title\""));
+        assert_eq!(added_fields.len(), 0);
+    }
+
+    #[test]
+    fn test_add_missing_headers_with_partial_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0042-test-doc.md");
+        let content = "---\nnumber: 0\ntitle: \"\"\nauthor: Unknown Author\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\n# Test Document\n\nContent";
+
+        let (new_content, added_fields) = add_missing_headers(&file_path, content).unwrap();
+
+        assert!(new_content.contains("number: 42"));
+        assert!(new_content.contains("title: \"Test Document\""));
+        assert!(added_fields.contains(&"number".to_string()));
+        assert!(added_fields.contains(&"title".to_string()));
+        assert!(added_fields.contains(&"author".to_string()));
+    }
+
+    #[test]
+    fn test_add_missing_headers_with_broken_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0042-test-doc.md");
+        let content = "---\nbroken yaml here\nno valid structure\n---\n\n# Test Document\n\nContent";
+
+        let (new_content, added_fields) = add_missing_headers(&file_path, content).unwrap();
+
+        assert!(new_content.starts_with("---\n"));
+        assert!(new_content.contains("number: 42"));
+        assert!(new_content.contains("title: \"Test Document\""));
+        assert_eq!(added_fields.len(), 8);
+    }
+
+    #[test]
+    fn test_ensure_valid_headers_missing_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0042-test-doc.md");
+        let content = "# Test Document\n\nContent without frontmatter.";
+
+        let result = ensure_valid_headers(&file_path, content).unwrap();
+
+        assert!(result.starts_with("---\n"));
+        assert!(result.contains("number: 42"));
+    }
+
+    #[test]
+    fn test_ensure_valid_headers_with_placeholders() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0042-test-doc.md");
+        let content = "---\nnumber: NNNN\ntitle: \"Test\"\nauthor: Unknown\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nContent";
+
+        let result = ensure_valid_headers(&file_path, content).unwrap();
+
+        assert!(result.contains("number: 42"));
+        assert!(!result.contains("NNNN"));
+    }
+
+    #[test]
+    fn test_ensure_valid_headers_already_valid() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0042-test-doc.md");
+        let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nContent";
+
+        let result = ensure_valid_headers(&file_path, content).unwrap();
+
+        assert_eq!(result, content);
+    }
+
+    #[test]
+    fn test_sync_state_with_directory_matching() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join("01-draft");
+        fs::create_dir(&state_dir).unwrap();
+        let file_path = state_dir.join("test.md");
+        let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nContent";
+
+        let result = sync_state_with_directory(&file_path, content).unwrap();
+
+        assert_eq!(result, content);
+    }
+
+    #[test]
+    fn test_sync_state_with_directory_mismatched() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join("06-final");
+        fs::create_dir(&state_dir).unwrap();
+        let file_path = state_dir.join("test.md");
+        let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nContent";
+
+        let result = sync_state_with_directory(&file_path, content).unwrap();
+
+        assert!(result.contains("state: Final"));
+        assert!(!result.contains("state: Draft"));
+    }
+
+    #[test]
+    fn test_sync_state_with_directory_error() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.md");
+        let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nContent";
+
+        let result = sync_state_with_directory(&file_path, content);
+
+        assert!(result.is_err());
+        match result {
+            Err(DocError::InvalidFormat(msg)) => {
+                assert!(msg.contains("not in a state directory"));
+            }
+            _ => panic!("Expected InvalidFormat error"),
+        }
     }
 }
 

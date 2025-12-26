@@ -1,8 +1,14 @@
 default: build
 
-build:
+BIN_DIR := ./bin
+
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
+
+build: $(BIN_DIR)
 	@echo "Building oxur..."
 	@cargo build
+	@cp target/debug/oxd $(BIN_DIR)/oxd
 
 lint:
 	@echo "Running linter..."

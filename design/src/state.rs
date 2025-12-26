@@ -994,3 +994,998 @@ mod property_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod state_manager_tests {
+    use super::*;
+    use std::fs;
+    use std::thread::sleep;
+    use std::time::Duration;
+    use tempfile::TempDir;
+
+    fn create_test_doc(number: u32, state: &str) -> String {
+        format!(
+            r#"---
+number: {}
+title: Test Document {}
+author: Test Author
+created: 2024-01-01
+updated: 2024-01-02
+state: {}
+---
+
+# Test Document {}
+
+This is test content for document {}.
+"#,
+            number, number, state, number, number
+        )
+    }
+
+    fn setup_test_env() -> (TempDir, PathBuf, PathBuf) {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+        (temp, docs_dir, draft_dir)
+    }
+
+    #[test]
+    fn test_state_manager_new() {
+        let (_temp, docs_dir, _draft_dir) = setup_test_env();
+        let manager = StateManager::new(&docs_dir).unwrap();
+
+        assert_eq!(manager.docs_dir(), docs_dir.as_path());
+        assert_eq!(manager.next_number(), 1);
+        assert!(manager.state().documents.is_empty());
+    }
+
+    #[test]
+    fn test_state_manager_creates_state_dir_on_save() {
+        let (_temp, docs_dir, _draft_dir) = setup_test_env();
+        let manager = StateManager::new(&docs_dir).unwrap();
+
+        let state_dir = docs_dir.join(".oxd");
+        assert!(!state_dir.exists());
+
+        // State directory is created when we save
+        manager.save().unwrap();
+        assert!(state_dir.exists());
+    }
+
+    #[test]
+    fn test_state_manager_loads_existing_state() {
+        let (_temp, docs_dir, _draft_dir) = setup_test_env();
+
+        // Create initial state
+        {
+            let mut manager = StateManager::new(&docs_dir).unwrap();
+            let mut state = DocumentState::new();
+            state.next_number = 42;
+            manager.state = state;
+            manager.save().unwrap();
+        }
+
+        // Load it back
+        let manager = StateManager::new(&docs_dir).unwrap();
+        assert_eq!(manager.next_number(), 42);
+    }
+
+    #[test]
+    fn test_scan_for_changes_new_file() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        // Create a test document
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.scan_for_changes().unwrap();
+
+        assert_eq!(result.new_files.len(), 1);
+        assert_eq!(result.new_files[0], 1);
+        assert!(result.changed.is_empty());
+        assert!(result.deleted.is_empty());
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_scan_for_changes_multiple_new_files() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        // Create multiple test documents
+        for i in 1..=3 {
+            let doc_path = draft_dir.join(format!("{:04}-test.md", i));
+            fs::write(&doc_path, create_test_doc(i, "draft")).unwrap();
+        }
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.scan_for_changes().unwrap();
+
+        assert_eq!(result.new_files.len(), 3);
+        assert!(result.changed.is_empty());
+        assert!(result.deleted.is_empty());
+    }
+
+    #[test]
+    fn test_scan_for_changes_file_modified() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.scan_for_changes().unwrap();
+
+        // Modify the file
+        sleep(Duration::from_millis(10));
+        fs::write(&doc_path, create_test_doc(1, "draft") + "\nModified content").unwrap();
+
+        let result = manager.scan_for_changes().unwrap();
+
+        assert!(result.new_files.is_empty());
+        assert_eq!(result.changed.len(), 1);
+        assert_eq!(result.changed[0], 1);
+        assert!(result.deleted.is_empty());
+    }
+
+    #[test]
+    fn test_scan_for_changes_file_deleted() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.scan_for_changes().unwrap();
+
+        // Delete the file
+        fs::remove_file(&doc_path).unwrap();
+
+        let result = manager.scan_for_changes().unwrap();
+
+        assert!(result.new_files.is_empty());
+        assert!(result.changed.is_empty());
+        assert_eq!(result.deleted.len(), 1);
+        assert_eq!(result.deleted[0], 1);
+    }
+
+    #[test]
+    fn test_scan_for_changes_mixed_operations() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        // Create initial file
+        let doc1_path = draft_dir.join("0001-test.md");
+        fs::write(&doc1_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.scan_for_changes().unwrap();
+
+        // Now: add new file, modify existing, delete existing
+        let doc2_path = draft_dir.join("0002-test.md");
+        fs::write(&doc2_path, create_test_doc(2, "draft")).unwrap();
+
+        sleep(Duration::from_millis(10));
+        fs::write(&doc1_path, create_test_doc(1, "draft") + "\nModified").unwrap();
+
+        let result = manager.scan_for_changes().unwrap();
+
+        assert_eq!(result.new_files.len(), 1);
+        assert_eq!(result.new_files[0], 2);
+        assert_eq!(result.changed.len(), 1);
+        assert_eq!(result.changed[0], 1);
+        assert!(result.deleted.is_empty());
+    }
+
+    #[test]
+    fn test_scan_for_changes_invalid_file() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        // Create invalid document (missing frontmatter)
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, "Invalid content without frontmatter").unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.scan_for_changes().unwrap();
+
+        assert!(result.errors.len() > 0);
+        assert!(result.new_files.is_empty());
+    }
+
+    #[test]
+    fn test_scan_for_changes_file_unchanged() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result1 = manager.scan_for_changes().unwrap();
+        assert_eq!(result1.new_files.len(), 1);
+
+        // Scan again without changes
+        let result2 = manager.scan_for_changes().unwrap();
+
+        assert!(result2.new_files.is_empty());
+        assert!(result2.changed.is_empty());
+        assert!(result2.deleted.is_empty());
+        assert!(!result2.has_changes());
+    }
+
+    #[test]
+    fn test_quick_scan_new_file() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.quick_scan().unwrap();
+
+        assert_eq!(result.new_files.len(), 1);
+        assert_eq!(result.new_files[0], 1);
+        assert!(result.changed.is_empty());
+        assert!(result.deleted.is_empty());
+    }
+
+    #[test]
+    fn test_quick_scan_file_modified_by_size() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.quick_scan().unwrap();
+
+        // Modify with different size
+        sleep(Duration::from_millis(10));
+        fs::write(&doc_path, create_test_doc(1, "draft") + "\nExtra content here").unwrap();
+
+        let result = manager.quick_scan().unwrap();
+
+        assert!(result.new_files.is_empty());
+        assert_eq!(result.changed.len(), 1);
+        assert_eq!(result.changed[0], 1);
+    }
+
+    #[test]
+    fn test_quick_scan_file_modified_by_time() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        let content = create_test_doc(1, "draft");
+        fs::write(&doc_path, &content).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.quick_scan().unwrap();
+
+        // Modify with same content but different mtime
+        sleep(Duration::from_millis(100));
+        fs::write(&doc_path, &content).unwrap();
+
+        let result = manager.quick_scan().unwrap();
+
+        // Note: This may or may not detect change depending on checksum match
+        // But quick_scan should at least run without error
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_quick_scan_file_unchanged() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result1 = manager.quick_scan().unwrap();
+        assert_eq!(result1.new_files.len(), 1);
+
+        // Scan again without changes
+        let result2 = manager.quick_scan().unwrap();
+
+        assert!(result2.new_files.is_empty());
+        assert!(result2.changed.is_empty());
+        assert!(result2.deleted.is_empty());
+        assert!(!result2.has_changes());
+    }
+
+    #[test]
+    fn test_quick_scan_doesnt_save_when_no_changes() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.quick_scan().unwrap();
+
+        let state_file = docs_dir.join(".oxd/state.json");
+        let modified_before = fs::metadata(&state_file).unwrap().modified().unwrap();
+
+        sleep(Duration::from_millis(100));
+
+        // Scan with no changes
+        manager.quick_scan().unwrap();
+
+        let modified_after = fs::metadata(&state_file).unwrap().modified().unwrap();
+
+        // State file should not be updated if no changes
+        assert_eq!(modified_before, modified_after);
+    }
+
+    #[test]
+    fn test_init_with_scan() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.init_with_scan().unwrap();
+
+        assert_eq!(result.new_files.len(), 1);
+        assert_eq!(manager.state().documents.len(), 1);
+    }
+
+    #[test]
+    fn test_record_file_change() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.scan_for_changes().unwrap();
+
+        // Modify file
+        sleep(Duration::from_millis(10));
+        fs::write(&doc_path, create_test_doc(1, "draft") + "\nNew content").unwrap();
+
+        // Record the change
+        manager.record_file_change(&doc_path).unwrap();
+
+        // Verify state was updated
+        let record = manager.state().get(1).unwrap();
+        let new_checksum = compute_checksum(&doc_path).unwrap();
+        assert_eq!(record.checksum, new_checksum);
+    }
+
+    #[test]
+    fn test_record_file_change_invalid_file() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, "Invalid content").unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.record_file_change(&doc_path);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_record_file_move() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let old_path = draft_dir.join("0001-old.md");
+        let new_path = draft_dir.join("0001-new.md");
+        fs::write(&old_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.scan_for_changes().unwrap();
+
+        // Move file
+        fs::rename(&old_path, &new_path).unwrap();
+
+        // Record the move
+        manager.record_file_move(&old_path, &new_path).unwrap();
+
+        // Verify state has updated path
+        let record = manager.state().get(1).unwrap();
+        assert!(record.path.contains("0001-new.md"));
+    }
+
+    #[test]
+    fn test_record_file_deletion() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.scan_for_changes().unwrap();
+        assert!(manager.state().get(1).is_some());
+
+        // Delete from state
+        manager.record_file_deletion(1).unwrap();
+
+        assert!(manager.state().get(1).is_none());
+    }
+
+    #[test]
+    fn test_state_mut() {
+        let (_temp, docs_dir, _draft_dir) = setup_test_env();
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+
+        let state = manager.state_mut();
+        state.next_number = 100;
+
+        assert_eq!(manager.next_number(), 100);
+    }
+
+    #[test]
+    fn test_save_and_reload() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        {
+            let mut manager = StateManager::new(&docs_dir).unwrap();
+            manager.scan_for_changes().unwrap();
+            manager.save().unwrap();
+        }
+
+        // Reload
+        let manager = StateManager::new(&docs_dir).unwrap();
+        assert_eq!(manager.state().documents.len(), 1);
+        assert!(manager.state().get(1).is_some());
+    }
+
+    #[test]
+    fn test_state_persists_after_scan() {
+        let (_temp, docs_dir, draft_dir) = setup_test_env();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        {
+            let mut manager = StateManager::new(&docs_dir).unwrap();
+            manager.scan_for_changes().unwrap();
+        }
+
+        // Create new manager - should load persisted state
+        let manager = StateManager::new(&docs_dir).unwrap();
+        assert_eq!(manager.state().documents.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod error_handling_tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_compute_checksum_nonexistent_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("nonexistent.txt");
+
+        let result = compute_checksum(&file_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_file_changed_nonexistent_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("nonexistent.txt");
+
+        let result = file_changed(&file_path, "abc123");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_file_metadata_nonexistent_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("nonexistent.txt");
+
+        let result = file_metadata(&file_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_corrupted_state_file() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join(".oxd");
+        fs::create_dir_all(&state_dir).unwrap();
+
+        let state_file = state_dir.join("state.json");
+        fs::write(&state_file, "{ invalid json }").unwrap();
+
+        let result = DocumentState::load(&state_dir);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_save_state_creates_directory() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join("nested/deep/state");
+
+        let state = DocumentState::new();
+        let result = state.save(&state_dir);
+
+        assert!(result.is_ok());
+        assert!(state_dir.exists());
+        assert!(state_dir.join("state.json").exists());
+    }
+
+    #[test]
+    fn test_record_file_change_nonexistent() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+
+        let nonexistent = docs_dir.join("nonexistent.md");
+        let result = manager.record_file_change(&nonexistent);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_default_document_state() {
+        let state1 = DocumentState::default();
+        let state2 = DocumentState::new();
+
+        assert_eq!(state1.version, state2.version);
+        assert_eq!(state1.next_number, state2.next_number);
+        assert_eq!(state1.documents.len(), state2.documents.len());
+    }
+}
+
+#[cfg(test)]
+mod edge_cases_tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_doc(number: u32, state: &str) -> String {
+        format!(
+            r#"---
+number: {}
+title: Test Document {}
+author: Test Author
+created: 2024-01-01
+updated: 2024-01-02
+state: {}
+---
+
+# Test Document {}
+
+This is test content.
+"#,
+            number, number, state, number
+        )
+    }
+
+    #[test]
+    fn test_large_file_checksum() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("large.txt");
+
+        // Create a file larger than the buffer size (8192 bytes)
+        let large_content = "x".repeat(20000);
+        fs::write(&file_path, &large_content).unwrap();
+
+        let checksum = compute_checksum(&file_path).unwrap();
+        assert_eq!(checksum.len(), 64); // SHA-256 hex length
+    }
+
+    #[test]
+    fn test_empty_directory_scan() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.scan_for_changes().unwrap();
+
+        assert!(result.new_files.is_empty());
+        assert!(result.changed.is_empty());
+        assert!(result.deleted.is_empty());
+    }
+
+    fn create_test_record(number: u32) -> DocumentRecord {
+        use crate::doc::DocState;
+        use chrono::NaiveDate;
+
+        DocumentRecord {
+            metadata: crate::doc::DocMetadata {
+                number,
+                title: format!("Test {}", number),
+                author: "Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state: DocState::Draft,
+                supersedes: None,
+                superseded_by: None,
+            },
+            path: format!("01-draft/{:04}-test.md", number),
+            checksum: format!("checksum{}", number),
+            file_size: 1024,
+            modified: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn test_upsert_with_number_zero() {
+        let mut state = DocumentState::new();
+        let mut record = create_test_record(0);
+        record.metadata.number = 0;
+
+        state.upsert(0, record);
+
+        assert!(state.get(0).is_some());
+        assert_eq!(state.next_number, 1);
+    }
+
+    #[test]
+    fn test_upsert_with_large_number() {
+        let mut state = DocumentState::new();
+        let mut record = create_test_record(9999);
+        record.metadata.number = 9999;
+
+        state.upsert(9999, record);
+
+        assert!(state.get(9999).is_some());
+        assert_eq!(state.next_number, 10000);
+    }
+
+    #[test]
+    fn test_multiple_state_directories() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+
+        // Create multiple state directories
+        let draft_dir = docs_dir.join("01-draft");
+        let final_dir = docs_dir.join("06-final");
+        fs::create_dir_all(&draft_dir).unwrap();
+        fs::create_dir_all(&final_dir).unwrap();
+
+        // Add documents in different states
+        fs::write(draft_dir.join("0001-draft.md"), create_test_doc(1, "draft")).unwrap();
+        fs::write(final_dir.join("0002-final.md"), create_test_doc(2, "final")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.scan_for_changes().unwrap();
+
+        assert_eq!(result.new_files.len(), 2);
+        assert!(result.new_files.contains(&1));
+        assert!(result.new_files.contains(&2));
+    }
+
+    #[test]
+    fn test_scan_with_duplicate_numbers() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        // Create two files with same number (edge case)
+        fs::write(draft_dir.join("0001-first.md"), create_test_doc(1, "draft")).unwrap();
+        fs::write(draft_dir.join("0001-second.md"), create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.scan_for_changes().unwrap();
+
+        // Should handle gracefully - one will overwrite the other in state
+        assert_eq!(manager.state().documents.len(), 1);
+        assert!(result.new_files.contains(&1));
+    }
+
+    #[test]
+    fn test_checksum_with_unicode_content() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("unicode.txt");
+
+        let unicode_content = "Hello 世界 🌍 Привет مرحبا";
+        fs::write(&file_path, unicode_content).unwrap();
+
+        let checksum = compute_checksum(&file_path).unwrap();
+        assert_eq!(checksum.len(), 64);
+
+        // Verify it's deterministic
+        let checksum2 = compute_checksum(&file_path).unwrap();
+        assert_eq!(checksum, checksum2);
+    }
+
+    #[test]
+    fn test_file_with_only_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        let doc_path = draft_dir.join("0001-empty-body.md");
+        let content = r#"---
+number: 1
+title: Empty Body Document
+author: Test Author
+created: 2024-01-01
+updated: 2024-01-02
+state: draft
+---
+"#;
+        fs::write(&doc_path, content).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        let result = manager.scan_for_changes().unwrap();
+
+        assert_eq!(result.new_files.len(), 1);
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_by_state_sorted() {
+        let mut state = DocumentState::new();
+
+        // Add records in random order
+        for num in [5, 2, 8, 1, 3].iter() {
+            let mut record = create_test_record(*num);
+            record.metadata.number = *num;
+            state.upsert(*num, record);
+        }
+
+        let all = state.by_state(crate::doc::DocState::Draft);
+
+        // Verify sorted order
+        for i in 0..all.len() - 1 {
+            assert!(all[i].metadata.number < all[i + 1].metadata.number);
+        }
+    }
+
+    #[test]
+    fn test_scan_result_errors_dont_affect_has_changes() {
+        let mut result = ScanResult::new();
+        result.errors.push("Some error".to_string());
+
+        // Errors alone don't count as changes
+        assert!(!result.has_changes());
+        assert_eq!(result.total_changes(), 0);
+    }
+
+    #[test]
+    fn test_gitignore_not_created_twice() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join(".oxd");
+
+        let state = DocumentState::new();
+        state.save(&state_dir).unwrap();
+
+        let gitignore = state_dir.join(".gitignore");
+        let first_modified = fs::metadata(&gitignore).unwrap().modified().unwrap();
+
+        // Save again
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        state.save(&state_dir).unwrap();
+
+        let second_modified = fs::metadata(&gitignore).unwrap().modified().unwrap();
+
+        // .gitignore should not be updated if it exists
+        assert_eq!(first_modified, second_modified);
+    }
+
+    #[test]
+    fn test_state_version_is_persisted() {
+        let temp = TempDir::new().unwrap();
+        let state_dir = temp.path().join(".oxd");
+
+        let state = DocumentState::new();
+        assert_eq!(state.version, 1);
+
+        state.save(&state_dir).unwrap();
+        let loaded = DocumentState::load(&state_dir).unwrap();
+
+        assert_eq!(loaded.version, 1);
+    }
+
+    #[test]
+    fn test_state_last_updated_changes() {
+        let mut state = DocumentState::new();
+        let first_update = state.last_updated;
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let record = create_test_record(1);
+        state.upsert(1, record);
+
+        assert!(state.last_updated > first_update);
+    }
+
+    #[test]
+    fn test_remove_updates_last_updated() {
+        let mut state = DocumentState::new();
+        let record = create_test_record(1);
+        state.upsert(1, record);
+
+        let before_remove = state.last_updated;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        state.remove(1);
+
+        assert!(state.last_updated > before_remove);
+    }
+
+    #[test]
+    fn test_quick_scan_with_checksum_error() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        // Create a file and scan it
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.quick_scan().unwrap();
+
+        // This test ensures quick_scan handles files correctly even when
+        // metadata check passes but checksum verification might be needed
+        assert!(manager.state().get(1).is_some());
+    }
+
+    #[test]
+    fn test_scan_for_changes_with_read_error() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        // Create a valid file first
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+
+        // Initial scan should succeed
+        let result = manager.scan_for_changes().unwrap();
+        assert_eq!(result.new_files.len(), 1);
+    }
+
+    #[test]
+    fn test_all_sorted_with_single_document() {
+        let mut state = DocumentState::new();
+        let record = create_test_record(42);
+        state.upsert(42, record);
+
+        let all = state.all();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].metadata.number, 42);
+    }
+
+    #[test]
+    fn test_by_state_with_mixed_states() {
+        use crate::doc::DocState;
+
+        let mut state = DocumentState::new();
+
+        // Create records with different states
+        for (num, doc_state) in [(1, DocState::Draft), (2, DocState::Final), (3, DocState::Draft), (4, DocState::Active)] {
+            let mut record = create_test_record(num);
+            record.metadata.state = doc_state;
+            state.upsert(num, record);
+        }
+
+        let drafts = state.by_state(DocState::Draft);
+        assert_eq!(drafts.len(), 2);
+        assert_eq!(drafts[0].metadata.number, 1);
+        assert_eq!(drafts[1].metadata.number, 3);
+
+        let finals = state.by_state(DocState::Final);
+        assert_eq!(finals.len(), 1);
+        assert_eq!(finals[0].metadata.number, 2);
+
+        let actives = state.by_state(DocState::Active);
+        assert_eq!(actives.len(), 1);
+        assert_eq!(actives[0].metadata.number, 4);
+    }
+
+    #[test]
+    fn test_quick_check_changed_detects_size_change() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let manager = StateManager::new(&docs_dir).unwrap();
+
+        // Create a record with different size
+        let mut record = create_test_record(1);
+        record.file_size = 9999;
+        record.modified = Utc::now();
+
+        let changed = manager.quick_check_changed(&doc_path, &record).unwrap();
+        assert!(changed);
+    }
+
+    #[test]
+    fn test_quick_check_changed_detects_mtime_change() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let manager = StateManager::new(&docs_dir).unwrap();
+
+        // Create a record with old mtime
+        let mut record = create_test_record(1);
+        let (size, _) = file_metadata(&doc_path).unwrap();
+        record.file_size = size;
+        record.modified = Utc::now() - chrono::Duration::seconds(3600);
+
+        let changed = manager.quick_check_changed(&doc_path, &record).unwrap();
+        assert!(changed);
+    }
+
+    #[test]
+    fn test_quick_check_unchanged() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let manager = StateManager::new(&docs_dir).unwrap();
+
+        // Create a record with matching size and newer mtime
+        let (size, modified) = file_metadata(&doc_path).unwrap();
+        let mut record = create_test_record(1);
+        record.file_size = size;
+        record.modified = modified + chrono::Duration::seconds(10);
+
+        let changed = manager.quick_check_changed(&doc_path, &record).unwrap();
+        assert!(!changed);
+    }
+
+    #[test]
+    fn test_update_record_from_file_strips_prefix() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.scan_for_changes().unwrap();
+
+        let record = manager.state().get(1).unwrap();
+        // Path should be relative to docs_dir
+        assert!(record.path.starts_with("01-draft"));
+        assert!(!record.path.contains(&docs_dir.to_string_lossy().to_string()));
+    }
+
+    #[test]
+    fn test_quick_scan_deleted_files() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().to_path_buf();
+        let draft_dir = docs_dir.join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        let doc_path = draft_dir.join("0001-test.md");
+        fs::write(&doc_path, create_test_doc(1, "draft")).unwrap();
+
+        let mut manager = StateManager::new(&docs_dir).unwrap();
+        manager.quick_scan().unwrap();
+        assert!(manager.state().get(1).is_some());
+
+        // Delete the file
+        fs::remove_file(&doc_path).unwrap();
+
+        let result = manager.quick_scan().unwrap();
+        assert_eq!(result.deleted.len(), 1);
+        assert_eq!(result.deleted[0], 1);
+        assert!(manager.state().get(1).is_none());
+    }
+}

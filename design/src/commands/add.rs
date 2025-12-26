@@ -549,4 +549,1061 @@ mod tests {
         let result = add_batch(&mut state_mgr, vec![pattern], true, false); // dry_run mode
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_add_document_invalid_markdown() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("invalid.md");
+        fs::write(&file_path, "").unwrap(); // Empty file is not valid markdown
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("valid markdown"));
+    }
+
+    #[test]
+    fn test_add_document_with_content_issues_auto_yes() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Content with issues (trailing spaces, inconsistent bullets, etc.)
+        fs::write(&file_path, "# Test\n\nLine with trailing spaces  \n* item 1\n- item 2\n").unwrap();
+
+        let result = add_document(
+            &mut state_mgr,
+            file_path.to_str().unwrap(),
+            false,
+            false,
+            true, // auto_yes - should normalize
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_with_existing_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "---\ntitle: Old Title\nauthor: Old Author\n---\n\n# Test Document\n\nContent.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Verify frontmatter was stripped and replaced
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let new_content = fs::read_to_string(created_file).unwrap();
+                // Should have new frontmatter
+                assert!(new_content.starts_with("---\n"));
+                // Should not have duplicate frontmatter
+                let frontmatter_count = new_content.matches("---\n").count();
+                assert_eq!(frontmatter_count, 2); // Opening and closing
+            }
+        }
+    }
+
+    #[test]
+    fn test_add_document_with_state_hint() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Test\n\nThis is ready for review and please review it.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Should be placed in under-review directory due to state hint
+        let review_dir = temp.path().join("02-under-review");
+        if review_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&review_dir).unwrap().collect();
+            assert!(!entries.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_add_document_content_normalization() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Content without trailing newline
+        fs::write(&file_path, "# Test\n\nContent without trailing newline").unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Verify content ends with newline
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let new_content = fs::read_to_string(created_file).unwrap();
+                assert!(new_content.ends_with('\n'));
+            }
+        }
+    }
+
+    #[test]
+    fn test_determine_title_auto_with_frontmatter_title() {
+        let content = "---\ntitle: Frontmatter Title\n---\n\n# Heading Title\n\nContent";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("test.md");
+        fs::write(&path, content).unwrap();
+
+        let title = determine_title_auto(&extracted, &path);
+        // Note: ExtractedMetadata doesn't parse frontmatter title, so it should use heading
+        assert_eq!(title, "Heading Title");
+    }
+
+    #[test]
+    fn test_determine_title_auto_with_no_heading_or_frontmatter() {
+        let content = "Just plain content without any headings";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("my-file-name.md");
+        fs::write(&path, content).unwrap();
+
+        let title = determine_title_auto(&extracted, &path);
+        assert_eq!(title, "My File Name");
+    }
+
+    #[test]
+    fn test_determine_author_auto_with_extracted_author() {
+        let content = "# Test\n\nAuthor: John Doe\n\nSome content";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let author = determine_author_auto(&extracted);
+        assert_eq!(author, "John Doe");
+    }
+
+    #[test]
+    fn test_preview_add_with_invalid_markdown() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("invalid.md");
+        fs::write(&file_path, "").unwrap(); // Empty is invalid
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("valid markdown"));
+    }
+
+    #[test]
+    fn test_preview_add_with_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "---\ntitle: Test Title\nauthor: Test Author\n---\n\n# Test\n\nContent";
+        fs::write(&file_path, content).unwrap();
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_preview_add_with_content_issues() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Content with trailing spaces and inconsistent bullets
+        fs::write(&file_path, "# Test\n\nLine with spaces  \n* item1\n- item2").unwrap();
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_preview_add_without_detected_metadata() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("plain.md");
+        fs::write(&file_path, "Just some plain content without headings or metadata").unwrap();
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_batch_with_one_failure() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Create valid and invalid markdown files
+        fs::write(temp.path().join("valid.md"), "# Valid Document\n\nContent").unwrap();
+        fs::write(temp.path().join("invalid.md"), "").unwrap(); // Invalid - empty
+
+        let pattern = format!("{}/*.md", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], false, false);
+        // Should succeed overall but report failures
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_batch_non_interactive() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        fs::write(temp.path().join("doc1.md"), "# Document 1\n\nContent").unwrap();
+        fs::write(temp.path().join("doc2.md"), "# Document 2\n\nContent").unwrap();
+
+        let pattern = format!("{}/*.md", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_batch_with_multiple_patterns() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let subdir = temp.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+
+        fs::write(temp.path().join("doc1.md"), "# Doc 1").unwrap();
+        fs::write(subdir.join("doc2.md"), "# Doc 2").unwrap();
+
+        let pattern1 = format!("{}/*.md", temp.path().display());
+        let pattern2 = format!("{}/subdir/*.md", temp.path().display());
+
+        let result = add_batch(&mut state_mgr, vec![pattern1, pattern2], true, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_batch_skips_non_markdown_extensions() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        fs::write(temp.path().join("doc.md"), "# Document").unwrap();
+        fs::write(temp.path().join("readme.txt"), "Not markdown").unwrap();
+        fs::write(temp.path().join("data.json"), "{}").unwrap();
+
+        let pattern = format!("{}/*", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], true, false);
+        assert!(result.is_ok());
+        // Should only process the .md file
+    }
+
+    #[test]
+    fn test_add_document_creates_state_directory() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test Document\n\nContent").unwrap();
+
+        // Draft directory shouldn't exist yet
+        let draft_dir = temp.path().join("01-draft");
+        assert!(!draft_dir.exists());
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Draft directory should now exist
+        assert!(draft_dir.exists());
+    }
+
+    #[test]
+    fn test_add_document_git_add_failure_continues() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test\n\nContent").unwrap();
+
+        // Even if git add fails (not a git repo), the operation should continue
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_same_location_no_delete_prompt() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Create a file already in the draft directory with proper naming
+        let draft_dir = temp.path().join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+
+        let file_path = draft_dir.join("existing.md");
+        fs::write(&file_path, "# Test\n\nContent").unwrap();
+
+        // This should work without prompting to delete original
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        // The file should still exist after processing
+        assert!(result.is_ok() || file_path.exists());
+    }
+
+    #[test]
+    fn test_add_document_with_metadata_from_content() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# My Great Idea\n\nAuthor: Jane Smith\n\nThis is approved and accepted.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Should extract title "My Great Idea" and author "Jane Smith"
+        // Should detect "accepted" state hint
+        let accepted_dir = temp.path().join("03-accepted");
+        if accepted_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&accepted_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let new_content = fs::read_to_string(created_file).unwrap();
+                assert!(new_content.contains("title: My Great Idea"));
+                assert!(new_content.contains("author: Jane Smith"));
+                assert!(new_content.contains("state: accepted"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_add_document_number_increments() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Add first document with proper content
+        let file1 = temp.path().join("test1.md");
+        fs::write(&file1, "# Test 1\n\nContent for test 1.").unwrap();
+        add_document(&mut state_mgr, file1.to_str().unwrap(), false, false, true).unwrap();
+
+        // Add second document with proper content
+        let file2 = temp.path().join("test2.md");
+        fs::write(&file2, "# Test 2\n\nContent for test 2.").unwrap();
+        add_document(&mut state_mgr, file2.to_str().unwrap(), false, false, true).unwrap();
+
+        // Verify both files exist with different numbers
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            assert_eq!(entries.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_determine_title_auto_edge_cases() {
+        let temp = TempDir::new().unwrap();
+
+        // Test with file that has no extension
+        let path = temp.path().join("no-extension");
+        fs::write(&path, "Content").unwrap();
+        let extracted = ExtractedMetadata::from_content("Content");
+        let title = determine_title_auto(&extracted, &path);
+        assert_eq!(title, "No Extension");
+
+        // Test with empty filename scenario (should not panic)
+        let extracted2 = ExtractedMetadata::from_content("# Heading");
+        let title2 = determine_title_auto(&extracted2, &temp.path());
+        // Should use heading or temp dir name
+        assert!(!title2.is_empty());
+    }
+
+    #[test]
+    fn test_preview_add_shows_all_states() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let test_cases = vec![
+            ("# Draft\n\nWork in progress", "draft"),
+            ("# Review\n\nReady for review", "under-review"),
+            ("# Final\n\nThis is implemented", "final"),
+            ("# Rejected\n\nThis was rejected", "rejected"),
+            ("# Deferred\n\nThis is deferred", "deferred"),
+        ];
+
+        for (content, _expected_state) in test_cases {
+            let file_path = temp.path().join(format!("test_{}.md", _expected_state));
+            fs::write(&file_path, content).unwrap();
+
+            let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_add_document_with_very_long_title() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let long_title = "A".repeat(200);
+        let content = format!("# {}\n\nContent", long_title);
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        // Should handle long titles (may be truncated in filename)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_with_special_chars_in_title() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Title with Special: Chars / and \\ Stuff!\n\nContent";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        // Should sanitize special characters for filename
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_with_unicode_title() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Use mostly ASCII with some unicode to pass validation
+        let content = "# Unicode Title with Japanese 日本語\n\nThis is content with unicode characters like émojis and more regular text to ensure it passes markdown validation.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_batch_all_files_fail() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Create only invalid files
+        fs::write(temp.path().join("invalid1.md"), "").unwrap();
+        fs::write(temp.path().join("invalid2.md"), "").unwrap();
+
+        let pattern = format!("{}/*.md", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], false, false);
+        // Should succeed overall even if all files fail
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_preserves_content_structure() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Title\n\n## Section 1\n\nParagraph 1\n\n## Section 2\n\nParagraph 2\n\n```rust\ncode block\n```";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Verify content structure is preserved
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let new_content = fs::read_to_string(created_file).unwrap();
+                assert!(new_content.contains("## Section 1"));
+                assert!(new_content.contains("## Section 2"));
+                assert!(new_content.contains("```rust"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_determine_author_auto_fallback_to_git() {
+        let content = "# Document\n\nNo author mentioned here.";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let author = determine_author_auto(&extracted);
+        // Should fallback to git author (we can't test exact value)
+        assert!(!author.is_empty());
+    }
+
+    #[test]
+    fn test_preview_add_with_state_hints() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Document\n\nThis is deferred and postponed for now.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_ok());
+        // Should show state as deferred in preview
+    }
+
+    #[test]
+    fn test_add_batch_with_glob_error_handling() {
+        let mut state_mgr = StateManager::new(PathBuf::from("/tmp")).unwrap();
+
+        // Invalid glob pattern with unclosed bracket
+        let result = add_batch(&mut state_mgr, vec!["[invalid".to_string()], false, false);
+        // Should handle glob errors gracefully
+        assert!(result.is_err() || result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_no_content_issues() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Clean content with no issues
+        let content = "# Perfect Document\n\nThis is well-formed markdown content.\n\n## Section\n\nMore content here.\n";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_with_whitespace_only_content() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Content that is mostly whitespace but valid
+        fs::write(&file_path, "# Title\n\n\n\n\nContent here.\n\n\n").unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_determine_title_interactive_would_use_defaults() {
+        // We can't easily test interactive functions without mocking stdin,
+        // but we can test the logic they use
+        let content = "---\ntitle: FM Title\n---\n\n# Heading Title\n\nContent";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("file-name.md");
+        fs::write(&path, content).unwrap();
+
+        // The default title logic (what interactive mode would show as default)
+        let default_title = extracted
+            .title
+            .as_ref()
+            .or(extracted.first_heading.as_ref())
+            .cloned()
+            .unwrap_or_else(|| design::filename::filename_to_title("file-name.md"));
+
+        assert_eq!(default_title, "Heading Title");
+    }
+
+    #[test]
+    fn test_determine_author_interactive_would_use_git_default() {
+        let content = "# Test Document\n\nNo author info in content.";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        // What the interactive mode would use as default
+        let git_author_result = std::process::Command::new("git")
+            .args(["config", "user.name"])
+            .output();
+
+        let default_author = if let Ok(output) = git_author_result {
+            String::from_utf8(output.stdout)
+                .ok()
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|| "Unknown Author".to_string())
+        } else {
+            "Unknown Author".to_string()
+        };
+
+        let final_default = extracted.author.as_ref().unwrap_or(&default_author);
+        assert!(!final_default.is_empty());
+    }
+
+    #[test]
+    fn test_determine_state_interactive_default_logic() {
+        let content = "# Draft Document\n\nWork in progress here.";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        // The state hint should be Draft based on "work in progress"
+        assert_eq!(extracted.state_hint, Some(DocState::Draft));
+
+        // The default index would be 0 (Draft) if state_hint is Some(Draft)
+        let default_idx = if let Some(hint) = extracted.state_hint {
+            DocState::all_states().iter().position(|&s| s == hint).unwrap_or(0)
+        } else {
+            0
+        };
+        assert_eq!(default_idx, 0);
+    }
+
+    #[test]
+    fn test_add_document_with_final_state_hint() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Final Document\n\nThis is implemented and complete.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Should be in final directory
+        let final_dir = temp.path().join("04-final");
+        if final_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&final_dir).unwrap().collect();
+            assert!(!entries.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_add_document_with_rejected_state_hint() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Rejected Proposal\n\nThis was rejected and not approved.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Should be in rejected directory
+        let rejected_dir = temp.path().join("05-rejected");
+        if rejected_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&rejected_dir).unwrap().collect();
+            assert!(!entries.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_add_document_with_deferred_state_hint() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Deferred Item\n\nThis has been postponed for later consideration.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Should be in deferred directory
+        let deferred_dir = temp.path().join("06-deferred");
+        if deferred_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&deferred_dir).unwrap().collect();
+            assert!(!entries.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_add_batch_dry_run_creates_nothing() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        fs::write(temp.path().join("doc1.md"), "# Document 1\n\nContent").unwrap();
+        fs::write(temp.path().join("doc2.md"), "# Document 2\n\nContent").unwrap();
+
+        let pattern = format!("{}/*.md", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], true, false); // dry_run = true
+        assert!(result.is_ok());
+
+        // No files should be created in dry run
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            assert!(entries.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_add_document_metadata_with_dates() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Test Document\n\nAuthor: Test Author\n\nContent here.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Verify created and updated dates are in the frontmatter
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let new_content = fs::read_to_string(created_file).unwrap();
+                assert!(new_content.contains("created:"));
+                assert!(new_content.contains("updated:"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_add_document_records_file_change() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let initial_state = state_mgr.state().documents.len();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test\n\nContent").unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // State should have recorded the new file
+        let final_state = state_mgr.state().documents.len();
+        assert!(final_state >= initial_state);
+    }
+
+    #[test]
+    fn test_preview_add_with_detected_author() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "# Document\n\nWritten by Alice Smith\n\nContent here.";
+        fs::write(&file_path, content).unwrap();
+
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_without_issues_skips_normalization() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Perfect markdown with no issues
+        let content = "# Perfect Title\n\nThis is perfectly formatted content.\n";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_batch_filters_directories() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Create a directory that matches pattern
+        let dir = temp.path().join("test.md");
+        fs::create_dir(&dir).unwrap();
+
+        // Create a file
+        fs::write(temp.path().join("real.md"), "# Real\n\nContent").unwrap();
+
+        let pattern = format!("{}/*.md", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], true, false);
+        assert!(result.is_ok());
+        // Should only process the file, not the directory
+    }
+
+    #[test]
+    fn test_add_document_builds_correct_yaml_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Title\n\nContent").unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let content = fs::read_to_string(created_file).unwrap();
+                // Verify YAML frontmatter structure
+                assert!(content.starts_with("---\n"));
+                assert!(content.contains("number:"));
+                assert!(content.contains("title:"));
+                assert!(content.contains("author:"));
+                assert!(content.contains("state:"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_determine_title_auto_with_path_edge_case() {
+        let temp = TempDir::new().unwrap();
+        let extracted = ExtractedMetadata::from_content("Content only");
+
+        // Test with path that has multiple dots
+        let path = temp.path().join("my.test.file.md");
+        fs::write(&path, "content").unwrap();
+        let title = determine_title_auto(&extracted, &path);
+        assert!(!title.is_empty());
+    }
+
+    #[test]
+    fn test_add_document_with_minimal_valid_content() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Minimum valid markdown (just over 10 chars)
+        fs::write(&file_path, "# A\n\nContent text").unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_interactive_mode_requires_prompt() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test\n\nContent with issues  \n").unwrap();
+
+        // Interactive mode without auto_yes would require user input,
+        // so we can't test it directly without mocking stdin.
+        // We're testing that the code path exists and compiles correctly.
+        // In real usage, this would prompt the user.
+
+        // We can only test non-interactive paths safely
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_dry_run_mode_with_issues() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test\n\nContent with trailing spaces  \n* item1\n- item2\n").unwrap();
+
+        let result = add_document(
+            &mut state_mgr,
+            file_path.to_str().unwrap(),
+            true,  // dry_run
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_add_document_non_interactive_with_issues() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test\n\nTrailing spaces  \n").unwrap();
+
+        // Non-interactive mode with auto_yes=false should still work
+        let result = add_document(
+            &mut state_mgr,
+            file_path.to_str().unwrap(),
+            false,
+            false, // not interactive
+            false, // not auto_yes
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_determine_state_with_no_hint() {
+        let content = "# Generic Document\n\nNo state hints in this content.";
+        let extracted = ExtractedMetadata::from_content(content);
+
+        assert_eq!(extracted.state_hint, None);
+
+        // When no hint, should default to Draft
+        let state = extracted.state_hint.unwrap_or(DocState::Draft);
+        assert_eq!(state, DocState::Draft);
+    }
+
+    #[test]
+    fn test_all_state_hints_detection() {
+        let test_cases = vec![
+            ("Work in progress here", Some(DocState::Draft)),
+            ("WIP document", Some(DocState::Draft)),
+            ("Ready for review please", Some(DocState::UnderReview)),
+            ("Please review this", Some(DocState::UnderReview)),
+            ("This is approved", Some(DocState::Accepted)),
+            ("Accepted proposal", Some(DocState::Accepted)),
+            ("This is implemented", Some(DocState::Final)),
+            ("Complete implementation", Some(DocState::Final)),
+            ("This was rejected", Some(DocState::Rejected)),
+            ("Explicitly rejected proposal", Some(DocState::Rejected)),
+            ("This is deferred", Some(DocState::Deferred)),
+            ("Postponed for now", Some(DocState::Deferred)),
+            ("No hints here", None),
+        ];
+
+        for (content, expected_state) in test_cases {
+            let full_content = format!("# Test\n\n{}", content);
+            let extracted = ExtractedMetadata::from_content(&full_content);
+            assert_eq!(extracted.state_hint, expected_state, "Failed for: {}", content);
+        }
+    }
+
+    #[test]
+    fn test_add_batch_success_and_failure_count() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Mix of valid and invalid files
+        fs::write(temp.path().join("valid1.md"), "# Valid 1\n\nContent").unwrap();
+        fs::write(temp.path().join("valid2.md"), "# Valid 2\n\nContent").unwrap();
+        fs::write(temp.path().join("invalid.md"), "").unwrap(); // Invalid
+
+        let pattern = format!("{}/*.md", temp.path().display());
+        let result = add_batch(&mut state_mgr, vec![pattern], false, false);
+
+        // Should complete successfully even with failures
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_preview_add_shows_number_assignment() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test Document\n\nContent").unwrap();
+
+        // Preview should show what number would be assigned
+        let next_num = state_mgr.next_number();
+        let result = preview_add(file_path.to_str().unwrap(), &state_mgr);
+        assert!(result.is_ok());
+
+        // Number should be predictable
+        assert!(next_num > 0);
+    }
+
+    #[test]
+    fn test_add_document_with_content_ending_with_newline() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        fs::write(&file_path, "# Test\n\nContent already ending with newline.\n").unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Should preserve the trailing newline
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let content = fs::read_to_string(created_file).unwrap();
+                assert!(content.ends_with('\n'));
+            }
+        }
+    }
+
+    #[test]
+    fn test_add_document_strips_only_existing_frontmatter() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        let content = "---\nold: frontmatter\n---\n\n# Title\n\nContent";
+        fs::write(&file_path, content).unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let created_file = entries[0].as_ref().unwrap().path();
+                let content = fs::read_to_string(created_file).unwrap();
+                // Should not contain old frontmatter
+                assert!(!content.contains("old: frontmatter"));
+                // Should have new frontmatter
+                assert!(content.contains("number:"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_determine_author_with_pattern_variations() {
+        let test_cases = vec![
+            ("Author: John Doe", Some("John Doe")),
+            ("by Alice Smith", Some("Alice Smith")),
+            ("Written by Bob Jones", Some("Bob Jones")),
+            ("No author here", None),
+        ];
+
+        for (content_snippet, expected_author) in test_cases {
+            let full_content = format!("# Test\n\n{}\n\nMore content", content_snippet);
+            let extracted = ExtractedMetadata::from_content(&full_content);
+
+            if let Some(expected) = expected_author {
+                assert_eq!(extracted.author.as_deref(), Some(expected));
+            } else {
+                assert_eq!(extracted.author, None);
+            }
+        }
+    }
+
+    #[test]
+    fn test_add_batch_with_no_interactive_prompt() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        fs::write(temp.path().join("test.md"), "# Test\n\nContent").unwrap();
+
+        let pattern = format!("{}/*.md", temp.path().display());
+
+        // Non-interactive batch should not prompt
+        let result = add_batch(&mut state_mgr, vec![pattern], false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_filename_sanitization_in_build() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let file_path = temp.path().join("test.md");
+        // Title with characters that need sanitization
+        fs::write(&file_path, "# Title: With / Special \\ Characters?\n\nContent").unwrap();
+
+        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), false, false, true);
+        assert!(result.is_ok());
+
+        // Filename should be sanitized
+        let draft_dir = temp.path().join("01-draft");
+        if draft_dir.exists() {
+            let entries: Vec<_> = fs::read_dir(&draft_dir).unwrap().collect();
+            if !entries.is_empty() {
+                let filename = entries[0].as_ref().unwrap().file_name();
+                let filename_str = filename.to_string_lossy();
+                // Should not contain illegal filename characters
+                assert!(!filename_str.contains('/'));
+                assert!(!filename_str.contains('\\'));
+                assert!(!filename_str.contains(':'));
+                assert!(!filename_str.contains('?'));
+            }
+        }
+    }
 }

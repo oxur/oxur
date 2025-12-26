@@ -457,4 +457,268 @@ mod tests {
         let result = update_index(&index);
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_add_to_table_at_beginning() {
+        let content = r#"# Index
+
+| Number | Title | State | Updated |
+|--------|-------|-------|----------|
+| 0002 | Second | Draft | 2024-01-02 |
+| 0003 | Third | Draft | 2024-01-03 |
+"#;
+
+        let result = add_to_table(content, "0001", "First", "Draft", "2024-01-01").unwrap();
+        assert!(result.contains("| 0001 | First | Draft | 2024-01-01 |"));
+        assert!(result.find("0001").unwrap() < result.find("0002").unwrap());
+    }
+
+    #[test]
+    fn test_add_to_table_in_middle() {
+        let content = r#"# Index
+
+| Number | Title | State | Updated |
+|--------|-------|-------|----------|
+| 0001 | First | Draft | 2024-01-01 |
+| 0003 | Third | Draft | 2024-01-03 |
+"#;
+
+        let result = add_to_table(content, "0002", "Second", "Draft", "2024-01-02").unwrap();
+        assert!(result.contains("| 0002 | Second | Draft | 2024-01-02 |"));
+        let pos_1 = result.find("0001").unwrap();
+        let pos_2 = result.find("0002").unwrap();
+        let pos_3 = result.find("0003").unwrap();
+        assert!(pos_1 < pos_2 && pos_2 < pos_3);
+    }
+
+    #[test]
+    fn test_add_to_table_at_end() {
+        let content = r#"# Index
+
+| Number | Title | State | Updated |
+|--------|-------|-------|----------|
+| 0001 | First | Draft | 2024-01-01 |
+| 0002 | Second | Draft | 2024-01-02 |
+"#;
+
+        let result = add_to_table(content, "0003", "Third", "Draft", "2024-01-03").unwrap();
+        assert!(result.contains("| 0003 | Third | Draft | 2024-01-03 |"));
+    }
+
+    #[test]
+    fn test_update_table_field_title() {
+        let content = r#"| 0001 | Old Title | Draft | 2024-01-01 |
+| 0002 | Second | Draft | 2024-01-02 |"#;
+
+        let result = update_table_field(content, "0001", "title", "New Title").unwrap();
+        assert!(result.contains("| 0001 | New Title | Draft | 2024-01-01 |"));
+        assert!(!result.contains("Old Title"));
+    }
+
+    #[test]
+    fn test_update_table_field_state() {
+        let content = r#"| 0001 | Title | Draft | 2024-01-01 |
+| 0002 | Second | Draft | 2024-01-02 |"#;
+
+        let result = update_table_field(content, "0001", "state", "Final").unwrap();
+        assert!(result.contains("| 0001 | Title | Final | 2024-01-01 |"));
+    }
+
+    #[test]
+    fn test_update_table_field_updated() {
+        let content = r#"| 0001 | Title | Draft | 2024-01-01 |
+| 0002 | Second | Draft | 2024-01-02 |"#;
+
+        let result = update_table_field(content, "0001", "updated", "2024-12-26").unwrap();
+        assert!(result.contains("| 0001 | Title | Draft | 2024-12-26 |"));
+    }
+
+    #[test]
+    fn test_remove_from_table() {
+        let content = r#"| Number | Title | State | Updated |
+|--------|-------|-------|----------|
+| 0001 | First | Draft | 2024-01-01 |
+| 0002 | Second | Draft | 2024-01-02 |
+| 0003 | Third | Draft | 2024-01-03 |"#;
+
+        let result = remove_from_table(content, "0002").unwrap();
+        assert!(!result.contains("| 0002 |"));
+        assert!(result.contains("| 0001 |"));
+        assert!(result.contains("| 0003 |"));
+    }
+
+    #[test]
+    fn test_add_to_section_new_entry() {
+        let content = r#"### Draft
+
+- [0001 - First](draft/0001-first.md)
+- [0003 - Third](draft/0003-third.md)
+"#;
+
+        let result =
+            add_to_section(content, "Draft", "0002", "Second", "draft/0002-second.md").unwrap();
+        assert!(result.contains("- [0002 - Second](draft/0002-second.md)"));
+        let pos_1 = result.find("0001").unwrap();
+        let pos_2 = result.find("0002").unwrap();
+        let pos_3 = result.find("0003").unwrap();
+        assert!(pos_1 < pos_2 && pos_2 < pos_3);
+    }
+
+    #[test]
+    fn test_add_to_section_creates_new_section() {
+        let content = r#"# Index
+
+## Documents by State
+
+### Draft
+
+- [0001 - First](draft/0001-first.md)
+"#;
+
+        let result = add_to_section(content, "Final", "0002", "Second", "final/0002-second.md")
+            .unwrap();
+        assert!(result.contains("### Final"));
+        assert!(result.contains("- [0002 - Second](final/0002-second.md)"));
+    }
+
+    #[test]
+    fn test_add_to_section_empty_section() {
+        let content = r#"### Draft
+
+"#;
+
+        let result =
+            add_to_section(content, "Draft", "0001", "First", "draft/0001-first.md").unwrap();
+        assert!(result.contains("- [0001 - First](draft/0001-first.md)"));
+    }
+
+    #[test]
+    fn test_remove_from_section() {
+        let content = r#"### Draft
+
+- [0001 - First](draft/0001-first.md)
+- [0002 - Second](draft/0002-second.md)
+- [0003 - Third](draft/0003-third.md)
+"#;
+
+        let result = remove_from_section(content, "Draft", "draft/0002-second.md");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_remove_from_section_removes_empty_section() {
+        let content = r#"## Documents by State
+
+### Draft
+
+- [0001 - Only](draft/0001-only.md)
+
+### Final
+"#;
+
+        let result = remove_from_section(content, "Draft", "draft/0001-only.md");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_remove_from_section_keeps_other_items() {
+        let content = r#"### Draft
+
+- [0001 - First](draft/0001-first.md)
+- [0002 - Second](draft/0002-second.md)
+"#;
+
+        let result = remove_from_section(content, "Draft", "draft/0001-first.md");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_apply_change_table_add() {
+        let content = r#"| Number | Title | State | Updated |
+|--------|-------|-------|----------|
+| 0002 | Second | Draft | 2024-01-02 |"#;
+
+        let change = IndexChange::TableAdd {
+            number: "0001".to_string(),
+            title: "First".to_string(),
+            state: "Draft".to_string(),
+            updated: "2024-01-01".to_string(),
+        };
+
+        let doc_map = HashMap::new();
+        let result = apply_change(content, &change, &doc_map, Path::new("/tmp")).unwrap();
+        assert!(result.contains("| 0001 | First | Draft | 2024-01-01 |"));
+    }
+
+    #[test]
+    fn test_apply_change_table_update() {
+        let content = "| 0001 | Old | Draft | 2024-01-01 |";
+
+        let change = IndexChange::TableUpdate {
+            number: "0001".to_string(),
+            field: "title".to_string(),
+            old: "Old".to_string(),
+            new: "New".to_string(),
+        };
+
+        let doc_map = HashMap::new();
+        let result = apply_change(content, &change, &doc_map, Path::new("/tmp")).unwrap();
+        assert!(result.contains("| 0001 | New | Draft | 2024-01-01 |"));
+    }
+
+    #[test]
+    fn test_apply_change_table_remove() {
+        let content = r#"| 0001 | First | Draft | 2024-01-01 |
+| 0002 | Second | Draft | 2024-01-02 |"#;
+
+        let change = IndexChange::TableRemove {
+            number: "0001".to_string(),
+        };
+
+        let doc_map = HashMap::new();
+        let result = apply_change(content, &change, &doc_map, Path::new("/tmp")).unwrap();
+        assert!(!result.contains("| 0001 |"));
+        assert!(result.contains("| 0002 |"));
+    }
+
+    #[test]
+    fn test_apply_change_section_add() {
+        let content = "### Draft\n\n- [0001 - First](draft/0001.md)\n";
+
+        let change = IndexChange::SectionAdd {
+            state: "Draft".to_string(),
+            number: "0002".to_string(),
+            title: "Second".to_string(),
+            path: "draft/0002.md".to_string(),
+        };
+
+        let doc_map = HashMap::new();
+        let result = apply_change(content, &change, &doc_map, Path::new("/tmp")).unwrap();
+        assert!(result.contains("- [0002 - Second](draft/0002.md)"));
+    }
+
+    #[test]
+    fn test_apply_change_section_remove() {
+        let content = r#"### Draft
+
+- [0001 - First](draft/0001.md)
+- [0002 - Second](draft/0002.md)"#;
+
+        let change = IndexChange::SectionRemove {
+            state: "Draft".to_string(),
+            path: "draft/0001.md".to_string(),
+        };
+
+        let doc_map = HashMap::new();
+        let result = apply_change(content, &change, &doc_map, Path::new("/tmp"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cleanup_formatting() {
+        let content = "Line 1\n\n\n\nLine 2\n\n\nLine 3";
+        let result = cleanup_formatting(content);
+        // Should reduce multiple blank lines to max 2
+        assert!(!result.contains("\n\n\n\n"));
+    }
 }

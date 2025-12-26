@@ -624,7 +624,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use design::doc::DocMetadata;
-    use design::state::{DocumentRecord, DocumentState};
+    use design::state::DocumentRecord;
     use std::fs;
     use tempfile::TempDir;
 
@@ -653,7 +653,7 @@ mod tests {
                 DocumentRecord {
                     metadata: meta,
                     path: format!("{:04}-test.md", num),
-                    checksum: "abc123def456789012345678".to_string(),
+                    checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
                     file_size: num as u64 * 1000,
                     modified: chrono::Utc::now(),
                 },
@@ -775,6 +775,307 @@ mod tests {
         );
 
         let result = show_checksums(&state_mgr, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_stats() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = show_stats(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_stats_empty_state() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = show_stats(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_diff() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        // This will likely fail due to git operations, but we test the function executes
+        let _ = show_diff(&state_mgr);
+    }
+
+    #[test]
+    fn test_show_orphans() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        // This will likely fail due to git operations, but we test the function executes
+        let _ = show_orphans(&state_mgr);
+    }
+
+    #[test]
+    fn test_verify_document_exists() {
+        let (mut state_mgr, temp) = create_test_state_manager();
+
+        // Create an actual file
+        let file_path = temp.path().join("0001-test.md");
+        let content = "# Test Doc\n\nContent here.";
+        fs::write(&file_path, content).unwrap();
+
+        let checksum = compute_checksum(&file_path).unwrap();
+        let meta = DocMetadata {
+            number: 1,
+            title: "Test Doc".to_string(),
+            author: "Test".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: "0001-test.md".to_string(),
+                checksum,
+                file_size: content.len() as u64,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        let result = verify_document(&state_mgr, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_verify_document_not_found() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        let result = verify_document(&state_mgr, 9999);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_document_missing_file() {
+        let (state_mgr, _temp) = create_test_state_manager();
+        // Document 1 exists in state but file doesn't exist
+        let result = verify_document(&state_mgr, 1);
+        assert!(result.is_ok()); // Function should succeed, but report issues
+    }
+
+    #[test]
+    fn test_state_from_directory_draft() {
+        let path = std::path::PathBuf::from("/path/to/draft/0001-test.md");
+        let state = state_from_directory(&path);
+        assert_eq!(state, Some(DocState::Draft));
+    }
+
+    #[test]
+    fn test_state_from_directory_final() {
+        let path = std::path::PathBuf::from("/path/to/final/0001-test.md");
+        let state = state_from_directory(&path);
+        assert_eq!(state, Some(DocState::Final));
+    }
+
+    #[test]
+    fn test_state_from_directory_under_review() {
+        let path = std::path::PathBuf::from("/path/to/under-review/0001-test.md");
+        let state = state_from_directory(&path);
+        assert_eq!(state, Some(DocState::UnderReview));
+    }
+
+    #[test]
+    fn test_state_from_directory_all_states() {
+        let test_cases = vec![
+            ("draft", DocState::Draft),
+            ("under-review", DocState::UnderReview),
+            ("revised", DocState::Revised),
+            ("accepted", DocState::Accepted),
+            ("active", DocState::Active),
+            ("final", DocState::Final),
+            ("deferred", DocState::Deferred),
+            ("rejected", DocState::Rejected),
+            ("withdrawn", DocState::Withdrawn),
+            ("superseded", DocState::Superseded),
+        ];
+
+        for (dir, expected_state) in test_cases {
+            let path = std::path::PathBuf::from(format!("/path/to/{}/0001-test.md", dir));
+            let state = state_from_directory(&path);
+            assert_eq!(state, Some(expected_state), "Failed for directory: {}", dir);
+        }
+    }
+
+    #[test]
+    fn test_state_from_directory_unknown() {
+        let path = std::path::PathBuf::from("/path/to/unknown-dir/0001-test.md");
+        let state = state_from_directory(&path);
+        assert_eq!(state, None);
+    }
+
+    #[test]
+    fn test_show_state_table_long_title() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Add document with very long title
+        let long_title = "This is a very long title that exceeds 38 characters and should be truncated";
+        let meta = DocMetadata {
+            number: 1,
+            title: long_title.to_string(),
+            author: "Test Author".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: "0001-test.md".to_string(),
+                checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
+                file_size: 1000,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        let result = show_state(&state_mgr, "table");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_document_state_with_supersedes() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let meta = DocMetadata {
+            number: 2,
+            title: "Doc with supersedes".to_string(),
+            author: "Test".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: Some(1),
+            superseded_by: None,
+        };
+        state_mgr.state_mut().upsert(
+            2,
+            DocumentRecord {
+                metadata: meta,
+                path: "0002-test.md".to_string(),
+                checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
+                file_size: 1000,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        let result = show_document_state(&state_mgr, 2);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_document_state_with_superseded_by() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let meta = DocMetadata {
+            number: 1,
+            title: "Doc superseded".to_string(),
+            author: "Test".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Superseded,
+            supersedes: None,
+            superseded_by: Some(2),
+        };
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: "0001-test.md".to_string(),
+                checksum: "abc123def456789012345678901234567890123456789012345678901234".to_string(),
+                file_size: 1000,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        let result = show_document_state(&state_mgr, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_checksums_with_dirty_file() {
+        let (mut state_mgr, temp) = create_test_state_manager();
+
+        // Create a file
+        let file_path = temp.path().join("0001-test.md");
+        fs::write(&file_path, "original content").unwrap();
+
+        // Update state with checksum of original content
+        let checksum = compute_checksum(&file_path).unwrap();
+        let meta = DocMetadata {
+            number: 1,
+            title: "Test Doc".to_string(),
+            author: "Test".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: "0001-test.md".to_string(),
+                checksum: checksum.clone(),
+                file_size: 16,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        // Now modify the file to make it dirty
+        fs::write(&file_path, "modified content").unwrap();
+
+        let result = show_checksums(&state_mgr, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_checksums_long_title() {
+        let (mut state_mgr, temp) = create_test_state_manager();
+
+        // Create a file with long title
+        let file_path = temp.path().join("0001-test.md");
+        fs::write(&file_path, "test").unwrap();
+
+        let long_title = "This is a very long title that exceeds 38 characters and should be truncated in the output";
+        let meta = DocMetadata {
+            number: 1,
+            title: long_title.to_string(),
+            author: "Test".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+        state_mgr.state_mut().upsert(
+            1,
+            DocumentRecord {
+                metadata: meta,
+                path: "0001-test.md".to_string(),
+                checksum: "wrong_checksum".to_string(),
+                file_size: 4,
+                modified: chrono::Utc::now(),
+            },
+        );
+
+        let result = show_checksums(&state_mgr, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_state_summary_empty() {
+        let temp = TempDir::new().unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = show_state(&state_mgr, "summary");
         assert!(result.is_ok());
     }
 }

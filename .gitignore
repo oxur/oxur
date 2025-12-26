@@ -19,8 +19,9 @@ Cargo.lock  # Include this for applications, exclude for libraries
 # Design document state (local cache)
 **/.oxd/
 
-# CI/CD
+# Testing / coverage artifacts
 .coverage/
+*lcov*.info
 
 # OS
 Thumbs.db
