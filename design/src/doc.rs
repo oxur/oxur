@@ -21,7 +21,7 @@ pub enum DocError {
     InvalidState(String),
 }
 
-/// Document state - 10 states following the expanded lifecycle
+/// Document state - 12 states following the expanded lifecycle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum DocState {
     Draft,
@@ -34,6 +34,8 @@ pub enum DocState {
     Rejected,
     Withdrawn,
     Superseded,
+    Removed,      // Document removed to dustbin
+    Overwritten,  // Document replaced via oxd replace
 }
 
 impl DocState {
@@ -50,6 +52,8 @@ impl DocState {
             DocState::Rejected => "Rejected",
             DocState::Withdrawn => "Withdrawn",
             DocState::Superseded => "Superseded",
+            DocState::Removed => "Removed",
+            DocState::Overwritten => "Overwritten",
         }
     }
 
@@ -66,7 +70,16 @@ impl DocState {
             DocState::Rejected => "08-rejected",
             DocState::Withdrawn => "09-withdrawn",
             DocState::Superseded => "10-superseded",
+            // These states don't have standard directories
+            // They're in .dustbin with subdirectories
+            DocState::Removed => ".dustbin",
+            DocState::Overwritten => ".dustbin/overwritten",
         }
+    }
+
+    /// Check if this state should be in the dustbin
+    pub fn is_in_dustbin(&self) -> bool {
+        matches!(self, DocState::Removed | DocState::Overwritten)
     }
 
     /// Parse from string, handling various formats (hyphens, spaces, case)
@@ -84,6 +97,8 @@ impl DocState {
             "rejected" => Some(DocState::Rejected),
             "withdrawn" => Some(DocState::Withdrawn),
             "superseded" => Some(DocState::Superseded),
+            "removed" => Some(DocState::Removed),
+            "overwritten" => Some(DocState::Overwritten),
             _ => None,
         }
     }
@@ -101,6 +116,8 @@ impl DocState {
             "08-rejected" => Some(DocState::Rejected),
             "09-withdrawn" => Some(DocState::Withdrawn),
             "10-superseded" | "04-superseded" => Some(DocState::Superseded),
+            ".dustbin" => Some(DocState::Removed),
+            ".dustbin/overwritten" => Some(DocState::Overwritten),
             _ => None,
         }
     }
@@ -118,6 +135,8 @@ impl DocState {
             DocState::Rejected,
             DocState::Withdrawn,
             DocState::Superseded,
+            DocState::Removed,
+            DocState::Overwritten,
         ]
     }
 
@@ -646,7 +665,7 @@ mod docstate_tests {
     #[test]
     fn test_all_states_count() {
         let states = DocState::all_states();
-        assert_eq!(states.len(), 10);
+        assert_eq!(states.len(), 12);
     }
 
     #[test]
@@ -667,7 +686,7 @@ mod docstate_tests {
     #[test]
     fn test_all_state_names() {
         let names = DocState::all_state_names();
-        assert_eq!(names.len(), 10);
+        assert_eq!(names.len(), 12);
         assert!(names.contains(&"Draft"));
         assert!(names.contains(&"Under Review"));
         assert!(names.contains(&"Final"));

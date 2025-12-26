@@ -75,7 +75,9 @@ fn main() -> Result<()> {
 
     // Execute the command
     let result = match cli.command {
-        Commands::List { state, verbose } => list_documents(&index, state, verbose),
+        Commands::List { state, verbose, removed } => {
+            list_documents_with_state(&index, Some(&state_mgr), state, verbose, removed)
+        }
         Commands::Show { number, metadata_only } => show_document(&index, number, metadata_only),
         Commands::New { title, author } => new_document(&index, title, author),
         Commands::Validate { fix } => validate_documents(&index, fix),
@@ -111,6 +113,12 @@ fn main() -> Result<()> {
         },
         Commands::Search { query, state, metadata, case_sensitive } => {
             search(&state_mgr, &query, state, metadata, case_sensitive)
+        }
+        Commands::Remove { doc } => {
+            remove_document(&mut state_mgr, &doc)
+        }
+        Commands::Replace { old, new } => {
+            replace_document(&mut state_mgr, &old, &new)
         }
     };
 

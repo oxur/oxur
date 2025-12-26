@@ -47,6 +47,11 @@ pub fn sanitize_filename(name: &str) -> String {
     result
 }
 
+/// Slugify a string (alias for sanitize_filename)
+pub fn slugify(s: &str) -> String {
+    sanitize_filename(s)
+}
+
 /// Build filename with number prefix
 pub fn build_filename(number: u32, title: &str) -> String {
     let sanitized = sanitize_filename(title);

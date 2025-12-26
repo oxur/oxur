@@ -6,6 +6,8 @@ pub mod debug;
 pub mod index;
 pub mod list;
 pub mod new;
+pub mod remove;
+pub mod replace;
 pub mod scan;
 pub mod search;
 pub mod show;
@@ -21,8 +23,10 @@ pub use debug::{
     verify_document,
 };
 pub use index::generate_index;
-pub use list::list_documents;
+pub use list::list_documents_with_state;
 pub use new::new_document;
+pub use remove::execute as remove_document;
+pub use replace::execute as replace_document;
 pub use scan::scan_documents;
 pub use search::search;
 pub use show::show_document;

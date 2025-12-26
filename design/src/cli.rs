@@ -62,6 +62,10 @@ pub enum Commands {
         /// Show full details
         #[arg(short, long)]
         verbose: bool,
+
+        /// Show only removed documents
+        #[arg(long)]
+        removed: bool,
     },
 
     /// Show a specific document
@@ -197,5 +201,21 @@ pub enum Commands {
         /// Case-sensitive search
         #[arg(short = 'I', long)]
         case_sensitive: bool,
+    },
+
+    /// Remove a document (moves to dustbin)
+    #[command(visible_alias = "rm")]
+    Remove {
+        /// Document number or filename
+        doc: String,
+    },
+
+    /// Replace a document while preserving its ID
+    Replace {
+        /// Document number or filename to replace
+        old: String,
+
+        /// New document file path
+        new: String,
     },
 }
