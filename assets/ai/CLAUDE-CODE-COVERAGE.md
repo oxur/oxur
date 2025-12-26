@@ -1,11 +1,13 @@
 # Comprehensive Test Coverage Prompt for Claude Code
 
 ## Objective
+
 Achieve **95%+ test coverage** through systematic, intelligent test development. Do not stop until this threshold is met.
 
 ## Core Principles
 
 ### 1. Coverage is Non-Negotiable
+
 - Target: **95%+ line coverage** minimum
 - **Never settle** for "good enough" at 70-80%
 - Track progress explicitly: "Currently at X%, need Y% more"
@@ -13,6 +15,7 @@ Achieve **95%+ test coverage** through systematic, intelligent test development.
 - If you encounter obstacles, document them but **keep going**
 
 ### 2. Tests Must Pass - No Exceptions
+
 - **Zero broken tests** is the only acceptable state
 - A broken test indicates one of three things:
   1. The test is incorrectly written (fix the test)
@@ -22,26 +25,31 @@ Achieve **95%+ test coverage** through systematic, intelligent test development.
 - **Never** mark tests with `#[ignore]` to hide failures
 
 ### 3. Fix Root Causes, Not Symptoms
+
 When a test fails, follow this process:
 
 **Step 1: Understand**
+
 - Read the error message completely
 - Identify what the test expects vs. what actually happened
 - Trace the execution path that led to the failure
 - Ask: "What assumption is being violated?"
 
 **Step 2: Diagnose**
+
 - Is the test's expectation correct? (validate against spec/requirements)
 - Is the implementation's behavior correct? (validate against intended design)
 - Is there a mismatch in understanding?
 
 **Step 3: Fix Intelligently**
+
 - If test is wrong: Fix the test to match correct behavior
 - If implementation is wrong: Fix the implementation bug
 - If design assumption is wrong: Fix the design, then update both
 - **Never** change implementation just to make test pass without understanding why
 
 **Anti-patterns to Avoid:**
+
 - ❌ Changing return types to match test without understanding why
 - ❌ Adding special cases in code just for tests
 - ❌ Commenting out failing assertions
@@ -53,6 +61,7 @@ When a test fails, follow this process:
 Follow this order:
 
 **Phase 1: Module-by-Module Coverage**
+
 ```
 For each module in the project:
   1. Run coverage: `cargo llvm-cov --html`
@@ -65,6 +74,7 @@ For each module in the project:
 ```
 
 **Phase 2: Integration Coverage**
+
 ```
 After all modules are covered:
   1. Check for uncovered integration paths
@@ -74,6 +84,7 @@ After all modules are covered:
 ```
 
 **Phase 3: Edge Cases & Error Paths**
+
 ```
 Systematically test:
   - Error conditions
@@ -113,6 +124,7 @@ Blockers: [None | Describe any technical blockers]
 ## Testing Strategy by Code Type
 
 ### Pure Functions
+
 ```rust
 // Test:
 // - Happy path with typical inputs
@@ -127,22 +139,23 @@ mod tests {
 
     #[test]
     fn test_happy_path() { /* ... */ }
-    
+
     #[test]
     fn test_boundary_zero() { /* ... */ }
-    
+
     #[test]
     fn test_boundary_max() { /* ... */ }
-    
+
     #[test]
     fn test_empty_input() { /* ... */ }
-    
+
     #[test]
     fn test_invalid_input() { /* ... */ }
 }
 ```
 
 ### Functions with Side Effects
+
 ```rust
 // Test:
 // - Expected side effects occur
@@ -162,6 +175,7 @@ fn test_cleanup_on_error() { /* ... */ }
 ```
 
 ### Error Handling
+
 ```rust
 // Test EVERY error condition
 // - Each possible error variant
@@ -180,6 +194,7 @@ fn test_error_propagates_correctly() { /* ... */ }
 ```
 
 ### Async Code
+
 ```rust
 // Test:
 // - Happy path
@@ -199,6 +214,7 @@ async fn test_concurrent_access() { /* ... */ }
 ```
 
 ### State Machines
+
 ```rust
 // Test:
 // - All state transitions
@@ -219,36 +235,46 @@ fn test_state_persistence() { /* ... */ }
 ## Handling Common Obstacles
 
 ### "This code is hard to test"
+
 **Response:** Make it testable, don't skip it.
+
 - Refactor for testability (dependency injection, traits, etc.)
 - Use test doubles/mocks for external dependencies
 - Break large functions into smaller, testable units
 - **Document** why refactoring was needed
 
 ### "This is just a wrapper/trivial"
+
 **Response:** Test it anyway.
+
 - Wrappers can have subtle bugs
 - Tests document expected behavior
 - Coverage tools count these lines too
 - It takes 2 minutes to write a trivial test
 
 ### "Coverage tool shows 100% but we're at 80%"
+
 **Response:** Investigate the discrepancy.
+
 - Check if tests are actually running (they might be ignored)
 - Verify cargo test includes all test files
 - Check for conditional compilation (#[cfg])
 - Look for code in examples/ or benches/ that's not tested
 
 ### "Tests are slow"
+
 **Response:** Optimize, don't skip.
+
 - Use `cargo test --lib` for fast unit tests
 - Move slow tests to integration tests
 - Use `#[ignore]` for slow tests, run separately
 - Parallelize test execution
 - Mock expensive operations
 
-### "Can't reach this line" 
+### "Can't reach this line"
+
 **Response:** Understand why.
+
 - Is it dead code? Remove it.
 - Is it defensive programming? Test the defense.
 - Is it unreachable error handling? Inject failure to test it.
@@ -259,19 +285,23 @@ fn test_state_persistence() { /* ... */ }
 When reading `cargo llvm-cov --html`:
 
 **Green lines (covered):**
+
 - ✅ Good, move on
 
 **Red lines (uncovered):**
+
 - 🔴 **MUST** be covered (unless legitimately unreachable)
 - Write test to execute this line
 - If multiple conditions, test all branches
 
 **Yellow lines (partially covered):**
+
 - ⚠️ Some branches tested, others not
 - Identify which branches are uncovered
 - Write tests for missing branches
 
 **Example:**
+
 ```rust
 // Yellow line - partially covered
 if condition_a && condition_b {  // Only tested with both true
@@ -280,7 +310,7 @@ if condition_a && condition_b {  // Only tested with both true
 
 // Need tests for:
 // - condition_a=true, condition_b=false
-// - condition_a=false, condition_b=true  
+// - condition_a=false, condition_b=true
 // - condition_a=false, condition_b=false
 ```
 
@@ -313,7 +343,7 @@ WHILE coverage < 95%:
     8. Verify tests pass
     9. Re-run coverage
     10. Report progress
-    
+
     If progress stalls for 2 iterations:
         - Analyze why (blockers, complexity, etc.)
         - Refactor for testability if needed
@@ -325,25 +355,25 @@ END WHILE
 
 ## Anti-Patterns - Never Do These
 
-❌ **Don't:** Skip tests because coverage is "high enough"  
+❌ **Don't:** Skip tests because coverage is "high enough"
 ✅ **Do:** Continue until 95%+ threshold is met
 
-❌ **Don't:** Mark failing tests as `#[ignore]` to make CI pass  
+❌ **Don't:** Mark failing tests as `#[ignore]` to make CI pass
 ✅ **Do:** Fix the root cause of the failure
 
-❌ **Don't:** Change code to make test pass without understanding why  
+❌ **Don't:** Change code to make test pass without understanding why
 ✅ **Do:** Understand the failure, then fix correctly
 
-❌ **Don't:** Write tests that don't actually test anything (just for coverage)  
+❌ **Don't:** Write tests that don't actually test anything (just for coverage)
 ✅ **Do:** Write meaningful tests that validate behavior
 
-❌ **Don't:** Test implementation details  
+❌ **Don't:** Test implementation details
 ✅ **Do:** Test behavior and contracts
 
-❌ **Don't:** Give up at 80% coverage  
+❌ **Don't:** Give up at 80% coverage
 ✅ **Do:** Push to 95%+ systematically
 
-❌ **Don't:** Accept "close enough" on test assertions  
+❌ **Don't:** Accept "close enough" on test assertions
 ✅ **Do:** Make assertions precise and correct
 
 ## Sample Test Development Session
@@ -406,6 +436,7 @@ Continuing...
 ## Final Reminder
 
 **Your job is not done until:**
+
 1. Coverage is ≥ 95%
 2. All tests pass
 3. All code paths are tested

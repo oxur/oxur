@@ -1,28 +1,13 @@
 [package]
-name = "oxur"
-version = "0.0.1"
-authors = ["Oxur Group <https://github.com/oxur>"]
-edition = "2018"
+name = "oxur-ast"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Rust AST ↔ S-expression conversion for Oxur"
 
 [dependencies]
-colored = "1.7"
-log = "0.4.8"
-nom = "5.1.0"
-twyg = "0.1.1"
+thiserror.workspace = true
 
-    [dependencies.proc-macro2]
-    version = "1.0"
-    features = ["span-locations"]
-
-    [dependencies.syn]
-    version = "1.0.13"
-    default-features = false
-    features = ["parsing", "full", "extra-traits"]
-
-[[bin]]
-name = "dump-ast"
-path = "src/ast/main.rs"
-
-[[bin]]
-name = "parser"
-path = "src/parser/main.rs"
+[dev-dependencies]
