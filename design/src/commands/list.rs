@@ -63,29 +63,11 @@ pub fn list_documents(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use design::doc::{DocMetadata, DesignDoc};
+    use design::doc::DocMetadata;
     use design::index::DocumentIndex;
     use design::state::{DocumentRecord, DocumentState};
     use chrono::NaiveDate;
-    use std::path::PathBuf;
     use tempfile::TempDir;
-
-    fn create_test_doc(number: u32, title: &str, state: DocState) -> DesignDoc {
-        DesignDoc {
-            metadata: DocMetadata {
-                number,
-                title: title.to_string(),
-                author: "Test Author".to_string(),
-                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                state,
-                supersedes: None,
-                superseded_by: None,
-            },
-            content: "# Test\n\nContent".to_string(),
-            path: PathBuf::from("test.md"),
-        }
-    }
 
     fn create_test_index() -> DocumentIndex {
         let temp = TempDir::new().unwrap();

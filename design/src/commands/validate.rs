@@ -325,8 +325,7 @@ fn apply_fixes(index: &DocumentIndex, issues: &[ValidationIssue]) -> Result<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use design::doc::{DocMetadata, DocState};
-    use design::state::{DocumentRecord, DocumentState};
+    use design::doc::DocState;
     use chrono::NaiveDate;
     use std::fs;
     use tempfile::TempDir;

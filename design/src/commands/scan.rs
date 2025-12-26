@@ -135,9 +135,7 @@ fn validate_consistency(state_mgr: &StateManager, fix: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use design::doc::{DocMetadata, DocState};
-    use design::state::{DocumentRecord, DocumentState};
-    use chrono::NaiveDate;
+    use design::doc::DocState;
     use std::fs;
     use tempfile::TempDir;
 
