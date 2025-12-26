@@ -59,3 +59,143 @@ pub fn list_documents(
     println!("\nTotal: {} documents\n", docs.len());
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use design::doc::{DocMetadata, DesignDoc};
+    use design::index::DocumentIndex;
+    use design::state::{DocumentRecord, DocumentState};
+    use chrono::NaiveDate;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    fn create_test_doc(number: u32, title: &str, state: DocState) -> DesignDoc {
+        DesignDoc {
+            metadata: DocMetadata {
+                number,
+                title: title.to_string(),
+                author: "Test Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state,
+                supersedes: None,
+                superseded_by: None,
+            },
+            content: "# Test\n\nContent".to_string(),
+            path: PathBuf::from("test.md"),
+        }
+    }
+
+    fn create_test_index() -> DocumentIndex {
+        let temp = TempDir::new().unwrap();
+
+        // Create state with test documents
+        let mut state = DocumentState::new();
+
+        for (num, title, doc_state) in [
+            (1, "First Doc", DocState::Draft),
+            (2, "Second Doc", DocState::Final),
+            (3, "Third Doc", DocState::Draft),
+            (4, "Fourth Doc", DocState::Accepted),
+        ] {
+            let meta = DocMetadata {
+                number: num,
+                title: title.to_string(),
+                author: "Test Author".to_string(),
+                created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                state: doc_state,
+                supersedes: None,
+                superseded_by: None,
+            };
+            state.upsert(
+                num,
+                DocumentRecord {
+                    metadata: meta,
+                    path: format!("{:04}-test.md", num),
+                    checksum: "abc123".to_string(),
+                    file_size: 100,
+                    modified: chrono::Utc::now(),
+                },
+            );
+        }
+
+        DocumentIndex::from_state(&state, temp.path()).unwrap()
+    }
+
+    #[test]
+    fn test_list_all_documents() {
+        let index = create_test_index();
+
+        // Should not panic and should return Ok
+        let result = list_documents(&index, None, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_with_valid_state_filter() {
+        let index = create_test_index();
+
+        // Filter by Draft state
+        let result = list_documents(&index, Some("Draft".to_string()), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_with_state_filter_case_insensitive() {
+        let index = create_test_index();
+
+        // Filter by lowercase "draft"
+        let result = list_documents(&index, Some("draft".to_string()), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_with_invalid_state_filter() {
+        let index = create_test_index();
+
+        // Invalid state should return Ok but print error
+        let result = list_documents(&index, Some("InvalidState".to_string()), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_verbose_mode() {
+        let index = create_test_index();
+
+        // Verbose mode should work
+        let result = list_documents(&index, None, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_verbose_with_filter() {
+        let index = create_test_index();
+
+        // Verbose + filter
+        let result = list_documents(&index, Some("Final".to_string()), true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_empty_index() {
+        let temp = TempDir::new().unwrap();
+        let index = DocumentIndex::new(temp.path()).unwrap();
+
+        // Empty index should work
+        let result = list_documents(&index, None, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_all_state_types() {
+        let index = create_test_index();
+
+        // Test filtering by each state type
+        for state in DocState::all_states() {
+            let result = list_documents(&index, Some(state.as_str().to_string()), false);
+            assert!(result.is_ok(), "Failed for state: {}", state.as_str());
+        }
+    }
+}
