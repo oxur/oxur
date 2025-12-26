@@ -7,6 +7,7 @@ build:
 lint:
 	@echo "Running linter..."
 	@cargo clippy
+	@cargo fmt --all -- --check
 
 test:
 	@echo "Running tests..."
@@ -17,3 +18,7 @@ coverage:
 	@cargo llvm-cov --summary-only
 
 check: build lint test
+
+format:
+	@echo "Formatting code..."
+	@cargo fmt --all
