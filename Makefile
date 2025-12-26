@@ -1,6 +1,7 @@
 default: build
 
 BIN_DIR := ./bin
+TARGET := ./target
 
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
@@ -8,7 +9,7 @@ $(BIN_DIR):
 build: $(BIN_DIR)
 	@echo "Building oxur..."
 	@cargo build
-	@cp target/debug/oxd $(BIN_DIR)/oxd
+	@cp $(TARGET)/debug/oxd $(BIN_DIR)/oxd
 
 lint:
 	@echo "Running linter..."
@@ -28,3 +29,7 @@ check: build lint test
 format:
 	@echo "Formatting code..."
 	@cargo fmt --all
+
+tracked-files:
+	@echo "Saving tracked files..."
+	@git ls-files > $(TARGET)/git-tracked-files.txt
