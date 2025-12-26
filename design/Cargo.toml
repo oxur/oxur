@@ -38,3 +38,4 @@ predicates.workspace = true
 tempfile.workspace = true
 proptest.workspace = true
 cargo-llvm-cov.workspace = true
+serial_test = "3.2"

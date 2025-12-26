@@ -175,6 +175,7 @@ pub fn get_repo_root() -> Option<std::path::PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::process::Command;
     use tempfile::TempDir;
 
@@ -244,6 +245,8 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
+        #[serial]
         fn test_gets_author_from_git_history() {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "test.md", "content", "Original Author");
@@ -256,6 +259,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_gets_first_author_for_multiple_commits() {
             let repo = create_test_git_repo();
 
@@ -289,6 +293,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_fallback_to_config_for_untracked_file() {
             let repo = create_test_git_repo();
 
@@ -304,6 +309,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_fallback_outside_repo() {
             let temp = TempDir::new().unwrap();
             fs::write(temp.path().join("file.md"), "content").unwrap();
@@ -322,6 +328,7 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
         fn test_gets_date_from_first_commit() {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "test.md", "v1", "Author");
@@ -334,6 +341,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_gets_first_commit_date_not_last() {
             let repo = create_test_git_repo();
 
@@ -363,6 +371,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_fallback_to_today_for_untracked() {
             let repo = create_test_git_repo();
             fs::write(repo.path().join("untracked.md"), "content").unwrap();
@@ -378,6 +387,7 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
         fn test_gets_date_from_last_commit() {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "test.md", "v1", "Author");
@@ -390,6 +400,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_gets_last_commit_date_not_first() {
             let repo = create_test_git_repo();
 
@@ -419,6 +430,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_fallback_to_today_for_untracked() {
             let repo = create_test_git_repo();
             fs::write(repo.path().join("untracked.md"), "content").unwrap();
@@ -434,6 +446,7 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
         fn test_moves_tracked_file() {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "src.md", "content", "Author");
@@ -445,6 +458,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_creates_destination_directory() {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "src.md", "content", "Author");
@@ -456,6 +470,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_fails_for_untracked_file() {
             let repo = create_test_git_repo();
             fs::write(repo.path().join("untracked.md"), "content").unwrap();
@@ -465,6 +480,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_fails_for_nonexistent_file() {
             let repo = create_test_git_repo();
 
@@ -477,6 +493,7 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
         fn test_stages_untracked_file() {
             let repo = create_test_git_repo();
             fs::write(repo.path().join("new.md"), "content").unwrap();
@@ -495,6 +512,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_stages_modified_file() {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "test.md", "v1", "Author");
@@ -516,6 +534,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_fails_for_nonexistent_file() {
             let repo = create_test_git_repo();
 
@@ -528,12 +547,14 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
         fn test_returns_true_in_git_repo() {
             let repo = create_test_git_repo();
             assert!(is_git_repo(repo.path()));
         }
 
         #[test]
+        #[serial]
         fn test_returns_true_for_file_in_repo() {
             let repo = create_test_git_repo();
             let file_path = repo.path().join("test.md");
@@ -543,6 +564,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_returns_true_in_subdirectory() {
             let repo = create_test_git_repo();
             let subdir = repo.path().join("subdir");
@@ -552,6 +574,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_returns_false_outside_repo() {
             let temp = TempDir::new().unwrap();
             assert!(!is_git_repo(temp.path()));
@@ -562,6 +585,7 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
         fn test_returns_true_for_tracked_file() {
             let repo = create_test_git_repo();
             create_and_commit_file(&repo, "tracked.md", "content", "Author");
@@ -571,6 +595,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_returns_false_for_untracked_file() {
             let repo = create_test_git_repo();
             fs::write(repo.path().join("untracked.md"), "content").unwrap();
@@ -580,6 +605,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_returns_false_for_nonexistent_file() {
             let repo = create_test_git_repo();
 
@@ -588,6 +614,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_returns_false_outside_repo() {
             let temp = TempDir::new().unwrap();
             fs::write(temp.path().join("file.md"), "content").unwrap();
@@ -601,6 +628,7 @@ mod tests {
         use super::*;
 
         #[test]
+        #[serial]
         fn test_returns_root_in_repo() {
             let repo = create_test_git_repo();
 
@@ -615,6 +643,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_returns_root_from_subdirectory() {
             let repo = create_test_git_repo();
             let subdir = repo.path().join("subdir");
@@ -631,6 +660,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn test_returns_none_outside_repo() {
             let temp = TempDir::new().unwrap();
             std::env::set_current_dir(temp.path()).unwrap();
