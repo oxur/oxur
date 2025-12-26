@@ -182,3 +182,212 @@ pub fn analyze_markdown(content: &str) -> Vec<String> {
 
     issues
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_metadata_with_h1() {
+        let content = "# My Title\n\nSome content here.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.title, Some("My Title".to_string()));
+        assert_eq!(meta.first_heading, Some("My Title".to_string()));
+        assert!(!meta.has_frontmatter);
+    }
+
+    #[test]
+    fn test_extract_metadata_no_heading() {
+        let content = "Just some text with no heading.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.title, None);
+        assert_eq!(meta.first_heading, None);
+    }
+
+    #[test]
+    fn test_extract_metadata_with_frontmatter() {
+        let content = "---\ntitle: YAML Title\n---\n\n# Markdown Title\n\nContent.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert!(meta.has_frontmatter);
+        assert_eq!(meta.first_heading, Some("Markdown Title".to_string()));
+    }
+
+    #[test]
+    fn test_extract_author_from_author_field() {
+        let content = "# Title\n\nAuthor: John Doe\n\nContent here.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.author, Some("John Doe".to_string()));
+    }
+
+    #[test]
+    fn test_extract_author_from_by_pattern() {
+        let content = "# Title\n\nBy Alice Smith\n\nContent here.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.author, Some("Alice Smith".to_string()));
+    }
+
+    #[test]
+    fn test_extract_author_written_by() {
+        let content = "# Title\n\nWritten by Bob Jones\n\nContent.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.author, Some("Bob Jones".to_string()));
+    }
+
+    #[test]
+    fn test_extract_no_author() {
+        let content = "# Title\n\nNo author information here.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.author, None);
+    }
+
+    #[test]
+    fn test_detect_state_hint_draft() {
+        assert_eq!(detect_state_hint("This is work in progress"), Some(DocState::Draft));
+        assert_eq!(detect_state_hint("WIP - still working"), Some(DocState::Draft));
+    }
+
+    #[test]
+    fn test_detect_state_hint_under_review() {
+        assert_eq!(detect_state_hint("Ready for review"), Some(DocState::UnderReview));
+        assert_eq!(detect_state_hint("Please review this"), Some(DocState::UnderReview));
+    }
+
+    #[test]
+    fn test_detect_state_hint_accepted() {
+        assert_eq!(detect_state_hint("This has been approved"), Some(DocState::Accepted));
+        assert_eq!(detect_state_hint("Accepted by the team"), Some(DocState::Accepted));
+    }
+
+    #[test]
+    fn test_detect_state_hint_final() {
+        assert_eq!(detect_state_hint("This is implemented"), Some(DocState::Final));
+        assert_eq!(detect_state_hint("Work is complete"), Some(DocState::Final));
+    }
+
+    #[test]
+    fn test_detect_state_hint_rejected() {
+        assert_eq!(detect_state_hint("This was rejected"), Some(DocState::Rejected));
+        assert_eq!(detect_state_hint("The proposal was rejected"), Some(DocState::Rejected));
+    }
+
+    #[test]
+    fn test_detect_state_hint_deferred() {
+        assert_eq!(detect_state_hint("This is deferred"), Some(DocState::Deferred));
+        assert_eq!(detect_state_hint("Postponed for now"), Some(DocState::Deferred));
+    }
+
+    #[test]
+    fn test_detect_state_hint_none() {
+        assert_eq!(detect_state_hint("Regular content with no hints"), None);
+    }
+
+    #[test]
+    fn test_is_valid_markdown_valid() {
+        let content = "# Title\n\nThis is valid markdown content.";
+        assert!(is_valid_markdown(content));
+    }
+
+    #[test]
+    fn test_is_valid_markdown_empty() {
+        assert!(!is_valid_markdown(""));
+    }
+
+    #[test]
+    fn test_is_valid_markdown_too_short() {
+        assert!(!is_valid_markdown("short"));
+    }
+
+    #[test]
+    fn test_is_valid_markdown_mostly_binary() {
+        let binary = "\x00\x01\x02\x03\x04\x05 some text \x06\x07\x08";
+        assert!(!is_valid_markdown(binary));
+    }
+
+    #[test]
+    fn test_analyze_markdown_no_h1() {
+        let content = "## Subheading\n\nNo H1 here.";
+        let issues = analyze_markdown(content);
+
+        assert!(!issues.is_empty());
+        assert!(issues.iter().any(|i| i.contains("No H1 heading")));
+    }
+
+    #[test]
+    fn test_analyze_markdown_multiple_h1() {
+        let content = "# First\n\nContent\n\n# Second\n\nMore content";
+        let issues = analyze_markdown(content);
+
+        assert!(issues.iter().any(|i| i.contains("Multiple H1")));
+    }
+
+    #[test]
+    fn test_analyze_markdown_inconsistent_bullets() {
+        let content = "# Title\n\n- First\n* Second\n+ Third";
+        let issues = analyze_markdown(content);
+
+        assert!(issues.iter().any(|i| i.contains("Inconsistent bullet")));
+    }
+
+    #[test]
+    fn test_analyze_markdown_long_lines() {
+        let long_line = "a".repeat(150);
+        let content = format!("# Title\n\n{}\n{}\n{}\n{}\n{}\n{}", long_line, long_line, long_line, long_line, long_line, long_line);
+        let issues = analyze_markdown(&content);
+
+        assert!(issues.iter().any(|i| i.contains("long lines")));
+    }
+
+    #[test]
+    fn test_analyze_markdown_perfect() {
+        let content = "# Title\n\nThis is a well-formatted document.\n\n- Bullet 1\n- Bullet 2\n\nAll good!";
+        let issues = analyze_markdown(content);
+
+        // Should have no issues or only minor ones
+        assert!(!issues.iter().any(|i| i.contains("No H1")));
+        assert!(!issues.iter().any(|i| i.contains("Multiple H1")));
+    }
+
+    #[test]
+    fn test_analyze_markdown_skips_frontmatter() {
+        let content = "---\ntitle: Test\n---\n\n# Real Title\n\nContent";
+        let issues = analyze_markdown(content);
+
+        // Should not count frontmatter title as H1
+        assert!(!issues.iter().any(|i| i.contains("Multiple H1")));
+    }
+
+    #[test]
+    fn test_extract_metadata_case_insensitive_author() {
+        let content = "# Title\n\nAUTHOR: Jane Doe\n\nContent.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.author, Some("Jane Doe".to_string()));
+    }
+
+    #[test]
+    fn test_extract_metadata_complete() {
+        let content = "# My Document\n\nAuthor: Test Author\n\nThis is work in progress.";
+        let meta = ExtractedMetadata::from_content(content);
+
+        assert_eq!(meta.title, Some("My Document".to_string()));
+        assert_eq!(meta.author, Some("Test Author".to_string()));
+        assert_eq!(meta.state_hint, Some(DocState::Draft));
+        assert!(!meta.has_frontmatter);
+    }
+
+    #[test]
+    fn test_extract_metadata_with_incomplete_frontmatter() {
+        let content = "---\ntitle: Test\n\n# Title\n\nContent";
+        let meta = ExtractedMetadata::from_content(content);
+
+        // Should handle malformed frontmatter gracefully
+        assert!(meta.has_frontmatter);
+    }
+}
