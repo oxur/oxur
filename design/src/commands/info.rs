@@ -362,14 +362,216 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
     Ok(())
 }
 
-fn show_stats(_state_mgr: &StateManager) -> Result<()> {
-    // Will implement in Task 10.7
-    println!("{}", "Stats info not yet implemented".yellow());
+fn show_stats(state_mgr: &StateManager) -> Result<()> {
+    use std::collections::HashMap;
+    use design::doc::DocState;
+
+    let all_docs = state_mgr.state().all();
+
+    println!();
+    println!("{}", "Project Statistics".cyan().bold());
+    println!();
+
+    // Document counts
+    println!("{}", "Document Counts:".green().bold());
+    println!(
+        "  {:<20} {}",
+        "Total Documents:".white(),
+        all_docs.len().to_string().yellow().bold()
+    );
+    println!();
+
+    // By state
+    let mut state_counts: HashMap<DocState, usize> = HashMap::new();
+    for doc in &all_docs {
+        *state_counts.entry(doc.metadata.state).or_insert(0) += 1;
+    }
+
+    println!("  {}:", "By State".white());
+
+    // Sort by count (descending)
+    let mut counts_vec: Vec<_> = state_counts.iter().collect();
+    counts_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+    for (state, count) in counts_vec {
+        println!(
+            "    {:<18} {} docs",
+            format!("{}:", state.as_str()).white(),
+            count.to_string().yellow()
+        );
+    }
+    println!();
+
+    // Activity metrics (if we have documents)
+    if !all_docs.is_empty() {
+        println!("{}", "Timeline:".green().bold());
+
+        let oldest = all_docs.iter().min_by_key(|d| &d.metadata.created).unwrap();
+
+        let newest = all_docs.iter().max_by_key(|d| &d.metadata.created).unwrap();
+
+        println!(
+            "  {:<20} {:04} ({})",
+            "Oldest Document:".white(),
+            oldest.metadata.number,
+            oldest.metadata.created.to_string().cyan()
+        );
+        println!(
+            "  {:<20} {:04} ({})",
+            "Newest Document:".white(),
+            newest.metadata.number,
+            newest.metadata.created.to_string().cyan()
+        );
+        println!();
+    }
+
+    // Health checks
+    println!("{}", "Health:".green().bold());
+
+    // Check for documents without proper metadata
+    let docs_with_placeholder = all_docs
+        .iter()
+        .filter(|d| d.metadata.title == "Untitled Document" || d.metadata.title.is_empty())
+        .count();
+
+    if docs_with_placeholder == 0 {
+        println!("  ✓ {}", "All documents have titles".green());
+    } else {
+        println!(
+            "  ⚠ {} {}",
+            docs_with_placeholder.to_string().yellow(),
+            "documents need titles".yellow()
+        );
+    }
+
+    // Check dustbin
+    let in_dustbin = all_docs
+        .iter()
+        .filter(|d| d.metadata.state.is_in_dustbin())
+        .count();
+
+    if in_dustbin > 0 {
+        println!(
+            "  ⚠ {} {} {}",
+            in_dustbin.to_string().yellow(),
+            "documents in dustbin".yellow(),
+            "(consider permanent deletion)".dimmed()
+        );
+    } else {
+        println!("  ✓ {}", "No documents in dustbin".green());
+    }
+
+    println!();
+
     Ok(())
 }
 
-fn show_dirs(_state_mgr: &StateManager) -> Result<()> {
-    // Will implement in Task 10.8
-    println!("{}", "Dirs info not yet implemented".yellow());
+fn show_dirs(state_mgr: &StateManager) -> Result<()> {
+    use design::doc::DocState;
+    use std::collections::HashMap;
+
+    let all_docs = state_mgr.state().all();
+
+    println!();
+    println!("{}", "Directory Structure".cyan().bold());
+    println!();
+
+    // Count documents per state
+    let mut state_counts: HashMap<DocState, usize> = HashMap::new();
+    for doc in &all_docs {
+        *state_counts.entry(doc.metadata.state).or_insert(0) += 1;
+    }
+
+    // Display tree
+    let docs_dir = state_mgr.docs_dir();
+    println!("{}/", docs_dir.file_name().unwrap().to_string_lossy());
+    println!("├── {}  {}", ".oxd/".cyan(), "(state tracking)".dimmed());
+    println!(
+        "│   └── {}  {}",
+        "state.json".cyan(),
+        "(document state)".dimmed()
+    );
+
+    // Dustbin
+    let dustbin_count = all_docs
+        .iter()
+        .filter(|d| d.metadata.state.is_in_dustbin())
+        .count();
+
+    if dustbin_count > 0 {
+        println!(
+            "├── {}  {}",
+            ".dustbin/".cyan(),
+            format!("({} removed docs)", dustbin_count).dimmed()
+        );
+    }
+
+    // State directories
+    let states = [
+        (DocState::Draft, "01-draft"),
+        (DocState::UnderReview, "02-under-review"),
+        (DocState::Revised, "03-revised"),
+        (DocState::Accepted, "04-accepted"),
+        (DocState::Active, "05-active"),
+        (DocState::Final, "06-final"),
+        (DocState::Deferred, "07-deferred"),
+        (DocState::Rejected, "08-rejected"),
+        (DocState::Withdrawn, "09-withdrawn"),
+        (DocState::Superseded, "10-superseded"),
+    ];
+
+    for (i, (state, dir_name)) in states.iter().enumerate() {
+        let count = state_counts.get(state).unwrap_or(&0);
+        let is_last = i == states.len() - 1 && dustbin_count == 0;
+        let prefix = if is_last { "└── " } else { "├── " };
+
+        println!(
+            "{}{}  {}",
+            prefix,
+            format!("{}/", dir_name).cyan(),
+            format!("({} docs)", count).dimmed()
+        );
+    }
+
+    if dustbin_count == 0 {
+        // No final entry needed
+    }
+
+    println!();
+
+    // Distribution chart
+    if !all_docs.is_empty() {
+        println!("{}", "Document Distribution:".cyan().bold());
+
+        let total = all_docs.len().max(1);
+        let max_width = 40;
+
+        let mut active_state_counts: Vec<_> = all_docs
+            .iter()
+            .filter(|d| !d.metadata.state.is_in_dustbin())
+            .fold(HashMap::new(), |mut acc, doc| {
+                *acc.entry(doc.metadata.state).or_insert(0) += 1;
+                acc
+            })
+            .into_iter()
+            .collect();
+
+        active_state_counts.sort_by(|a, b| b.1.cmp(&a.1));
+
+        for (state, count) in active_state_counts {
+            let bar_width = (count * max_width / total).max(1);
+            let bar = "█".repeat(bar_width);
+
+            println!(
+                "  {:<35} {} {}",
+                bar.green(),
+                count.to_string().yellow(),
+                state.as_str().white()
+            );
+        }
+
+        println!();
+    }
+
     Ok(())
 }
