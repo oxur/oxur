@@ -131,3 +131,155 @@ fn validate_consistency(state_mgr: &StateManager, fix: bool) -> Result<()> {
     println!();
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use design::doc::{DocMetadata, DocState};
+    use design::state::{DocumentRecord, DocumentState};
+    use chrono::NaiveDate;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_doc_content(number: u32, title: &str, state: DocState) -> String {
+        format!(
+            "---\nnumber: {}\ntitle: \"{}\"\nauthor: \"Test Author\"\ncreated: 2024-01-01\nupdated: 2024-01-01\nstate: {}\n---\n\n# {}\n\nTest content",
+            number, title, state.as_str(), title
+        )
+    }
+
+    #[test]
+    fn test_scan_no_changes() {
+        let temp = TempDir::new().unwrap();
+
+        // Create initial state with one document
+        let content = create_test_doc_content(1, "Test Doc", DocState::Draft);
+        let doc_path = temp.path().join("0001-test.md");
+        fs::write(&doc_path, content).unwrap();
+
+        // Initialize state manager
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.scan_for_changes().unwrap();
+
+        // Scan again - should find no changes
+        let result = scan_documents(&mut state_mgr, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scan_new_file() {
+        let temp = TempDir::new().unwrap();
+
+        // Initialize empty state manager
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Create a new document file
+        let content = create_test_doc_content(1, "New Doc", DocState::Draft);
+        fs::write(temp.path().join("0001-new.md"), content).unwrap();
+
+        // Scan should detect new file
+        let result = scan_documents(&mut state_mgr, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scan_with_verbose() {
+        let temp = TempDir::new().unwrap();
+
+        // Create document
+        let content = create_test_doc_content(1, "Test Doc", DocState::Draft);
+        fs::write(temp.path().join("0001-test.md"), content).unwrap();
+
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Scan with verbose mode
+        let result = scan_documents(&mut state_mgr, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scan_with_fix() {
+        let temp = TempDir::new().unwrap();
+
+        // Create document
+        let content = create_test_doc_content(1, "Test Doc", DocState::Draft);
+        fs::write(temp.path().join("0001-test.md"), content).unwrap();
+
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Scan with fix mode
+        let result = scan_documents(&mut state_mgr, true, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scan_empty_directory() {
+        let temp = TempDir::new().unwrap();
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Scan empty directory
+        let result = scan_documents(&mut state_mgr, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scan_multiple_states() {
+        let temp = TempDir::new().unwrap();
+
+        // Create documents in different states
+        for (num, state) in [(1, DocState::Draft), (2, DocState::Final), (3, DocState::Active)] {
+            let content = create_test_doc_content(num, &format!("Doc {}", num), state);
+            fs::write(temp.path().join(format!("{:04}-test.md", num)), content).unwrap();
+        }
+
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let result = scan_documents(&mut state_mgr, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_consistency() {
+        let temp = TempDir::new().unwrap();
+
+        // Create document
+        let content = create_test_doc_content(1, "Test Doc", DocState::Draft);
+        fs::write(temp.path().join("0001-test.md"), content).unwrap();
+
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Validate consistency (should pass with no issues)
+        let result = validate_consistency(&state_mgr, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_consistency_with_fix() {
+        let temp = TempDir::new().unwrap();
+
+        // Create document
+        let content = create_test_doc_content(1, "Test Doc", DocState::Draft);
+        fs::write(temp.path().join("0001-test.md"), content).unwrap();
+
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Validate with fix mode
+        let result = validate_consistency(&state_mgr, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scan_verbose_and_fix() {
+        let temp = TempDir::new().unwrap();
+
+        // Create document
+        let content = create_test_doc_content(1, "Test Doc", DocState::Draft);
+        fs::write(temp.path().join("0001-test.md"), content).unwrap();
+
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+
+        // Scan with both verbose and fix
+        let result = scan_documents(&mut state_mgr, true, true);
+        assert!(result.is_ok());
+    }
+}
