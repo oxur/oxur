@@ -203,6 +203,12 @@ pub enum Commands {
         case_sensitive: bool,
     },
 
+    /// Show tool information and documentation
+    Info {
+        /// Subcommand: states, fields, config, stats, dirs (optional, shows overview if omitted)
+        subcommand: Option<String>,
+    },
+
     /// Remove a document (moves to dustbin)
     #[command(visible_alias = "rm")]
     Remove {

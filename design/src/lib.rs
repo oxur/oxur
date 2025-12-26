@@ -3,6 +3,7 @@
 //! This library provides types and utilities for managing design documents
 //! in the Oxur project.
 
+pub mod config;
 pub mod doc;
 pub mod errors;
 pub mod extract;

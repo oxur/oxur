@@ -4,6 +4,7 @@ pub mod add;
 pub mod add_headers;
 pub mod debug;
 pub mod index;
+pub mod info;
 pub mod list;
 pub mod new;
 pub mod remove;

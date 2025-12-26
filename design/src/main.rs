@@ -142,6 +142,7 @@ pub(crate) fn execute_command(
         Commands::Search { query, state, metadata, case_sensitive } => {
             search(state_mgr, &query, state, metadata, case_sensitive)
         }
+        Commands::Info { subcommand } => commands::info::execute(subcommand, state_mgr),
         Commands::Remove { doc } => remove_document(state_mgr, &doc),
         Commands::Replace { old, new } => replace_document(state_mgr, &old, &new),
     }
