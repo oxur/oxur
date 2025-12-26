@@ -209,18 +209,6 @@ mod tests {
         (state_mgr, temp)
     }
 
-    fn run_in_temp_dir<F>(temp: &TempDir, f: F)
-    where
-        F: FnOnce(),
-    {
-        let original_dir = std::env::current_dir().ok();
-        std::env::set_current_dir(temp.path()).unwrap();
-        f();
-        if let Some(orig) = original_dir {
-            let _ = std::env::set_current_dir(orig);
-        }
-    }
-
     #[test]
     #[serial]
     fn test_remove_by_number() {
