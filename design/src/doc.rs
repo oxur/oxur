@@ -22,7 +22,7 @@ pub enum DocError {
 }
 
 /// Document state - 12 states following the expanded lifecycle
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum DocState {
     Draft,
     UnderReview,
@@ -143,6 +143,24 @@ impl DocState {
     /// Get all valid state names for display
     pub fn all_state_names() -> Vec<&'static str> {
         Self::all_states().iter().map(|s| s.as_str()).collect()
+    }
+
+    /// Get a description of what this state means
+    pub fn description(&self) -> &'static str {
+        match self {
+            DocState::Draft => "Initial state for new documents",
+            DocState::UnderReview => "Document is being reviewed",
+            DocState::Revised => "Document has been revised after review",
+            DocState::Accepted => "Document has been accepted",
+            DocState::Active => "Document is actively being implemented",
+            DocState::Final => "Document is complete and final",
+            DocState::Deferred => "Document is deferred for future consideration",
+            DocState::Rejected => "Document has been rejected",
+            DocState::Withdrawn => "Document has been withdrawn by author",
+            DocState::Superseded => "Document has been replaced by a newer version",
+            DocState::Removed => "Document has been removed from active use",
+            DocState::Overwritten => "Document was replaced via 'oxd replace'",
+        }
     }
 }
 
