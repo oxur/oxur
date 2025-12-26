@@ -4,10 +4,10 @@
 
 use anyhow::{Context, Result};
 use colored::Colorize;
-use uuid::Uuid;
 use design::doc::DocState;
 use design::git;
 use design::state::StateManager;
+use uuid::Uuid;
 
 /// Execute the remove command
 pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()> {
@@ -20,7 +20,9 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
     } else {
         // Try to find by path
         let search_path = doc_id_or_path;
-        let doc = state_mgr.state().all()
+        let doc = state_mgr
+            .state()
+            .all()
             .into_iter()
             .find(|d| d.path.contains(search_path))
             .ok_or_else(|| anyhow::anyhow!("Document '{}' not found", doc_id_or_path))?;
@@ -28,16 +30,16 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
     };
 
     // Get document record
-    let doc = state_mgr.state().get(doc_number)
+    let doc = state_mgr
+        .state()
+        .get(doc_number)
         .ok_or_else(|| anyhow::anyhow!("Document {} not found", doc_number))?;
 
     let doc_title = doc.metadata.title.clone();
     let current_state = doc.metadata.state;
     let current_path = state_mgr.docs_dir().join(&doc.path);
 
-    println!("  Document: {} - {}",
-        format!("{:04}", doc_number).yellow(),
-        doc_title.white());
+    println!("  Document: {} - {}", format!("{:04}", doc_number).yellow(), doc_title.white());
     println!("  Current state: {}", format!("{}", current_state.as_str()).cyan());
     println!();
 
@@ -59,14 +61,11 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
         dustbin_base.join(state_subdir)
     };
 
-    std::fs::create_dir_all(&dustbin_dir)
-        .context("Failed to create dustbin directory")?;
+    std::fs::create_dir_all(&dustbin_dir).context("Failed to create dustbin directory")?;
     println!("  ✓ Dustbin ready: {}", dustbin_dir.display().to_string().green());
 
     // Step 3: Generate unique filename with UUID
-    let filename = current_path.file_name()
-        .context("Invalid file path")?
-        .to_string_lossy();
+    let filename = current_path.file_name().context("Invalid file path")?.to_string_lossy();
 
     let uuid = Uuid::new_v4();
     let uuid_short = uuid.to_string().split('-').next().unwrap().to_string();
@@ -83,13 +82,10 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
 
     // Step 4: Move file using git
     if current_path.exists() {
-        git::git_mv(&current_path, &dustbin_path)
-            .context("Failed to move file with git")?;
+        git::git_mv(&current_path, &dustbin_path).context("Failed to move file with git")?;
         println!("  ✓ Moved to dustbin: {}", dustbin_path.display().to_string().green());
     } else {
-        println!("  {} File not found on disk: {}",
-            "⚠".yellow(),
-            current_path.display());
+        println!("  {} File not found on disk: {}", "⚠".yellow(), current_path.display());
     }
 
     // Step 5: Update state - mark as removed and update path
@@ -101,7 +97,8 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
             parsed_doc.metadata.updated = chrono::Local::now().naive_local().date();
 
             // Write back with updated frontmatter
-            let new_content = design::doc::build_yaml_frontmatter(&parsed_doc.metadata) + &parsed_doc.content;
+            let new_content =
+                design::doc::build_yaml_frontmatter(&parsed_doc.metadata) + &parsed_doc.content;
             std::fs::write(&dustbin_path, new_content)
                 .context("Failed to update document frontmatter")?;
         }

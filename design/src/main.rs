@@ -114,12 +114,8 @@ fn main() -> Result<()> {
         Commands::Search { query, state, metadata, case_sensitive } => {
             search(&state_mgr, &query, state, metadata, case_sensitive)
         }
-        Commands::Remove { doc } => {
-            remove_document(&mut state_mgr, &doc)
-        }
-        Commands::Replace { old, new } => {
-            replace_document(&mut state_mgr, &old, &new)
-        }
+        Commands::Remove { doc } => remove_document(&mut state_mgr, &doc),
+        Commands::Replace { old, new } => replace_document(&mut state_mgr, &old, &new),
     };
 
     if let Err(e) = result {

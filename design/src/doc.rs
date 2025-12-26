@@ -34,8 +34,8 @@ pub enum DocState {
     Rejected,
     Withdrawn,
     Superseded,
-    Removed,      // Document removed to dustbin
-    Overwritten,  // Document replaced via oxd replace
+    Removed,     // Document removed to dustbin
+    Overwritten, // Document replaced via oxd replace
 }
 
 impl DocState {

@@ -38,7 +38,10 @@ fn list_documents_impl(
         if let Some(mgr) = state_mgr {
             return list_removed_documents(mgr, verbose);
         } else {
-            eprintln!("{} Cannot list removed documents without state manager", "ERROR:".red().bold());
+            eprintln!(
+                "{} Cannot list removed documents without state manager",
+                "ERROR:".red().bold()
+            );
             return Ok(());
         }
     }
@@ -98,9 +101,13 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     println!();
 
     // Filter for removed documents
-    let removed_docs: Vec<_> = state_mgr.state().all()
+    let removed_docs: Vec<_> = state_mgr
+        .state()
+        .all()
         .into_iter()
-        .filter(|d| d.metadata.state == DocState::Removed || d.metadata.state == DocState::Overwritten)
+        .filter(|d| {
+            d.metadata.state == DocState::Removed || d.metadata.state == DocState::Overwritten
+        })
         .collect();
 
     if removed_docs.is_empty() {
@@ -111,7 +118,8 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
 
     // Print header
     if verbose {
-        println!("{:<8} {:<35} {:<12} {:<8} {}",
+        println!(
+            "{:<8} {:<35} {:<12} {:<8} {}",
             "Number".cyan().bold(),
             "Title".cyan().bold(),
             "Removed".cyan().bold(),
@@ -120,7 +128,8 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         );
         println!("{}", "─".repeat(120).cyan());
     } else {
-        println!("{:<8} {:<40} {:<12} {}",
+        println!(
+            "{:<8} {:<40} {:<12} {}",
             "Number".cyan().bold(),
             "Title".cyan().bold(),
             "Removed".cyan().bold(),
@@ -153,13 +162,11 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         };
 
         if verbose {
-            let location = if file_exists {
-                doc.path.clone()
-            } else {
-                "(file not found)".to_string()
-            };
+            let location =
+                if file_exists { doc.path.clone() } else { "(file not found)".to_string() };
 
-            println!("{:<8} {:<35} {:<12} {:<8} {}",
+            println!(
+                "{:<8} {:<35} {:<12} {:<8} {}",
                 number_str.yellow(),
                 title_truncated,
                 doc.metadata.updated.to_string().white(),
@@ -167,7 +174,8 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
                 location.dimmed()
             );
         } else {
-            println!("{:<8} {:<40} {:<12} {}",
+            println!(
+                "{:<8} {:<40} {:<12} {}",
                 number_str.yellow(),
                 title_truncated,
                 doc.metadata.updated.to_string().white(),
@@ -177,7 +185,8 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     }
 
     println!();
-    println!("Total: {} removed ({} in dustbin, {} deleted)",
+    println!(
+        "Total: {} removed ({} in dustbin, {} deleted)",
         removed_docs.len().to_string().yellow(),
         in_dustbin.to_string().green(),
         deleted.to_string().red()

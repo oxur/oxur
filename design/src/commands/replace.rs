@@ -4,12 +4,12 @@
 
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use std::path::PathBuf;
-use uuid::Uuid;
-use design::doc::{DocState, DesignDoc, DocMetadata, build_yaml_frontmatter};
+use design::doc::{build_yaml_frontmatter, DesignDoc, DocMetadata, DocState};
 use design::filename::slugify;
 use design::git;
 use design::state::StateManager;
+use std::path::PathBuf;
+use uuid::Uuid;
 
 /// Execute the replace command
 pub fn execute(
@@ -25,14 +25,18 @@ pub fn execute(
         num
     } else {
         let search_path = old_id_or_path;
-        let doc = state_mgr.state().all()
+        let doc = state_mgr
+            .state()
+            .all()
             .into_iter()
             .find(|d| d.path.contains(search_path))
             .ok_or_else(|| anyhow::anyhow!("Document '{}' not found", old_id_or_path))?;
         doc.metadata.number
     };
 
-    let old_doc = state_mgr.state().get(old_number)
+    let old_doc = state_mgr
+        .state()
+        .get(old_number)
         .ok_or_else(|| anyhow::anyhow!("Document {} not found", old_number))?;
 
     let old_title = old_doc.metadata.title.clone();
@@ -51,8 +55,7 @@ pub fn execute(
         bail!("New file not found: {}", new_file_path);
     }
 
-    let new_content = std::fs::read_to_string(&new_path)
-        .context("Failed to read new file")?;
+    let new_content = std::fs::read_to_string(&new_path).context("Failed to read new file")?;
 
     println!("{}", "New Document:".cyan().bold());
     println!("  File: {}", new_path.display().to_string().white());
@@ -85,26 +88,19 @@ pub fn execute(
 
     // Step 4: Move old document to dustbin as "overwritten"
     let dustbin_dir = state_mgr.docs_dir().join(".dustbin/overwritten");
-    std::fs::create_dir_all(&dustbin_dir)
-        .context("Failed to create dustbin directory")?;
+    std::fs::create_dir_all(&dustbin_dir).context("Failed to create dustbin directory")?;
 
     let uuid = Uuid::new_v4();
     let uuid_short = uuid.to_string().split('-').next().unwrap().to_string();
 
-    let old_filename = old_path.file_name()
-        .context("Invalid old file path")?
-        .to_string_lossy();
-    let new_dustbin_name = format!("{}-{}",
-        old_filename.trim_end_matches(".md"),
-        uuid_short
-    );
+    let old_filename = old_path.file_name().context("Invalid old file path")?.to_string_lossy();
+    let new_dustbin_name = format!("{}-{}", old_filename.trim_end_matches(".md"), uuid_short);
     let dustbin_path = dustbin_dir.join(format!("{}.md", new_dustbin_name));
 
     println!("{}", "Moving old version to dustbin...".cyan().bold());
 
     if old_path.exists() {
-        git::git_mv(&old_path, &dustbin_path)
-            .context("Failed to move old file to dustbin")?;
+        git::git_mv(&old_path, &dustbin_path).context("Failed to move old file to dustbin")?;
         println!("  ✓ Moved to: {}", dustbin_path.display().to_string().green());
 
         // Update old document's frontmatter to mark as overwritten
@@ -126,10 +122,7 @@ pub fn execute(
     println!("{}", "Installing new version...".cyan().bold());
 
     // Generate new filename based on old document's number
-    let new_filename = format!("{:04}-{}.md",
-        old_number,
-        slugify(&merged_metadata.title)
-    );
+    let new_filename = format!("{:04}-{}.md", old_number, slugify(&merged_metadata.title));
 
     // Place in draft directory initially
     let new_dir = state_mgr.docs_dir().join("01-draft");
@@ -137,19 +130,15 @@ pub fn execute(
     let new_location = new_dir.join(&new_filename);
 
     // Create content with merged frontmatter
-    let new_content_with_frontmatter = format!(
-        "{}\n{}",
-        build_yaml_frontmatter(&merged_metadata),
-        new_doc.content.trim()
-    );
+    let new_content_with_frontmatter =
+        format!("{}\n{}", build_yaml_frontmatter(&merged_metadata), new_doc.content.trim());
 
     std::fs::write(&new_location, new_content_with_frontmatter)
         .context("Failed to write new document")?;
     println!("  ✓ Created: {}", new_location.display().to_string().green());
 
     // Stage with git
-    git::git_add(&new_location)
-        .context("Failed to stage new file")?;
+    git::git_add(&new_location).context("Failed to stage new file")?;
     println!("  ✓ Staged with git");
 
     // Update state tracking for new document
@@ -168,8 +157,10 @@ pub fn execute(
 
 /// Extract basic document info when frontmatter is missing or invalid
 fn extract_basic_doc(content: &str, path: &PathBuf) -> Result<DesignDoc> {
-    let title = design::doc::extract_title_from_content(content,
-        path.file_name().and_then(|n| n.to_str()).unwrap_or("untitled.md"));
+    let title = design::doc::extract_title_from_content(
+        content,
+        path.file_name().and_then(|n| n.to_str()).unwrap_or("untitled.md"),
+    );
 
     let author = git::get_author(path);
     let created = chrono::Local::now().naive_local().date();
