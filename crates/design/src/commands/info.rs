@@ -488,3 +488,302 @@ fn show_dirs(state_mgr: &StateManager) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// Helper to create a test StateManager with a temporary directory
+    fn setup_test_state_manager() -> (TempDir, StateManager) {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path();
+
+        // Create necessary directory structure
+        fs::create_dir_all(docs_dir.join(".oxd")).unwrap();
+        fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
+
+        // Initialize git repo (required for StateManager)
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(docs_dir)
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["config", "user.name", "Test User"])
+            .current_dir(docs_dir)
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(docs_dir)
+            .output()
+            .unwrap();
+
+        let state_mgr = StateManager::new(docs_dir).unwrap();
+
+        (temp, state_mgr)
+    }
+
+    #[test]
+    fn test_info_command_from_str_states() {
+        let cmd = InfoCommand::from_str(Some("states"));
+        assert!(matches!(cmd, InfoCommand::States));
+    }
+
+    #[test]
+    fn test_info_command_from_str_fields() {
+        let cmd = InfoCommand::from_str(Some("fields"));
+        assert!(matches!(cmd, InfoCommand::Fields));
+    }
+
+    #[test]
+    fn test_info_command_from_str_metadata_alias() {
+        let cmd = InfoCommand::from_str(Some("metadata"));
+        assert!(matches!(cmd, InfoCommand::Fields));
+    }
+
+    #[test]
+    fn test_info_command_from_str_config() {
+        let cmd = InfoCommand::from_str(Some("config"));
+        assert!(matches!(cmd, InfoCommand::Config));
+    }
+
+    #[test]
+    fn test_info_command_from_str_stats() {
+        let cmd = InfoCommand::from_str(Some("stats"));
+        assert!(matches!(cmd, InfoCommand::Stats));
+    }
+
+    #[test]
+    fn test_info_command_from_str_dirs() {
+        let cmd = InfoCommand::from_str(Some("dirs"));
+        assert!(matches!(cmd, InfoCommand::Dirs));
+    }
+
+    #[test]
+    fn test_info_command_from_str_structure_alias() {
+        let cmd = InfoCommand::from_str(Some("structure"));
+        assert!(matches!(cmd, InfoCommand::Dirs));
+    }
+
+    #[test]
+    fn test_info_command_from_str_none_defaults_to_overview() {
+        let cmd = InfoCommand::from_str(None);
+        assert!(matches!(cmd, InfoCommand::Overview));
+    }
+
+    #[test]
+    fn test_info_command_from_str_unknown_defaults_to_overview() {
+        let cmd = InfoCommand::from_str(Some("unknown"));
+        assert!(matches!(cmd, InfoCommand::Overview));
+    }
+
+    #[test]
+    fn test_execute_overview() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(None, &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_states() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(Some("states".to_string()), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_fields() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(Some("fields".to_string()), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_config() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(Some("config".to_string()), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_stats() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(Some("stats".to_string()), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_dirs() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(Some("dirs".to_string()), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_overview_executes() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = show_overview(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_states_executes() {
+        let result = show_states();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_fields_executes() {
+        let result = show_fields();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_config_executes() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = show_config(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_stats_executes() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = show_stats(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_dirs_executes() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = show_dirs(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_stats_with_documents() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create a test document
+        let doc_path = temp.path().join("01-draft/0001-test.md");
+        fs::write(
+            &doc_path,
+            r#"---
+number: 1
+title: Test Document
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+---
+
+# Test Document
+"#,
+        )
+        .unwrap();
+
+        // Scan to pick up the document
+        state_mgr.quick_scan().unwrap();
+
+        // Should execute without error and show stats
+        let result = show_stats(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_dirs_with_documents() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create a test document
+        let doc_path = temp.path().join("01-draft/0001-test.md");
+        fs::write(
+            &doc_path,
+            r#"---
+number: 1
+title: Test Document
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+---
+
+# Test Document
+"#,
+        )
+        .unwrap();
+
+        // Scan to pick up the document
+        state_mgr.quick_scan().unwrap();
+
+        // Should execute without error and show directory structure
+        let result = show_dirs(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_overview_with_documents() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create multiple test documents in different states
+        fs::create_dir_all(temp.path().join("02-under-review")).unwrap();
+
+        let doc1 = temp.path().join("01-draft/0001-first.md");
+        fs::write(
+            &doc1,
+            r#"---
+number: 1
+title: First Document
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+---
+
+# First Document
+"#,
+        )
+        .unwrap();
+
+        let doc2 = temp.path().join("02-under-review/0002-second.md");
+        fs::write(
+            &doc2,
+            r#"---
+number: 2
+title: Second Document
+state: Under Review
+created: 2024-01-02
+updated: 2024-01-02
+author: Test Author
+---
+
+# Second Document
+"#,
+        )
+        .unwrap();
+
+        // Scan to pick up the documents
+        state_mgr.quick_scan().unwrap();
+
+        // Should execute without error and show overview with counts
+        let result = show_overview(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_info_command_clone() {
+        let cmd = InfoCommand::Overview;
+        let cloned = cmd.clone();
+        assert!(matches!(cloned, InfoCommand::Overview));
+    }
+
+    #[test]
+    fn test_info_command_debug() {
+        let cmd = InfoCommand::States;
+        let debug_str = format!("{:?}", cmd);
+        assert!(debug_str.contains("States"));
+    }
+}

@@ -167,6 +167,41 @@ fn extract_number_from_path(path: &Path) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// Helper to create a test StateManager with necessary setup
+    fn setup_test_state_manager() -> (TempDir, StateManager) {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path();
+
+        // Create necessary directory structure
+        fs::create_dir_all(docs_dir.join(".oxd")).unwrap();
+        fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
+
+        // Initialize git repo (required for StateManager)
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(docs_dir)
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["config", "user.name", "Test User"])
+            .current_dir(docs_dir)
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(docs_dir)
+            .output()
+            .unwrap();
+
+        let state_mgr = StateManager::new(docs_dir).unwrap();
+
+        (temp, state_mgr)
+    }
 
     #[test]
     fn test_extract_number() {
@@ -179,5 +214,192 @@ mod tests {
     fn test_extract_number_invalid() {
         assert!(extract_number_from_path(Path::new("test.md")).is_err());
         assert!(extract_number_from_path(Path::new("abc-test.md")).is_err());
+    }
+
+    #[test]
+    fn test_extract_number_from_path_with_no_number() {
+        let result = extract_number_from_path(Path::new("test-document.md"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not extract document number"));
+    }
+
+    #[test]
+    fn test_resolve_path_absolute() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path();
+        let absolute_path = docs_dir.join("test.md");
+        fs::write(&absolute_path, "test").unwrap();
+
+        let result = resolve_path(absolute_path.to_str().unwrap(), docs_dir).unwrap();
+        assert_eq!(result, absolute_path);
+    }
+
+    #[test]
+    fn test_resolve_path_relative_to_docs() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path();
+        let test_file = docs_dir.join("test.md");
+        fs::write(&test_file, "test").unwrap();
+
+        let result = resolve_path("test.md", docs_dir).unwrap();
+        assert_eq!(result, test_file);
+    }
+
+    #[test]
+    fn test_execute_document_not_in_state() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create a document but don't scan it (not in state)
+        let old_path = temp.path().join("01-draft/0001-old-name.md");
+        fs::write(
+            &old_path,
+            r#"---
+number: 1
+title: Old Name
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+---
+
+# Old Name
+"#,
+        )
+        .unwrap();
+
+        // Try to rename without scanning - should fail
+        let old_str = old_path.to_str().unwrap();
+        let new_str = temp.path().join("01-draft/0001-new-name.md").to_str().unwrap().to_string();
+
+        let result = execute(&mut state_mgr, old_str, &new_str);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found in state"));
+    }
+
+    #[test]
+    fn test_execute_number_mismatch_fails() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create and track a document
+        let old_path = temp.path().join("01-draft/0001-test.md");
+        fs::write(
+            &old_path,
+            r#"---
+number: 1
+title: Test
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+---
+
+# Test
+"#,
+        )
+        .unwrap();
+
+        // Git add and commit
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["commit", "-m", "Initial"])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+
+        // Scan to track
+        state_mgr.quick_scan().unwrap();
+
+        // Try to rename with different number - should fail
+        let old_str = old_path.to_str().unwrap();
+        let new_str = temp.path().join("01-draft/0002-test.md").to_str().unwrap().to_string();
+
+        let result = execute(&mut state_mgr, old_str, &new_str);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Number mismatch"));
+    }
+
+    #[test]
+    fn test_execute_old_file_not_found() {
+        let (_temp, mut state_mgr) = setup_test_state_manager();
+
+        let result = execute(
+            &mut state_mgr,
+            "nonexistent.md",
+            "new.md",
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Document not found"));
+    }
+
+    #[test]
+    fn test_execute_new_file_already_exists() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create two documents
+        let old_path = temp.path().join("01-draft/0001-old.md");
+        let new_path = temp.path().join("01-draft/0001-new.md");
+
+        fs::write(&old_path, "old").unwrap();
+        fs::write(&new_path, "new").unwrap();
+
+        // Git add and commit
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["commit", "-m", "Initial"])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+
+        let result = execute(
+            &mut state_mgr,
+            old_path.to_str().unwrap(),
+            new_path.to_str().unwrap(),
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Destination already exists"));
+    }
+
+    #[test]
+    fn test_execute_not_markdown_file() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        let old_path = temp.path().join("01-draft/0001-test.txt");
+        fs::write(&old_path, "test").unwrap();
+
+        let result = execute(
+            &mut state_mgr,
+            old_path.to_str().unwrap(),
+            temp.path().join("01-draft/0001-new.txt").to_str().unwrap(),
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must be a markdown file"));
+    }
+
+    #[test]
+    fn test_parse_and_validate_paths_outside_docs() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        let outside_path = temp.path().join("outside.md");
+        fs::write(&outside_path, "test").unwrap();
+
+        let result = parse_and_validate_paths(
+            outside_path.to_str().unwrap(),
+            "new.md",
+            &docs_dir,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must be within the docs directory"));
     }
 }
