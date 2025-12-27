@@ -74,6 +74,14 @@ pub fn transition_document(
     println!("  {} {}", "to".green(), new_state.as_str().cyan());
     println!("  {} {}", "File:".dimmed(), new_path.display());
 
+    // Update the index to reflect the state change
+    println!();
+    if let Err(e) = crate::commands::update_index::update_index(index) {
+        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("  {}", e);
+        println!("  Run 'oxd update-index' manually to sync the index");
+    }
+
     Ok(())
 }
 
