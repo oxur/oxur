@@ -1,5 +1,5 @@
 ---
-number: 3
+number: 4
 title: "Oxur Design Documentation CLI - Build Plan"
 author: "document number"
 created: 2025-12-27

@@ -387,6 +387,11 @@ impl StateManager {
             self.state.remove(*number);
         }
 
+        // Recalculate next_number after deletions to potentially reuse numbers
+        if !result.deleted.is_empty() {
+            self.state.recalculate_next_number();
+        }
+
         // Only save if there were changes
         if result.has_changes() {
             self.save()?;
