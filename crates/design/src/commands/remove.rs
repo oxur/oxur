@@ -21,11 +21,23 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
         // Try to find by path
         // Normalize the search path - strip docs_dir prefix if present
         let search_path = std::path::Path::new(doc_id_or_path);
+
+        // Try to strip the docs_dir prefix (handles absolute paths)
         let normalized_search = if let Ok(stripped) = search_path.strip_prefix(state_mgr.docs_dir())
         {
             stripped.to_string_lossy().to_string()
         } else {
-            doc_id_or_path.to_string()
+            // Try to strip relative path prefix (e.g., "crates/design/docs/...")
+            let docs_dir_str = state_mgr.docs_dir().to_string_lossy();
+            let relative_docs_dir = std::path::Path::new(&*docs_dir_str)
+                .strip_prefix(std::env::current_dir().unwrap_or_default())
+                .unwrap_or(state_mgr.docs_dir());
+
+            if let Ok(stripped) = search_path.strip_prefix(relative_docs_dir) {
+                stripped.to_string_lossy().to_string()
+            } else {
+                doc_id_or_path.to_string()
+            }
         };
 
         let doc = state_mgr

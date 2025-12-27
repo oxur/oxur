@@ -4,7 +4,7 @@ title: "Test Document"
 author: "Duncan McGreggor"
 created: 2025-12-25
 updated: 2025-12-26
-state: Superseded
+state: Removed
 supersedes: null
 superseded-by: null
 ---

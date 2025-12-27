@@ -8,7 +8,7 @@ BIN_OXD := $(BIN_DIR)/oxd
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 
-build: $(BIN_DIR)
+build: clean $(BIN_DIR)
 	@echo "Building oxur..."
 	@cargo build
 	@cp $(TARGET_OXD) $(BIN_OXD)
