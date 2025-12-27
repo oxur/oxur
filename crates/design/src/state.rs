@@ -107,11 +107,14 @@ impl DocumentState {
 
     /// Add or update a document record
     pub fn upsert(&mut self, number: u32, record: DocumentRecord) {
+        let is_dustbin = record.metadata.state.is_in_dustbin();
         self.documents.insert(number, record);
         self.last_updated = Utc::now();
 
         // Update next_number if needed
-        if number >= self.next_number {
+        // Skip updating next_number for dustbin documents (Removed, Overwritten)
+        // so that their numbers can be reused
+        if !is_dustbin && number >= self.next_number {
             self.next_number = number + 1;
         }
     }
@@ -140,6 +143,37 @@ impl DocumentState {
             self.documents.values().filter(|d| d.metadata.state == state).collect();
         docs.sort_by_key(|d| d.metadata.number);
         docs
+    }
+
+    /// Recalculate next_number based on non-dustbin documents
+    /// Only reuses dustbin numbers that are higher than the max non-dustbin number
+    pub fn recalculate_next_number(&mut self) {
+        // Get max number from non-dustbin documents
+        let max_active = self
+            .documents
+            .values()
+            .filter(|d| !d.metadata.state.is_in_dustbin())
+            .map(|d| d.metadata.number)
+            .max();
+
+        let max_active = match max_active {
+            Some(m) => m,
+            None => {
+                self.next_number = 1;
+                return;
+            }
+        };
+
+        // Find smallest dustbin number greater than max_active
+        let reusable = self
+            .documents
+            .values()
+            .filter(|d| d.metadata.state.is_in_dustbin())
+            .map(|d| d.metadata.number)
+            .filter(|&n| n > max_active)
+            .min();
+
+        self.next_number = reusable.unwrap_or(max_active + 1);
     }
 }
 
@@ -281,6 +315,9 @@ impl StateManager {
         for number in &result.deleted {
             self.state.remove(*number);
         }
+
+        // Recalculate next_number to exclude dustbin documents and find first available number
+        self.state.recalculate_next_number();
 
         // Save updated state
         self.save()?;
@@ -561,6 +598,153 @@ mod document_state_tests {
 
         state.upsert(10, create_test_record(10));
         assert_eq!(state.next_number, 11);
+    }
+
+    #[test]
+    fn test_upsert_ignores_dustbin_documents() {
+        let mut state = DocumentState::new();
+
+        // Add regular document - should update next_number
+        state.upsert(1, create_test_record(1));
+        assert_eq!(state.next_number, 2);
+
+        // Add document with higher number in Removed state - should NOT update next_number
+        let mut removed_record = create_test_record(5);
+        removed_record.metadata.state = DocState::Removed;
+        state.upsert(5, removed_record);
+        assert_eq!(state.next_number, 2, "Removed documents should not affect next_number");
+
+        // Add document with even higher number in Overwritten state - should NOT update next_number
+        let mut overwritten_record = create_test_record(10);
+        overwritten_record.metadata.state = DocState::Overwritten;
+        state.upsert(10, overwritten_record);
+        assert_eq!(state.next_number, 2, "Overwritten documents should not affect next_number");
+
+        // Add regular document with number 2 - should update next_number
+        state.upsert(2, create_test_record(2));
+        assert_eq!(state.next_number, 3);
+
+        // Verify we can reuse number 5 now (it's in dustbin)
+        state.upsert(3, create_test_record(3));
+        assert_eq!(state.next_number, 4);
+    }
+
+    #[test]
+    fn test_recalculate_next_number() {
+        let mut state = DocumentState::new();
+
+        // Add documents 1, 2, 3
+        state.upsert(1, create_test_record(1));
+        state.upsert(2, create_test_record(2));
+        state.upsert(3, create_test_record(3));
+        assert_eq!(state.next_number, 4);
+
+        // Move document 3 to dustbin
+        let mut doc3 = state.get(3).unwrap().clone();
+        doc3.metadata.state = DocState::Removed;
+        state.upsert(3, doc3);
+
+        // Recalculate - max active is 2, doc 3 is dustbin and 3 > 2, so reuse 3
+        state.recalculate_next_number();
+        assert_eq!(state.next_number, 3, "Should reuse dustbin doc 3 (higher than max 2)");
+
+        // Move document 2 to dustbin as well
+        let mut doc2 = state.get(2).unwrap().clone();
+        doc2.metadata.state = DocState::Overwritten;
+        state.upsert(2, doc2);
+        state.recalculate_next_number();
+        // Max active is 1, dustbin docs [2, 3] both > 1, use smallest = 2
+        assert_eq!(state.next_number, 2, "Should reuse smallest dustbin doc > max (2)");
+
+        // Move document 1 to dustbin too
+        let mut doc1 = state.get(1).unwrap().clone();
+        doc1.metadata.state = DocState::Removed;
+        state.upsert(1, doc1);
+        state.recalculate_next_number();
+        assert_eq!(state.next_number, 1, "Should reset to 1 when all docs in dustbin");
+    }
+
+    #[test]
+    fn test_recalculate_only_reuses_numbers_higher_than_max() {
+        let mut state = DocumentState::new();
+
+        // Scenario: max active = 999, dustbin has [2, 500]
+        state.upsert(1, create_test_record(1));
+        state.upsert(3, create_test_record(3));
+        state.upsert(999, create_test_record(999));
+
+        let mut doc2 = create_test_record(2);
+        doc2.metadata.state = DocState::Removed;
+        state.upsert(2, doc2);
+
+        let mut doc500 = create_test_record(500);
+        doc500.metadata.state = DocState::Overwritten;
+        state.upsert(500, doc500);
+
+        state.recalculate_next_number();
+        // Max active = 999, no dustbin docs > 999, so next = 1000
+        assert_eq!(state.next_number, 1000, "Should not reuse 2 or 500 (both < 999)");
+    }
+
+    #[test]
+    fn test_recalculate_reuses_dustbin_number_above_max() {
+        let mut state = DocumentState::new();
+
+        // Scenario: max active = 999, dustbin has [1000]
+        state.upsert(1, create_test_record(1));
+        state.upsert(3, create_test_record(3));
+        state.upsert(999, create_test_record(999));
+
+        let mut doc1000 = create_test_record(1000);
+        doc1000.metadata.state = DocState::Removed;
+        state.upsert(1000, doc1000);
+
+        state.recalculate_next_number();
+        // Max active = 999, dustbin [1000] > 999, so reuse 1000
+        assert_eq!(state.next_number, 1000, "Should reuse 1000 (> 999)");
+    }
+
+    #[test]
+    fn test_recalculate_picks_smallest_reusable_dustbin_number() {
+        let mut state = DocumentState::new();
+
+        // Scenario: max active = 999, dustbin has [1000, 1002, 1005]
+        state.upsert(1, create_test_record(1));
+        state.upsert(999, create_test_record(999));
+
+        let mut doc1000 = create_test_record(1000);
+        doc1000.metadata.state = DocState::Removed;
+        state.upsert(1000, doc1000);
+
+        let mut doc1002 = create_test_record(1002);
+        doc1002.metadata.state = DocState::Removed;
+        state.upsert(1002, doc1002);
+
+        let mut doc1005 = create_test_record(1005);
+        doc1005.metadata.state = DocState::Overwritten;
+        state.upsert(1005, doc1005);
+
+        state.recalculate_next_number();
+        // Max active = 999, dustbin [1000, 1002, 1005] all > 999, use smallest = 1000
+        assert_eq!(state.next_number, 1000, "Should use smallest reusable number (1000)");
+    }
+
+    #[test]
+    fn test_recalculate_ignores_dustbin_below_active_max() {
+        let mut state = DocumentState::new();
+
+        // Scenario: max active = 1001, dustbin has [1000]
+        state.upsert(1, create_test_record(1));
+        state.upsert(999, create_test_record(999));
+        state.upsert(1001, create_test_record(1001));
+
+        let mut doc1000 = create_test_record(1000);
+        doc1000.metadata.state = DocState::Removed;
+        state.upsert(1000, doc1000);
+
+        state.recalculate_next_number();
+        // Max active = 1001, dustbin [1000] not > 1001, so next = 1002
+        assert_eq!(state.next_number, 1002, "Should not reuse 1000 (< 1001)");
     }
 
     #[test]

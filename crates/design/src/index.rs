@@ -85,8 +85,31 @@ impl DocumentIndex {
     }
 
     /// Get the next available document number
+    /// Only reuses dustbin numbers that are higher than the max non-dustbin number
     pub fn next_number(&self) -> u32 {
-        self.docs.keys().max().map(|n| n + 1).unwrap_or(1)
+        // Get max number from non-dustbin documents
+        let max_active = self
+            .docs
+            .values()
+            .filter(|d| !d.metadata.state.is_in_dustbin())
+            .map(|d| d.metadata.number)
+            .max();
+
+        let max_active = match max_active {
+            Some(m) => m,
+            None => return 1,
+        };
+
+        // Find smallest dustbin number greater than max_active
+        let reusable = self
+            .docs
+            .values()
+            .filter(|d| d.metadata.state.is_in_dustbin())
+            .map(|d| d.metadata.number)
+            .filter(|&n| n > max_active)
+            .min();
+
+        reusable.unwrap_or(max_active + 1)
     }
 
     /// Get the docs directory path
@@ -390,7 +413,8 @@ mod tests {
         fn test_next_number_with_docs() {
             let (_temp, index) = create_test_index();
 
-            // Highest number is 10
+            // Documents are [1, 2, 3, 5, 10], max is 10, no dustbin docs > 10
+            // So next number is 11 (max + 1)
             assert_eq!(index.next_number(), 11);
         }
 
