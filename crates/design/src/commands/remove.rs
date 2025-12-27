@@ -19,12 +19,19 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
         num
     } else {
         // Try to find by path
-        let search_path = doc_id_or_path;
+        // Normalize the search path - strip docs_dir prefix if present
+        let search_path = std::path::Path::new(doc_id_or_path);
+        let normalized_search = if let Ok(stripped) = search_path.strip_prefix(state_mgr.docs_dir()) {
+            stripped.to_string_lossy().to_string()
+        } else {
+            doc_id_or_path.to_string()
+        };
+
         let doc = state_mgr
             .state()
             .all()
             .into_iter()
-            .find(|d| d.path.contains(search_path))
+            .find(|d| d.path.contains(&normalized_search))
             .ok_or_else(|| anyhow::anyhow!("Document '{}' not found", doc_id_or_path))?;
         doc.metadata.number
     };
@@ -235,6 +242,27 @@ mod tests {
 
         let result = execute(&mut state_mgr, "test-doc");
         assert!(result.is_ok());
+
+        let doc = state_mgr.state().get(1).unwrap();
+        assert_eq!(doc.metadata.state, DocState::Removed);
+
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn test_remove_by_full_path_with_docs_dir_prefix() {
+        // Regression test for bug where full path with docs_dir prefix failed to find document
+        let (mut state_mgr, temp) = create_test_state_manager();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        // Build the full path including docs_dir prefix
+        let full_path = temp.path().join("docs/01-draft/0001-test-doc.md");
+        let full_path_str = full_path.to_string_lossy().to_string();
+
+        let result = execute(&mut state_mgr, &full_path_str);
+        assert!(result.is_ok(), "Should be able to remove by full path");
 
         let doc = state_mgr.state().get(1).unwrap();
         assert_eq!(doc.metadata.state, DocState::Removed);
