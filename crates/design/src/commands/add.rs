@@ -378,7 +378,7 @@ pub fn add_batch(
         match add_document(
             state_mgr,
             file.to_str().unwrap(),
-            None,  // No initial state for batch
+            None, // No initial state for batch
             dry_run,
             false, // Non-interactive for batch
             true,  // Auto-yes
@@ -574,7 +574,8 @@ mod tests {
         let file_path = temp.path().join("invalid.md");
         fs::write(&file_path, "").unwrap(); // Empty file is not valid markdown
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("valid markdown"));
     }
@@ -592,7 +593,7 @@ mod tests {
         let result = add_document(
             &mut state_mgr,
             file_path.to_str().unwrap(),
-            None,  // no initial state
+            None, // no initial state
             false,
             false,
             true, // auto_yes - should normalize
@@ -610,7 +611,8 @@ mod tests {
             "---\ntitle: Old Title\nauthor: Old Author\n---\n\n# Test Document\n\nContent.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Verify frontmatter was stripped and replaced
@@ -638,7 +640,8 @@ mod tests {
         let content = "# Test\n\nThis is ready for review and please review it.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Should be placed in under-review directory due to state hint
@@ -658,7 +661,8 @@ mod tests {
         // Content without trailing newline
         fs::write(&file_path, "# Test\n\nContent without trailing newline").unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Verify content ends with newline
@@ -833,7 +837,8 @@ mod tests {
         let draft_dir = temp.path().join("01-draft");
         assert!(!draft_dir.exists());
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Draft directory should now exist
@@ -849,7 +854,8 @@ mod tests {
         fs::write(&file_path, "# Test\n\nContent").unwrap();
 
         // Even if git add fails (not a git repo), the operation should continue
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
     }
 
@@ -866,7 +872,8 @@ mod tests {
         fs::write(&file_path, "# Test\n\nContent").unwrap();
 
         // This should work without prompting to delete original
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         // The file should still exist after processing
         assert!(result.is_ok() || file_path.exists());
     }
@@ -880,7 +887,8 @@ mod tests {
         let content = "# My Great Idea\n\nAuthor: Jane Smith\n\nThis is approved and accepted.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Should extract title "My Great Idea" and author "Jane Smith"
@@ -971,7 +979,8 @@ mod tests {
         let content = format!("# {}\n\nContent", long_title);
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         // Should handle long titles (may be truncated in filename)
         assert!(result.is_ok());
     }
@@ -985,7 +994,8 @@ mod tests {
         let content = "# Title with Special: Chars / and \\ Stuff!\n\nContent";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         // Should sanitize special characters for filename
         assert!(result.is_ok());
     }
@@ -1000,7 +1010,8 @@ mod tests {
         let content = "# Unicode Title with Japanese 日本語\n\nThis is content with unicode characters like émojis and more regular text to ensure it passes markdown validation.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
     }
 
@@ -1028,7 +1039,8 @@ mod tests {
         let content = "# Title\n\n## Section 1\n\nParagraph 1\n\n## Section 2\n\nParagraph 2\n\n```rust\ncode block\n```";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Verify content structure is preserved
@@ -1089,7 +1101,8 @@ mod tests {
         let content = "# Perfect Document\n\nThis is well-formed markdown content.\n\n## Section\n\nMore content here.\n";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
     }
 
@@ -1102,7 +1115,8 @@ mod tests {
         // Content that is mostly whitespace but valid
         fs::write(&file_path, "# Title\n\n\n\n\nContent here.\n\n\n").unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
     }
 
@@ -1173,7 +1187,8 @@ mod tests {
         let content = "# Final Document\n\nThis is implemented and complete.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Should be in final directory
@@ -1193,7 +1208,8 @@ mod tests {
         let content = "# Rejected Proposal\n\nThis was rejected and not approved.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Should be in rejected directory
@@ -1213,7 +1229,8 @@ mod tests {
         let content = "# Deferred Item\n\nThis has been postponed for later consideration.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Should be in deferred directory
@@ -1253,7 +1270,8 @@ mod tests {
         let content = "# Test Document\n\nAuthor: Test Author\n\nContent here.";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Verify created and updated dates are in the frontmatter
@@ -1279,7 +1297,8 @@ mod tests {
         let file_path = temp.path().join("test.md");
         fs::write(&file_path, "# Test\n\nContent").unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // State should have recorded the new file
@@ -1310,7 +1329,8 @@ mod tests {
         let content = "# Perfect Title\n\nThis is perfectly formatted content.\n";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
     }
 
@@ -1340,7 +1360,8 @@ mod tests {
         let file_path = temp.path().join("test.md");
         fs::write(&file_path, "# Title\n\nContent").unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         let draft_dir = temp.path().join("01-draft");
@@ -1380,7 +1401,8 @@ mod tests {
         // Minimum valid markdown (just over 10 chars)
         fs::write(&file_path, "# A\n\nContent text").unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
     }
 
@@ -1398,7 +1420,8 @@ mod tests {
         // In real usage, this would prompt the user.
 
         // We can only test non-interactive paths safely
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
     }
 
@@ -1414,7 +1437,7 @@ mod tests {
         let result = add_document(
             &mut state_mgr,
             file_path.to_str().unwrap(),
-            None,  // no initial state
+            None, // no initial state
             true, // dry_run
             false,
             false,
@@ -1434,7 +1457,7 @@ mod tests {
         let result = add_document(
             &mut state_mgr,
             file_path.to_str().unwrap(),
-            None,  // no initial state
+            None, // no initial state
             false,
             false, // not interactive
             false, // not auto_yes
@@ -1521,7 +1544,8 @@ mod tests {
         let file_path = temp.path().join("test.md");
         fs::write(&file_path, "# Test\n\nContent already ending with newline.\n").unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Should preserve the trailing newline
@@ -1545,7 +1569,8 @@ mod tests {
         let content = "---\nold: frontmatter\n---\n\n# Title\n\nContent";
         fs::write(&file_path, content).unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         let draft_dir = temp.path().join("01-draft");
@@ -1606,7 +1631,8 @@ mod tests {
         // Title with characters that need sanitization
         fs::write(&file_path, "# Title: With / Special \\ Characters?\n\nContent").unwrap();
 
-        let result = add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
+        let result =
+            add_document(&mut state_mgr, file_path.to_str().unwrap(), None, false, false, true);
         assert!(result.is_ok());
 
         // Filename should be sanitized

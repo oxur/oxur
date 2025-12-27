@@ -255,8 +255,8 @@ impl DesignDoc {
 
 /// Escape a string for use in YAML double-quoted strings
 fn escape_yaml_string(s: &str) -> String {
-    s.replace('\\', "\\\\")  // Escape backslashes first
-        .replace('"', "\\\"")  // Then escape double quotes
+    s.replace('\\', "\\\\") // Escape backslashes first
+        .replace('"', "\\\"") // Then escape double quotes
 }
 
 /// Build complete YAML frontmatter from metadata
