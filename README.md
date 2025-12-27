@@ -4,8 +4,6 @@ A Lisp dialect that compiles to Rust with 100% interoperability.
 
 [![Our mascot, Orux! ('Ruxxy' to his friends)][logo]][logo-large]
 
-[![Our mascot, Orux! ('Ruxxy' to his friends)][logo] "Our mascot, Orux! ('Ruxxy' to his friends)"][logo-large]
-
 ## Overview
 
 Oxur is a Lisp that treats Rust as its compilation target and runtime. Drawing inspiration from Zetalisp, LFE, and Clojure, Oxur provides Lisp's expressiveness and metaprogramming power while leveraging Rust's type system, ownership model, and ecosystem.
