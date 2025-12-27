@@ -4,6 +4,7 @@ use oxur_ast::sexp::{Parser, SExp};
 use std::path::PathBuf;
 
 /// Helper function to parse a fixture file from test-data/fixtures/
+#[allow(dead_code)]
 fn parse_fixture(path: &str) -> SExp {
     let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/fixtures").join(path);
     Parser::parse_file(&full_path)
