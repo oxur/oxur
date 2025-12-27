@@ -9,18 +9,6 @@ supersedes: null
 superseded-by: null
 ---
 
-
----
-number: 0001
-title: "Oxur: A Letter of Intent"
-author: Duncan McGreggor & Claude
-created: 2025-12-25
-updated: 2025-12-25
-state: Draft
-supersedes: None
-superseded-by: None
----
-
 # Oxur: A Letter of Intent
 
 **Status**: Vision & Design Exploration  

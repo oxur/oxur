@@ -6,12 +6,10 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0002 | Test Document | Draft | 2025-12-25 |
-| 0001 | Oxur: A Letter of Intent | Draft | 2025-12-25 |
+| 0001 | Oxur: A Letter of Intent | Active | 2025-12-26 |
 
 ## Documents by State
 
-### Draft
+### Active
 
-- [0001 - Oxur: A Letter of Intent](01-draft/0001-oxur-letter-of-intent.md)
-- [0002 - Test Document](01-draft/0002-test-document.md)
+- [0001 - Oxur: A Letter of Intent](05-active/0001-oxur-letter-of-intent.md)

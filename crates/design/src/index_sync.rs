@@ -164,8 +164,13 @@ pub fn get_docs_from_filesystem(docs_dir: impl AsRef<Path>) -> Result<Vec<PathBu
     let docs_dir = docs_dir.as_ref();
     let mut all_docs = Vec::new();
 
-    // Walk through all state directories
+    // Walk through all state directories, excluding dustbin states
     for state in DocState::all_states() {
+        // Skip dustbin states (Removed, Overwritten) - they shouldn't appear in index
+        if state.is_in_dustbin() {
+            continue;
+        }
+
         let state_dir = docs_dir.join(state.directory());
         if !state_dir.exists() {
             continue;
