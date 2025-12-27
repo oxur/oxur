@@ -11,8 +11,8 @@ superseded-by: null
 
 # Oxur: A Letter of Intent
 
-**Status**: Vision & Design Exploration  
-**Date**: December 2025  
+**Status**: Vision & Design Exploration
+**Date**: December 2025
 **Mission**: To create a Lisp that compiles to Rust with 100% interop, drawing inspiration from Zetalisp, LFE, and Clojure's thoughtful design
 
 ---
@@ -22,6 +22,7 @@ superseded-by: null
 We're creating Oxur - a Lisp dialect that treats Rust as its compilation target and runtime, with complete bidirectional interoperability. This isn't a Lisp implemented *in* Rust; it's a Lisp that *becomes* Rust, leveraging Rust's type system, ownership model, and entire ecosystem while providing Lisp's expressiveness and metaprogramming power.
 
 Unlike Zylisp (our Lisp-on-Go project), which must work around Go's plugin memory leaks and limited type system, Oxur benefits from Rust's superior design:
+
 - No plugin memory leak issues
 - Richer type system with traits, lifetimes, and const generics
 - First-class pattern matching in the AST
@@ -31,6 +32,7 @@ Unlike Zylisp (our Lisp-on-Go project), which must work around Go's plugin memor
 ## The Name
 
 **Oxur** /ˈɒk.sər/ combines:
+
 - **Ox** - strength, reliability (like Rust's mascot Ferris)
 - **ur** - primordial, foundational (as in Ur-Lisp)
 - Phonetic echo of "oxidize" (Rust's theme)
@@ -44,6 +46,7 @@ The name suggests both power and ancient wisdom - a modern Lisp with timeless pr
 Go is a Lisp-1 (functions and variables share a namespace). Rust is also effectively Lisp-1. This semantic alignment is fundamental - we're not imposing Lisp conventions on Rust, we're revealing Rust's inner Lisp nature.
 
 Key principles:
+
 1. **100% Rust Interop from Day One** - Not bolted on, built in
 2. **Ownership as a Feature** - Express borrowing and lifetimes naturally
 3. **Traits over Objects** - Embrace Rust's trait system fully
@@ -55,24 +58,28 @@ Key principles:
 ### Design Inspirations
 
 **Zetalisp** - Our aesthetic guide:
+
 - Keyword arguments (`:type`, `:lifetime`)
 - Flavors system maps naturally to traits
 - Clean, orthogonal design
 - Keyword-based syntax for rich metadata
 
 **LFE** (Lisp Flavored Erlang):
+
 - Pattern matching as core feature
 - Respect for the host language's semantics
 - Robert Virding's wisdom on namespace choices
 - Syntax that feels natural to both communities
 
 **Clojure**:
+
 - Thoughtful API design
 - Rich data literals
 - Pragmatic approach to host interop
 - But we'll forge our own naming conventions, not copy Clojure's
 
 **Rust's Own Philosophy**:
+
 - Fearless concurrency
 - Zero-cost abstractions
 - Move semantics and ownership
@@ -91,18 +98,21 @@ Oxur Syntax → Core Forms (IR) → Rust AST → Rust Code → Binary
 ```
 
 **Stage 1**: The Oxur Compiler (`oxur/lang`)
+
 - Parses Oxur syntax
 - Expands macros
 - Type checking and inference (optional)
 - Compiles to canonical S-expressions (Core Forms)
 
 **Stage 2**: The Rust AST Layer (`oxur/rast`)
+
 - Bidirectional Rust AST ↔ S-expression conversion
 - Stable "assembly language" for Rust
 - 1:1 mapping - explicit and complete
 - Rarely changes, rock solid
 
 **Why this separation matters**:
+
 - Experiment with Oxur syntax without touching Rust interop
 - Core Forms are the stable contract between stages
 - Debug by inspecting the IR
@@ -112,12 +122,14 @@ Oxur Syntax → Core Forms (IR) → Rust AST → Rust Code → Binary
 ### Canonical S-Expressions as IR
 
 Following Zylisp's success, we'll use S-expressions as our intermediate representation:
+
 - Every field of Rust's AST represented
 - All `token::Pos` information preserved (for error messages)
 - Keyword arguments for clarity
 - Bidirectional transformation guaranteed
 
 Example:
+
 ```lisp
 (FuncDecl
   :doc nil
@@ -131,15 +143,17 @@ Example:
 ```
 
 This becomes Rust:
+
 ```rust
 fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 ```
 
-### No Plugin Memory Leak Problem!
+### No Plugin Memory Leak Problem
 
 Unlike Go, Rust doesn't have the plugin memory leak that forced Zylisp into a complex supervised worker architecture. This simplifies our REPL design significantly:
+
 - No need for disposable worker processes
 - No IPC overhead
 - No memory monitoring complexity
@@ -200,14 +214,16 @@ The `'a` notation mirrors Rust directly - familiar to Rust programmers, not too 
 For each Rust feature, we ask: "If this was in Zetalisp or LFE, what would it be called?"
 
 Some ideas to explore:
+
 - `defn` vs `deffunc` vs `fn` for function definition
 - `defstruct` for structs (like Lisp tradition)
-- `deftrait` or `protocol` for traits? 
+- `deftrait` or `protocol` for traits?
 - `impl` stays `impl`? Or `implement`?
 - `match` stays `match`? (Already Lispy!)
 - `let` vs `bind` vs `var`?
 
 We'll make these decisions iteratively, favoring:
+
 1. Zetalisp/LFE aesthetic
 2. Clarity for newcomers
 3. Brevity without obscurity
@@ -245,6 +261,7 @@ This is natural in both languages and will be a joy to use.
 ## Traits: Rust's Polymorphism Model
 
 Traits are more powerful than Go's interfaces. We need syntax that captures:
+
 - Trait definitions with associated types
 - Trait bounds and where clauses
 - Trait implementations (both inherent and for traits)
@@ -358,7 +375,7 @@ Rust's module system is explicit and hierarchical:
 (mod geometry
   (defstruct Point
     :fields ((x i32) (y i32)))
-  
+
   (defn distance ((p1 Point) (p2 Point)) f64
     ...))
 
@@ -421,7 +438,7 @@ Rust's ownership makes concurrency safe. Oxur inherits this:
 
 (defn main ()
   (let ((handle (thread::spawn
-                  (fn () 
+                  (fn ()
                     (println "Hello from thread!")))))
     (join handle)))
 
@@ -447,15 +464,18 @@ Without Go's plugin memory leak, our REPL can be simpler:
 The three-tier strategy still makes sense:
 
 **Tier 1: Direct Interpretation** (~1ms)
+
 - Simple expressions: literals, arithmetic, variable lookups
 - No compilation needed
 
 **Tier 2: Cached Compilation** (~0ms after first compile)
+
 - Function definitions compile once
 - Subsequent calls are instant
 - But no worker process complexity!
 
 **Tier 3: JIT Compilation** (slower first time)
+
 - Complex expressions
 - Compile to Rust, then to native code
 - Cache the result
@@ -516,6 +536,7 @@ github.com/oxur/
 ```
 
 **Dependency graph** (no circles!):
+
 ```
 cli → repl → lang → rast
       ↓
@@ -545,68 +566,68 @@ Clean, testable, maintainable.
 
 ### Phase 1: Minimal Viable Oxur
 
-4. **Basic Oxur syntax**
+1. **Basic Oxur syntax**
    - Functions, variables, basic types
    - Simple expressions
    - No macros yet
 
-5. **Stage 1 compiler**
+2. **Stage 1 compiler**
    - Parse Oxur syntax
    - Compile to Core Forms
    - Integrate with `rast`
 
-6. **Hello World**
+3. **Hello World**
    - Write Oxur code that compiles to working Rust
    - Prove the pipeline works
 
 ### Phase 2: Essential Features
 
-7. **Pattern matching**
+1. **Pattern matching**
    - Full `match` support
    - Destructuring
    - Guards
 
-8. **Ownership primitives**
+2. **Ownership primitives**
    - Borrow, borrow-mut, move
    - Basic lifetime annotations
 
-9. **Traits (basic)**
+3. **Traits (basic)**
    - Trait definitions
    - Trait implementations
    - Simple bounds
 
 ### Phase 3: Power Features
 
-10. **Macros**
+1. **Macros**
     - Macro definition and expansion
     - Hygiene and gensym
     - Macro debugging
 
-11. **Advanced types**
+2. **Advanced types**
     - Generics with bounds
     - Associated types
     - Const generics
 
-12. **REPL**
+3. **REPL**
     - Three-tier execution
     - Session management
     - Integration testing
 
 ### Phase 4: Production Ready
 
-13. **Complete Rust coverage**
+1. **Complete Rust coverage**
     - All control flow
     - All type constructs
     - All trait features
     - Unsafe blocks (carefully!)
 
-14. **Tooling**
+2. **Tooling**
     - LSP server
     - Formatter
     - Linter
     - Documentation generator
 
-15. **Standard library**
+3. **Standard library**
     - Idiomatic wrappers for Rust std
     - Lisp-friendly APIs
     - Community-driven growth
@@ -677,18 +698,21 @@ We'll know Oxur is succeeding when:
 ## Why This Matters
 
 **For Rust Developers:**
+
 - Powerful metaprogramming capabilities
 - Alternative syntax for Rust's semantics
 - Rapid prototyping with REPL
 - Code generation and analysis tools
 
 **For Lisp Enthusiasts:**
+
 - Modern, safe, fast language with Lisp manipulation
 - Access to Rust's amazing ecosystem
 - Zero-cost abstractions with Lisp expressiveness
 - Pattern matching as a first-class citizen
 
 **For Everyone:**
+
 - Exploring language design boundaries
 - Bridging paradigms thoughtfully
 - Learning through alternative representations
@@ -697,6 +721,7 @@ We'll know Oxur is succeeding when:
 ## Closing Thoughts
 
 Oxur sits at the intersection of three powerful traditions:
+
 - **Lisp's elegance**: Code as data, metaprogramming, REPL-driven development
 - **Rust's safety**: Ownership, lifetimes, fearless concurrency
 - **Zetalisp's beauty**: Clean design, keyword arguments, orthogonality

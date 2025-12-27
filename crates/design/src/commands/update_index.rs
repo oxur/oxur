@@ -368,6 +368,9 @@ fn remove_from_section(content: &str, state: &str, path: &str) -> Result<String>
                 }
                 continue;
             }
+            // Add the section header to result and continue to next line
+            result.push(line.to_string());
+            continue;
         }
 
         // Check if leaving section
@@ -604,6 +607,67 @@ mod tests {
 
         let result = remove_from_section(content, "Draft", "draft/0002-second.md");
         assert!(result.is_ok());
+        let updated = result.unwrap();
+        assert!(!updated.contains("draft/0002-second.md"), "Entry should be removed");
+        assert!(updated.contains("draft/0001-first.md"), "Other entries should remain");
+        assert!(updated.contains("draft/0003-third.md"), "Other entries should remain");
+    }
+
+    #[test]
+    fn test_remove_from_section_with_full_index_structure() {
+        // Reproduce the exact bug scenario from the real index
+        let content = r#"# Design Document Index
+
+This index is automatically generated. Do not edit manually.
+
+## All Documents by Number
+
+| Number | Title | State | Updated |
+|--------|-------|-------|----------|
+| 0003 | Oxur Design Documentation CLI - Build Plan | Accepted | 2025-12-27 |
+| 0001 | Oxur: A Letter of Intent | Active | 2025-12-26 |
+
+## Documents by State
+
+### Draft
+
+- [0002 - This Should Be 0002](01-draft/0002-this-should-be-0002.md)
+- [0004 - Test Doc 4](01-draft/0004-test-doc-4.md)
+- [0004 - Should Be 4](01-draft/0004-should-be-4.md)
+
+### Accepted
+
+- [0003 - Oxur Design Documentation CLI - Build Plan](04-accepted/0003-oxur-design-documentation-cli-build-plan.md)
+
+### Active
+
+- [0001 - Oxur: A Letter of Intent](05-active/0001-oxur-letter-of-intent.md)
+"#;
+
+        // Remove the first phantom entry
+        let result1 = remove_from_section(content, "Draft", "01-draft/0002-this-should-be-0002.md");
+        assert!(result1.is_ok());
+        let updated1 = result1.unwrap();
+        assert!(!updated1.contains("01-draft/0002-this-should-be-0002.md"), "First entry should be removed");
+        assert!(updated1.contains("01-draft/0004-test-doc-4.md"), "Other entries should remain");
+        assert!(updated1.contains("01-draft/0004-should-be-4.md"), "Other entries should remain");
+
+        // Remove the second phantom entry
+        let result2 = remove_from_section(&updated1, "Draft", "01-draft/0004-test-doc-4.md");
+        assert!(result2.is_ok());
+        let updated2 = result2.unwrap();
+        assert!(!updated2.contains("01-draft/0002-this-should-be-0002.md"), "First entry should still be gone");
+        assert!(!updated2.contains("01-draft/0004-test-doc-4.md"), "Second entry should be removed");
+        assert!(updated2.contains("01-draft/0004-should-be-4.md"), "Other entries should remain");
+
+        // Remove the third phantom entry - section should be removed entirely
+        let result3 = remove_from_section(&updated2, "Draft", "01-draft/0004-should-be-4.md");
+        assert!(result3.is_ok());
+        let updated3 = result3.unwrap();
+        assert!(!updated3.contains("01-draft/0002-this-should-be-0002.md"), "First entry should still be gone");
+        assert!(!updated3.contains("01-draft/0004-test-doc-4.md"), "Second entry should still be gone");
+        assert!(!updated3.contains("01-draft/0004-should-be-4.md"), "Third entry should be removed");
+        assert!(!updated3.contains("### Draft"), "Empty Draft section should be removed");
     }
 
     #[test]
