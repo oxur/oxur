@@ -190,7 +190,7 @@ pub fn add_document(
     println!();
     let index = design::index::DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir())?;
     if let Err(e) = crate::commands::update_index::update_index(&index) {
-        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("{} Failed to update index", "Warning:".yellow());
         println!("  {}", e);
         println!("  Run 'oxd update-index' manually to sync the index");
     }

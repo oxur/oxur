@@ -77,7 +77,7 @@ pub fn transition_document(
     // Update the index to reflect the state change
     println!();
     if let Err(e) = crate::commands::update_index::update_index(index) {
-        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("{} Failed to update index", "Warning:".yellow());
         println!("  {}", e);
         println!("  Run 'oxd update-index' manually to sync the index");
     }
