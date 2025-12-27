@@ -145,6 +145,16 @@ pub fn execute(
     state_mgr.record_file_change(&new_location)?;
     println!("  ✓ Updated state tracking");
 
+    // Update the index to reflect the replacement
+    println!();
+    let index = design::index::DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir())
+        .context("Failed to create index")?;
+    if let Err(e) = crate::commands::update_index::update_index(&index) {
+        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("  {}", e);
+        println!("  Run 'oxd update-index' manually to sync the index");
+    }
+
     println!();
     println!("{}", "Document replaced successfully!".green().bold());
     println!("  Old version: {}", dustbin_path.display().to_string().yellow());

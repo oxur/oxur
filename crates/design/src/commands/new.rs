@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use chrono::Local;
+use colored::Colorize;
 use design::doc::DocState;
 use design::git;
 use design::index::DocumentIndex;
@@ -81,6 +82,14 @@ superseded-by: null
     println!("  Number: {:04}", number);
     println!("  Title: {}", title);
     println!("  File: {}", path.display());
+
+    // Update the index to reflect the new document
+    println!();
+    if let Err(e) = crate::commands::update_index::update_index(index) {
+        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("  {}", e);
+        println!("  Run 'oxd update-index' manually to sync the index");
+    }
 
     Ok(())
 }

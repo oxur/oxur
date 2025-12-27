@@ -62,6 +62,17 @@ To change document state/location, use: {}",
     println!("  View with: {}", format!("oxd show {}", old_number).yellow());
     println!();
 
+    // Step 7: Update the index to reflect the rename
+    println!();
+    let index = design::index::DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir())
+        .context("Failed to create index")?;
+    if let Err(e) = crate::commands::update_index::update_index(&index) {
+        use colored::Colorize;
+        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("  {}", e);
+        println!("  Run 'oxd update-index' manually to sync the index");
+    }
+
     Ok(())
 }
 

@@ -78,6 +78,14 @@ pub fn sync_location(index: &DocumentIndex, doc_path: &str) -> Result<()> {
     println!("  {}: {}", "From".dimmed(), current_dir.display());
     println!("  {}: {}", "To".dimmed(), target_dir.display());
 
+    // Update the index to reflect the location sync
+    println!();
+    if let Err(e) = crate::commands::update_index::update_index(index) {
+        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("  {}", e);
+        println!("  Run 'oxd update-index' manually to sync the index");
+    }
+
     Ok(())
 }
 

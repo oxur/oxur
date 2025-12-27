@@ -186,6 +186,15 @@ pub fn add_document(
         }
     }
 
+    // Step 11: Update the index to reflect the new document
+    println!();
+    let index = design::index::DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir())?;
+    if let Err(e) = crate::commands::update_index::update_index(&index) {
+        println!("{} {}", "Warning:".yellow(), "Failed to update index");
+        println!("  {}", e);
+        println!("  Run 'oxd update-index' manually to sync the index");
+    }
+
     println!("\n{} Successfully added: {}", "✓".green().bold(), new_filename.bold());
 
     Ok(())
