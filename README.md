@@ -21,10 +21,10 @@ Oxur is a Lisp that treats Rust as its compilation target and runtime. Drawing i
 This is a Cargo workspace containing multiple related crates:
 
 - **design/** - Design documentation and CLI tool for managing docs
-- **rast/** *(planned)* - Rust AST ↔ S-expression conversion
-- **lang/** *(planned)* - Oxur compiler (Stage 1)
-- **repl/** *(planned)* - REPL server/client
-- **cli/** *(planned)* - User-facing CLI tool
+- **oxur-ast/** - Rust AST ↔ S-expression representation
+- **oxur-lang/** *(planned)* - The Oxur Lisp dialect
+- **oxur-repl/** *(planned)* - REPL server/client
+- **oxur-cli/** *(planned)* - User-facing CLI tool
 
 ## Getting Started
 
@@ -64,7 +64,9 @@ cargo run -p design -- validate
 
 ## Design Documents
 
-All architectural decisions, specifications, and design discussions are documented in the `design/docs/` directory. Start with [00-index.md](design/docs/00-index.md).
+ODDs ("Oxur Design Documents"), like [Erlang EEPs](https://github.com/erlang/eep) and [Rust RFCs](https://github.com/rust-lang/rfcs), document all architectural decisions, specifications, and design discussions in the `crates/design/docs/` directory.
+
+Start with [00-index.md](crates/design/docs/00-index.md).
 
 ## Contributing
 
