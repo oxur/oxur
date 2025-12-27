@@ -39,8 +39,10 @@ fn main() {
     match Parser::parse_file(&intermediate_file) {
         Ok(sexp) => {
             println!("   ✓ Parsed simple-fn.sexp");
-            println!("   First 100 chars: {}...",
-                     print_sexp(&sexp).chars().take(100).collect::<String>());
+            println!(
+                "   First 100 chars: {}...",
+                print_sexp(&sexp).chars().take(100).collect::<String>()
+            );
         }
         Err(e) => {
             eprintln!("   ✗ Failed to parse: {}", e);
@@ -111,8 +113,10 @@ fn main() {
             match Parser::parse_file(&roundtrip_file) {
                 Ok(reparsed) => {
                     println!("   ✓ Round-trip successful!");
-                    println!("   Original and reparsed structures match: {}",
-                             print_sexp(&original) == print_sexp(&reparsed));
+                    println!(
+                        "   Original and reparsed structures match: {}",
+                        print_sexp(&original) == print_sexp(&reparsed)
+                    );
 
                     // Clean up
                     let _ = std::fs::remove_file(&roundtrip_file);

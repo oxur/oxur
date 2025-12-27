@@ -48,10 +48,7 @@ impl Parser {
     /// Returns other `ParseError` variants if the content is invalid.
     pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<SExp> {
         let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
-            ParseError::FileReadError {
-                path: path.as_ref().to_path_buf(),
-                source: e,
-            }
+            ParseError::FileReadError { path: path.as_ref().to_path_buf(), source: e }
         })?;
         Self::parse_str(&content)
     }
@@ -165,8 +162,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_parse_file_valid() {

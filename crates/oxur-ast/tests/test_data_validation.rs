@@ -10,9 +10,7 @@ fn test_data_dir() -> PathBuf {
 
 /// Helper to parse a file and return the result
 fn parse_test_file(path: &PathBuf) -> Result<(), String> {
-    Parser::parse_file(path)
-        .map(|_| ())
-        .map_err(|e| format!("Failed to parse {:?}: {}", path, e))
+    Parser::parse_file(path).map(|_| ()).map_err(|e| format!("Failed to parse {:?}: {}", path, e))
 }
 
 // ===== Simple Examples Validation =====
