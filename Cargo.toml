@@ -1,12 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "design", "oxur-ast",
+    "crates/design",
+    "crates/oxur-ast",
     # Future crates will be added here:
-    # "rast",
-    # "lang",
-    # "repl",
-    # "cli",
+    # "crates/rast",
+    # "crates/lang",
+    # "crates/repl",
+    # "crates/cli",
 ]
 
 # Workspace-wide dependencies (shared versions)

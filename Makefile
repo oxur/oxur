@@ -13,12 +13,12 @@ build: $(BIN_DIR)
 
 lint:
 	@echo "Running linter..."
-	@cargo clippy
+	@cargo clippy --all-features --workspace -- -D warnings
 	@cargo fmt --all -- --check
 
 test:
 	@echo "Running tests..."
-	@cargo test
+	@cargo test --all-features --workspace
 
 coverage:
 	@echo "Generating coverage report..."
