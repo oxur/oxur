@@ -648,7 +648,10 @@ This index is automatically generated. Do not edit manually.
         let result1 = remove_from_section(content, "Draft", "01-draft/0002-this-should-be-0002.md");
         assert!(result1.is_ok());
         let updated1 = result1.unwrap();
-        assert!(!updated1.contains("01-draft/0002-this-should-be-0002.md"), "First entry should be removed");
+        assert!(
+            !updated1.contains("01-draft/0002-this-should-be-0002.md"),
+            "First entry should be removed"
+        );
         assert!(updated1.contains("01-draft/0004-test-doc-4.md"), "Other entries should remain");
         assert!(updated1.contains("01-draft/0004-should-be-4.md"), "Other entries should remain");
 
@@ -656,17 +659,32 @@ This index is automatically generated. Do not edit manually.
         let result2 = remove_from_section(&updated1, "Draft", "01-draft/0004-test-doc-4.md");
         assert!(result2.is_ok());
         let updated2 = result2.unwrap();
-        assert!(!updated2.contains("01-draft/0002-this-should-be-0002.md"), "First entry should still be gone");
-        assert!(!updated2.contains("01-draft/0004-test-doc-4.md"), "Second entry should be removed");
+        assert!(
+            !updated2.contains("01-draft/0002-this-should-be-0002.md"),
+            "First entry should still be gone"
+        );
+        assert!(
+            !updated2.contains("01-draft/0004-test-doc-4.md"),
+            "Second entry should be removed"
+        );
         assert!(updated2.contains("01-draft/0004-should-be-4.md"), "Other entries should remain");
 
         // Remove the third phantom entry - section should be removed entirely
         let result3 = remove_from_section(&updated2, "Draft", "01-draft/0004-should-be-4.md");
         assert!(result3.is_ok());
         let updated3 = result3.unwrap();
-        assert!(!updated3.contains("01-draft/0002-this-should-be-0002.md"), "First entry should still be gone");
-        assert!(!updated3.contains("01-draft/0004-test-doc-4.md"), "Second entry should still be gone");
-        assert!(!updated3.contains("01-draft/0004-should-be-4.md"), "Third entry should be removed");
+        assert!(
+            !updated3.contains("01-draft/0002-this-should-be-0002.md"),
+            "First entry should still be gone"
+        );
+        assert!(
+            !updated3.contains("01-draft/0004-test-doc-4.md"),
+            "Second entry should still be gone"
+        );
+        assert!(
+            !updated3.contains("01-draft/0004-should-be-4.md"),
+            "Third entry should be removed"
+        );
         assert!(!updated3.contains("### Draft"), "Empty Draft section should be removed");
     }
 
