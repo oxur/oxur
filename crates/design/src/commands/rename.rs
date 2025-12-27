@@ -86,8 +86,17 @@ fn parse_and_validate_paths(old: &str, new: &str, docs_dir: &Path) -> Result<(Pa
         bail!("Document not found: {}", old_path.display());
     }
 
-    // Parse new path
-    let new_path = resolve_path(new, docs_dir)?;
+    // Parse new path - for rename, preserve directory if new path is just a filename
+    let new_path = if PathBuf::from(new).components().count() == 1 {
+        // Just a filename - keep it in the same directory as the old file
+        if let Some(parent) = old_path.parent() {
+            parent.join(new)
+        } else {
+            resolve_path(new, docs_dir)?
+        }
+    } else {
+        resolve_path(new, docs_dir)?
+    };
 
     // Validate new path doesn't exist
     if new_path.exists() {

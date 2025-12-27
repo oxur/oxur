@@ -6,14 +6,14 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0004 | Oxur Design Documentation CLI - Build Plan | Accepted | 2025-12-27 |
+| 0002 | Oxur Design Documentation CLI - Build Plan | Accepted | 2025-12-27 |
 | 0001 | Oxur: A Letter of Intent | Active | 2025-12-26 |
 
 ## Documents by State
 
 ### Accepted
 
-- [0004 - Oxur Design Documentation CLI - Build Plan](04-accepted/0004-oxur-design-documentation-cli-build-plan.md)
+- [0002 - Oxur Design Documentation CLI - Build Plan](04-accepted/0002-design-docs-cli.md)
 
 ### Active
 
