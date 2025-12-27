@@ -344,10 +344,9 @@ fn test_build_stmt_without_span() {
     assert_eq!(stmt.span.hi, 0);
 }
 
-// Note: Lines 59-60 and 75-76 (positional syntax fallback) are unreachable
-// because parse_kwargs() requires ALL elements to be keyword-value pairs.
-// If a non-keyword element is encountered, parse_kwargs() fails before
-// the positional fallback is checked. This appears to be incomplete/dead code.
+// Note: This test suite uses keyword syntax exclusively (e.g., :expr, :kind).
+// The builder enforces strict keyword-value pair syntax via parse_kwargs().
+// Positional syntax is not supported by design.
 
 // ===== ID Generation Tests =====
 

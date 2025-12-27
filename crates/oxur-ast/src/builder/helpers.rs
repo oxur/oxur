@@ -72,6 +72,22 @@ pub fn is_nil(sexp: &SExp) -> bool {
 
 /// Parse keyword-value pairs from a list
 /// Returns a map of keyword name -> value
+///
+/// # Design Note
+/// This function enforces strict keyword-value pair syntax.
+/// All elements after the node type (index 0) must be keyword-value pairs.
+///
+/// **Mixed positional/keyword syntax is intentionally NOT supported.**
+///
+/// # Format
+/// ```lisp
+/// (NodeType :key1 value1 :key2 value2 ...)
+/// ```
+///
+/// # Errors
+/// - Returns error if odd number of elements after node type
+/// - Returns error if non-keyword found where keyword expected
+/// - Returns error if value is missing after a keyword
 pub fn parse_kwargs(list: &List) -> Result<std::collections::HashMap<String, &SExp>> {
     let mut map = std::collections::HashMap::new();
     let mut i = 1; // Skip first element (node type)

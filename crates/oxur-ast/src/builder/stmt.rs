@@ -51,36 +51,27 @@ impl AstBuilder {
         match node_type.value.as_str() {
             "Semi" => {
                 let kwargs = parse_kwargs(list)?;
-                if let Some(expr_sexp) = kwargs.get("expr") {
-                    let expr = self.build_expr(expr_sexp)?;
-                    Ok(StmtKind::Semi(expr))
-                } else if list.elements.len() > 1 {
-                    // Expression is the second element
-                    let expr = self.build_expr(&list.elements[1])?;
-                    Ok(StmtKind::Semi(expr))
-                } else {
-                    Err(ParseError::Expected {
-                        expected: "expression".to_string(),
+                let expr_sexp = kwargs
+                    .get("expr")
+                    .ok_or_else(|| ParseError::Expected {
+                        expected: ":expr field".to_string(),
                         found: "missing".to_string(),
                         pos: list.pos,
-                    })
-                }
+                    })?;
+                let expr = self.build_expr(expr_sexp)?;
+                Ok(StmtKind::Semi(expr))
             }
             "Expr" => {
                 let kwargs = parse_kwargs(list)?;
-                if let Some(expr_sexp) = kwargs.get("expr") {
-                    let expr = self.build_expr(expr_sexp)?;
-                    Ok(StmtKind::Expr(expr))
-                } else if list.elements.len() > 1 {
-                    let expr = self.build_expr(&list.elements[1])?;
-                    Ok(StmtKind::Expr(expr))
-                } else {
-                    Err(ParseError::Expected {
-                        expected: "expression".to_string(),
+                let expr_sexp = kwargs
+                    .get("expr")
+                    .ok_or_else(|| ParseError::Expected {
+                        expected: ":expr field".to_string(),
                         found: "missing".to_string(),
                         pos: list.pos,
-                    })
-                }
+                    })?;
+                let expr = self.build_expr(expr_sexp)?;
+                Ok(StmtKind::Expr(expr))
             }
             "Empty" => Ok(StmtKind::Empty),
             _ => Err(ParseError::Expected {
