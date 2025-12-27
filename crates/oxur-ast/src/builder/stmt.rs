@@ -51,25 +51,21 @@ impl AstBuilder {
         match node_type.value.as_str() {
             "Semi" => {
                 let kwargs = parse_kwargs(list)?;
-                let expr_sexp = kwargs
-                    .get("expr")
-                    .ok_or_else(|| ParseError::Expected {
-                        expected: ":expr field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?;
+                let expr_sexp = kwargs.get("expr").ok_or_else(|| ParseError::Expected {
+                    expected: ":expr field".to_string(),
+                    found: "missing".to_string(),
+                    pos: list.pos,
+                })?;
                 let expr = self.build_expr(expr_sexp)?;
                 Ok(StmtKind::Semi(expr))
             }
             "Expr" => {
                 let kwargs = parse_kwargs(list)?;
-                let expr_sexp = kwargs
-                    .get("expr")
-                    .ok_or_else(|| ParseError::Expected {
-                        expected: ":expr field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?;
+                let expr_sexp = kwargs.get("expr").ok_or_else(|| ParseError::Expected {
+                    expected: ":expr field".to_string(),
+                    found: "missing".to_string(),
+                    pos: list.pos,
+                })?;
                 let expr = self.build_expr(expr_sexp)?;
                 Ok(StmtKind::Expr(expr))
             }
