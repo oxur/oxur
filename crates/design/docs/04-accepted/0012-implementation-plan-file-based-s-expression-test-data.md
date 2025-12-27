@@ -4,7 +4,7 @@ title: "Implementation Plan: File-Based S-Expression Test Data"
 author: "AST node"
 created: 2025-12-27
 updated: 2025-12-27
-state: Active
+state: Accepted
 supersedes: null
 superseded-by: null
 ---

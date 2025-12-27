@@ -6,7 +6,8 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0012 | Implementation Plan: File-Based S-Expression Test Data | Active | 2025-12-27 |
+| 0013 | Oxur Compilation Chain Architecture | Under Review | 2025-12-27 |
+| 0012 | Implementation Plan: File-Based S-Expression Test Data | Accepted | 2025-12-27 |
 | 0011 | Dead Code Remediation Plan: oxur-ast Builder System | Final | 2025-12-27 |
 | 0010 | Oxur Design Documentation CLI - Phases 9-10 Build Plan | Final | 2025-12-27 |
 | 0009 | Oxur Design Documentation CLI - Extended Features Plan (Phases 6-8) | Final | 2025-12-27 |
@@ -21,9 +22,16 @@ This index is automatically generated. Do not edit manually.
 
 ## Documents by State
 
+### Under Review
+
+- [0013 - Oxur Compilation Chain Architecture](02-under-review/0013-oxur-compilation-chain-architecture.md)
+
+### Accepted
+
+- [0012 - Implementation Plan: File-Based S-Expression Test Data](04-accepted/0012-implementation-plan-file-based-s-expression-test-data.md)
+
 ### Active
 
-- [0012 - Implementation Plan: File-Based S-Expression Test Data](05-active/0012-implementation-plan-file-based-s-expression-test-data.md)
 - [0008 - oxur-ast Phase 4: Complete AST Coverage & Code Generation](05-active/0008-oxur-ast-phase-4-complete-ast-coverage-code-generation.md)
 - [0007 - oxur-ast Phase 3: Integration, Testing & CLI](05-active/0007-oxur-ast-phase-3-integration-testing-cli.md)
 - [0006 - oxur-ast Phase 2: Generator (Rust AST → S-expression)](05-active/0006-oxur-ast-phase-2-generator-rust-ast-s-expression.md)
