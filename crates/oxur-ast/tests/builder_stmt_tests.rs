@@ -324,6 +324,31 @@ fn test_build_block_without_explicit_stmts() {
     assert_eq!(block.id, NodeId(300));
 }
 
+// ===== Span Tests =====
+
+#[test]
+fn test_build_stmt_without_span() {
+    // Test that missing :span field uses Span::DUMMY (line 35)
+    let input = r#"(Stmt
+      :id 10
+      :kind (Empty))"#;
+
+    let sexp = Parser::parse_str(input).unwrap();
+    let mut builder = AstBuilder::new();
+    let stmt = builder.build_stmt(&sexp).unwrap();
+
+    assert!(matches!(stmt.kind, StmtKind::Empty));
+    assert_eq!(stmt.id, NodeId(10));
+    // DUMMY span has lo=0, hi=0
+    assert_eq!(stmt.span.lo, 0);
+    assert_eq!(stmt.span.hi, 0);
+}
+
+// Note: Lines 59-60 and 75-76 (positional syntax fallback) are unreachable
+// because parse_kwargs() requires ALL elements to be keyword-value pairs.
+// If a non-keyword element is encountered, parse_kwargs() fails before
+// the positional fallback is checked. This appears to be incomplete/dead code.
+
 // ===== ID Generation Tests =====
 
 #[test]

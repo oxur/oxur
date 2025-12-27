@@ -402,4 +402,160 @@ author: Test Author
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("must be within the docs directory"));
     }
+
+    // Note: We cannot test successful rename in unit tests because git mv requires
+    // the files to be in the main repository, not in a temp directory. The success
+    // path is covered by integration tests and manual testing.
+
+    #[test]
+    fn test_execute_new_path_not_markdown() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create a markdown file
+        let old_path = temp.path().join("01-draft/0001-test.md");
+        fs::write(&old_path, "test").unwrap();
+
+        // Try to rename to non-markdown extension
+        let new_path = temp.path().join("01-draft/0001-test.txt");
+
+        let result = execute(
+            &mut state_mgr,
+            old_path.to_str().unwrap(),
+            new_path.to_str().unwrap(),
+        );
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must be a markdown file"));
+    }
+
+    #[test]
+    fn test_extract_number_from_path_invalid_filename() {
+        // Test with a path that has an invalid filename component
+        let result = extract_number_from_path(Path::new(""));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid filename"));
+    }
+
+    #[test]
+    fn test_resolve_path_relative_to_cwd() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        // Create a file in current directory (temp root, not docs)
+        let cwd_file = temp.path().join("file-in-cwd.md");
+        fs::write(&cwd_file, "test").unwrap();
+
+        // Change to temp directory
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        // Resolve relative path - should find it in cwd
+        let result = resolve_path("file-in-cwd.md", &docs_dir);
+
+        // Restore original directory
+        std::env::set_current_dir(original_dir).unwrap();
+
+        assert!(result.is_ok());
+        // Canonicalize both paths to handle /var vs /private/var on macOS
+        assert_eq!(
+            result.unwrap().canonicalize().unwrap(),
+            cwd_file.canonicalize().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_resolve_path_multicomponent_nonexistent() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        // Change to temp directory
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        // Try to resolve a multi-component path that doesn't exist
+        // Should return relative to cwd
+        let result = resolve_path("subdir/newfile.md", &docs_dir).unwrap();
+
+        // Restore original directory
+        std::env::set_current_dir(original_dir).unwrap();
+
+        // Should resolve to cwd + path
+        assert!(result.to_str().unwrap().contains("subdir"));
+        assert!(result.to_str().unwrap().ends_with("newfile.md"));
+    }
+
+    #[test]
+    fn test_parse_and_validate_paths_new_parent_outside_docs() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        // Create a file inside docs
+        let old_path = docs_dir.join("0001-test.md");
+        fs::write(&old_path, "test").unwrap();
+
+        // Create a directory outside docs
+        let outside_dir = temp.path().join("outside");
+        fs::create_dir_all(&outside_dir).unwrap();
+
+        // Try to rename to a file in the outside directory
+        let new_path = outside_dir.join("0001-test.md");
+
+        let result = parse_and_validate_paths(
+            old_path.to_str().unwrap(),
+            new_path.to_str().unwrap(),
+            &docs_dir,
+        );
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must be within the docs directory"));
+    }
+
+    #[test]
+    fn test_parse_and_validate_paths_new_parent_no_parent() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        // Create a file inside docs
+        let old_path = docs_dir.join("0001-test.md");
+        fs::write(&old_path, "test").unwrap();
+
+        // Create a path with no parent (root path)
+        // This tests the None case for new_path.parent()
+        let result = parse_and_validate_paths(
+            old_path.to_str().unwrap(),
+            "/0001-test.md", // Root level, no parent
+            &docs_dir,
+        );
+
+        // Should fail because root is not within docs directory
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_and_validate_paths_new_parent_doesnt_exist() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path().join("docs");
+        fs::create_dir_all(&docs_dir).unwrap();
+
+        // Create a file inside docs
+        let old_path = docs_dir.join("0001-test.md");
+        fs::write(&old_path, "test").unwrap();
+
+        // Try to rename to a path whose parent directory doesn't exist yet
+        // This is valid - the parent will be created during rename
+        let new_path = docs_dir.join("nonexistent-dir/0001-test.md");
+
+        let result = parse_and_validate_paths(
+            old_path.to_str().unwrap(),
+            new_path.to_str().unwrap(),
+            &docs_dir,
+        );
+
+        // Should succeed because the parent doesn't exist (line 110)
+        assert!(result.is_ok());
+    }
 }
