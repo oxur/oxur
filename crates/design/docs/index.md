@@ -1,4 +1,4 @@
-# Design Document Index
+# Oxur Design Document Index
 
 This index is automatically generated. Do not edit manually.
 

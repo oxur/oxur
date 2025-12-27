@@ -1,7 +1,7 @@
 //! Index generation command implementation
 
 use anyhow::Result;
-use design::constants::{INDEX_FILENAME, INDEX_JSON_FILENAME};
+use design::constants::{INDEX_FILENAME, INDEX_JSON_FILENAME, INDEX_TITLE};
 use design::doc::DocState;
 use design::index::DocumentIndex;
 use std::fs;
@@ -23,7 +23,7 @@ fn generate_markdown_index(index: &DocumentIndex) -> Result<()> {
     let mut content = String::new();
 
     // Header
-    content.push_str("# Design Document Index\n\n");
+    content.push_str(&format!("# {}\n\n", INDEX_TITLE));
     content.push_str("This index is automatically generated. Do not edit manually.\n\n");
 
     // Table section
@@ -172,7 +172,7 @@ mod tests {
 
         // Verify content structure
         let content = fs::read_to_string(&index_path).unwrap();
-        assert!(content.contains("# Design Document Index"));
+        assert!(content.contains(&format!("# {}", INDEX_TITLE)));
         assert!(content.contains("## All Documents by Number"));
         assert!(content.contains("| Number | Title | State | Updated |"));
         assert!(content.contains("## Documents by State"));
@@ -270,7 +270,7 @@ mod tests {
         assert!(index_path.exists());
 
         let content = fs::read_to_string(&index_path).unwrap();
-        assert!(content.contains("# Design Document Index"));
+        assert!(content.contains(&format!("# {}", INDEX_TITLE)));
         // Should have headers but no document entries
     }
 
