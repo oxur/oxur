@@ -2,9 +2,14 @@
 
 (Crate
   :items ((Item
-    :vis Public
+    :vis (Public)
+    :ident (Ident :name "main")
     :kind (Fn
-      :sig (FnSig :name "main" :params () :return-type nil)
-      :body (Block :stmts () :span (Span :lo 0 :hi 0)))
-    :span (Span :lo 0 :hi 0)))
-  :span (Span :lo 0 :hi 0))
+      :defaultness Final
+      :sig (FnSig
+        :header (FnHeader :safety Default :constness NotConst)
+        :decl (FnDecl :inputs () :output (Default)))
+      :generics (Generics :params ())
+      :body (Block :stmts () :id 1 :span (Span :lo 0 :hi 0)))))
+  :spans (ModSpans :inner-span (Span :lo 0 :hi 0))
+  :id 0)

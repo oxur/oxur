@@ -21,6 +21,31 @@ impl Parser {
     }
 
     /// Parse an S-expression from a file
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use oxur_ast::sexp::Parser;
+    ///
+    /// // Parse from a file path
+    /// let sexp = Parser::parse_file("example.sexp")?;
+    /// # Ok::<(), oxur_ast::ParseError>(())
+    /// ```
+    ///
+    /// ```no_run
+    /// use oxur_ast::sexp::Parser;
+    /// use std::path::PathBuf;
+    ///
+    /// // Parse from a PathBuf
+    /// let path = PathBuf::from("data/crate.sexp");
+    /// let sexp = Parser::parse_file(&path)?;
+    /// # Ok::<(), oxur_ast::ParseError>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns `ParseError::FileReadError` if the file cannot be read.
+    /// Returns other `ParseError` variants if the content is invalid.
     pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<SExp> {
         let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
             ParseError::FileReadError {

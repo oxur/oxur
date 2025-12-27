@@ -19,6 +19,31 @@ impl Printer {
     }
 
     /// Write an S-expression to a file
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use oxur_ast::sexp::{Parser, Printer};
+    ///
+    /// let sexp = Parser::parse_str("(foo bar baz)")?;
+    /// let printer = Printer::new();
+    /// printer.write_file(&sexp, "output.sexp")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// ```no_run
+    /// use oxur_ast::sexp::{Parser, Printer};
+    /// use std::path::PathBuf;
+    ///
+    /// let sexp = Parser::parse_str("(Crate :items ())")?;
+    /// let printer = Printer::with_indent(4);
+    /// printer.write_file(&sexp, PathBuf::from("data/output.sexp"))?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns `std::io::Error` if the file cannot be written.
     pub fn write_file<P: AsRef<Path>>(&self, sexp: &SExp, path: P) -> std::io::Result<()> {
         let content = self.print(sexp);
         std::fs::write(path.as_ref(), content)?;
@@ -115,6 +140,39 @@ pub fn print_sexp(sexp: &SExp) -> String {
 }
 
 /// Convenience function for writing S-expressions to a file
+///
+/// This function uses the default printer (2-space indentation).
+/// For custom indentation, create a `Printer` and use its `write_file` method.
+///
+/// # Examples
+///
+/// ```no_run
+/// use oxur_ast::sexp::{Parser, write_sexp_file};
+///
+/// let sexp = Parser::parse_str("(foo bar baz)")?;
+/// write_sexp_file(&sexp, "output.sexp")?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// Round-trip example:
+///
+/// ```no_run
+/// use oxur_ast::sexp::{Parser, write_sexp_file};
+///
+/// // Read from one file
+/// let sexp = Parser::parse_file("input.sexp")?;
+///
+/// // Write to another file
+/// write_sexp_file(&sexp, "output.sexp")?;
+///
+/// // Read back and verify
+/// let reparsed = Parser::parse_file("output.sexp")?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// Returns `std::io::Error` if the file cannot be written.
 pub fn write_sexp_file<P: AsRef<Path>>(sexp: &SExp, path: P) -> std::io::Result<()> {
     Printer::new().write_file(sexp, path)
 }
