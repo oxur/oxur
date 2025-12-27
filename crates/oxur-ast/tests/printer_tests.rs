@@ -2,6 +2,25 @@ use oxur_ast::error::Position;
 use oxur_ast::sexp::{
     print_sexp, Keyword, List, Nil, Number, Parser, Printer, SExp, StringLit, Symbol,
 };
+use std::path::PathBuf;
+
+/// Helper function to parse an example file from test-data/examples/
+fn parse_example(path: &str) -> SExp {
+    let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("test-data/examples")
+        .join(path);
+    Parser::parse_file(&full_path)
+        .unwrap_or_else(|e| panic!("Failed to parse example {}: {}", path, e))
+}
+
+/// Helper function to parse a fixture file from test-data/fixtures/
+fn parse_fixture(path: &str) -> SExp {
+    let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("test-data/fixtures")
+        .join(path);
+    Parser::parse_file(&full_path)
+        .unwrap_or_else(|e| panic!("Failed to parse fixture {}: {}", path, e))
+}
 
 #[test]
 fn test_print_symbol() {
@@ -228,4 +247,80 @@ fn round_trip(input: &str) {
     let printed = print_sexp(&parsed);
     let reparsed = Parser::parse_str(&printed).unwrap();
     assert_eq!(parsed, reparsed);
+}
+
+// Round-trip tests using external fixtures
+#[test]
+fn test_round_trip_simple_examples() {
+    let examples = vec![
+        "simple/nil-value.sexp",
+        "simple/number.sexp",
+        "simple/symbol.sexp",
+        "simple/keyword.sexp",
+        "simple/string.sexp",
+        "simple/empty-list.sexp",
+        "simple/simple-list.sexp",
+    ];
+
+    for example in examples {
+        let parsed = parse_example(example);
+        let printed = print_sexp(&parsed);
+        let reparsed = Parser::parse_str(&printed).unwrap();
+        assert_sexp_structure_eq(&parsed, &reparsed);
+    }
+}
+
+#[test]
+fn test_round_trip_intermediate_examples() {
+    let examples = vec![
+        "intermediate/simple-fn.sexp",
+        "intermediate/macro-call.sexp",
+        "intermediate/path-expr.sexp",
+        "intermediate/nested-blocks.sexp",
+    ];
+
+    for example in examples {
+        let parsed = parse_example(example);
+        let printed = print_sexp(&parsed);
+        let reparsed = Parser::parse_str(&printed).unwrap();
+        assert_sexp_structure_eq(&parsed, &reparsed);
+    }
+}
+
+#[test]
+fn test_round_trip_complex_examples() {
+    let examples = vec![
+        "complex/full-crate.sexp",
+        "complex/deeply-nested.sexp",
+        "complex/all-node-types.sexp",
+    ];
+
+    for example in examples {
+        let parsed = parse_example(example);
+        let printed = print_sexp(&parsed);
+        let reparsed = Parser::parse_str(&printed).unwrap();
+        assert_sexp_structure_eq(&parsed, &reparsed);
+    }
+}
+
+#[test]
+fn test_round_trip_fixtures() {
+    let fixtures = vec![
+        "crate/empty.sexp",
+        "crate/with-one-item.sexp",
+        "item/public-function.sexp",
+        "expr/macro-call-empty.sexp",
+        "expr/path-single-segment.sexp",
+        "stmt/empty.sexp",
+        "stmt/expr.sexp",
+        "block/empty.sexp",
+        "block/nested.sexp",
+    ];
+
+    for fixture in fixtures {
+        let parsed = parse_fixture(fixture);
+        let printed = print_sexp(&parsed);
+        let reparsed = Parser::parse_str(&printed).unwrap();
+        assert_sexp_structure_eq(&parsed, &reparsed);
+    }
 }

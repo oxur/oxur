@@ -1,5 +1,32 @@
 use oxur_ast::sexp::{Parser, SExp};
 use oxur_ast::ParseError;
+use std::path::PathBuf;
+
+/// Helper function to parse an example file from test-data/examples/
+fn parse_example(path: &str) -> SExp {
+    let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("test-data/examples")
+        .join(path);
+    Parser::parse_file(&full_path)
+        .unwrap_or_else(|e| panic!("Failed to parse example {}: {}", path, e))
+}
+
+/// Helper function to parse a fixture file from test-data/fixtures/
+fn parse_fixture(path: &str) -> SExp {
+    let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("test-data/fixtures")
+        .join(path);
+    Parser::parse_file(&full_path)
+        .unwrap_or_else(|e| panic!("Failed to parse fixture {}: {}", path, e))
+}
+
+/// Helper function to attempt parsing an error case from test-data/error-cases/
+fn parse_error_case(path: &str) -> Result<SExp, ParseError> {
+    let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("test-data/error-cases")
+        .join(path);
+    Parser::parse_file(&full_path)
+}
 
 #[test]
 fn test_parse_symbol() {
@@ -130,9 +157,16 @@ fn test_parse_nested_list() {
 
 #[test]
 fn test_parse_deeply_nested_list() {
-    let sexp = Parser::parse_str("(a (b (c (d))))").unwrap();
+    let sexp = parse_example("complex/deeply-nested.sexp");
     match sexp {
-        SExp::List(l) => assert_eq!(l.elements.len(), 2),
+        SExp::List(l) => {
+            // This is a Crate with deeply nested blocks
+            assert!(l.elements.len() > 0);
+            match &l.elements[0] {
+                SExp::Symbol(s) => assert_eq!(s.value, "Crate"),
+                _ => panic!("Expected Crate symbol"),
+            }
+        }
         _ => panic!("Expected List"),
     }
 }
@@ -223,7 +257,7 @@ fn test_parse_with_comment() {
 
 #[test]
 fn test_parse_unterminated_list() {
-    let result = Parser::parse_str("(foo bar");
+    let result = parse_error_case("unterminated-list.sexp");
     assert!(result.is_err());
     match result {
         Err(ParseError::UnterminatedList { .. }) => (),
@@ -233,7 +267,7 @@ fn test_parse_unterminated_list() {
 
 #[test]
 fn test_parse_unexpected_close_paren() {
-    let result = Parser::parse_str(")");
+    let result = parse_error_case("unexpected-close.sexp");
     assert!(result.is_err());
     match result {
         Err(ParseError::UnexpectedCloseParen { .. }) => (),
@@ -313,4 +347,80 @@ fn test_parse_real_world_example() {
         }
         _ => panic!("Expected List"),
     }
+}
+
+// Tests using error-cases fixtures
+#[test]
+fn test_parse_unterminated_string() {
+    let result = parse_error_case("unterminated-string.sexp");
+    assert!(result.is_err());
+    match result {
+        Err(ParseError::LexError(_)) => (), // Lexer catches this
+        _ => panic!("Expected LexError for unterminated string"),
+    }
+}
+
+#[test]
+fn test_parse_invalid_escape() {
+    let result = parse_error_case("invalid-escape.sexp");
+    assert!(result.is_err());
+    match result {
+        Err(ParseError::LexError(_)) => (), // Lexer catches this
+        _ => panic!("Expected LexError for invalid escape"),
+    }
+}
+
+// Tests using fixtures
+#[test]
+fn test_parse_empty_crate_fixture() {
+    let sexp = parse_fixture("crate/empty.sexp");
+    match sexp {
+        SExp::List(l) => {
+            assert!(l.elements.len() >= 1);
+            match &l.elements[0] {
+                SExp::Symbol(s) => assert_eq!(s.value, "Crate"),
+                _ => panic!("Expected Crate symbol"),
+            }
+        }
+        _ => panic!("Expected List"),
+    }
+}
+
+#[test]
+fn test_parse_nested_block_fixture() {
+    let sexp = parse_fixture("block/nested.sexp");
+    match sexp {
+        SExp::List(l) => {
+            assert!(l.elements.len() >= 1);
+            match &l.elements[0] {
+                SExp::Symbol(s) => assert_eq!(s.value, "Block"),
+                _ => panic!("Expected Block symbol"),
+            }
+        }
+        _ => panic!("Expected List"),
+    }
+}
+
+// Tests using examples
+#[test]
+fn test_parse_simple_examples() {
+    let _ = parse_example("simple/nil-value.sexp");
+    let _ = parse_example("simple/number.sexp");
+    let _ = parse_example("simple/symbol.sexp");
+    let _ = parse_example("simple/keyword.sexp");
+    let _ = parse_example("simple/string.sexp");
+    let _ = parse_example("simple/empty-list.sexp");
+}
+
+#[test]
+fn test_parse_intermediate_examples() {
+    let _ = parse_example("intermediate/simple-fn.sexp");
+    let _ = parse_example("intermediate/macro-call.sexp");
+    let _ = parse_example("intermediate/path-expr.sexp");
+}
+
+#[test]
+fn test_parse_complex_examples() {
+    let _ = parse_example("complex/full-crate.sexp");
+    let _ = parse_example("complex/all-node-types.sexp");
 }
