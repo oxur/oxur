@@ -4,7 +4,7 @@ title: "Oxur Design Documentation CLI - Build Plan"
 author: "document number"
 created: 2025-12-27
 updated: 2025-12-27
-state: Accepted
+state: Final
 supersedes: null
 superseded-by: null
 ---

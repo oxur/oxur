@@ -138,6 +138,10 @@ pub enum Commands {
         /// Path to document file
         path: String,
 
+        /// Initial state for the document (draft, accepted, active, etc.)
+        #[arg(short, long)]
+        state: Option<String>,
+
         /// Show what would be done without making changes
         #[arg(long)]
         dry_run: bool,

@@ -132,11 +132,11 @@ pub(crate) fn execute_command(
         Commands::Transition { path, state } => transition_document(index, &path, &state),
         Commands::SyncLocation { path } => sync_location(index, &path),
         Commands::UpdateIndex => update_index(index),
-        Commands::Add { path, dry_run, interactive, yes, preview } => {
+        Commands::Add { path, state, dry_run, interactive, yes, preview } => {
             if preview {
                 preview_add(&path, state_mgr)
             } else {
-                add_document(state_mgr, &path, dry_run, interactive, yes)
+                add_document(state_mgr, &path, state.as_deref(), dry_run, interactive, yes)
             }
         }
         Commands::AddBatch { patterns, dry_run, interactive } => {
