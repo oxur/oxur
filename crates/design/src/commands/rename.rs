@@ -1,0 +1,183 @@
+//! Rename command implementation
+
+use anyhow::{bail, Context, Result};
+use colored::Colorize;
+use design::state::StateManager;
+use std::path::{Path, PathBuf};
+
+pub fn execute(state_mgr: &mut StateManager, old_path: &str, new_path: &str) -> Result<()> {
+    println!();
+    println!("{}", "Renaming document...".cyan().bold());
+    println!();
+
+    // Step 1: Parse and validate paths
+    let docs_dir = state_mgr.docs_dir();
+    let (old_full, new_full) = parse_and_validate_paths(old_path, new_path, docs_dir)?;
+
+    println!("  From: {}", old_full.display().to_string().white());
+    println!("  To:   {}", new_full.display().to_string().cyan());
+    println!();
+
+    // Step 2: Extract and verify numbers match
+    let old_number = extract_number_from_path(&old_full)?;
+    let new_number = extract_number_from_path(&new_full)?;
+
+    if old_number != new_number {
+        bail!(
+            "{}
+
+Cannot change document number during rename.
+  Old number: {}
+  New number: {}
+
+To change document state/location, use: {}",
+            "Number mismatch!".red().bold(),
+            format!("{:04}", old_number).yellow(),
+            format!("{:04}", new_number).yellow(),
+            "oxd transition <doc> <state>".cyan()
+        );
+    }
+
+    println!("  ✓ Number preserved: {}", format!("{:04}", old_number).yellow());
+    println!();
+
+    // Step 3: Verify document exists in state
+    let _doc_record = state_mgr.state().get(old_number).ok_or_else(|| {
+        anyhow::anyhow!("Document {} not found in state. Run 'oxd scan' to sync.", old_number)
+    })?;
+
+    // Step 4: Perform git mv
+    design::git::git_mv(&old_full, &new_full).context("Failed to rename file with git")?;
+    println!("  ✓ Renamed file with git mv");
+
+    // Step 5: Update state manager - record the file move
+    state_mgr.record_file_move(&old_full, &new_full).context("Failed to update state")?;
+    println!("  ✓ Updated state");
+
+    // Step 6: Save state
+    state_mgr.save().context("Failed to save state")?;
+
+    println!();
+    println!("{}", "Rename complete!".green().bold());
+    println!("  View with: {}", format!("oxd show {}", old_number).yellow());
+    println!();
+
+    Ok(())
+}
+
+/// Parse paths and validate they're within docs directory
+fn parse_and_validate_paths(old: &str, new: &str, docs_dir: &Path) -> Result<(PathBuf, PathBuf)> {
+    // Parse old path
+    let old_path = resolve_path(old, docs_dir)?;
+
+    // Validate old path exists
+    if !old_path.exists() {
+        bail!("Document not found: {}", old_path.display());
+    }
+
+    // Parse new path
+    let new_path = resolve_path(new, docs_dir)?;
+
+    // Validate new path doesn't exist
+    if new_path.exists() {
+        bail!("Destination already exists: {}", new_path.display());
+    }
+
+    // Validate both are .md files
+    if old_path.extension().and_then(|e| e.to_str()) != Some("md") {
+        bail!("Old path must be a markdown file (.md)");
+    }
+    if new_path.extension().and_then(|e| e.to_str()) != Some("md") {
+        bail!("New path must be a markdown file (.md)");
+    }
+
+    // Validate both are within docs directory
+    let old_canonical = old_path.canonicalize().context("Failed to resolve old path")?;
+    let docs_canonical = docs_dir.canonicalize().context("Failed to resolve docs directory")?;
+
+    if !old_canonical.starts_with(&docs_canonical) {
+        bail!("Old path must be within the docs directory");
+    }
+
+    // For new path, check its parent directory is within docs
+    if let Some(new_parent) = new_path.parent() {
+        if new_parent.exists() {
+            let new_parent_canonical =
+                new_parent.canonicalize().context("Failed to resolve new path parent")?;
+            if !new_parent_canonical.starts_with(&docs_canonical) {
+                bail!("New path must be within the docs directory");
+            }
+        }
+    }
+
+    Ok((old_path, new_path))
+}
+
+/// Resolve a path relative to docs directory or as absolute
+fn resolve_path(path_str: &str, docs_dir: &Path) -> Result<PathBuf> {
+    let path = PathBuf::from(path_str);
+
+    // If it's already absolute, use as-is
+    if path.is_absolute() {
+        return Ok(path);
+    }
+
+    // Try relative to current directory first
+    let relative_to_cwd = std::env::current_dir()?.join(&path);
+    if relative_to_cwd.exists() {
+        return Ok(relative_to_cwd);
+    }
+
+    // Try relative to docs directory
+    let relative_to_docs = docs_dir.join(&path);
+    if relative_to_docs.exists() {
+        return Ok(relative_to_docs);
+    }
+
+    // For new paths (that don't exist), try to infer
+    // If it looks like just a filename, put it in docs dir
+    if path.components().count() == 1 {
+        return Ok(docs_dir.join(&path));
+    }
+
+    // Otherwise use relative to current directory
+    Ok(relative_to_cwd)
+}
+
+/// Extract document number from filename
+fn extract_number_from_path(path: &Path) -> Result<u32> {
+    let filename = path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
+
+    // Use existing extraction function
+    let number = design::doc::extract_number_from_filename(filename);
+
+    if number == 0 {
+        bail!(
+            "Could not extract document number from filename: {}. Expected format: 0001-title.md",
+            filename
+        );
+    }
+
+    Ok(number)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_number() {
+        assert_eq!(extract_number_from_path(Path::new("0001-test.md")).unwrap(), 1);
+        assert_eq!(extract_number_from_path(Path::new("0042-feature.md")).unwrap(), 42);
+        assert_eq!(extract_number_from_path(Path::new("/path/to/0123-doc.md")).unwrap(), 123);
+    }
+
+    #[test]
+    fn test_extract_number_invalid() {
+        assert!(extract_number_from_path(Path::new("test.md")).is_err());
+        assert!(extract_number_from_path(Path::new("abc-test.md")).is_err());
+    }
+}

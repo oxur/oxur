@@ -51,6 +51,7 @@ pub enum DebugCommands {
 }
 
 #[derive(Subcommand)]
+#[command(next_display_order = None)] // Enable alphabetical sorting in help output
 pub enum Commands {
     /// List all design documents
     #[command(visible_alias = "ls")]
@@ -214,6 +215,15 @@ pub enum Commands {
     Remove {
         /// Document number or filename
         doc: String,
+    },
+
+    /// Rename a document file (preserves number)
+    Rename {
+        /// Old file path
+        old: String,
+
+        /// New file path
+        new: String,
     },
 
     /// Replace a document while preserving its ID

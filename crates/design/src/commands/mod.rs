@@ -8,6 +8,7 @@ pub mod info;
 pub mod list;
 pub mod new;
 pub mod remove;
+pub mod rename;
 pub mod replace;
 pub mod scan;
 pub mod search;

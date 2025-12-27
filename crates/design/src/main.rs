@@ -157,6 +157,7 @@ pub(crate) fn execute_command(
         }
         Commands::Info { subcommand } => commands::info::execute(subcommand, state_mgr),
         Commands::Remove { doc } => remove_document(state_mgr, &doc),
+        Commands::Rename { old, new } => commands::rename::execute(state_mgr, &old, &new),
         Commands::Replace { old, new } => replace_document(state_mgr, &old, &new),
     }
 }
