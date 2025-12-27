@@ -180,11 +180,7 @@ mod tests {
         fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
 
         // Initialize git repo (required for StateManager)
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(docs_dir)
-            .output()
-            .unwrap();
+        std::process::Command::new("git").args(["init"]).current_dir(docs_dir).output().unwrap();
 
         std::process::Command::new("git")
             .args(["config", "user.name", "Test User"])
@@ -327,11 +323,7 @@ author: Test Author
     fn test_execute_old_file_not_found() {
         let (_temp, mut state_mgr) = setup_test_state_manager();
 
-        let result = execute(
-            &mut state_mgr,
-            "nonexistent.md",
-            "new.md",
-        );
+        let result = execute(&mut state_mgr, "nonexistent.md", "new.md");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Document not found"));
     }
@@ -360,11 +352,8 @@ author: Test Author
             .output()
             .unwrap();
 
-        let result = execute(
-            &mut state_mgr,
-            old_path.to_str().unwrap(),
-            new_path.to_str().unwrap(),
-        );
+        let result =
+            execute(&mut state_mgr, old_path.to_str().unwrap(), new_path.to_str().unwrap());
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Destination already exists"));
     }
@@ -394,11 +383,7 @@ author: Test Author
         let outside_path = temp.path().join("outside.md");
         fs::write(&outside_path, "test").unwrap();
 
-        let result = parse_and_validate_paths(
-            outside_path.to_str().unwrap(),
-            "new.md",
-            &docs_dir,
-        );
+        let result = parse_and_validate_paths(outside_path.to_str().unwrap(), "new.md", &docs_dir);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("must be within the docs directory"));
     }
@@ -418,11 +403,8 @@ author: Test Author
         // Try to rename to non-markdown extension
         let new_path = temp.path().join("01-draft/0001-test.txt");
 
-        let result = execute(
-            &mut state_mgr,
-            old_path.to_str().unwrap(),
-            new_path.to_str().unwrap(),
-        );
+        let result =
+            execute(&mut state_mgr, old_path.to_str().unwrap(), new_path.to_str().unwrap());
 
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("must be a markdown file"));
@@ -458,10 +440,7 @@ author: Test Author
 
         assert!(result.is_ok());
         // Canonicalize both paths to handle /var vs /private/var on macOS
-        assert_eq!(
-            result.unwrap().canonicalize().unwrap(),
-            cwd_file.canonicalize().unwrap()
-        );
+        assert_eq!(result.unwrap().canonicalize().unwrap(), cwd_file.canonicalize().unwrap());
     }
 
     #[test]

@@ -505,11 +505,7 @@ mod tests {
         fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
 
         // Initialize git repo (required for StateManager)
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(docs_dir)
-            .output()
-            .unwrap();
+        std::process::Command::new("git").args(["init"]).current_dir(docs_dir).output().unwrap();
 
         std::process::Command::new("git")
             .args(["config", "user.name", "Test User"])
