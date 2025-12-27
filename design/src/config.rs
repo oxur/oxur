@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Application configuration with layered defaults
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ impl Config {
     }
 
     /// Load configuration from .oxd/config.toml
-    fn load_from_file(docs_dir: &PathBuf) -> Result<Option<PartialConfig>> {
+    fn load_from_file(docs_dir: &Path) -> Result<Option<PartialConfig>> {
         let config_path = docs_dir.join(".oxd/config.toml");
         if !config_path.exists() {
             return Ok(None);
