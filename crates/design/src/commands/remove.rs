@@ -21,7 +21,8 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
         // Try to find by path
         // Normalize the search path - strip docs_dir prefix if present
         let search_path = std::path::Path::new(doc_id_or_path);
-        let normalized_search = if let Ok(stripped) = search_path.strip_prefix(state_mgr.docs_dir()) {
+        let normalized_search = if let Ok(stripped) = search_path.strip_prefix(state_mgr.docs_dir())
+        {
             stripped.to_string_lossy().to_string()
         } else {
             doc_id_or_path.to_string()
