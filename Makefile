@@ -36,6 +36,8 @@ coverage:
 
 check: build lint test
 
+check-all: check coverage
+
 format:
 	@echo "Formatting code..."
 	@cargo fmt --all

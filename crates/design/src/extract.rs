@@ -120,13 +120,14 @@ pub fn is_valid_markdown(content: &str) -> bool {
         return false;
     }
 
-    // Check for common markdown elements
+    // Check for minimum length
     let has_text = content.len() > 10;
 
-    // Check it's not binary (has mostly printable chars)
-    let printable_ratio =
-        content.chars().filter(|c| c.is_ascii_graphic() || c.is_whitespace()).count() as f64
-            / content.len() as f64;
+    // Check it's not binary (has mostly printable chars, including Unicode)
+    // Count characters, not bytes, to properly handle multi-byte UTF-8
+    let char_count = content.chars().count();
+    let printable_count = content.chars().filter(|c| !c.is_control() || c.is_whitespace()).count();
+    let printable_ratio = printable_count as f64 / char_count as f64;
 
     has_text && printable_ratio > 0.9
 }

@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0009 | Oxur Design Documentation CLI - Extended Features Plan (Phases 6-8) | Final | 2025-12-27 |
 | 0008 | oxur-ast Phase 4: Complete AST Coverage & Code Generation | Active | 2025-12-27 |
 | 0007 | oxur-ast Phase 3: Integration, Testing & CLI | Active | 2025-12-27 |
 | 0006 | oxur-ast Phase 2: Generator (Rust AST → S-expression) | Active | 2025-12-27 |
@@ -27,6 +28,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Final
 
+- [0009 - Oxur Design Documentation CLI - Extended Features Plan (Phases 6-8)](06-final/0009-oxur-design-documentation-cli-extended-features-plan-phases-6-8.md)
 - [0005 - oxur-ast Phase 1: Rust AST Types & Builder](06-final/0005-oxur-ast-phase-1-rust-ast-types-builder.md)
 - [0004 - oxur-ast Phase 0: S-Expression Infrastructure](06-final/0004-oxur-ast-phase-0-s-expression-infrastructure.md)
 - [0002 - Oxur Design Documentation CLI - Build Plan](06-final/0002-design-docs-cli.md)
