@@ -16,14 +16,7 @@ fn main() -> Result<()> {
     let mut cli = Cli::parse();
 
     // Smart default: If user didn't override --docs-dir, try to use repo-relative path
-    if cli.docs_dir == "docs" {
-        if let Some(root) = design::git::get_repo_root() {
-            let smart_default = root.join("crates/design/docs");
-            if smart_default.exists() {
-                cli.docs_dir = smart_default.to_string_lossy().to_string();
-            }
-        }
-    }
+    apply_smart_default(&mut cli);
 
     // Setup state manager
     let mut state_mgr = match setup_state_manager(&cli) {
@@ -64,6 +57,18 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Apply smart default for docs directory
+pub(crate) fn apply_smart_default(cli: &mut Cli) {
+    if cli.docs_dir == "docs" {
+        if let Some(root) = design::git::get_repo_root() {
+            let smart_default = root.join("crates/design/docs");
+            if smart_default.exists() {
+                cli.docs_dir = smart_default.to_string_lossy().to_string();
+            }
+        }
+    }
 }
 
 /// Initialize and configure the state manager
@@ -345,5 +350,36 @@ updated: 2024-01-02
 
         let result = execute_command(command, &index, &mut state_mgr);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_apply_smart_default_when_default_docs() {
+        // When using default "docs" and in the oxur repo, should apply smart default
+        let mut cli = Cli {
+            docs_dir: "docs".to_string(),
+            command: Commands::List { state: None, verbose: false, removed: false },
+        };
+
+        apply_smart_default(&mut cli);
+
+        // If we're in the oxur repo and crates/design/docs exists, it should be set
+        // Otherwise it stays as "docs"
+        // We can't assert the exact value since it depends on the environment,
+        // but we can verify the function runs without panicking
+        assert!(cli.docs_dir == "docs" || cli.docs_dir.contains("crates/design/docs"));
+    }
+
+    #[test]
+    fn test_apply_smart_default_when_custom_path() {
+        // When using a custom path, should not change it
+        let mut cli = Cli {
+            docs_dir: "/custom/path".to_string(),
+            command: Commands::List { state: None, verbose: false, removed: false },
+        };
+
+        apply_smart_default(&mut cli);
+
+        // Should remain unchanged
+        assert_eq!(cli.docs_dir, "/custom/path");
     }
 }
