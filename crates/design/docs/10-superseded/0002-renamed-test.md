@@ -3,8 +3,8 @@ number: 2
 title: "Test Document"
 author: "Duncan McGreggor"
 created: 2025-12-25
-updated: 2025-12-25
-state: Draft
+updated: 2025-12-26
+state: Superseded
 supersedes: null
 superseded-by: null
 ---
