@@ -13,7 +13,17 @@ use cli::{Cli, Commands, DebugCommands};
 use commands::*;
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+
+    // Smart default: If user didn't override --docs-dir, try to use repo-relative path
+    if cli.docs_dir == "docs" {
+        if let Some(root) = design::git::get_repo_root() {
+            let smart_default = root.join("crates/design/docs");
+            if smart_default.exists() {
+                cli.docs_dir = smart_default.to_string_lossy().to_string();
+            }
+        }
+    }
 
     // Setup state manager
     let mut state_mgr = match setup_state_manager(&cli) {

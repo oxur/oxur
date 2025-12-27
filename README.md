@@ -2,7 +2,7 @@
 
 A Lisp dialect that compiles to Rust with 100% interoperability.
 
-[![][logo]][logo-large]
+[![Our mascot, Orux! ('Ruxxy' to his friends)][logo]][logo-large]
 
 ## Overview
 
