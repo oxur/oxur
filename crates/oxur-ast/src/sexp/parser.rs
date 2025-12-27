@@ -1,6 +1,7 @@
 use crate::error::{ParseError, Result};
 use crate::sexp::lexer::{Lexer, Token, TokenType};
 use crate::sexp::types::*;
+use std::path::Path;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -17,6 +18,17 @@ impl Parser {
         let tokens = lexer.tokenize()?;
         let mut parser = Parser::new(tokens);
         parser.parse()
+    }
+
+    /// Parse an S-expression from a file
+    pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<SExp> {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+            ParseError::FileReadError {
+                path: path.as_ref().to_path_buf(),
+                source: e,
+            }
+        })?;
+        Self::parse_str(&content)
     }
 
     pub fn parse(&mut self) -> Result<SExp> {
@@ -122,5 +134,63 @@ impl Parser {
     fn is_at_end(&self) -> bool {
         matches!(self.current_token(), Ok(token) if token.typ == TokenType::Eof)
             || self.current >= self.tokens.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::NamedTempFile;
+    use std::io::Write;
+
+    #[test]
+    fn test_parse_file_valid() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "(foo bar baz)").unwrap();
+
+        let result = Parser::parse_file(temp_file.path());
+        assert!(result.is_ok());
+
+        let sexp = result.unwrap();
+        match sexp {
+            SExp::List(list) => assert_eq!(list.elements.len(), 3),
+            _ => panic!("Expected list"),
+        }
+    }
+
+    #[test]
+    fn test_parse_file_nonexistent() {
+        let result = Parser::parse_file("/nonexistent/path/to/file.sexp");
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            ParseError::FileReadError { path, .. } => {
+                assert!(path.to_string_lossy().contains("nonexistent"));
+            }
+            _ => panic!("Expected FileReadError"),
+        }
+    }
+
+    #[test]
+    fn test_parse_file_empty() {
+        let temp_file = NamedTempFile::new().unwrap();
+        // Empty file
+
+        let result = Parser::parse_file(temp_file.path());
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            ParseError::EmptyInput => {}
+            e => panic!("Expected EmptyInput, got {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_parse_file_complex_sexp() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "(Crate\n  :items ()\n  :span (Span :lo 0 :hi 0))").unwrap();
+
+        let result = Parser::parse_file(temp_file.path());
+        assert!(result.is_ok());
     }
 }

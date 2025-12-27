@@ -11,3 +11,4 @@ description = "Rust AST ↔ S-expression conversion for Oxur"
 thiserror.workspace = true
 
 [dev-dependencies]
+tempfile = "3.8"

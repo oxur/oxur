@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::PathBuf;
 
 /// Position in source text
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +54,13 @@ pub enum ParseError {
 
     #[error("Empty input")]
     EmptyInput,
+
+    #[error("Failed to read file {path:?}: {source}")]
+    FileReadError {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
 
     #[error("Lexer error: {0}")]
     LexError(#[from] LexError),
