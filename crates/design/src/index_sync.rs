@@ -1778,9 +1778,11 @@ Another line
 
         let result = get_docs_from_filesystem(&test_dir).unwrap();
 
-        // Should find docs in all state directories (excluding dustbin states which have special handling)
-        // We have 12 states total, but only 10 are in standard directories
-        assert_eq!(result.len(), 12);
+        // Should find docs in all state directories except dustbin states
+        // We have 12 states total: 10 active states + 2 dustbin states (Removed, Overwritten)
+        // Dustbin states are excluded from index scanning to prevent archived documents
+        // from overwriting active documents
+        assert_eq!(result.len(), 10);
 
         std::fs::remove_dir_all(&test_dir).ok();
     }
