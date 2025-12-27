@@ -66,7 +66,7 @@ cargo run -p design -- validate
 
 ODDs ("Oxur Design Documents"), like [Erlang EEPs](https://github.com/erlang/eep) and [Rust RFCs](https://github.com/rust-lang/rfcs), document all architectural decisions, specifications, and design discussions in the `crates/design/docs/` directory.
 
-Start with [00-index.md](crates/design/docs/00-index.md).
+[Start here](crates/design/docs/index.md).
 
 ## Contributing
 

@@ -96,7 +96,7 @@ pub enum Commands {
         fix: bool,
     },
 
-    /// Generate the index file (00-index.md)
+    /// Generate the index file
     #[command(visible_alias = "gen-index")]
     Index {
         /// Output format (markdown or json)

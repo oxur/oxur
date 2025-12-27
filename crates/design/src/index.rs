@@ -1,5 +1,6 @@
 //! Document index management
 
+use crate::constants::INDEX_FILENAME;
 use crate::doc::{DesignDoc, DocState};
 use crate::state::DocumentState;
 use anyhow::{Context, Result};
@@ -44,7 +45,7 @@ impl DocumentIndex {
             }
 
             // Skip the index file
-            if entry.file_name() == "00-index.md" {
+            if entry.file_name() == INDEX_FILENAME {
                 continue;
             }
 
@@ -242,7 +243,7 @@ mod tests {
             fs::write(temp.path().join("0001-test.md"), content).unwrap();
 
             // Create index file (should be skipped)
-            fs::write(temp.path().join("00-index.md"), "# Index\n\nShould be skipped").unwrap();
+            fs::write(temp.path().join(INDEX_FILENAME), "# Index\n\nShould be skipped").unwrap();
 
             let index = DocumentIndex::new(temp.path()).unwrap();
 

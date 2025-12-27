@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use colored::*;
+use design::constants::INDEX_FILENAME;
 use design::doc::DesignDoc;
 use design::index::DocumentIndex;
 use design::index_sync::*;
@@ -15,7 +16,7 @@ pub fn update_index(index: &DocumentIndex) -> Result<()> {
     println!("{}\n", "Synchronizing index with documents...".bold());
 
     let docs_dir = PathBuf::from(index.docs_dir());
-    let index_path = docs_dir.join("00-index.md");
+    let index_path = docs_dir.join(INDEX_FILENAME);
 
     // Check if index exists
     if !index_path.exists() {
@@ -417,7 +418,7 @@ mod tests {
         let index = DocumentIndex::new(temp.path()).unwrap();
 
         // Create an empty index file
-        let index_path = temp.path().join("00-index.md");
+        let index_path = temp.path().join(INDEX_FILENAME);
         fs::write(
             &index_path,
             "# Design Document Index\n\n## All Documents by Number\n\n| Number | Title | State | Updated |\n|--------|-------|-------|----------|\n",
@@ -434,7 +435,7 @@ mod tests {
         let index = DocumentIndex::new(temp.path()).unwrap();
 
         // Create a valid index file with a document entry
-        let index_path = temp.path().join("00-index.md");
+        let index_path = temp.path().join(INDEX_FILENAME);
         fs::write(
             &index_path,
             r#"# Design Document Index

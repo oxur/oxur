@@ -1,6 +1,7 @@
 //! Index generation command implementation
 
 use anyhow::Result;
+use design::constants::{INDEX_FILENAME, INDEX_JSON_FILENAME};
 use design::doc::DocState;
 use design::index::DocumentIndex;
 use std::fs;
@@ -66,7 +67,7 @@ fn generate_markdown_index(index: &DocumentIndex) -> Result<()> {
     }
 
     // Write to file
-    let index_path = PathBuf::from(index.docs_dir()).join("00-index.md");
+    let index_path = PathBuf::from(index.docs_dir()).join(INDEX_FILENAME);
     fs::write(&index_path, content)?;
 
     println!("Generated index at: {}", index_path.display());
@@ -105,7 +106,7 @@ fn generate_json_index(index: &DocumentIndex) -> Result<()> {
 
     let json = serde_json::to_string_pretty(&docs)?;
 
-    let index_path = PathBuf::from(index.docs_dir()).join("00-index.json");
+    let index_path = PathBuf::from(index.docs_dir()).join(INDEX_JSON_FILENAME);
     fs::write(&index_path, json)?;
 
     println!("Generated JSON index at: {}", index_path.display());
@@ -166,7 +167,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify file was created
-        let index_path = temp.path().join("00-index.md");
+        let index_path = temp.path().join(INDEX_FILENAME);
         assert!(index_path.exists());
 
         // Verify content structure
@@ -190,7 +191,7 @@ mod tests {
         let result = generate_index(&index, "md");
         assert!(result.is_ok());
 
-        let index_path = temp.path().join("00-index.md");
+        let index_path = temp.path().join(INDEX_FILENAME);
         assert!(index_path.exists());
     }
 
@@ -202,7 +203,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify file was created
-        let index_path = temp.path().join("00-index.json");
+        let index_path = temp.path().join(INDEX_JSON_FILENAME);
         assert!(index_path.exists());
 
         // Verify JSON structure
@@ -232,7 +233,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Should default to markdown
-        let index_path = temp.path().join("00-index.md");
+        let index_path = temp.path().join(INDEX_FILENAME);
         assert!(index_path.exists());
     }
 
@@ -243,7 +244,7 @@ mod tests {
         let result = generate_index(&index, "markdown");
         assert!(result.is_ok());
 
-        let content = fs::read_to_string(temp.path().join("00-index.md")).unwrap();
+        let content = fs::read_to_string(temp.path().join(INDEX_FILENAME)).unwrap();
 
         // Verify state sections exist
         assert!(content.contains("### Draft"));
@@ -265,7 +266,7 @@ mod tests {
         let result = generate_index(&index, "markdown");
         assert!(result.is_ok());
 
-        let index_path = temp.path().join("00-index.md");
+        let index_path = temp.path().join(INDEX_FILENAME);
         assert!(index_path.exists());
 
         let content = fs::read_to_string(&index_path).unwrap();
@@ -281,7 +282,7 @@ mod tests {
         let result = generate_index(&index, "json");
         assert!(result.is_ok());
 
-        let index_path = temp.path().join("00-index.json");
+        let index_path = temp.path().join(INDEX_JSON_FILENAME);
         assert!(index_path.exists());
 
         let content = fs::read_to_string(&index_path).unwrap();
@@ -298,7 +299,7 @@ mod tests {
         let result = generate_index(&index, "markdown");
         assert!(result.is_ok());
 
-        let content = fs::read_to_string(temp.path().join("00-index.md")).unwrap();
+        let content = fs::read_to_string(temp.path().join(INDEX_FILENAME)).unwrap();
 
         // Verify table has correct format
         assert!(content.contains("|--------|-------|-------|----------|"));

@@ -4,6 +4,7 @@
 //! in the Oxur project.
 
 pub mod config;
+pub mod constants;
 pub mod doc;
 pub mod errors;
 pub mod extract;

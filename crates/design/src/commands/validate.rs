@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use colored::*;
+use design::constants::INDEX_FILENAME;
 use design::doc::state_from_directory;
 use design::index::DocumentIndex;
 use design::index_sync::{get_docs_from_filesystem, ParsedIndex};
@@ -173,7 +174,7 @@ pub fn validate_documents(index: &DocumentIndex, fix: bool) -> Result<()> {
     }
 
     // Check 5: Index consistency
-    let index_path = PathBuf::from(index.docs_dir()).join("00-index.md");
+    let index_path = PathBuf::from(index.docs_dir()).join(INDEX_FILENAME);
     if index_path.exists() {
         if let Ok(index_content) = fs::read_to_string(&index_path) {
             if let Ok(parsed_index) = ParsedIndex::parse(&index_content) {
@@ -863,7 +864,7 @@ mod tests {
 
         // Create an index file
         let index_content = "# Design Documents\n\n| Number | Title | State |\n|--------|-------|-------|\n| 0001 | Doc 1 | Draft |\n";
-        fs::write(temp.path().join("00-index.md"), index_content).unwrap();
+        fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
         let result = validate_documents(&index, false);
@@ -888,7 +889,7 @@ mod tests {
         // Create an index file that doesn't include the document
         let index_content =
             "# Design Documents\n\n| Number | Title | State |\n|--------|-------|-------|\n";
-        fs::write(temp.path().join("00-index.md"), index_content).unwrap();
+        fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
         let result = validate_documents(&index, false);
@@ -902,7 +903,7 @@ mod tests {
 
         // Create an index with a reference to a non-existent document
         let index_content = "# Design Documents\n\n| Number | Title | State |\n|--------|-------|-------|\n| 0099 | Missing | Draft |\n";
-        fs::write(temp.path().join("00-index.md"), index_content).unwrap();
+        fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
         let result = validate_documents(&index, false);
@@ -926,7 +927,7 @@ mod tests {
 
         // Create a malformed index file
         let index_content = "This is not a valid index format\n";
-        fs::write(temp.path().join("00-index.md"), index_content).unwrap();
+        fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
         let result = validate_documents(&index, false);
@@ -1134,7 +1135,7 @@ mod tests {
 
         // Index with extra columns
         let index_content = "# Design Documents\n\n| Number | Title | State | Author | Date |\n|--------|-------|-------|--------|------|\n| 0001 | Doc 1 | Draft | Test | 2024-01-01 |\n";
-        fs::write(temp.path().join("00-index.md"), index_content).unwrap();
+        fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
         let result = validate_documents(&index, false);
@@ -1219,7 +1220,7 @@ mod tests {
 
         // Index with invalid number format
         let index_content = "# Design Documents\n\n| Number | Title | State |\n|--------|-------|-------|\n| invalid | Doc | Draft |\n";
-        fs::write(temp.path().join("00-index.md"), index_content).unwrap();
+        fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
         let result = validate_documents(&index, false);
