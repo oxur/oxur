@@ -253,12 +253,18 @@ impl DesignDoc {
     }
 }
 
+/// Escape a string for use in YAML double-quoted strings
+fn escape_yaml_string(s: &str) -> String {
+    s.replace('\\', "\\\\")  // Escape backslashes first
+        .replace('"', "\\\"")  // Then escape double quotes
+}
+
 /// Build complete YAML frontmatter from metadata
 pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
     let mut yaml = String::from("---\n");
     yaml.push_str(&format!("number: {}\n", metadata.number));
-    yaml.push_str(&format!("title: \"{}\"\n", metadata.title));
-    yaml.push_str(&format!("author: \"{}\"\n", metadata.author));
+    yaml.push_str(&format!("title: \"{}\"\n", escape_yaml_string(&metadata.title)));
+    yaml.push_str(&format!("author: \"{}\"\n", escape_yaml_string(&metadata.author)));
     yaml.push_str(&format!("created: {}\n", metadata.created));
     yaml.push_str(&format!("updated: {}\n", metadata.updated));
     yaml.push_str(&format!("state: {}\n", metadata.state.as_str()));
@@ -1035,6 +1041,50 @@ mod frontmatter_tests {
             let yaml = build_yaml_frontmatter(&metadata);
             assert!(yaml.contains(&format!("state: {}\n", state.as_str())));
         }
+    }
+
+    #[test]
+    fn test_build_yaml_frontmatter_escapes_quotes() {
+        let metadata = DocMetadata {
+            number: 1,
+            title: "Test \"Title\" with Quotes".to_string(),
+            author: "\"Jane Developer\"".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let yaml = build_yaml_frontmatter(&metadata);
+
+        // Quotes should be escaped with backslashes
+        assert!(yaml.contains("title: \"Test \\\"Title\\\" with Quotes\"\n"));
+        assert!(yaml.contains("author: \"\\\"Jane Developer\\\"\"\n"));
+
+        // Verify the YAML can be parsed
+        assert!(yaml.starts_with("---\n"));
+        assert!(yaml.ends_with("---\n\n"));
+    }
+
+    #[test]
+    fn test_build_yaml_frontmatter_escapes_backslashes() {
+        let metadata = DocMetadata {
+            number: 1,
+            title: "Path\\to\\file".to_string(),
+            author: "Author\\Name".to_string(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+        };
+
+        let yaml = build_yaml_frontmatter(&metadata);
+
+        // Backslashes should be escaped
+        assert!(yaml.contains("title: \"Path\\\\to\\\\file\"\n"));
+        assert!(yaml.contains("author: \"Author\\\\Name\"\n"));
     }
 
     #[test]

@@ -1,7 +1,7 @@
 ---
 number: 10
 title: "Oxur Design Documentation CLI - Phases 9-10 Build Plan"
-author: ""Jane Developer""
+author: "\"Jane Developer\""
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
