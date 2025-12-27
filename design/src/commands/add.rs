@@ -1117,17 +1117,14 @@ mod tests {
         let extracted = ExtractedMetadata::from_content(content);
 
         // What the interactive mode would use as default
-        let git_author_result =
-            std::process::Command::new("git").args(["config", "user.name"]).output();
-
-        let default_author = if let Ok(output) = git_author_result {
-            String::from_utf8(output.stdout)
-                .ok()
-                .map(|s| s.trim().to_string())
-                .unwrap_or_else(|| "Unknown Author".to_string())
-        } else {
-            "Unknown Author".to_string()
-        };
+        let default_author = std::process::Command::new("git")
+            .args(["config", "user.name"])
+            .output()
+            .ok()
+            .and_then(|output| String::from_utf8(output.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty()) // Filter out empty strings
+            .unwrap_or_else(|| "Unknown Author".to_string());
 
         let final_default = extracted.author.as_ref().unwrap_or(&default_author);
         assert!(!final_default.is_empty());
