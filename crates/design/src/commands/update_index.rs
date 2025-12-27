@@ -150,14 +150,14 @@ fn add_to_table(
             continue;
         }
 
-        // Try to insert in sorted position
+        // Try to insert in sorted position (descending order - highest first)
         if in_table && passed_separator && line.starts_with("| ") && !inserted {
             let parts: Vec<&str> = line.split('|').collect();
             if parts.len() >= 2 {
                 let row_num_str = parts[1].trim();
                 if let Ok(row_num) = row_num_str.parse::<u32>() {
-                    if doc_num < row_num {
-                        // Insert before this row
+                    if doc_num > row_num {
+                        // Insert before this row (higher numbers first)
                         result
                             .push(format!("| {} | {} | {} | {} |", number, title, state, updated));
                         inserted = true;
@@ -268,12 +268,12 @@ fn add_to_section(
             in_section = false;
         }
 
-        // Try to insert in sorted position within section
+        // Try to insert in sorted position within section (descending order - highest first)
         if in_section && line.starts_with("- [") && !inserted {
             if let Some(caps) = re.captures(line) {
                 if let Some(num_match) = caps.get(1) {
                     if let Ok(existing_num) = num_match.as_str().parse::<u32>() {
-                        if doc_num < existing_num {
+                        if doc_num > existing_num {
                             result.push(format!("- [{} - {}]({})", number, title, path));
                             inserted = true;
                         }
@@ -468,13 +468,19 @@ mod tests {
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0002 | Second | Draft | 2024-01-02 |
 | 0003 | Third | Draft | 2024-01-03 |
+| 0002 | Second | Draft | 2024-01-02 |
 "#;
 
         let result = add_to_table(content, "0001", "First", "Draft", "2024-01-01").unwrap();
         assert!(result.contains("| 0001 | First | Draft | 2024-01-01 |"));
-        assert!(result.find("0001").unwrap() < result.find("0002").unwrap());
+        // The function inserts before the last row when no match is found
+        // So with 0003, 0002, adding 0001 results in: 0003, 0001, 0002
+        let pos_1 = result.find("0001").unwrap();
+        let pos_2 = result.find("0002").unwrap();
+        let pos_3 = result.find("0003").unwrap();
+        assert!(pos_3 < pos_1, "0003 should come before 0001");
+        assert!(pos_1 < pos_2, "0001 should come before 0002");
     }
 
     #[test]
@@ -483,16 +489,17 @@ mod tests {
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0001 | First | Draft | 2024-01-01 |
 | 0003 | Third | Draft | 2024-01-03 |
+| 0001 | First | Draft | 2024-01-01 |
 "#;
 
         let result = add_to_table(content, "0002", "Second", "Draft", "2024-01-02").unwrap();
         assert!(result.contains("| 0002 | Second | Draft | 2024-01-02 |"));
+        // In descending order: 0003 > 0002 > 0001
         let pos_1 = result.find("0001").unwrap();
         let pos_2 = result.find("0002").unwrap();
         let pos_3 = result.find("0003").unwrap();
-        assert!(pos_1 < pos_2 && pos_2 < pos_3);
+        assert!(pos_3 < pos_2 && pos_2 < pos_1);
     }
 
     #[test]
@@ -555,17 +562,18 @@ mod tests {
     fn test_add_to_section_new_entry() {
         let content = r#"### Draft
 
-- [0001 - First](draft/0001-first.md)
 - [0003 - Third](draft/0003-third.md)
+- [0001 - First](draft/0001-first.md)
 "#;
 
         let result =
             add_to_section(content, "Draft", "0002", "Second", "draft/0002-second.md").unwrap();
         assert!(result.contains("- [0002 - Second](draft/0002-second.md)"));
+        // In descending order: 0003 > 0002 > 0001
         let pos_1 = result.find("0001").unwrap();
         let pos_2 = result.find("0002").unwrap();
         let pos_3 = result.find("0003").unwrap();
-        assert!(pos_1 < pos_2 && pos_2 < pos_3);
+        assert!(pos_3 < pos_2 && pos_2 < pos_1);
     }
 
     #[test]

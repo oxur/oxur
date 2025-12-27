@@ -70,17 +70,17 @@ impl DocumentIndex {
         self.docs.get(&number)
     }
 
-    /// Get all documents
+    /// Get all documents (sorted in descending order by number)
     pub fn all(&self) -> Vec<&DesignDoc> {
         let mut docs: Vec<_> = self.docs.values().collect();
-        docs.sort_by_key(|d| d.metadata.number);
+        docs.sort_by_key(|d| std::cmp::Reverse(d.metadata.number));
         docs
     }
 
-    /// Get documents by state
+    /// Get documents by state (sorted in descending order by number)
     pub fn by_state(&self, state: DocState) -> Vec<&DesignDoc> {
         let mut docs: Vec<_> = self.docs.values().filter(|d| d.metadata.state == state).collect();
-        docs.sort_by_key(|d| d.metadata.number);
+        docs.sort_by_key(|d| std::cmp::Reverse(d.metadata.number));
         docs
     }
 
@@ -371,12 +371,12 @@ mod tests {
             let all = index.all();
             assert_eq!(all.len(), 5);
 
-            // Should be sorted by number
-            assert_eq!(all[0].metadata.number, 1);
-            assert_eq!(all[1].metadata.number, 2);
+            // Should be sorted by number in descending order (highest first)
+            assert_eq!(all[0].metadata.number, 10);
+            assert_eq!(all[1].metadata.number, 5);
             assert_eq!(all[2].metadata.number, 3);
-            assert_eq!(all[3].metadata.number, 5);
-            assert_eq!(all[4].metadata.number, 10);
+            assert_eq!(all[3].metadata.number, 2);
+            assert_eq!(all[4].metadata.number, 1);
         }
 
         #[test]
@@ -386,10 +386,10 @@ mod tests {
             let drafts = index.by_state(DocState::Draft);
             assert_eq!(drafts.len(), 3);
 
-            // Should be sorted by number
-            assert_eq!(drafts[0].metadata.number, 1);
+            // Should be sorted by number in descending order (highest first)
+            assert_eq!(drafts[0].metadata.number, 10);
             assert_eq!(drafts[1].metadata.number, 2);
-            assert_eq!(drafts[2].metadata.number, 10);
+            assert_eq!(drafts[2].metadata.number, 1);
         }
 
         #[test]

@@ -214,10 +214,10 @@ mod tests {
         let docs = json.as_array().unwrap();
         assert_eq!(docs.len(), 4);
 
-        // Verify first document structure
+        // Verify first document structure (should be highest number in descending order)
         let first = &docs[0];
-        assert_eq!(first["number"], 1);
-        assert_eq!(first["title"], "First Doc");
+        assert_eq!(first["number"], 4);
+        assert_eq!(first["title"], "Fourth Doc");
         assert_eq!(first["author"], "Test Author");
         assert!(first.get("state").is_some());
         assert!(first.get("created").is_some());
