@@ -105,7 +105,7 @@ impl<T: Tabled> OxurTable<T> {
 
         // Convert each Tabled struct into its string representation and push as record
         for item in &self.data {
-            let mut temp_table = Table::new(std::slice::from_ref(item));
+            let temp_table = Table::new(std::slice::from_ref(item));
             let table_str = temp_table.to_string();
 
             // Extract the data row (skip header line and separator lines)

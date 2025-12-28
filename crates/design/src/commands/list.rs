@@ -121,11 +121,11 @@ fn list_documents_impl(
         // Normal mode: use table format with Builder (like the sample code)
         let mut builder = Builder::default();
 
-        // Row 0: Title
-        builder.push_record(["", "DESIGN DOCUMENTS", ""]);
-
-        // Row 1: Header
+        // Row 0: Header
         builder.push_record(["Number", "Title", "State"]);
+
+        // Row 1: Title
+        builder.push_record(["", "DESIGN DOCUMENTS", ""]);
 
         // Data rows
         for doc in &docs {
@@ -174,18 +174,18 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     // Build table with Builder (like the sample code)
     let mut builder = Builder::default();
 
-    // Row 0: Title
-    if verbose {
-        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
-    } else {
-        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
-    }
-
-    // Row 1: Header
+    // Row 0: Header
     if verbose {
         builder.push_record(["Number", "Title", "Removed", "Deleted", "Dustbin Location"]);
     } else {
         builder.push_record(["Number", "Title", "Removed", "Deleted", ""]);
+    }
+
+    // Row 1: Title
+    if verbose {
+        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
+    } else {
+        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
     }
 
     // Data rows
