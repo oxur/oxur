@@ -22,7 +22,12 @@ Achieve **95%+ test coverage** through systematic, intelligent test development.
 - Do NOT ignore warnings; when you see then, fix them
 - You may temporarily set warning fix tasks to a lower priority, but you MUST return to them
 
-### 3. Tests Must Pass - No Exceptions
+### 3. Linting/Formatting Must Always Be Checked
+
+- To assist with this, after each change, be sure to run `make format`
+- Before running new tests, be make sure linting passes `make lint`
+
+### 4. Tests Must Pass - No Exceptions
 
 - **Zero broken tests** is the only acceptable state
 - A broken test indicates one of three things:
@@ -32,7 +37,7 @@ Achieve **95%+ test coverage** through systematic, intelligent test development.
 - **Never** accept broken tests as "okay" or "not critical"
 - **Never** mark tests with `#[ignore]` to hide failures
 
-### 4. Fix Root Causes, Not Symptoms
+### 5. Fix Root Causes, Not Symptoms
 
 When a test fails, follow this process:
 
@@ -64,7 +69,7 @@ When a test fails, follow this process:
 - ❌ Making tests less strict to avoid failures
 - ✅ Understanding the contract, then ensuring both code and tests honor it
 
-### 5. Systematic Coverage Approach
+### 6. Systematic Coverage Approach
 
 Follow this order:
 
@@ -103,7 +108,7 @@ Systematically test:
   - Invalid state transitions
 ```
 
-### 6. Progress Tracking
+### 7. Progress Tracking
 
 After each testing session, report:
 
