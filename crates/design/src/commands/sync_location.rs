@@ -330,7 +330,8 @@ Test content.
 
         // Sync location - should add headers automatically (must run in repo directory)
         // Use file path since document without headers won't be in state with a number
-        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, doc_path.to_str().unwrap()));
+        let result =
+            in_dir(&repo_path, || sync_location(&index, &state_mgr, doc_path.to_str().unwrap()));
         assert!(result.is_ok());
 
         // Verify headers were added (document should remain in draft after adding headers)
@@ -471,7 +472,9 @@ Test content.
 
             // Sync location (must run in repo directory for git mv)
             // Use file path since we're testing multiple documents
-            let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, doc_path.to_str().unwrap()));
+            let result = in_dir(&repo_path, || {
+                sync_location(&index, &state_mgr, doc_path.to_str().unwrap())
+            });
             assert!(
                 result.is_ok(),
                 "Failed to sync {} to {}",
