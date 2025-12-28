@@ -26,7 +26,7 @@
 //! println!("{}", table);
 //! ```
 
-use tabled::Table;
+use tabled::{Table, builder::Builder};
 
 mod config;
 mod themes;
@@ -91,6 +91,43 @@ impl<T: Tabled> OxurTable<T> {
     /// ```
     pub fn render(self) -> String {
         let mut table = Table::new(&self.data);
+        self.theme.apply_to_table::<T>(&mut table);
+        table.to_string()
+    }
+
+    /// Render using manual builder (no auto-generated header)
+    ///
+    /// This builds the table manually using Builder::default(), which gives full control
+    /// over row structure. Use with structs that have empty #[tabled(rename = "")] attributes.
+    pub fn render_without_header(self) -> String {
+        // Build table manually using Builder, just like the sample code
+        let mut builder = Builder::default();
+
+        // Convert each Tabled struct into its string representation and push as record
+        for item in &self.data {
+            let mut temp_table = Table::new(std::slice::from_ref(item));
+            let table_str = temp_table.to_string();
+
+            // Extract the data row (skip header line and separator lines)
+            for line in table_str.lines().skip(1) {
+                if line.contains('│') {
+                    let cells: Vec<String> = line
+                        .split('│')
+                        .skip(1) // Skip leading empty cell from border
+                        .take_while(|_| true)
+                        .filter(|s| !s.trim().is_empty() || true)
+                        .map(|s| s.trim().to_string())
+                        .collect();
+
+                    if !cells.is_empty() {
+                        builder.push_record(cells);
+                        break; // Only take the first data row
+                    }
+                }
+            }
+        }
+
+        let mut table = builder.build();
         self.theme.apply_to_table::<T>(&mut table);
         table.to_string()
     }

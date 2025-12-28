@@ -6,37 +6,38 @@ use design::doc::DocState;
 use design::index::DocumentIndex;
 use design::state::StateManager;
 use design::theme;
-use oxur_table::{OxurTable, Tabled};
+use oxur_table::TableStyleConfig;
+use tabled::{builder::Builder, Tabled};
 
-/// Table row for document list
+/// Table row for document list (using Builder, so no column names needed)
 #[derive(Tabled)]
 struct DocumentRow {
-    #[tabled(rename = "Number")]
+    #[tabled(rename = "")]
     number: ColoredString,
 
-    #[tabled(rename = "Title")]
+    #[tabled(rename = "")]
     title: String,
 
-    #[tabled(rename = "State")]
+    #[tabled(rename = "")]
     state: ColoredString,
 }
 
-/// Table row for removed documents
+/// Table row for removed documents (using Builder, so no column names needed)
 #[derive(Tabled)]
 struct RemovedDocRow {
-    #[tabled(rename = "Number")]
+    #[tabled(rename = "")]
     number: ColoredString,
 
-    #[tabled(rename = "Title")]
+    #[tabled(rename = "")]
     title: String,
 
-    #[tabled(rename = "Removed")]
+    #[tabled(rename = "")]
     removed: ColoredString,
 
-    #[tabled(rename = "Deleted")]
+    #[tabled(rename = "")]
     deleted: ColoredString,
 
-    #[tabled(rename = "Dustbin Location")]
+    #[tabled(rename = "")]
     location: String,
 }
 
@@ -91,11 +92,11 @@ fn list_documents_impl(
         index.all()
     };
 
-    println!("\n{}", "Design Documents".bold().underline());
-    println!();
-
     if verbose {
-        // Verbose mode: keep the detailed multi-line format
+        // Verbose mode: keep the detailed multi-line format with separate title
+        println!("\n{}", "Design Documents".bold().underline());
+        println!();
+
         for doc in &docs {
             let state = doc.metadata.state.as_str();
             println!(
@@ -114,31 +115,43 @@ fn list_documents_impl(
             }
             println!();
         }
+
+        println!("Total: {} documents\n", docs.len());
     } else {
-        // Normal mode: use table format
-        let rows: Vec<DocumentRow> = docs
-            .iter()
-            .map(|doc| DocumentRow {
-                number: theme::doc_number(doc.metadata.number),
-                title: doc.metadata.title.clone(),
-                state: theme::state_badge(doc.metadata.state.as_str()),
-            })
-            .collect();
+        // Normal mode: use table format with Builder (like the sample code)
+        let mut builder = Builder::default();
 
-        let table = OxurTable::new(rows).render();
+        // Row 0: Title
+        builder.push_record(["", "DESIGN DOCUMENTS", ""]);
+
+        // Row 1: Header
+        builder.push_record(["Number", "Title", "State"]);
+
+        // Data rows
+        for doc in &docs {
+            builder.push_record([
+                &theme::doc_number(doc.metadata.number).to_string(),
+                &doc.metadata.title,
+                &theme::state_badge(doc.metadata.state.as_str()).to_string(),
+            ]);
+        }
+
+        // Last row: Footer separator
+        builder.push_record(["", "", ""]);
+
+        let mut table = builder.build();
+        let config = TableStyleConfig::default();
+        config.apply_to_table::<DocumentRow>(&mut table);
+
+        println!();
         println!("{}", table);
+        println!("\nTotal: {} documents\n", docs.len());
     }
-
-    println!("\nTotal: {} documents\n", docs.len());
     Ok(())
 }
 
 /// List documents that have been removed to the dustbin
 fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()> {
-    println!();
-    println!("{}", "Removed Documents".cyan().bold());
-    println!();
-
     // Filter for removed documents
     let removed_docs: Vec<_> = state_mgr
         .state()
@@ -150,46 +163,71 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         .collect();
 
     if removed_docs.is_empty() {
+        println!();
+        println!("{}", "Removed Documents".cyan().bold());
+        println!();
         println!("  {}", "No removed documents found.".yellow());
         println!();
         return Ok(());
     }
 
-    // Build table data
-    let rows: Vec<RemovedDocRow> = removed_docs
-        .iter()
-        .map(|doc| {
-            let number_str = format!("{:04}", doc.metadata.number);
-            let title_truncated = if doc.metadata.title.len() > (if verbose { 33 } else { 38 }) {
-                format!("{}...", &doc.metadata.title[..(if verbose { 30 } else { 35 })])
+    // Build table with Builder (like the sample code)
+    let mut builder = Builder::default();
+
+    // Row 0: Title
+    if verbose {
+        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
+    } else {
+        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
+    }
+
+    // Row 1: Header
+    if verbose {
+        builder.push_record(["Number", "Title", "Removed", "Deleted", "Dustbin Location"]);
+    } else {
+        builder.push_record(["Number", "Title", "Removed", "Deleted", ""]);
+    }
+
+    // Data rows
+    for doc in &removed_docs {
+        let number_str = format!("{:04}", doc.metadata.number);
+        let title_truncated = if doc.metadata.title.len() > (if verbose { 33 } else { 38 }) {
+            format!("{}...", &doc.metadata.title[..(if verbose { 30 } else { 35 })])
+        } else {
+            doc.metadata.title.clone()
+        };
+
+        // Check if file exists in dustbin
+        let file_path = state_mgr.docs_dir().join(&doc.path);
+        let file_exists = file_path.exists();
+
+        let location = if verbose {
+            if file_exists {
+                doc.path.clone()
             } else {
-                doc.metadata.title.clone()
-            };
-
-            // Check if file exists in dustbin
-            let file_path = state_mgr.docs_dir().join(&doc.path);
-            let file_exists = file_path.exists();
-
-            RemovedDocRow {
-                number: number_str.yellow(),
-                title: title_truncated,
-                removed: doc.metadata.updated.to_string().white(),
-                deleted: if file_exists { "false".green() } else { "true".red() },
-                location: if verbose {
-                    if file_exists {
-                        doc.path.clone()
-                    } else {
-                        "(file not found)".to_string()
-                    }
-                } else {
-                    String::new()
-                },
+                "(file not found)".to_string()
             }
-        })
-        .collect();
+        } else {
+            String::new()
+        };
 
-    // Render and print table
-    let table = OxurTable::new(rows).render();
+        builder.push_record([
+            &number_str.yellow().to_string(),
+            &title_truncated,
+            &doc.metadata.updated.to_string().white().to_string(),
+            &if file_exists { "false".green() } else { "true".red() }.to_string(),
+            &location,
+        ]);
+    }
+
+    // Last row: Footer separator
+    builder.push_record(["", "", "", "", ""]);
+
+    let mut table = builder.build();
+    let config = TableStyleConfig::default();
+    config.apply_to_table::<RemovedDocRow>(&mut table);
+
+    println!();
     println!("{}", table);
 
     // Count files in dustbin vs deleted
