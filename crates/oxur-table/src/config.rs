@@ -148,7 +148,7 @@ impl TableStyleConfig {
 
         // Ensure consistent row widths by setting column widths
         // This works correctly when table is built with plain text first
-        table.with(Width::list([35, 65, 20]));
+        table.with(Width::list([10, 75, 15]));
 
         // Apply alternating row colors
         let row_colors: Vec<Color> =

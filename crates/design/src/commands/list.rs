@@ -53,8 +53,8 @@ fn apply_state_formatting(table: &mut Table) {
                 "under review" | "under-review" => state_str.cyan(),
                 "revised" => state_str.blue(),
                 "accepted" => state_str.green(),
-                "active" => state_str.green().bold(),
-                "final" => state_str.green().bold(),
+                "active" => state_str.green(),
+                "final" => state_str.green(),
                 "deferred" => state_str.magenta(),
                 "rejected" => state_str.red(),
                 "withdrawn" => state_str.red(),
@@ -71,7 +71,8 @@ fn apply_state_formatting(table: &mut Table) {
 fn apply_title_formatting(table: &mut Table) {
     table.with(Modify::new(Rows::first()).with(Format::content(|s| {
         if !s.is_empty() {
-            preserve_bg(s.bold())
+            // preserve_bg(s.bold())
+            preserve_bg(s.into())
         } else {
             s.to_string()
         }
