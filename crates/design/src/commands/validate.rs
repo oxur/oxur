@@ -355,30 +355,6 @@ mod tests {
         fs::write(temp.path().join(format!("{:04}-test.md", number)), content).unwrap();
     }
 
-    fn create_valid_index() -> DocumentIndex {
-        let temp = TempDir::new().unwrap();
-
-        // Create some valid documents
-        create_test_doc_file(
-            &temp,
-            1,
-            "Doc 1",
-            DocState::Draft,
-            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            NaiveDate::from_ymd_opt(2024, 1, 10).unwrap(),
-        );
-        create_test_doc_file(
-            &temp,
-            2,
-            "Doc 2",
-            DocState::Final,
-            NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
-            NaiveDate::from_ymd_opt(2024, 2, 10).unwrap(),
-        );
-
-        DocumentIndex::new(temp.path()).unwrap()
-    }
-
     #[test]
     fn test_validate_no_issues() {
         let temp = TempDir::new().unwrap();
