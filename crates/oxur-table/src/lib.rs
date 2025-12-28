@@ -26,7 +26,7 @@
 //! println!("{}", table);
 //! ```
 
-use tabled::{Table, builder::Builder};
+use tabled::Table;
 
 mod config;
 mod themes;
@@ -67,10 +67,7 @@ impl<T: Tabled> OxurTable<T> {
     /// let table = OxurTable::new(data);
     /// ```
     pub fn new(data: Vec<T>) -> Self {
-        Self {
-            data,
-            theme: TableStyleConfig::default(),
-        }
+        Self { data, theme: TableStyleConfig::default() }
     }
 
     /// Render the table as a styled string for terminal output
@@ -94,41 +91,186 @@ impl<T: Tabled> OxurTable<T> {
         self.theme.apply_to_table::<T>(&mut table);
         table.to_string()
     }
+}
 
-    /// Render using manual builder (no auto-generated header)
-    ///
-    /// This builds the table manually using Builder::default(), which gives full control
-    /// over row structure. Use with structs that have empty #[tabled(rename = "")] attributes.
-    pub fn render_without_header(self) -> String {
-        // Build table manually using Builder, just like the sample code
-        let mut builder = Builder::default();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        // Convert each Tabled struct into its string representation and push as record
-        for item in &self.data {
-            let temp_table = Table::new(std::slice::from_ref(item));
-            let table_str = temp_table.to_string();
+    #[derive(Tabled)]
+    struct TestRow {
+        #[tabled(rename = "ID")]
+        id: u32,
+        #[tabled(rename = "Name")]
+        name: String,
+        #[tabled(rename = "Status")]
+        status: String,
+    }
 
-            // Extract the data row (skip header line and separator lines)
-            for line in table_str.lines().skip(1) {
-                if line.contains('│') {
-                    let cells: Vec<String> = line
-                        .split('│')
-                        .skip(1) // Skip leading empty cell from border
-                        .take_while(|_| true)
-                        .filter(|s| !s.trim().is_empty() || true)
-                        .map(|s| s.trim().to_string())
-                        .collect();
+    // ===== OxurTable::new tests =====
 
-                    if !cells.is_empty() {
-                        builder.push_record(cells);
-                        break; // Only take the first data row
-                    }
-                }
-            }
+    #[test]
+    fn test_new_creates_table_with_default_theme() {
+        let data = vec![TestRow { id: 1, name: "Alice".into(), status: "Active".into() }];
+
+        let table = OxurTable::new(data);
+
+        // Verify the table was created (we can't easily inspect internals)
+        // Just ensure it doesn't panic
+        assert_eq!(table.data.len(), 1);
+    }
+
+    #[test]
+    fn test_new_with_empty_data() {
+        let data: Vec<TestRow> = vec![];
+        let table = OxurTable::new(data);
+        assert_eq!(table.data.len(), 0);
+    }
+
+    #[test]
+    fn test_new_with_multiple_rows() {
+        let data = vec![
+            TestRow { id: 1, name: "Alice".into(), status: "Active".into() },
+            TestRow { id: 2, name: "Bob".into(), status: "Inactive".into() },
+            TestRow { id: 3, name: "Charlie".into(), status: "Active".into() },
+        ];
+
+        let table = OxurTable::new(data);
+        assert_eq!(table.data.len(), 3);
+    }
+
+    // ===== OxurTable::render tests =====
+
+    #[test]
+    fn test_render_produces_output() {
+        let data = vec![TestRow { id: 1, name: "Alice".into(), status: "Active".into() }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        // Verify output is not empty and contains data
+        assert!(!output.is_empty());
+        assert!(output.contains("Alice"));
+        assert!(output.contains("Active"));
+    }
+
+    #[test]
+    fn test_render_empty_data() {
+        let data: Vec<TestRow> = vec![];
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        // Should still produce some output (at least headers)
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_render_multiple_rows() {
+        let data = vec![
+            TestRow { id: 1, name: "Alice".into(), status: "Active".into() },
+            TestRow { id: 2, name: "Bob".into(), status: "Inactive".into() },
+        ];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        assert!(output.contains("Alice"));
+        assert!(output.contains("Bob"));
+        assert!(output.contains("Active"));
+        assert!(output.contains("Inactive"));
+    }
+
+    #[test]
+    fn test_render_includes_headers() {
+        let data = vec![TestRow { id: 1, name: "Test".into(), status: "OK".into() }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        // Headers from #[tabled(rename = "...")] should be present
+        assert!(output.contains("ID"));
+        assert!(output.contains("Name"));
+        assert!(output.contains("Status"));
+    }
+
+    #[test]
+    fn test_render_contains_ansi_codes() {
+        let data = vec![TestRow { id: 1, name: "Test".into(), status: "OK".into() }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        // Should contain ANSI escape codes for colors
+        // (The theme applies colors, so there should be escape sequences)
+        assert!(output.contains("\x1b[") || output.contains("\u{001b}["));
+    }
+
+    // ===== Integration tests =====
+
+    #[test]
+    fn test_table_with_special_characters() {
+        let data = vec![TestRow { id: 1, name: "Test & \"Special\"".into(), status: "OK".into() }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        assert!(output.contains("Test & \"Special\""));
+    }
+
+    #[test]
+    fn test_table_with_unicode() {
+        let data = vec![TestRow { id: 1, name: "Ñoño 日本語".into(), status: "✓".into() }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        assert!(output.contains("Ñoño"));
+        assert!(output.contains("日本語"));
+        assert!(output.contains("✓"));
+    }
+
+    #[test]
+    fn test_table_with_long_text() {
+        let long_name = "A".repeat(100);
+        let data = vec![TestRow { id: 1, name: long_name.clone(), status: "OK".into() }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        // Long text should be in the output (might be wrapped or truncated by tabled)
+        assert!(output.contains(&long_name[..50])); // At least first 50 chars
+    }
+
+    #[test]
+    fn test_table_with_empty_strings() {
+        let data = vec![TestRow { id: 1, name: "".into(), status: "".into() }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        // Should handle empty strings gracefully
+        assert!(!output.is_empty());
+        assert!(output.contains("ID")); // Headers should still be present
+    }
+
+    #[test]
+    fn test_different_struct_type() {
+        #[derive(Tabled)]
+        struct DifferentRow {
+            #[tabled(rename = "Col1")]
+            col1: String,
+            #[tabled(rename = "Col2")]
+            col2: i32,
         }
 
-        let mut table = builder.build();
-        self.theme.apply_to_table::<T>(&mut table);
-        table.to_string()
+        let data = vec![DifferentRow { col1: "Test".into(), col2: 42 }];
+
+        let table = OxurTable::new(data);
+        let output = table.render();
+
+        assert!(output.contains("Test"));
+        assert!(output.contains("42"));
+        assert!(output.contains("Col1"));
+        assert!(output.contains("Col2"));
     }
 }

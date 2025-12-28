@@ -25,10 +25,7 @@ pub struct TableStyleConfig {
 
 /// Title configuration - styles a title row ABOVE the header
 ///
-/// To create a title row, add it as the FIRST data row:
-/// ```
-/// MyStruct { field1: "My Table Title".into(), field2: " ".into(), ... }
-/// ```
+/// To create a title row, add it as the FIRST data row in your data structure.
 /// Then set `enabled = true` in the TOML config.
 #[derive(Debug, Deserialize, Clone)]
 pub struct TitleConfig {
@@ -51,10 +48,7 @@ pub struct TitleConfig {
 
 /// Footer configuration - styles the LAST ROW of your data
 ///
-/// To create a visual footer bar, add a row with spaces to your data:
-/// ```
-/// MyStruct { field1: " ".into(), field2: " ".into(), ... }
-/// ```
+/// To create a visual footer bar, add a footer row as the last element in your data.
 /// Then set `enabled = true` in the TOML config.
 #[derive(Debug, Deserialize, Clone)]
 pub struct FooterConfig {
@@ -156,12 +150,8 @@ impl TableStyleConfig {
         table.with(Width::list([35, 65, 20]));
 
         // Apply alternating row colors
-        let row_colors: Vec<Color> = self
-            .rows
-            .colors
-            .iter()
-            .map(|rc| parse_color(&rc.bg, &rc.fg))
-            .collect();
+        let row_colors: Vec<Color> =
+            self.rows.colors.iter().map(|rc| parse_color(&rc.bg, &rc.fg)).collect();
         table.with(Colorization::rows(row_colors));
 
         // Determine if title is enabled (we need this for data row styling)
@@ -200,16 +190,15 @@ impl TableStyleConfig {
         // Apply header justification
         let just_char = self.header.justification_char.chars().next().unwrap_or(' ');
         let header_bg = parse_bg_color(&self.header.bg_color);
-        table.modify(
-            Rows::new(1..2),
-            Justification::new(just_char).color(header_bg.clone()),
-        );
+        table.modify(Rows::new(1..2), Justification::new(just_char).color(header_bg.clone()));
 
         // Determine if footer is enabled (we need this for data row styling)
         let footer_enabled = self.footer.as_ref().map(|f| f.enabled).unwrap_or(false);
 
         // Apply data row justification if specified
-        if let Some(data_just_char) = self.rows.justification_char.as_ref().and_then(|s| s.chars().next()) {
+        if let Some(data_just_char) =
+            self.rows.justification_char.as_ref().and_then(|s| s.chars().next())
+        {
             // Data rows start at row 2 (after title row 0 and header row 1)
             // Use the first data row background color for justification padding color
             let data_bg = parse_bg_color(&self.rows.colors[0].bg);
@@ -263,10 +252,8 @@ impl TableStyleConfig {
                     );
                 }
                 (false, false) => {
-                    table.modify(
-                        Segment::all().not(Rows::first()),
-                        BorderColor::filled(vert_color),
-                    );
+                    table
+                        .modify(Segment::all().not(Rows::first()), BorderColor::filled(vert_color));
                 }
             }
         }
@@ -299,11 +286,8 @@ impl TableStyleConfig {
         // 3. Color header separators (header is now row 1)
         if self.header.vertical_fg_color.is_some() || self.header.vertical_bg_color.is_some() {
             let fg = self.header.vertical_fg_color.as_deref().unwrap_or("white");
-            let bg = self
-                .header
-                .vertical_bg_color
-                .as_deref()
-                .unwrap_or_else(|| &self.header.bg_color);
+            let bg =
+                self.header.vertical_bg_color.as_deref().unwrap_or_else(|| &self.header.bg_color);
             let header_vert_color = parse_color(bg, fg);
 
             table.modify(
@@ -312,10 +296,7 @@ impl TableStyleConfig {
             );
         } else {
             // Default: match header background
-            table.modify(
-                Segment::all().intersect(Rows::new(1..2)),
-                BorderColor::filled(header_bg),
-            );
+            table.modify(Segment::all().intersect(Rows::new(1..2)), BorderColor::filled(header_bg));
         }
 
         // 4. Apply footer styling if enabled
@@ -471,5 +452,643 @@ fn parse_hex_color(hex: &str) -> Option<(u8, u8, u8)> {
         Some((r, g, b))
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ===== parse_hex_color tests =====
+
+    #[test]
+    fn test_parse_hex_color_six_digit_with_hash() {
+        assert_eq!(parse_hex_color("#FF0000"), Some((255, 0, 0)));
+        assert_eq!(parse_hex_color("#00FF00"), Some((0, 255, 0)));
+        assert_eq!(parse_hex_color("#0000FF"), Some((0, 0, 255)));
+        assert_eq!(parse_hex_color("#FFFFFF"), Some((255, 255, 255)));
+        assert_eq!(parse_hex_color("#000000"), Some((0, 0, 0)));
+    }
+
+    #[test]
+    fn test_parse_hex_color_six_digit_without_hash() {
+        assert_eq!(parse_hex_color("FF0000"), Some((255, 0, 0)));
+        assert_eq!(parse_hex_color("00FF00"), Some((0, 255, 0)));
+        assert_eq!(parse_hex_color("0000FF"), Some((0, 0, 255)));
+    }
+
+    #[test]
+    fn test_parse_hex_color_three_digit_with_hash() {
+        assert_eq!(parse_hex_color("#F00"), Some((255, 0, 0)));
+        assert_eq!(parse_hex_color("#0F0"), Some((0, 255, 0)));
+        assert_eq!(parse_hex_color("#00F"), Some((0, 0, 255)));
+        assert_eq!(parse_hex_color("#FFF"), Some((255, 255, 255)));
+        assert_eq!(parse_hex_color("#000"), Some((0, 0, 0)));
+    }
+
+    #[test]
+    fn test_parse_hex_color_three_digit_without_hash() {
+        assert_eq!(parse_hex_color("F00"), Some((255, 0, 0)));
+        assert_eq!(parse_hex_color("0F0"), Some((0, 255, 0)));
+        assert_eq!(parse_hex_color("00F"), Some((0, 0, 255)));
+    }
+
+    #[test]
+    fn test_parse_hex_color_lowercase() {
+        assert_eq!(parse_hex_color("#ff0000"), Some((255, 0, 0)));
+        assert_eq!(parse_hex_color("#f00"), Some((255, 0, 0)));
+        assert_eq!(parse_hex_color("abcdef"), Some((171, 205, 239)));
+    }
+
+    #[test]
+    fn test_parse_hex_color_mixed_case() {
+        assert_eq!(parse_hex_color("#Ff0000"), Some((255, 0, 0)));
+        assert_eq!(parse_hex_color("#AbCdEf"), Some((171, 205, 239)));
+    }
+
+    #[test]
+    fn test_parse_hex_color_invalid_length() {
+        assert_eq!(parse_hex_color("#FF"), None);
+        assert_eq!(parse_hex_color("#FFFF"), None);
+        assert_eq!(parse_hex_color("#FFFFFFF"), None);
+        assert_eq!(parse_hex_color(""), None);
+    }
+
+    #[test]
+    fn test_parse_hex_color_invalid_characters() {
+        assert_eq!(parse_hex_color("#GGGGGG"), None);
+        assert_eq!(parse_hex_color("#ZZZZZZ"), None);
+        assert_eq!(parse_hex_color("#12345G"), None);
+        assert_eq!(parse_hex_color("notahex"), None);
+    }
+
+    #[test]
+    fn test_parse_hex_color_real_world_colors() {
+        // Oxur theme colors
+        assert_eq!(parse_hex_color("#F97316"), Some((249, 115, 22)));
+        assert_eq!(parse_hex_color("#D45500"), Some((212, 85, 0)));
+        assert_eq!(parse_hex_color("#451A03"), Some((69, 26, 3)));
+        assert_eq!(parse_hex_color("#FED7AA"), Some((254, 215, 170)));
+        assert_eq!(parse_hex_color("#FDBA74"), Some((253, 186, 116)));
+        assert_eq!(parse_hex_color("#803300"), Some((128, 51, 0)));
+    }
+
+    // ===== parse_single_color tests =====
+
+    #[test]
+    fn test_parse_single_color_basic_colors() {
+        // Just verify these don't panic - we can't easily test Color equality
+        parse_single_color("black");
+        parse_single_color("red");
+        parse_single_color("green");
+        parse_single_color("yellow");
+        parse_single_color("blue");
+        parse_single_color("magenta");
+        parse_single_color("cyan");
+        parse_single_color("white");
+    }
+
+    #[test]
+    fn test_parse_single_color_bright_colors() {
+        parse_single_color("bright_black");
+        parse_single_color("bright_red");
+        parse_single_color("bright_green");
+        parse_single_color("bright_yellow");
+        parse_single_color("bright_blue");
+        parse_single_color("bright_magenta");
+        parse_single_color("bright_cyan");
+        parse_single_color("bright_white");
+    }
+
+    #[test]
+    fn test_parse_single_color_aliases() {
+        parse_single_color("gray");
+        parse_single_color("grey");
+    }
+
+    #[test]
+    fn test_parse_single_color_case_insensitive() {
+        parse_single_color("RED");
+        parse_single_color("Green");
+        parse_single_color("BLUE");
+        parse_single_color("bright_RED");
+    }
+
+    #[test]
+    fn test_parse_single_color_hex() {
+        // Should handle hex colors
+        parse_single_color("#FF0000");
+        parse_single_color("#F00");
+    }
+
+    #[test]
+    fn test_parse_single_color_unknown_defaults_to_white() {
+        // Unknown colors should default to white
+        parse_single_color("unknown");
+        parse_single_color("notacolor");
+    }
+
+    // ===== parse_color tests =====
+
+    #[test]
+    fn test_parse_color_basic_combinations() {
+        // Test combining background and foreground colors
+        parse_color("black", "white");
+        parse_color("red", "white");
+        parse_color("blue", "yellow");
+    }
+
+    #[test]
+    fn test_parse_color_hex_background() {
+        parse_color("#FF0000", "white");
+        parse_color("#F00", "black");
+    }
+
+    #[test]
+    fn test_parse_color_hex_foreground() {
+        parse_color("black", "#FFFFFF");
+        parse_color("red", "#FFF");
+    }
+
+    #[test]
+    fn test_parse_color_both_hex() {
+        parse_color("#FF0000", "#FFFFFF");
+        parse_color("#F00", "#FFF");
+    }
+
+    #[test]
+    fn test_parse_color_case_insensitive() {
+        parse_color("RED", "WHITE");
+        parse_color("Blue", "Yellow");
+    }
+
+    // ===== parse_bg_color tests =====
+
+    #[test]
+    fn test_parse_bg_color_basic_colors() {
+        parse_bg_color("black");
+        parse_bg_color("red");
+        parse_bg_color("green");
+        parse_bg_color("yellow");
+        parse_bg_color("blue");
+        parse_bg_color("magenta");
+        parse_bg_color("cyan");
+        parse_bg_color("white");
+    }
+
+    #[test]
+    fn test_parse_bg_color_bright_colors() {
+        parse_bg_color("bright_black");
+        parse_bg_color("bright_red");
+        parse_bg_color("bright_green");
+        parse_bg_color("bright_yellow");
+        parse_bg_color("bright_blue");
+        parse_bg_color("bright_magenta");
+        parse_bg_color("bright_cyan");
+        parse_bg_color("bright_white");
+    }
+
+    #[test]
+    fn test_parse_bg_color_aliases() {
+        parse_bg_color("gray");
+        parse_bg_color("grey");
+    }
+
+    #[test]
+    fn test_parse_bg_color_case_insensitive() {
+        parse_bg_color("RED");
+        parse_bg_color("Green");
+        parse_bg_color("BLUE");
+    }
+
+    #[test]
+    fn test_parse_bg_color_hex() {
+        parse_bg_color("#FF0000");
+        parse_bg_color("#F00");
+    }
+
+    #[test]
+    fn test_parse_bg_color_unknown_defaults_to_black() {
+        // Unknown colors should default to black
+        parse_bg_color("unknown");
+        parse_bg_color("notacolor");
+    }
+
+    // ===== TableStyleConfig deserialization tests =====
+
+    #[test]
+    fn test_deserialize_minimal_config() {
+        let toml = r##"
+            [table]
+            padding_left = 1
+            padding_right = 1
+            padding_top = 0
+            padding_bottom = 0
+
+            [header]
+            bg_color = "black"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [
+                { bg = "black", fg = "white" }
+            ]
+
+            [style]
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.table.padding_left, 1);
+        assert_eq!(config.table.padding_right, 1);
+        assert_eq!(config.header.bg_color, "black");
+        assert_eq!(config.rows.colors.len(), 1);
+    }
+
+    #[test]
+    fn test_deserialize_with_title_and_footer() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [title]
+            enabled = true
+            bg_color = "#FF0000"
+            fg_color = "#FFFFFF"
+
+            [header]
+            bg_color = "blue"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [
+                { bg = "black", fg = "white" },
+                { bg = "gray", fg = "white" }
+            ]
+
+            [style]
+
+            [footer]
+            enabled = true
+            bg_color = "red"
+            fg_color = "white"
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        assert!(config.title.is_some());
+        assert!(config.footer.is_some());
+
+        let title = config.title.unwrap();
+        assert!(title.enabled);
+        assert_eq!(title.bg_color.as_deref(), Some("#FF0000"));
+
+        let footer = config.footer.unwrap();
+        assert!(footer.enabled);
+        assert_eq!(footer.bg_color.as_deref(), Some("red"));
+    }
+
+    #[test]
+    fn test_deserialize_optional_fields() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [header]
+            bg_color = "black"
+            fg_color = "white"
+            justification_char = " "
+            vertical_char = "|"
+            vertical_fg_color = "red"
+            vertical_bg_color = "blue"
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+            justification_char = " "
+
+            [style]
+            vertical_char = "|"
+            vertical_fg_color = "green"
+            vertical_bg_color = "yellow"
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.header.vertical_char.as_deref(), Some("|"));
+        assert_eq!(config.header.vertical_fg_color.as_deref(), Some("red"));
+        assert_eq!(config.rows.justification_char.as_deref(), Some(" "));
+        assert_eq!(config.style.vertical_char.as_deref(), Some("|"));
+    }
+
+    #[test]
+    fn test_deserialize_without_optional_sections() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [header]
+            bg_color = "black"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+
+            [style]
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        assert!(config.title.is_none());
+        assert!(config.footer.is_none());
+    }
+
+    // ===== apply_to_table tests =====
+
+    use tabled::{Table, Tabled};
+
+    #[derive(Tabled)]
+    struct TestRow {
+        #[tabled(rename = "Col1")]
+        col1: String,
+        #[tabled(rename = "Col2")]
+        col2: String,
+    }
+
+    #[test]
+    fn test_apply_to_table_basic() {
+        let config = TableStyleConfig::default();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_apply_to_table_no_title_or_footer() {
+        let toml = r##"
+            [table]
+            padding_left = 1
+            padding_right = 1
+            padding_top = 0
+            padding_bottom = 0
+
+            [header]
+            bg_color = "#FF0000"
+            fg_color = "#FFFFFF"
+            justification_char = " "
+
+            [rows]
+            colors = [
+                { bg = "#000000", fg = "#FFFFFF" }
+            ]
+
+            [style]
+            vertical_fg_color = "#00FF00"
+            vertical_bg_color = "#0000FF"
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_apply_to_table_with_title_no_footer() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [title]
+            enabled = true
+            bg_color = "#FF0000"
+            fg_color = "#FFFFFF"
+            justification_char = " "
+            vertical_fg_color = "#00FF00"
+            vertical_bg_color = "#0000FF"
+
+            [header]
+            bg_color = "blue"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+
+            [style]
+            vertical_fg_color = "red"
+            vertical_bg_color = "green"
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_apply_to_table_with_footer_no_title() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [header]
+            bg_color = "blue"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+
+            [style]
+            vertical_fg_color = "red"
+            vertical_bg_color = "green"
+
+            [footer]
+            enabled = true
+            bg_color = "#FF0000"
+            fg_color = "#FFFFFF"
+            justification_char = " "
+            vertical_fg_color = "#00FF00"
+            vertical_bg_color = "#0000FF"
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_apply_to_table_with_both_title_and_footer() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [title]
+            enabled = true
+            bg_color = "#AA0000"
+            fg_color = "#FFFFFF"
+
+            [header]
+            bg_color = "blue"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+
+            [style]
+            vertical_fg_color = "red"
+            vertical_bg_color = "green"
+
+            [footer]
+            enabled = true
+            bg_color = "#00AA00"
+            fg_color = "#FFFFFF"
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_apply_to_table_title_disabled() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [title]
+            enabled = false
+            bg_color = "#FF0000"
+            fg_color = "#FFFFFF"
+
+            [header]
+            bg_color = "blue"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+
+            [style]
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_apply_to_table_footer_disabled() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [header]
+            bg_color = "blue"
+            fg_color = "white"
+            justification_char = " "
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+
+            [style]
+
+            [footer]
+            enabled = false
+            bg_color = "#FF0000"
+            fg_color = "#FFFFFF"
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_apply_to_table_with_empty_vertical_char() {
+        let toml = r##"
+            [table]
+            padding_left = 0
+            padding_right = 0
+            padding_top = 0
+            padding_bottom = 0
+
+            [header]
+            bg_color = "blue"
+            fg_color = "white"
+            justification_char = " "
+            vertical_char = ""
+
+            [rows]
+            colors = [{ bg = "black", fg = "white" }]
+
+            [style]
+            vertical_char = ""
+        "##;
+
+        let config: TableStyleConfig = toml::from_str(toml).unwrap();
+        let data = vec![TestRow { col1: "A".into(), col2: "B".into() }];
+        let mut table = Table::new(&data);
+
+        config.apply_to_table::<TestRow>(&mut table);
+
+        let output = table.to_string();
+        assert!(!output.is_empty());
     }
 }

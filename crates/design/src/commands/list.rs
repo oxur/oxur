@@ -15,8 +15,7 @@ fn preserve_bg(colored: colored::ColoredString) -> String {
     let s = colored.to_string();
     // Replace full reset with foreground reset + bold off
     // This preserves background while properly resetting bold
-    s.replace("\x1b[0m", "\x1b[22m\x1b[39m")
-        .replace("\u{001b}[0m", "\u{001b}[22m\u{001b}[39m")
+    s.replace("\x1b[0m", "\x1b[22m\x1b[39m").replace("\u{001b}[0m", "\u{001b}[22m\u{001b}[39m")
 }
 
 /// Table row for document list (using Builder, so no column names needed)
@@ -188,11 +187,7 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
 
     // Row 0: Title
     let title = preserve_bg("REMOVED DOCUMENTS".bold());
-    if verbose {
-        builder.push_record([&title, "", "", "", ""]);
-    } else {
-        builder.push_record([&title, "", "", "", ""]);
-    }
+    builder.push_record([&title, "", "", "", ""]);
 
     // Row 1: Header
     if verbose {
