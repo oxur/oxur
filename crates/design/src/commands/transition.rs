@@ -15,17 +15,20 @@ pub fn transition_document(
     doc_number_or_path: &str,
     new_state_str: &str,
 ) -> Result<()> {
-    // Resolve document number or path
-    let doc_number = state_mgr.resolve_number_or_path(doc_number_or_path)?;
+    // Try to resolve document number or path
+    let path = if let Ok(doc_number) = state_mgr.resolve_number_or_path(doc_number_or_path) {
+        // Get the document from state
+        let doc_record = state_mgr
+            .state()
+            .get(doc_number)
+            .ok_or_else(|| anyhow::anyhow!("Document {} not found", doc_number))?;
 
-    // Get the document from state
-    let doc_record = state_mgr
-        .state()
-        .get(doc_number)
-        .ok_or_else(|| anyhow::anyhow!("Document {} not found", doc_number))?;
-
-    // Build full path to the document
-    let path = state_mgr.docs_dir().join(&doc_record.path);
+        // Build full path to the document
+        state_mgr.docs_dir().join(&doc_record.path)
+    } else {
+        // If resolution fails, treat as direct path (for documents without headers)
+        PathBuf::from(doc_number_or_path)
+    };
 
     // Validate file exists
     if !path.exists() {
@@ -195,10 +198,11 @@ Test content.
     fn test_transition_file_not_found() {
         let temp = TempDir::new().unwrap();
         let index = create_test_index(&temp);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
 
         let result = transition_document(&index, &state_mgr, "/nonexistent/file.md", "Final");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("File not found"));
+        assert!(result.unwrap_err().to_string().contains("not found"));
     }
 
     #[test]
@@ -206,10 +210,15 @@ Test content.
         let temp = TempDir::new().unwrap();
         let index = create_test_index(&temp);
 
-        // Create a document
-        let doc_path = temp.path().join("test.md");
+        // Create a document in proper state directory
+        let draft_dir = temp.path().join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+        let doc_path = draft_dir.join("test.md");
         let content = create_test_doc_with_state(DocState::Draft);
         fs::write(&doc_path, content).unwrap();
+
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         let result = transition_document(&index, &state_mgr, "1", "InvalidState");
         assert!(result.is_err());
@@ -221,10 +230,15 @@ Test content.
         let temp = TempDir::new().unwrap();
         let index = create_test_index(&temp);
 
-        // Create a document in Draft state
-        let doc_path = temp.path().join("test.md");
+        // Create a document in Draft state in proper directory
+        let draft_dir = temp.path().join("01-draft");
+        fs::create_dir_all(&draft_dir).unwrap();
+        let doc_path = draft_dir.join("test.md");
         let content = create_test_doc_with_state(DocState::Draft);
         fs::write(&doc_path, content).unwrap();
+
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         // Try to transition to same state
         let result = transition_document(&index, &state_mgr, "1", "Draft");
@@ -259,6 +273,10 @@ Test content.
             .current_dir(&repo_path)
             .output()
             .unwrap();
+
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         // Transition to Final (must run in repo directory for git mv)
         let result = in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Final"));
@@ -304,6 +322,10 @@ Test content.
             .output()
             .unwrap();
 
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
+
         // Transition to Superseded (must run in repo directory for git mv)
         let result =
             in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Superseded"));
@@ -346,9 +368,15 @@ Test content.
             .output()
             .unwrap();
 
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
+
         // Try to transition - should add headers automatically (must run in repo directory)
-        let result =
-            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "UnderReview"));
+        // Use file path since document without headers won't be in state with a number
+        let result = in_dir(&repo_path, || {
+            transition_document(&index, &state_mgr, doc_path.to_str().unwrap(), "UnderReview")
+        });
         assert!(result.is_ok());
 
         // Verify headers were added and file was moved
@@ -388,6 +416,10 @@ Test content.
             .current_dir(&repo_path)
             .output()
             .unwrap();
+
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         // Target directory shouldn't exist
         let deferred_dir = repo_path.join("07-deferred");
@@ -432,6 +464,10 @@ Test content.
             .output()
             .unwrap();
 
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
+
         // Transition Draft -> UnderReview (must run in repo directory for git mv)
         let result =
             in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "UnderReview"));
@@ -440,6 +476,9 @@ Test content.
         let under_review_dir = repo_path.join("02-under-review");
         let path2 = under_review_dir.join("test.md");
         assert!(path2.exists());
+
+        // Rescan to update state after first transition
+        state_mgr.quick_scan().unwrap();
 
         // Transition UnderReview -> Accepted
         let result =

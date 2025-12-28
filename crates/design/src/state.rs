@@ -530,11 +530,17 @@ impl StateManager {
         }
 
         // If not a number, treat as a path and search
+        // Extract just the filename if it's an absolute path
+        let search_term = std::path::Path::new(number_or_path)
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or(number_or_path);
+
         let doc = self
             .state()
             .all()
             .into_iter()
-            .find(|d| d.path.contains(number_or_path))
+            .find(|d| d.path.contains(search_term))
             .ok_or_else(|| anyhow::anyhow!("Document '{}' not found", number_or_path))?;
 
         Ok(doc.metadata.number)

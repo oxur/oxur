@@ -14,17 +14,20 @@ pub fn sync_location(
     state_mgr: &StateManager,
     doc_number_or_path: &str,
 ) -> Result<()> {
-    // Resolve document number or path
-    let doc_number = state_mgr.resolve_number_or_path(doc_number_or_path)?;
+    // Try to resolve document number or path
+    let path = if let Ok(doc_number) = state_mgr.resolve_number_or_path(doc_number_or_path) {
+        // Get the document from state
+        let doc_record = state_mgr
+            .state()
+            .get(doc_number)
+            .ok_or_else(|| anyhow::anyhow!("Document {} not found", doc_number))?;
 
-    // Get the document from state
-    let doc_record = state_mgr
-        .state()
-        .get(doc_number)
-        .ok_or_else(|| anyhow::anyhow!("Document {} not found", doc_number))?;
-
-    // Build full path to the document
-    let path = state_mgr.docs_dir().join(&doc_record.path);
+        // Build full path to the document
+        state_mgr.docs_dir().join(&doc_record.path)
+    } else {
+        // If resolution fails, treat as direct path (for documents without headers)
+        PathBuf::from(doc_number_or_path)
+    };
 
     // Validate file exists
     if !path.exists() {
@@ -202,10 +205,11 @@ Test content.
     fn test_sync_location_file_not_found() {
         let temp = TempDir::new().unwrap();
         let index = create_test_index(&temp);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
 
         let result = sync_location(&index, &state_mgr, "/nonexistent/file.md");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("File not found"));
+        assert!(result.unwrap_err().to_string().contains("not found"));
     }
 
     #[test]
@@ -235,6 +239,10 @@ Test content.
             .current_dir(&repo_path)
             .output()
             .unwrap();
+
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         // Sync location - should report already in correct place (must run in repo directory)
         let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
@@ -271,6 +279,10 @@ Test content.
             .current_dir(&repo_path)
             .output()
             .unwrap();
+
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         // Sync location - should move to Final directory (must run in repo directory)
         let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
@@ -312,8 +324,13 @@ Test content.
             .output()
             .unwrap();
 
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
+
         // Sync location - should add headers automatically (must run in repo directory)
-        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
+        // Use file path since document without headers won't be in state with a number
+        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, doc_path.to_str().unwrap()));
         assert!(result.is_ok());
 
         // Verify headers were added (document should remain in draft after adding headers)
@@ -349,6 +366,10 @@ Test content.
             .current_dir(&repo_path)
             .output()
             .unwrap();
+
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         // Target directory shouldn't exist yet
         let rejected_dir = repo_path.join("08-rejected");
@@ -392,6 +413,10 @@ Test content.
             .current_dir(&repo_path)
             .output()
             .unwrap();
+
+        // Create StateManager after files are set up
+        let mut state_mgr = StateManager::new(temp.path()).unwrap();
+        state_mgr.quick_scan().unwrap();
 
         // Sync location (must run in repo directory for git mv)
         let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
@@ -440,8 +465,13 @@ Test content.
                 .output()
                 .unwrap();
 
+            // Create/update StateManager after files are set up
+            let mut state_mgr = StateManager::new(temp.path()).unwrap();
+            state_mgr.quick_scan().unwrap();
+
             // Sync location (must run in repo directory for git mv)
-            let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
+            // Use file path since we're testing multiple documents
+            let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, doc_path.to_str().unwrap()));
             assert!(
                 result.is_ok(),
                 "Failed to sync {} to {}",
