@@ -122,7 +122,7 @@ fn list_documents_impl(
         let mut builder = Builder::default();
 
         // Row 0: Title
-        builder.push_record(["", "DESIGN DOCUMENTS", ""]);
+        builder.push_record(["DESIGN DOCUMENTS", "", ""]);
 
         // Row 1: Header
         builder.push_record(["Number", "Title", "State"]);
@@ -176,9 +176,9 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
 
     // Row 0: Title
     if verbose {
-        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
+        builder.push_record(["REMOVED DOCUMENTS", "", "", "", ""]);
     } else {
-        builder.push_record(["", "REMOVED DOCUMENTS", "", "", ""]);
+        builder.push_record(["REMOVED DOCUMENTS", "", "", "", ""]);
     }
 
     // Row 1: Header
