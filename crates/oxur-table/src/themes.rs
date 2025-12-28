@@ -37,7 +37,7 @@ vertical_fg_color = "#D45500"
 [footer]
 enabled = true
 bg_color = "#803300"
-fg_color = "#803300"
+fg_color = "#D45500"
 vertical_bg_color = "#803300"
 vertical_fg_color = "#803300"
 "##;

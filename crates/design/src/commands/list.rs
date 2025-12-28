@@ -13,9 +13,10 @@ use tabled::{builder::Builder, Tabled};
 /// This preserves table background colors when using ColoredString
 fn preserve_bg(colored: colored::ColoredString) -> String {
     let s = colored.to_string();
-    s.replace("\x1b[0m", "\x1b[39m")
-        .replace("\u{001b}[0m", "\u{001b}[39m")
-        .replace("\x1b[22m", "")  // Remove bold-off
+    // Replace full reset with foreground reset + bold off
+    // This preserves background while properly resetting bold
+    s.replace("\x1b[0m", "\x1b[22m\x1b[39m")
+        .replace("\u{001b}[0m", "\u{001b}[22m\u{001b}[39m")
 }
 
 /// Table row for document list (using Builder, so no column names needed)
@@ -131,7 +132,8 @@ fn list_documents_impl(
         let mut builder = Builder::default();
 
         // Row 0: Title
-        builder.push_record(["DESIGN DOCUMENTS", "", ""]);
+        let title = preserve_bg("DESIGN DOCUMENTS".bold());
+        builder.push_record([&title, "", ""]);
 
         // Row 1: Header
         builder.push_record(["Number", "Title", "State"]);
@@ -145,8 +147,9 @@ fn list_documents_impl(
             ]);
         }
 
-        // Last row: Footer separator
-        builder.push_record(["", "", ""]);
+        // Last row: Footer with total count
+        let total_text = format!("Total: {} documents", docs.len());
+        builder.push_record([&total_text, "", ""]);
 
         let mut table = builder.build();
         let config = TableStyleConfig::default();
@@ -154,7 +157,7 @@ fn list_documents_impl(
 
         println!();
         println!("{}", table);
-        println!("\nTotal: {} documents\n", docs.len());
+        println!();
     }
     Ok(())
 }
@@ -184,10 +187,11 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     let mut builder = Builder::default();
 
     // Row 0: Title
+    let title = preserve_bg("REMOVED DOCUMENTS".bold());
     if verbose {
-        builder.push_record(["REMOVED DOCUMENTS", "", "", "", ""]);
+        builder.push_record([&title, "", "", "", ""]);
     } else {
-        builder.push_record(["REMOVED DOCUMENTS", "", "", "", ""]);
+        builder.push_record([&title, "", "", "", ""]);
     }
 
     // Row 1: Header
@@ -195,6 +199,18 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         builder.push_record(["Number", "Title", "Removed", "Deleted", "Dustbin Location"]);
     } else {
         builder.push_record(["Number", "Title", "Removed", "Deleted", ""]);
+    }
+
+    // Count files in dustbin vs deleted (do this first so we can use in footer)
+    let mut in_dustbin = 0;
+    let mut deleted = 0;
+    for doc in &removed_docs {
+        let file_path = state_mgr.docs_dir().join(&doc.path);
+        if file_path.exists() {
+            in_dustbin += 1;
+        } else {
+            deleted += 1;
+        }
     }
 
     // Data rows
@@ -229,8 +245,14 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         ]);
     }
 
-    // Last row: Footer separator
-    builder.push_record(["", "", "", "", ""]);
+    // Last row: Footer with total count
+    let total_text = format!(
+        "Total: {} removed ({} in dustbin, {} deleted)",
+        preserve_bg(removed_docs.len().to_string().yellow()),
+        preserve_bg(in_dustbin.to_string().green()),
+        preserve_bg(deleted.to_string().red())
+    );
+    builder.push_record([&total_text, "", "", "", ""]);
 
     let mut table = builder.build();
     let config = TableStyleConfig::default();
@@ -238,26 +260,6 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
 
     println!();
     println!("{}", table);
-
-    // Count files in dustbin vs deleted
-    let mut in_dustbin = 0;
-    let mut deleted = 0;
-    for doc in &removed_docs {
-        let file_path = state_mgr.docs_dir().join(&doc.path);
-        if file_path.exists() {
-            in_dustbin += 1;
-        } else {
-            deleted += 1;
-        }
-    }
-
-    println!();
-    println!(
-        "Total: {} removed ({} in dustbin, {} deleted)",
-        removed_docs.len().to_string().yellow(),
-        in_dustbin.to_string().green(),
-        deleted.to_string().red()
-    );
     println!();
 
     Ok(())
