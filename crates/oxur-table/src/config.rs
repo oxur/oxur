@@ -159,22 +159,10 @@ impl TableStyleConfig {
             .collect();
         table.with(Colorization::rows(row_colors));
 
-        // Apply header styling
-        let header_color = parse_color(&self.header.bg_color, &self.header.fg_color);
-        table.modify(Rows::first(), header_color);
-
-        // Apply header justification
-        let just_char = self.header.justification_char.chars().next().unwrap_or(' ');
-        let header_bg = parse_bg_color(&self.header.bg_color);
-        table.modify(
-            Rows::first(),
-            Justification::new(just_char).color(header_bg.clone()),
-        );
-
         // Determine if title is enabled (we need this for data row styling)
         let title_enabled = self.title.as_ref().map(|t| t.enabled).unwrap_or(false);
 
-        // Apply title styling if enabled (title is the first DATA row, which is Rows::new(1))
+        // Apply title styling if enabled (title is the first row = row index 0)
         if let Some(title) = &self.title {
             if title.enabled {
                 // Determine title colors (default to header colors for consistency)
@@ -183,8 +171,8 @@ impl TableStyleConfig {
                 let title_color = parse_color(title_bg_str, title_fg_str);
                 let title_bg = parse_bg_color(title_bg_str);
 
-                // Apply title row colors (first data row = row index 1)
-                table.modify(Rows::new(1..2), title_color);
+                // Apply title row colors (first row = row index 0)
+                table.modify(Rows::first(), title_color);
 
                 // Apply title justification
                 let title_just_char = title
@@ -194,11 +182,23 @@ impl TableStyleConfig {
                     .and_then(|s| s.chars().next())
                     .unwrap_or(' ');
                 table.modify(
-                    Rows::new(1..2),
+                    Rows::first(),
                     Justification::new(title_just_char).color(title_bg.clone()),
                 );
             }
         }
+
+        // Apply header styling (header is the second row = row index 1)
+        let header_color = parse_color(&self.header.bg_color, &self.header.fg_color);
+        table.modify(Rows::new(1..2), header_color);
+
+        // Apply header justification
+        let just_char = self.header.justification_char.chars().next().unwrap_or(' ');
+        let header_bg = parse_bg_color(&self.header.bg_color);
+        table.modify(
+            Rows::new(1..2),
+            Justification::new(just_char).color(header_bg.clone()),
+        );
 
         // Determine if footer is enabled (we need this for data row styling)
         let footer_enabled = self.footer.as_ref().map(|f| f.enabled).unwrap_or(false);
@@ -241,29 +241,7 @@ impl TableStyleConfig {
             }
         }
 
-        // 2. Color header separators (overrides the above for header row)
-        if self.header.vertical_fg_color.is_some() || self.header.vertical_bg_color.is_some() {
-            let fg = self.header.vertical_fg_color.as_deref().unwrap_or("white");
-            let bg = self
-                .header
-                .vertical_bg_color
-                .as_deref()
-                .unwrap_or_else(|| &self.header.bg_color);
-            let header_vert_color = parse_color(bg, fg);
-
-            table.modify(
-                Segment::all().intersect(Rows::first()),
-                BorderColor::filled(header_vert_color),
-            );
-        } else {
-            // Default: match header background
-            table.modify(
-                Segment::all().intersect(Rows::first()),
-                BorderColor::filled(header_bg),
-            );
-        }
-
-        // 3. Color title separators if enabled
+        // 2. Color title separators if enabled (title is now row 0)
         if let Some(title) = &self.title {
             if title.enabled {
                 let title_bg_str = title.bg_color.as_deref().unwrap_or(&self.header.bg_color);
@@ -274,18 +252,40 @@ impl TableStyleConfig {
                     let title_vert_color = parse_color(bg, fg);
 
                     table.modify(
-                        Segment::all().intersect(Rows::new(1..2)),
+                        Segment::all().intersect(Rows::first()),
                         BorderColor::filled(title_vert_color),
                     );
                 } else {
                     // Default: match title background
                     let title_bg = parse_bg_color(title_bg_str);
                     table.modify(
-                        Segment::all().intersect(Rows::new(1..2)),
+                        Segment::all().intersect(Rows::first()),
                         BorderColor::filled(title_bg),
                     );
                 }
             }
+        }
+
+        // 3. Color header separators (header is now row 1)
+        if self.header.vertical_fg_color.is_some() || self.header.vertical_bg_color.is_some() {
+            let fg = self.header.vertical_fg_color.as_deref().unwrap_or("white");
+            let bg = self
+                .header
+                .vertical_bg_color
+                .as_deref()
+                .unwrap_or_else(|| &self.header.bg_color);
+            let header_vert_color = parse_color(bg, fg);
+
+            table.modify(
+                Segment::all().intersect(Rows::new(1..2)),
+                BorderColor::filled(header_vert_color),
+            );
+        } else {
+            // Default: match header background
+            table.modify(
+                Segment::all().intersect(Rows::new(1..2)),
+                BorderColor::filled(header_bg),
+            );
         }
 
         // 4. Apply footer styling if enabled
