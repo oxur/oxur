@@ -8,6 +8,19 @@ use design::state::StateManager;
 use design::theme;
 use oxur_table::{OxurTable, Tabled};
 
+/// Table row for document list
+#[derive(Tabled)]
+struct DocumentRow {
+    #[tabled(rename = "Number")]
+    number: ColoredString,
+
+    #[tabled(rename = "Title")]
+    title: String,
+
+    #[tabled(rename = "State")]
+    state: ColoredString,
+}
+
 /// Table row for removed documents
 #[derive(Tabled)]
 struct RemovedDocRow {
@@ -81,10 +94,10 @@ fn list_documents_impl(
     println!("\n{}", "Design Documents".bold().underline());
     println!();
 
-    for doc in &docs {
-        let state = doc.metadata.state.as_str();
-
-        if verbose {
+    if verbose {
+        // Verbose mode: keep the detailed multi-line format
+        for doc in &docs {
+            let state = doc.metadata.state.as_str();
             println!(
                 "{} {} [{}]",
                 theme::doc_number(doc.metadata.number),
@@ -100,14 +113,20 @@ fn list_documents_impl(
                 println!("  Superseded by: {:04}", superseded_by);
             }
             println!();
-        } else {
-            println!(
-                "{} {} [{}]",
-                theme::doc_number(doc.metadata.number),
-                doc.metadata.title,
-                theme::state_badge(state)
-            );
         }
+    } else {
+        // Normal mode: use table format
+        let rows: Vec<DocumentRow> = docs
+            .iter()
+            .map(|doc| DocumentRow {
+                number: theme::doc_number(doc.metadata.number),
+                title: doc.metadata.title.clone(),
+                state: theme::state_badge(doc.metadata.state.as_str()),
+            })
+            .collect();
+
+        let table = OxurTable::new(rows).render();
+        println!("{}", table);
     }
 
     println!("\nTotal: {} documents\n", docs.len());
