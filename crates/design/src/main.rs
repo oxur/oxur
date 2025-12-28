@@ -126,11 +126,11 @@ pub(crate) fn execute_command(
         }
         Commands::Show { number, metadata_only } => show_document(index, number, metadata_only),
         Commands::New { title, author } => new_document(index, title, author),
-        Commands::Validate { fix } => validate_documents(index, fix),
+        Commands::Validate { fix } => validate_documents(index, state_mgr, fix),
         Commands::Index { format } => generate_index(index, &format),
         Commands::AddHeaders { path } => add_headers(&path),
-        Commands::Transition { path, state } => transition_document(index, &path, &state),
-        Commands::SyncLocation { path } => sync_location(index, &path),
+        Commands::Transition { path, state } => transition_document(index, state_mgr, &path, &state),
+        Commands::SyncLocation { path } => sync_location(index, state_mgr, &path),
         Commands::UpdateIndex => update_index(index),
         Commands::Add { path, state, dry_run, interactive, yes, preview } => {
             if preview {

@@ -4,20 +4,32 @@ use anyhow::{Context, Result};
 use colored::*;
 use design::doc::{DesignDoc, DocState};
 use design::index::DocumentIndex;
+use design::state::StateManager;
 use std::fs;
 use std::path::PathBuf;
 
 /// Transition a document to a new state
 pub fn transition_document(
     index: &DocumentIndex,
-    doc_path: &str,
+    state_mgr: &StateManager,
+    doc_number_or_path: &str,
     new_state_str: &str,
 ) -> Result<()> {
-    let path = PathBuf::from(doc_path);
+    // Resolve document number or path
+    let doc_number = state_mgr.resolve_number_or_path(doc_number_or_path)?;
+
+    // Get the document from state
+    let doc_record = state_mgr
+        .state()
+        .get(doc_number)
+        .ok_or_else(|| anyhow::anyhow!("Document {} not found", doc_number))?;
+
+    // Build full path to the document
+    let path = state_mgr.docs_dir().join(&doc_record.path);
 
     // Validate file exists
     if !path.exists() {
-        anyhow::bail!("File not found: {}", doc_path);
+        anyhow::bail!("File not found: {}", path.display());
     }
 
     // Check if document has headers, add them if missing
@@ -184,7 +196,7 @@ Test content.
         let temp = TempDir::new().unwrap();
         let index = create_test_index(&temp);
 
-        let result = transition_document(&index, "/nonexistent/file.md", "Final");
+        let result = transition_document(&index, &state_mgr, "/nonexistent/file.md", "Final");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("File not found"));
     }
@@ -199,7 +211,7 @@ Test content.
         let content = create_test_doc_with_state(DocState::Draft);
         fs::write(&doc_path, content).unwrap();
 
-        let result = transition_document(&index, doc_path.to_str().unwrap(), "InvalidState");
+        let result = transition_document(&index, &state_mgr, "1", "InvalidState");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Unsupported state"));
     }
@@ -215,7 +227,7 @@ Test content.
         fs::write(&doc_path, content).unwrap();
 
         // Try to transition to same state
-        let result = transition_document(&index, doc_path.to_str().unwrap(), "Draft");
+        let result = transition_document(&index, &state_mgr, "1", "Draft");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("already in state"));
     }
@@ -250,7 +262,7 @@ Test content.
 
         // Transition to Final (must run in repo directory for git mv)
         let result =
-            in_dir(&repo_path, || transition_document(&index, doc_path.to_str().unwrap(), "Final"));
+            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Final"));
         assert!(result.is_ok());
 
         // Verify file was moved
@@ -295,7 +307,7 @@ Test content.
 
         // Transition to Superseded (must run in repo directory for git mv)
         let result = in_dir(&repo_path, || {
-            transition_document(&index, doc_path.to_str().unwrap(), "Superseded")
+            transition_document(&index, &state_mgr, "1", "Superseded")
         });
         assert!(result.is_ok());
 
@@ -338,7 +350,7 @@ Test content.
 
         // Try to transition - should add headers automatically (must run in repo directory)
         let result = in_dir(&repo_path, || {
-            transition_document(&index, doc_path.to_str().unwrap(), "UnderReview")
+            transition_document(&index, &state_mgr, "1", "UnderReview")
         });
         assert!(result.is_ok());
 
@@ -386,7 +398,7 @@ Test content.
 
         // Transition to Deferred (must run in repo directory for git mv)
         let result = in_dir(&repo_path, || {
-            transition_document(&index, doc_path.to_str().unwrap(), "Deferred")
+            transition_document(&index, &state_mgr, "1", "Deferred")
         });
         assert!(result.is_ok());
 
@@ -426,7 +438,7 @@ Test content.
 
         // Transition Draft -> UnderReview (must run in repo directory for git mv)
         let result = in_dir(&repo_path, || {
-            transition_document(&index, doc_path.to_str().unwrap(), "UnderReview")
+            transition_document(&index, &state_mgr, "1", "UnderReview")
         });
         assert!(result.is_ok());
 
@@ -436,7 +448,7 @@ Test content.
 
         // Transition UnderReview -> Accepted
         let result =
-            in_dir(&repo_path, || transition_document(&index, path2.to_str().unwrap(), "Accepted"));
+            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Accepted"));
         assert!(result.is_ok());
 
         let accepted_dir = repo_path.join("04-accepted");

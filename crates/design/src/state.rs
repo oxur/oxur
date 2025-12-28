@@ -497,6 +497,48 @@ impl StateManager {
     pub fn next_number(&self) -> u32 {
         self.state.next_number
     }
+
+    /// Resolve a document number or path to a document number
+    ///
+    /// This helper allows commands to accept either a document number (e.g., "13")
+    /// or a file path (e.g., "02-under-review/0013-compilation-chain.md").
+    ///
+    /// # Arguments
+    /// * `number_or_path` - Either a document number as a string, or a file path
+    ///
+    /// # Returns
+    /// * `Ok(u32)` - The resolved document number
+    /// * `Err` - If the input can't be parsed as a number and no matching document is found
+    ///
+    /// # Examples
+    /// ```no_run
+    /// // Using a number
+    /// let num = state_mgr.resolve_number_or_path("13")?;
+    ///
+    /// // Using a path
+    /// let num = state_mgr.resolve_number_or_path("02-under-review/0013-doc.md")?;
+    /// ```
+    pub fn resolve_number_or_path(&self, number_or_path: &str) -> Result<u32> {
+        // First, try to parse as a number
+        if let Ok(num) = number_or_path.parse::<u32>() {
+            // Verify the document exists
+            if self.state().get(num).is_some() {
+                return Ok(num);
+            } else {
+                anyhow::bail!("Document {} not found", num);
+            }
+        }
+
+        // If not a number, treat as a path and search
+        let doc = self
+            .state()
+            .all()
+            .into_iter()
+            .find(|d| d.path.contains(number_or_path))
+            .ok_or_else(|| anyhow::anyhow!("Document '{}' not found", number_or_path))?;
+
+        Ok(doc.metadata.number)
+    }
 }
 
 /// Results of a filesystem scan

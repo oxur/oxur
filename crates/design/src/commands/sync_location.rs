@@ -4,16 +4,31 @@ use anyhow::{Context, Result};
 use colored::*;
 use design::doc::DesignDoc;
 use design::index::DocumentIndex;
+use design::state::StateManager;
 use std::fs;
 use std::path::PathBuf;
 
 /// Move document to match its header state
-pub fn sync_location(index: &DocumentIndex, doc_path: &str) -> Result<()> {
-    let path = PathBuf::from(doc_path);
+pub fn sync_location(
+    index: &DocumentIndex,
+    state_mgr: &StateManager,
+    doc_number_or_path: &str,
+) -> Result<()> {
+    // Resolve document number or path
+    let doc_number = state_mgr.resolve_number_or_path(doc_number_or_path)?;
+
+    // Get the document from state
+    let doc_record = state_mgr
+        .state()
+        .get(doc_number)
+        .ok_or_else(|| anyhow::anyhow!("Document {} not found", doc_number))?;
+
+    // Build full path to the document
+    let path = state_mgr.docs_dir().join(&doc_record.path);
 
     // Validate file exists
     if !path.exists() {
-        anyhow::bail!("File not found: {}", doc_path);
+        anyhow::bail!("File not found: {}", path.display());
     }
 
     // Check if document has headers, add them if missing
@@ -188,7 +203,7 @@ Test content.
         let temp = TempDir::new().unwrap();
         let index = create_test_index(&temp);
 
-        let result = sync_location(&index, "/nonexistent/file.md");
+        let result = sync_location(&index, &state_mgr, "/nonexistent/file.md");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("File not found"));
     }
@@ -222,7 +237,7 @@ Test content.
             .unwrap();
 
         // Sync location - should report already in correct place (must run in repo directory)
-        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
+        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
         assert!(result.is_ok());
 
         // File should still be in same place
@@ -258,7 +273,7 @@ Test content.
             .unwrap();
 
         // Sync location - should move to Final directory (must run in repo directory)
-        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
+        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
         assert!(result.is_ok());
 
         // File should be moved
@@ -298,7 +313,7 @@ Test content.
             .unwrap();
 
         // Sync location - should add headers automatically (must run in repo directory)
-        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
+        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
         assert!(result.is_ok());
 
         // Verify headers were added (document should remain in draft after adding headers)
@@ -340,7 +355,7 @@ Test content.
         assert!(!rejected_dir.exists());
 
         // Sync location - should create target directory (must run in repo directory)
-        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
+        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
         assert!(result.is_ok());
 
         // Verify directory was created and file was moved
@@ -379,7 +394,7 @@ Test content.
             .unwrap();
 
         // Sync location (must run in repo directory for git mv)
-        let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
+        let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
         assert!(result.is_ok());
 
         // Verify content is preserved
@@ -426,7 +441,7 @@ Test content.
                 .unwrap();
 
             // Sync location (must run in repo directory for git mv)
-            let result = in_dir(&repo_path, || sync_location(&index, doc_path.to_str().unwrap()));
+            let result = in_dir(&repo_path, || sync_location(&index, &state_mgr, "1"));
             assert!(
                 result.is_ok(),
                 "Failed to sync {} to {}",

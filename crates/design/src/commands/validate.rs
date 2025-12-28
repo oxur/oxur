@@ -6,6 +6,7 @@ use design::constants::INDEX_FILENAME;
 use design::doc::state_from_directory;
 use design::index::DocumentIndex;
 use design::index_sync::{get_docs_from_filesystem, ParsedIndex};
+use design::state::StateManager;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
@@ -102,7 +103,7 @@ impl ValidationIssue {
     }
 }
 
-pub fn validate_documents(index: &DocumentIndex, fix: bool) -> Result<()> {
+pub fn validate_documents(index: &DocumentIndex, state_mgr: &StateManager, fix: bool) -> Result<()> {
     println!("\n{}\n", "Validating design documents...".bold());
 
     let mut issues = Vec::new();
@@ -262,7 +263,7 @@ pub fn validate_documents(index: &DocumentIndex, fix: bool) -> Result<()> {
 
         if fix {
             println!("\n{}", "Auto-fixing issues...".bold());
-            apply_fixes(index, &issues)?;
+            apply_fixes(index, state_mgr, &issues)?;
         }
     }
 
@@ -270,7 +271,11 @@ pub fn validate_documents(index: &DocumentIndex, fix: bool) -> Result<()> {
     Ok(())
 }
 
-fn apply_fixes(index: &DocumentIndex, issues: &[ValidationIssue]) -> Result<()> {
+fn apply_fixes(
+    index: &DocumentIndex,
+    state_mgr: &StateManager,
+    issues: &[ValidationIssue],
+) -> Result<()> {
     use crate::commands::{add_headers, sync_location, update_index};
 
     let mut fixed = 0;
@@ -283,7 +288,7 @@ fn apply_fixes(index: &DocumentIndex, issues: &[ValidationIssue]) -> Result<()> 
         match issue {
             ValidationIssue::StateDirectoryMismatch { path, .. } => {
                 println!("  Fixing state/directory mismatch: {}", path);
-                if let Err(e) = sync_location(index, path) {
+                if let Err(e) = sync_location(index, state_mgr, path) {
                     eprintln!("    {} Failed: {}", "✗".red(), e);
                 } else {
                     println!("    {} Fixed", "✓".green());
@@ -372,9 +377,28 @@ mod tests {
 
     #[test]
     fn test_validate_no_issues() {
-        let index = create_valid_index();
+        let temp = TempDir::new().unwrap();
+        create_test_doc_file(
+            &temp,
+            1,
+            "Doc 1",
+            DocState::Draft,
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 1, 10).unwrap(),
+        );
+        create_test_doc_file(
+            &temp,
+            2,
+            "Doc 2",
+            DocState::Final,
+            NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 2, 10).unwrap(),
+        );
 
-        let result = validate_documents(&index, false);
+        let index = DocumentIndex::new(temp.path()).unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let result = validate_documents(&index, &state_mgr, false);
         assert!(result.is_ok());
     }
 
@@ -383,15 +407,35 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
 
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_with_fix_mode() {
-        let index = create_valid_index();
+        let temp = TempDir::new().unwrap();
+        create_test_doc_file(
+            &temp,
+            1,
+            "Doc 1",
+            DocState::Draft,
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 1, 10).unwrap(),
+        );
+        create_test_doc_file(
+            &temp,
+            2,
+            "Doc 2",
+            DocState::Final,
+            NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2024, 2, 10).unwrap(),
+        );
 
-        let result = validate_documents(&index, true);
+        let index = DocumentIndex::new(temp.path()).unwrap();
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+
+        let result = validate_documents(&index, &state_mgr, true);
         assert!(result.is_ok());
     }
 
@@ -686,7 +730,8 @@ mod tests {
         fs::write(temp.path().join("0001-duplicate.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         // Should succeed but report issues
         assert!(result.is_ok());
@@ -701,7 +746,8 @@ mod tests {
         fs::write(temp.path().join("0001-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -715,7 +761,8 @@ mod tests {
         fs::write(temp.path().join("0001-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -738,7 +785,8 @@ mod tests {
         fs::write(temp.path().join("0002-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         // Should succeed with no missing reference issues
         assert!(result.is_ok());
@@ -759,7 +807,8 @@ mod tests {
         );
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -777,7 +826,8 @@ mod tests {
         fs::write(temp.path().join("01-draft/0001-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -801,7 +851,8 @@ mod tests {
             .unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -814,7 +865,8 @@ mod tests {
         fs::write(temp.path().join("0001-empty.md"), "").unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         // Should handle gracefully
         assert!(result.is_ok());
@@ -828,7 +880,8 @@ mod tests {
         fs::write(temp.path().join("0001-whitespace.md"), "   \n  \n\t\n").unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -842,7 +895,8 @@ mod tests {
         fs::write(temp.path().join("0001-partial.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         // Index construction might fail or succeed but validation should handle it
         assert!(result.is_ok());
@@ -867,7 +921,8 @@ mod tests {
         fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -892,7 +947,8 @@ mod tests {
         fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -906,7 +962,8 @@ mod tests {
         fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -930,7 +987,8 @@ mod tests {
         fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         // Should handle gracefully
         assert!(result.is_ok());
@@ -958,7 +1016,8 @@ mod tests {
         fs::write(temp.path().join("0003-no-headers.md"), "# No headers\n\nContent").unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1013,7 +1072,8 @@ mod tests {
         );
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1033,7 +1093,8 @@ mod tests {
         );
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1052,7 +1113,8 @@ mod tests {
         );
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1071,7 +1133,8 @@ mod tests {
         );
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1097,7 +1160,8 @@ mod tests {
         fs::write(temp.path().join("0003-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1115,7 +1179,8 @@ mod tests {
         fs::write(temp.path().join("0002-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1138,7 +1203,8 @@ mod tests {
         fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1151,7 +1217,8 @@ mod tests {
         fs::write(temp.path().join("0001-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1168,7 +1235,8 @@ mod tests {
         fs::write(nested_dir.join("0001-test.md"), content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1200,7 +1268,8 @@ mod tests {
         );
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         assert!(result.is_ok());
     }
@@ -1223,7 +1292,8 @@ mod tests {
         fs::write(temp.path().join(INDEX_FILENAME), index_content).unwrap();
 
         let index = DocumentIndex::new(temp.path()).unwrap();
-        let result = validate_documents(&index, false);
+        let state_mgr = StateManager::new(temp.path()).unwrap();
+        let result = validate_documents(&index, &state_mgr, false);
 
         // Should handle gracefully (invalid parses to 0, which won't match)
         assert!(result.is_ok());

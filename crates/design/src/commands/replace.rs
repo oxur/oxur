@@ -21,18 +21,7 @@ pub fn execute(
     println!();
 
     // Step 1: Find old document
-    let old_number = if let Ok(num) = old_id_or_path.parse::<u32>() {
-        num
-    } else {
-        let search_path = old_id_or_path;
-        let doc = state_mgr
-            .state()
-            .all()
-            .into_iter()
-            .find(|d| d.path.contains(search_path))
-            .ok_or_else(|| anyhow::anyhow!("Document '{}' not found", old_id_or_path))?;
-        doc.metadata.number
-    };
+    let old_number = state_mgr.resolve_number_or_path(old_id_or_path)?;
 
     let old_doc = state_mgr
         .state()
