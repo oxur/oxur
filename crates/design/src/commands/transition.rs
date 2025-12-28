@@ -261,8 +261,7 @@ Test content.
             .unwrap();
 
         // Transition to Final (must run in repo directory for git mv)
-        let result =
-            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Final"));
+        let result = in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Final"));
         assert!(result.is_ok());
 
         // Verify file was moved
@@ -306,9 +305,8 @@ Test content.
             .unwrap();
 
         // Transition to Superseded (must run in repo directory for git mv)
-        let result = in_dir(&repo_path, || {
-            transition_document(&index, &state_mgr, "1", "Superseded")
-        });
+        let result =
+            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Superseded"));
         assert!(result.is_ok());
 
         // Verify new file has updated state
@@ -349,9 +347,8 @@ Test content.
             .unwrap();
 
         // Try to transition - should add headers automatically (must run in repo directory)
-        let result = in_dir(&repo_path, || {
-            transition_document(&index, &state_mgr, "1", "UnderReview")
-        });
+        let result =
+            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "UnderReview"));
         assert!(result.is_ok());
 
         // Verify headers were added and file was moved
@@ -397,9 +394,8 @@ Test content.
         assert!(!deferred_dir.exists());
 
         // Transition to Deferred (must run in repo directory for git mv)
-        let result = in_dir(&repo_path, || {
-            transition_document(&index, &state_mgr, "1", "Deferred")
-        });
+        let result =
+            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "Deferred"));
         assert!(result.is_ok());
 
         // Verify directory was created
@@ -437,9 +433,8 @@ Test content.
             .unwrap();
 
         // Transition Draft -> UnderReview (must run in repo directory for git mv)
-        let result = in_dir(&repo_path, || {
-            transition_document(&index, &state_mgr, "1", "UnderReview")
-        });
+        let result =
+            in_dir(&repo_path, || transition_document(&index, &state_mgr, "1", "UnderReview"));
         assert!(result.is_ok());
 
         let under_review_dir = repo_path.join("02-under-review");

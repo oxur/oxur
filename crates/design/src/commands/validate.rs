@@ -103,7 +103,11 @@ impl ValidationIssue {
     }
 }
 
-pub fn validate_documents(index: &DocumentIndex, state_mgr: &StateManager, fix: bool) -> Result<()> {
+pub fn validate_documents(
+    index: &DocumentIndex,
+    state_mgr: &StateManager,
+    fix: bool,
+) -> Result<()> {
     println!("\n{}\n", "Validating design documents...".bold());
 
     let mut issues = Vec::new();

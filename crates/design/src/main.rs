@@ -129,7 +129,9 @@ pub(crate) fn execute_command(
         Commands::Validate { fix } => validate_documents(index, state_mgr, fix),
         Commands::Index { format } => generate_index(index, &format),
         Commands::AddHeaders { path } => add_headers(&path),
-        Commands::Transition { path, state } => transition_document(index, state_mgr, &path, &state),
+        Commands::Transition { path, state } => {
+            transition_document(index, state_mgr, &path, &state)
+        }
         Commands::SyncLocation { path } => sync_location(index, state_mgr, &path),
         Commands::UpdateIndex => update_index(index),
         Commands::Add { path, state, dry_run, interactive, yes, preview } => {
