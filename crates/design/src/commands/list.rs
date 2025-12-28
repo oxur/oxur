@@ -9,6 +9,15 @@ use design::theme;
 use oxur_table::TableStyleConfig;
 use tabled::{builder::Builder, Tabled};
 
+/// Strip full ANSI reset codes and replace with foreground-only reset
+/// This preserves table background colors when using ColoredString
+fn preserve_bg(colored: colored::ColoredString) -> String {
+    let s = colored.to_string();
+    s.replace("\x1b[0m", "\x1b[39m")
+        .replace("\u{001b}[0m", "\u{001b}[39m")
+        .replace("\x1b[22m", "")  // Remove bold-off
+}
+
 /// Table row for document list (using Builder, so no column names needed)
 #[derive(Tabled)]
 struct DocumentRow {
@@ -130,9 +139,9 @@ fn list_documents_impl(
         // Data rows
         for doc in &docs {
             builder.push_record([
-                &theme::doc_number(doc.metadata.number).to_string(),
+                &preserve_bg(theme::doc_number(doc.metadata.number)),
                 &doc.metadata.title,
-                &theme::state_badge(doc.metadata.state.as_str()).to_string(),
+                &preserve_bg(theme::state_badge(doc.metadata.state.as_str())),
             ]);
         }
 
@@ -212,10 +221,10 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         };
 
         builder.push_record([
-            &number_str.yellow().to_string(),
+            &preserve_bg(number_str.yellow()),
             &title_truncated,
-            &doc.metadata.updated.to_string().white().to_string(),
-            &if file_exists { "false".green() } else { "true".red() }.to_string(),
+            &preserve_bg(doc.metadata.updated.to_string().white()),
+            &preserve_bg(if file_exists { "false".green() } else { "true".red() }),
             &location,
         ]);
     }

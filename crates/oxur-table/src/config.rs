@@ -6,7 +6,7 @@ use tabled::{
         style::BorderColor,
         style::Style,
         themes::Colorization,
-        Color, Padding,
+        Color, Padding, Width,
     },
     Table,
 };
@@ -99,6 +99,8 @@ pub struct HeaderConfig {
 #[derive(Debug, Deserialize)]
 pub struct RowsConfig {
     pub colors: Vec<RowColor>,
+    #[serde(default)]
+    pub justification_char: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -149,6 +151,9 @@ impl TableStyleConfig {
             self.table.padding_top,
             self.table.padding_bottom,
         ));
+
+        // Ensure consistent row widths by setting a total table width
+        table.with(Width::list([35, 65, 20]));
 
         // Apply alternating row colors
         let row_colors: Vec<Color> = self
@@ -202,6 +207,31 @@ impl TableStyleConfig {
 
         // Determine if footer is enabled (we need this for data row styling)
         let footer_enabled = self.footer.as_ref().map(|f| f.enabled).unwrap_or(false);
+
+        // Apply data row justification if specified
+        if let Some(data_just_char) = self.rows.justification_char.as_ref().and_then(|s| s.chars().next()) {
+            // Data rows start at row 2 (after title row 0 and header row 1)
+            // Use the first data row background color for justification padding color
+            let data_bg = parse_bg_color(&self.rows.colors[0].bg);
+
+            // Apply justification to all rows except title, header, and footer
+            match footer_enabled {
+                true => {
+                    // Exclude rows 0, 1, and last row
+                    table.modify(
+                        Segment::all().not(Rows::first()).not(Rows::new(1..2)).not(Rows::last()),
+                        Justification::new(data_just_char).color(data_bg),
+                    );
+                }
+                false => {
+                    // Exclude rows 0 and 1 only
+                    table.modify(
+                        Segment::all().not(Rows::first()).not(Rows::new(1..2)),
+                        Justification::new(data_just_char).color(data_bg),
+                    );
+                }
+            }
+        }
 
         // Color the vertical separators in different sections
 

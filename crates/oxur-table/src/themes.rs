@@ -28,6 +28,7 @@ colors = [
     { bg = "#451A03", fg = "#FED7AA" },
     { bg = "#451A03", fg = "#FDBA74" }
 ]
+justification_char = " "
 
 [style]
 vertical_bg_color = "#451A03"
