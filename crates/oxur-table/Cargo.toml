@@ -1,0 +1,13 @@
+[package]
+name = "oxur-table"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tabled = "0.17"
+serde = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }

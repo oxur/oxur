@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/design",
     "crates/oxur-ast",
+    "crates/oxur-table",
     # Future crates will be added here:
     # "crates/rast",
     # "crates/lang",
@@ -34,6 +35,7 @@ cargo-llvm-cov = "0.6"
 syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
 quote = "1.0"
 criterion = "0.5"
+tabled = "0.17"
 
 # Package metadata shared by all crates
 [workspace.package]

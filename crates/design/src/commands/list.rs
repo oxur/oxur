@@ -6,6 +6,26 @@ use design::doc::DocState;
 use design::index::DocumentIndex;
 use design::state::StateManager;
 use design::theme;
+use oxur_table::{OxurTable, Tabled};
+
+/// Table row for removed documents
+#[derive(Tabled)]
+struct RemovedDocRow {
+    #[tabled(rename = "Number")]
+    number: ColoredString,
+
+    #[tabled(rename = "Title")]
+    title: String,
+
+    #[tabled(rename = "Removed")]
+    removed: ColoredString,
+
+    #[tabled(rename = "Deleted")]
+    deleted: ColoredString,
+
+    #[tabled(rename = "Dustbin Location")]
+    location: String,
+}
 
 #[allow(dead_code)]
 pub fn list_documents(
@@ -116,71 +136,52 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         return Ok(());
     }
 
-    // Print header
-    if verbose {
-        println!(
-            "{:<8} {:<35} {:<12} {:<8} {}",
-            "Number".cyan().bold(),
-            "Title".cyan().bold(),
-            "Removed".cyan().bold(),
-            "Deleted".cyan().bold(),
-            "Dustbin Location".cyan().bold()
-        );
-        println!("{}", "─".repeat(120).cyan());
-    } else {
-        println!(
-            "{:<8} {:<40} {:<12} {}",
-            "Number".cyan().bold(),
-            "Title".cyan().bold(),
-            "Removed".cyan().bold(),
-            "Deleted".cyan().bold()
-        );
-        println!("{}", "─".repeat(80).cyan());
-    }
+    // Build table data
+    let rows: Vec<RemovedDocRow> = removed_docs
+        .iter()
+        .map(|doc| {
+            let number_str = format!("{:04}", doc.metadata.number);
+            let title_truncated = if doc.metadata.title.len() > (if verbose { 33 } else { 38 }) {
+                format!("{}...", &doc.metadata.title[..(if verbose { 30 } else { 35 })])
+            } else {
+                doc.metadata.title.clone()
+            };
 
-    // Check each document's deletion status
+            // Check if file exists in dustbin
+            let file_path = state_mgr.docs_dir().join(&doc.path);
+            let file_exists = file_path.exists();
+
+            RemovedDocRow {
+                number: number_str.yellow(),
+                title: title_truncated,
+                removed: doc.metadata.updated.to_string().white(),
+                deleted: if file_exists { "false".green() } else { "true".red() },
+                location: if verbose {
+                    if file_exists {
+                        doc.path.clone()
+                    } else {
+                        "(file not found)".to_string()
+                    }
+                } else {
+                    String::new()
+                },
+            }
+        })
+        .collect();
+
+    // Render and print table
+    let table = OxurTable::new(rows).render();
+    println!("{}", table);
+
+    // Count files in dustbin vs deleted
     let mut in_dustbin = 0;
     let mut deleted = 0;
-
     for doc in &removed_docs {
-        let number_str = format!("{:04}", doc.metadata.number);
-        let title_truncated = if doc.metadata.title.len() > (if verbose { 33 } else { 38 }) {
-            format!("{}...", &doc.metadata.title[..(if verbose { 30 } else { 35 })])
-        } else {
-            doc.metadata.title.clone()
-        };
-
-        // Check if file exists in dustbin
         let file_path = state_mgr.docs_dir().join(&doc.path);
-        let file_exists = file_path.exists();
-        let deleted_status = if file_exists {
+        if file_path.exists() {
             in_dustbin += 1;
-            "false".green()
         } else {
             deleted += 1;
-            "true".red()
-        };
-
-        if verbose {
-            let location =
-                if file_exists { doc.path.clone() } else { "(file not found)".to_string() };
-
-            println!(
-                "{:<8} {:<35} {:<12} {:<8} {}",
-                number_str.yellow(),
-                title_truncated,
-                doc.metadata.updated.to_string().white(),
-                deleted_status,
-                location.dimmed()
-            );
-        } else {
-            println!(
-                "{:<8} {:<40} {:<12} {}",
-                number_str.yellow(),
-                title_truncated,
-                doc.metadata.updated.to_string().white(),
-                deleted_status
-            );
         }
     }
 
