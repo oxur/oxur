@@ -1,11 +1,12 @@
 ---
+number: 13
 title: "Oxur Compilation Chain Architecture"
-author: Duncan McGreggor & Claude
+author: "Duncan McGreggor & Claude"
 created: 2025-12-27
 updated: 2025-12-27
-state: Draft
-supersedes: None
-superseded-by: None
+state: Active
+supersedes: null
+superseded-by: null
 ---
 
 # Oxur Compilation Chain Architecture
