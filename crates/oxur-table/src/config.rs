@@ -146,7 +146,8 @@ impl TableStyleConfig {
             self.table.padding_bottom,
         ));
 
-        // Ensure consistent row widths by setting a total table width
+        // Ensure consistent row widths by setting column widths
+        // This works correctly when table is built with plain text first
         table.with(Width::list([35, 65, 20]));
 
         // Apply alternating row colors

@@ -7,7 +7,14 @@ use design::index::DocumentIndex;
 use design::state::StateManager;
 use design::theme;
 use oxur_table::TableStyleConfig;
-use tabled::{builder::Builder, Tabled};
+use tabled::{
+    builder::Builder,
+    settings::{
+        object::{Columns, Object, Rows},
+        Format, Modify,
+    },
+    Table, Tabled,
+};
 
 /// Strip full ANSI reset codes and replace with foreground-only reset
 /// This preserves table background colors when using ColoredString
@@ -16,6 +23,98 @@ fn preserve_bg(colored: colored::ColoredString) -> String {
     // Replace full reset with foreground reset + bold off
     // This preserves background while properly resetting bold
     s.replace("\x1b[0m", "\x1b[22m\x1b[39m").replace("\u{001b}[0m", "\u{001b}[22m\u{001b}[39m")
+}
+
+/// Apply bold formatting to document numbers (column 0)
+/// Applied AFTER table structure is built to avoid width calculation issues
+fn apply_doc_number_formatting(table: &mut Table) {
+    table.with(
+        Modify::new(
+            Columns::single(0)
+                .not(Rows::first()) // Skip title row
+                .not(Rows::new(1..2)), // Skip header row
+        )
+        .with(Format::content(|s| preserve_bg(s.bold()))),
+    );
+}
+
+/// Apply state badge colors and formatting (column 2)
+/// Applied AFTER table structure is built to avoid width calculation issues
+fn apply_state_formatting(table: &mut Table) {
+    table.with(
+        Modify::new(
+            Columns::single(2)
+                .not(Rows::first()) // Skip title row
+                .not(Rows::new(1..2)), // Skip header row
+        )
+        .with(Format::content(|state_str| {
+            let colored = match state_str.to_lowercase().as_str() {
+                "draft" => state_str.yellow(),
+                "under review" | "under-review" => state_str.cyan(),
+                "revised" => state_str.blue(),
+                "accepted" => state_str.green(),
+                "active" => state_str.green().bold(),
+                "final" => state_str.green().bold(),
+                "deferred" => state_str.magenta(),
+                "rejected" => state_str.red(),
+                "withdrawn" => state_str.red(),
+                "superseded" => state_str.red(),
+                _ => state_str.white(),
+            };
+            preserve_bg(colored)
+        })),
+    );
+}
+
+/// Apply title formatting (row 0)
+/// Applied AFTER table structure is built to avoid width calculation issues
+fn apply_title_formatting(table: &mut Table) {
+    table.with(Modify::new(Rows::first()).with(Format::content(|s| {
+        if !s.is_empty() {
+            preserve_bg(s.bold())
+        } else {
+            s.to_string()
+        }
+    })));
+}
+
+/// Apply yellow formatting to removed doc numbers (column 0)
+fn apply_removed_doc_number_formatting(table: &mut Table) {
+    table.with(
+        Modify::new(
+            Columns::single(0)
+                .not(Rows::first()) // Skip title row
+                .not(Rows::new(1..2)), // Skip header row
+        )
+        .with(Format::content(|s| preserve_bg(s.yellow()))),
+    );
+}
+
+/// Apply white/dimmed formatting to removed date (column 2)
+fn apply_removed_date_formatting(table: &mut Table) {
+    table.with(
+        Modify::new(
+            Columns::single(2)
+                .not(Rows::first()) // Skip title row
+                .not(Rows::new(1..2)), // Skip header row
+        )
+        .with(Format::content(|s| preserve_bg(s.white()))),
+    );
+}
+
+/// Apply green/red formatting to deleted status (column 3)
+fn apply_deleted_status_formatting(table: &mut Table) {
+    table.with(
+        Modify::new(
+            Columns::single(3)
+                .not(Rows::first()) // Skip title row
+                .not(Rows::new(1..2)), // Skip header row
+        )
+        .with(Format::content(|s| {
+            let colored = if s == "true" { s.red() } else { s.green() };
+            preserve_bg(colored)
+        })),
+    );
 }
 
 /// Table row for document list (using Builder, so no column names needed)
@@ -130,29 +229,36 @@ fn list_documents_impl(
         // Normal mode: use table format with Builder (like the sample code)
         let mut builder = Builder::default();
 
-        // Row 0: Title
-        let title = preserve_bg("DESIGN DOCUMENTS".bold());
-        builder.push_record([&title, "", ""]);
+        // Row 0: Title - PLAIN TEXT (formatting applied later)
+        builder.push_record(["DESIGN DOCUMENTS", "", ""]);
 
-        // Row 1: Header
+        // Row 1: Header - PLAIN TEXT
         builder.push_record(["Number", "Title", "State"]);
 
-        // Data rows
+        // Data rows - PLAIN TEXT (no ANSI codes, formatting applied later)
         for doc in &docs {
             builder.push_record([
-                &preserve_bg(theme::doc_number(doc.metadata.number)),
+                &format!("{:04}", doc.metadata.number), // Plain text, no .bold()
                 &doc.metadata.title,
-                &preserve_bg(theme::state_badge(doc.metadata.state.as_str())),
+                doc.metadata.state.as_str(), // Plain text, no state_badge()
             ]);
         }
 
-        // Last row: Footer with total count
+        // Last row: Footer with total count - PLAIN TEXT
         let total_text = format!("Total: {} documents", docs.len());
         builder.push_record([&total_text, "", ""]);
 
+        // Build the table structure (width calculation happens here with plain text)
         let mut table = builder.build();
+
+        // Apply the theme (background colors, padding, justification)
         let config = TableStyleConfig::default();
         config.apply_to_table::<DocumentRow>(&mut table);
+
+        // NOW apply formatting AFTER width calculation
+        apply_title_formatting(&mut table); // Make title bold
+        apply_doc_number_formatting(&mut table); // Make numbers bold
+        apply_state_formatting(&mut table); // Color the states
 
         println!();
         println!("{}", table);
@@ -185,11 +291,10 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     // Build table with Builder (like the sample code)
     let mut builder = Builder::default();
 
-    // Row 0: Title
-    let title = preserve_bg("REMOVED DOCUMENTS".bold());
-    builder.push_record([&title, "", "", "", ""]);
+    // Row 0: Title - PLAIN TEXT (formatting applied later)
+    builder.push_record(["REMOVED DOCUMENTS", "", "", "", ""]);
 
-    // Row 1: Header
+    // Row 1: Header - PLAIN TEXT
     if verbose {
         builder.push_record(["Number", "Title", "Removed", "Deleted", "Dustbin Location"]);
     } else {
@@ -208,7 +313,7 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         }
     }
 
-    // Data rows
+    // Data rows - PLAIN TEXT (no ANSI codes, formatting applied later)
     for doc in &removed_docs {
         let number_str = format!("{:04}", doc.metadata.number);
         let title_truncated = if doc.metadata.title.len() > (if verbose { 33 } else { 38 }) {
@@ -231,27 +336,38 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
             String::new()
         };
 
+        // All plain text - no colors yet
+        let deleted_str = if file_exists { "false".to_string() } else { "true".to_string() };
         builder.push_record([
-            &preserve_bg(number_str.yellow()),
+            &number_str, // Plain text, no .yellow()
             &title_truncated,
-            &preserve_bg(doc.metadata.updated.to_string().white()),
-            &preserve_bg(if file_exists { "false".green() } else { "true".red() }),
+            &doc.metadata.updated.to_string(), // Plain text, no .white()
+            &deleted_str,                      // Plain text, no .green()/.red()
             &location,
         ]);
     }
 
-    // Last row: Footer with total count
+    // Last row: Footer with total count - PLAIN TEXT
     let total_text = format!(
         "Total: {} removed ({} in dustbin, {} deleted)",
-        preserve_bg(removed_docs.len().to_string().yellow()),
-        preserve_bg(in_dustbin.to_string().green()),
-        preserve_bg(deleted.to_string().red())
+        removed_docs.len(),
+        in_dustbin,
+        deleted
     );
     builder.push_record([&total_text, "", "", "", ""]);
 
+    // Build the table structure (width calculation happens here with plain text)
     let mut table = builder.build();
+
+    // Apply the theme (background colors, padding, justification)
     let config = TableStyleConfig::default();
     config.apply_to_table::<RemovedDocRow>(&mut table);
+
+    // NOW apply formatting AFTER width calculation
+    apply_title_formatting(&mut table); // Make title bold
+    apply_removed_doc_number_formatting(&mut table); // Yellow numbers
+    apply_removed_date_formatting(&mut table); // White dates
+    apply_deleted_status_formatting(&mut table); // Green/red for deleted status
 
     println!();
     println!("{}", table);
