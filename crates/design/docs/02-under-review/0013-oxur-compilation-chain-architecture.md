@@ -1,12 +1,11 @@
 ---
-number: 13
 title: "Oxur Compilation Chain Architecture"
-author: "the Oxur"
+author: Duncan McGreggor & Claude
 created: 2025-12-27
 updated: 2025-12-27
-state: Under Review
-supersedes: null
-superseded-by: null
+state: Draft
+supersedes: None
+superseded-by: None
 ---
 
 # Oxur Compilation Chain Architecture
@@ -94,7 +93,7 @@ Following Zylisp's successful pattern, we split compilation into two distinct st
 - Produces **Core Forms** (the IR)
 - Can evolve rapidly without affecting Rust interop
 
-**Stage 2: Rust AST Layer** (`oxur/rast`)
+**Stage 2: Rust AST Layer** (`oxur/crates/oxur-ast`)
 
 - Bidirectional Core Forms ↔ Rust AST conversion
 - Stable "assembly language" for Rust
@@ -2108,50 +2107,41 @@ fn compile_macro_layer(
 ### Overview
 
 ```
-github.com/oxur/
-├── rast/              # Rust AST ↔ Core Forms (Stage 3)
-├── lang/              # Oxur compiler (Stages 1-2)
-├── repl/              # REPL server/client
-├── cli/               # CLI tool (oxur command)
-├── core-macros/       # Core macros (pre-compiled)
-└── design/            # Design documents
+github.com/oxur/crates
+├── oxur-ast/           # Rust AST ↔ Core Forms (Stage 3)
+├── oxur-comp/          # Oxur compiler (Stages 1-2)
+├── oxur-lang/          # Oxur lang. def., core forms/macros
+├── oxur-repl/          # REPL server/client
+├── oxur-cli/           # CLI tool (oxur command)
+└── design/             # Design documents
 ```
 
 ### Dependency Graph
 
 ```
-cli → repl → lang → rast
-      ↑
-core-macros (loaded at runtime)
+cli → repl → oxur-lang → oxur-comp → oxur-ast
+              ↓
+        (core-macros.so compiled from oxur-lang/core-macros/)
 ```
 
 **Key**: No circular dependencies!
 
 ### Repository Details
 
-#### `oxur/rast`
+#### `oxur/crates/oxur-ast`
 
 **Purpose**: Rust AST ↔ Core Forms bidirectional conversion
 
 **Structure**:
 
 ```
-rast/
+oxur-ast/
 ├── Cargo.toml
 ├── src/
 │   ├── lib.rs
-│   ├── core_forms/     # Core Form definitions
-│   │   ├── mod.rs
-│   │   ├── types.rs    # CoreForm enum, Type, etc.
-│   │   └── display.rs  # Pretty-printing
-│   ├── lower/          # Core Forms → Rust AST
-│   │   ├── mod.rs
-│   │   ├── expr.rs
-│   │   ├── stmt.rs
-│   │   └── item.rs
-│   └── lift/           # Rust AST → Core Forms (for inspection)
-│       ├── mod.rs
-│       └── ...
+│   ├── ast/
+|   ├── ...
+│   └── sexp/
 └── tests/
     └── round_trip_tests.rs
 ```
@@ -2161,16 +2151,16 @@ rast/
 - Stable foundation
 - Rarely changes
 - Well-tested
-- No dependencies on `lang`
+- No dependencies on `oxur-comp`
 
-#### `oxur/lang`
+#### `oxur/crates/oxur-comp`
 
 **Purpose**: Oxur language compiler
 
 **Structure**:
 
 ```
-lang/
+oxur-comp/
 ├── Cargo.toml
 ├── src/
 │   ├── lib.rs
@@ -2197,80 +2187,21 @@ lang/
 
 **Dependencies**:
 
-- `oxur-rast` for Core Forms
+- `oxur-ast` for Core Forms
 - `syn` for Rust AST types
 - `libloading` for loading macro libraries
 
-#### `oxur/repl`
-
-**Purpose**: REPL server and client
-
-**Structure**:
+#### `oxur/crates/oxur-lang`
 
 ```
-repl/
-├── Cargo.toml
-├── src/
-│   ├── lib.rs
-│   ├── server/         # REPL server
-│   │   ├── mod.rs
-│   │   └── eval.rs
-│   ├── interp/         # Tier 1 interpreter
-│   │   ├── mod.rs
-│   │   └── eval.rs
-│   ├── cache/          # Tier 2 compilation cache
-│   │   ├── mod.rs
-│   │   └── compile.rs
-│   └── client/         # REPL client library
-│       ├── mod.rs
-│       └── connection.rs
+oxur-lang/       # Oxur language definition
+├── forms/       # Standard forms, sugar
+├── core-macros/ # Core macro definitions (written in Oxur)
+│   ├── control.oxr
+│   ├── threading.oxr
+│   └── lib.oxr
+├── stdlib/      # Standard library (maybe later)
 └── tests/
-```
-
-#### `oxur/cli`
-
-**Purpose**: Command-line interface
-
-**Structure**:
-
-```
-cli/
-├── Cargo.toml
-├── src/
-│   ├── main.rs
-│   ├── commands/
-│   │   ├── mod.rs
-│   │   ├── build.rs
-│   │   ├── repl.rs
-│   │   ├── check.rs
-│   │   └── format.rs
-│   └── config.rs
-└── tests/
-```
-
-**Commands**:
-
-- `oxur build` - Compile project
-- `oxur repl` - Start REPL
-- `oxur check` - Type check without compiling
-- `oxur format` - Format Oxur code
-- `oxur test` - Run tests
-
-#### `oxur/core-macros`
-
-**Purpose**: Core macros shipped with Oxur
-
-**Structure**:
-
-```
-core-macros/
-├── Cargo.toml
-├── src/
-│   ├── lib.ox          # Entry point
-│   ├── control.ox      # when, unless, cond
-│   ├── threading.ox    # ->, ->>
-│   └── let.ox          # when-let, if-let
-└── build.rs            # Compiles macros during build
 ```
 
 **Build Process**:
@@ -2289,6 +2220,61 @@ fn main() {
 }
 ```
 
+#### `oxur/crates/oxur-repl`
+
+**Purpose**: REPL server and client
+
+**Structure**:
+
+```
+oxur-repl/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── server/         # REPL server
+│   │   ├── mod.rs
+│   │   └── eval.rs
+│   ├── interp/         # Tier 1 interpreter
+│   │   ├── mod.rs
+│   │   └── eval.rs
+│   ├── cache/          # Tier 2 compilation cache
+│   │   ├── mod.rs
+│   │   └── compile.rs
+│   └── client/         # REPL client library
+│       ├── mod.rs
+│       └── connection.rs
+└── tests/
+```
+
+#### `oxur/crates/oxur-cli`
+
+**Purpose**: Command-line interface
+
+**Structure**:
+
+```
+oxur-cli/
+├── Cargo.toml
+├── src/
+│   ├── main.rs
+│   ├── commands/
+│   │   ├── mod.rs
+│   │   ├── build.rs
+│   │   ├── repl.rs
+│   │   ├── check.rs
+│   │   └── format.rs
+│   └── config.rs
+└── tests/
+```
+
+**Commands**:
+
+- `oxur build` - Compile project
+- `oxur repl` (and `oxur` with no command) - Start REPL
+- `oxur check` - Type check without compiling
+- `oxur format` - Format Oxur code
+- `oxur test` - Run tests
+
 ---
 
 ## Development Phases
@@ -2299,7 +2285,7 @@ fn main() {
 
 **Deliverables**:
 
-- [ ] Create repositories (`rast`, `lang`, `repl`, `cli`, `core-macros`)
+- [ ] Create repositories (`oxur-ast`, `oxur-lang`, `oxur-repl`, `oxur-cli`, `oxur-comp`)
 - [ ] Set up CI/CD
 - [ ] Define Core Forms specification (detailed document)
 - [ ] Implement Node ID generator and source map types
@@ -2324,7 +2310,7 @@ fn main() {
 
 **Deliverables**:
 
-- [ ] Complete Core Form types in `rast`
+- [ ] Complete Core Form types in `oxur-ast`
 - [ ] Core Form → Rust AST lowering
 - [ ] Rust AST → Core Form lifting (for testing)
 - [ ] Round-trip tests (Rust → Core Forms → Rust)
