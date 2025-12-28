@@ -512,11 +512,20 @@ impl StateManager {
     ///
     /// # Examples
     /// ```no_run
-    /// // Using a number
-    /// let num = state_mgr.resolve_number_or_path("13")?;
+    /// use design::state::StateManager;
+    /// use anyhow::Result;
     ///
-    /// // Using a path
-    /// let num = state_mgr.resolve_number_or_path("02-under-review/0013-doc.md")?;
+    /// fn example() -> Result<()> {
+    ///     let state_mgr = StateManager::new("docs")?;
+    ///
+    ///     // Using a number
+    ///     let num = state_mgr.resolve_number_or_path("13")?;
+    ///
+    ///     // Using a path
+    ///     let num = state_mgr.resolve_number_or_path("02-under-review/0013-doc.md")?;
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn resolve_number_or_path(&self, number_or_path: &str) -> Result<u32> {
         // First, try to parse as a number
