@@ -34,47 +34,47 @@ pub fn show_document(index: &DocumentIndex, number: u32, _metadata_only: bool) -
     let mut builder = Builder::default();
 
     // Row 0: Title - PLAIN TEXT (formatting applied later)
-    builder.push_record(["DOCUMENT", "INFORMATION", ""]);
+    builder.push_record(["DOCUMENT", "INFORMATION"]);
 
     // Row 1: Header - PLAIN TEXT
-    builder.push_record(["Field", "Content", ""]);
+    builder.push_record(["Field", "Content"]);
 
     // Data rows - PLAIN TEXT with space prefix (no ANSI codes, formatting applied later)
 
     // Number (0-padded to 4 digits)
-    builder.push_record([" Number", &format!(" {:04}", doc.metadata.number), ""]);
+    builder.push_record([" Number", &format!(" {:04}", doc.metadata.number)]);
 
     // Title
-    builder.push_record([" Title", &format!(" {} ", doc.metadata.title), ""]);
+    builder.push_record([" Title", &format!(" {} ", doc.metadata.title)]);
 
     // Author
-    builder.push_record([" Author", &format!(" {}", doc.metadata.author), ""]);
+    builder.push_record([" Author", &format!(" {}", doc.metadata.author)]);
 
     // State
-    builder.push_record([" State", &format!(" {}", doc.metadata.state.as_str()), ""]);
+    builder.push_record([" State", &format!(" {}", doc.metadata.state.as_str())]);
 
     // Created
-    builder.push_record([" Created ", &format!(" {}", doc.metadata.created), ""]);
+    builder.push_record([" Created ", &format!(" {}", doc.metadata.created)]);
 
     // Updated
-    builder.push_record([" Updated ", &format!(" {}", doc.metadata.updated), ""]);
+    builder.push_record([" Updated ", &format!(" {}", doc.metadata.updated)]);
 
     // Path (relative to current working directory)
     let rel_path = get_relative_path(&doc.path);
-    builder.push_record([" Path", &format!(" {} ", rel_path), ""]);
+    builder.push_record([" Path", &format!(" {} ", rel_path)]);
 
     // Supersedes (only if not null)
     if let Some(supersedes) = doc.metadata.supersedes {
-        builder.push_record([" Supersedes", &format!(" {:04}", supersedes), ""]);
+        builder.push_record([" Supersedes", &format!(" {:04}", supersedes)]);
     }
 
     // Superseded By (only if not null)
     if let Some(superseded_by) = doc.metadata.superseded_by {
-        builder.push_record([" Superseded By", &format!(" {:04}", superseded_by), ""]);
+        builder.push_record([" Superseded By", &format!(" {:04}", superseded_by)]);
     }
 
     // Empty footer row
-    builder.push_record(["", "", ""]);
+    builder.push_record(["", ""]);
 
     // Build the table structure (width calculation happens here with plain text)
     let mut table = builder.build();
