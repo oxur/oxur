@@ -6,150 +6,45 @@ use design::doc::DocState;
 use design::index::DocumentIndex;
 use design::state::StateManager;
 use design::theme;
-use oxur_table::{config::parse_bg_color, TableStyleConfig};
-use tabled::{
-    builder::Builder,
-    settings::{
-        object::{Cell, Columns, Object, Rows},
-        Color as TabledColor, Format, Modify,
-    },
-    Table, Tabled,
-};
+use oxur_table::TableStyleConfig;
+use tabled::{builder::Builder, Table, Tabled};
 
-/// Strip full ANSI reset codes and replace with foreground-only reset
-/// This preserves table background colors when using ColoredString
-fn preserve_bg(colored: colored::ColoredString) -> String {
-    let s = colored.to_string();
-    // Replace full reset with foreground reset + bold off
-    // This preserves background while properly resetting bold
-    s.replace("\x1b[0m", "\x1b[22m\x1b[39m").replace("\u{001b}[0m", "\u{001b}[22m\u{001b}[39m")
+/// Minimal struct for type parameter when building tables with Builder
+/// (Not used for actual data - Builder uses plain strings)
+#[derive(Tabled)]
+struct DocumentRow {
+    number: String,
+    title: String,
+    state: String,
 }
 
-fn get_state_color(state: &str) -> Option<TabledColor> {
-    match state.to_lowercase().as_str() {
-        "draft" => Some(TabledColor::FG_YELLOW),
-        "under review" | "under-review" => Some(TabledColor::FG_CYAN),
-        "revised" => Some(TabledColor::FG_BLUE),
-        "accepted" => Some(TabledColor::FG_GREEN),
-        "active" => Some(TabledColor::FG_BRIGHT_GREEN),
-        "final" => Some(TabledColor::FG_GREEN),
-        "deferred" => Some(TabledColor::FG_MAGENTA),
-        "rejected" => Some(TabledColor::FG_RED),
-        "withdrawn" => Some(TabledColor::FG_RED),
-        "superseded" => Some(TabledColor::FG_RED),
-        _ => None,
-    }
+/// Minimal struct for type parameter when building removed document tables
+/// (Not used for actual data - Builder uses plain strings)
+#[derive(Tabled)]
+struct RemovedDocRow {
+    number: String,
+    title: String,
+    removed: String,
+    deleted: String,
+    location: String,
 }
 
+/// Apply cell-specific colors to the state column while preserving theme backgrounds
 fn apply_state_cell_colors(
     table: &mut Table,
     docs: &[&design::doc::DesignDoc],
     config: &TableStyleConfig,
 ) {
-    // Parse the row background colors from the theme
-    let row_bg_colors: Vec<TabledColor> =
-        config.rows.colors.iter().map(|rc| parse_bg_color(&rc.bg)).collect();
+    let row_bg_colors = oxur_table::helpers::parse_row_bg_colors(config);
 
     for (i, doc) in docs.iter().enumerate() {
-        let row_idx = 2 + i;
+        let row_idx = 2 + i; // Data rows start at index 2 (after title and header)
 
-        if let Some(fg_color) = get_state_color(doc.metadata.state.as_str()) {
-            // Determine which background color this row uses (alternating)
-            let color_idx = i % row_bg_colors.len();
-            let bg_color = row_bg_colors[color_idx].clone();
-
-            // Combine foreground and background
-            let combined_color = fg_color | bg_color;
-
-            table.modify(Cell::new(row_idx, 2), combined_color);
+        if let Some(fg_color) = oxur_table::helpers::state_to_fg_color(doc.metadata.state.as_str()) {
+            let bg_color = oxur_table::helpers::get_data_row_bg_color(i, &row_bg_colors);
+            oxur_table::helpers::apply_cell_color(table, row_idx, 2, fg_color, bg_color);
         }
     }
-}
-
-/// Apply title formatting (row 0)
-/// Applied AFTER table structure is built to avoid width calculation issues
-fn apply_title_formatting(table: &mut Table) {
-    table.with(Modify::new(Rows::first()).with(Format::content(|s| {
-        if !s.is_empty() {
-            // preserve_bg(s.bold())
-            // preserve_bg(s.into())
-            s.to_string()
-        } else {
-            s.to_string()
-        }
-    })));
-}
-
-/// Apply yellow formatting to removed doc numbers (column 0)
-fn apply_removed_doc_number_formatting(table: &mut Table) {
-    table.with(
-        Modify::new(
-            Columns::single(0)
-                .not(Rows::first()) // Skip title row
-                .not(Rows::new(1..2)), // Skip header row
-        )
-        .with(Format::content(|s| s.yellow().to_string())),
-        // .with(Format::content(|s| preserve_bg(s.yellow()))),
-    );
-}
-
-/// Apply white/dimmed formatting to removed date (column 2)
-fn apply_removed_date_formatting(table: &mut Table) {
-    table.with(
-        Modify::new(
-            Columns::single(2)
-                .not(Rows::first()) // Skip title row
-                .not(Rows::new(1..2)), // Skip header row
-        )
-        .with(Format::content(|s| preserve_bg(s.white()))),
-    );
-}
-
-/// Apply green/red formatting to deleted status (column 3)
-fn apply_deleted_status_formatting(table: &mut Table) {
-    table.with(
-        Modify::new(
-            Columns::single(3)
-                .not(Rows::first()) // Skip title row
-                .not(Rows::new(1..2)), // Skip header row
-        )
-        .with(Format::content(|s| {
-            let colored = if s == "true" { s.red() } else { s.green() };
-            preserve_bg(colored)
-        })),
-    );
-}
-
-/// Table row for document list (using Builder, so no column names needed)
-#[derive(Tabled)]
-struct DocumentRow {
-    #[tabled(rename = "")]
-    number: ColoredString,
-
-    #[tabled(rename = "")]
-    title: String,
-
-    #[tabled(rename = "")]
-    state: ColoredString,
-}
-
-/// Table row for removed documents (using Builder, so no column names needed)
-#[derive(Tabled)]
-struct RemovedDocRow {
-    #[tabled(rename = "")]
-    number: ColoredString,
-
-    #[tabled(rename = "")]
-    title: String,
-
-    #[tabled(rename = "")]
-    removed: ColoredString,
-
-    #[tabled(rename = "")]
-    deleted: ColoredString,
-
-    #[tabled(rename = "")]
-    location: String,
 }
 
 #[allow(dead_code)]
@@ -258,10 +153,7 @@ fn list_documents_impl(
         let config = TableStyleConfig::default();
         config.apply_to_table::<DocumentRow>(&mut table);
 
-        // NOW apply formatting AFTER width calculation
-        // apply_title_formatting(&mut table);
-        // apply_doc_number_formatting(&mut table);
-        // apply_state_formatting(&mut table);
+        // Apply cell-specific colors (state column)
         apply_state_cell_colors(&mut table, &docs, &config);
 
         println!();
@@ -366,12 +258,6 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     // Apply the theme (background colors, padding, justification)
     let config = TableStyleConfig::default();
     config.apply_to_table::<RemovedDocRow>(&mut table);
-
-    // NOW apply formatting AFTER width calculation
-    apply_title_formatting(&mut table);
-    apply_removed_doc_number_formatting(&mut table);
-    apply_removed_date_formatting(&mut table);
-    apply_deleted_status_formatting(&mut table);
 
     println!();
     println!("{}", table);
