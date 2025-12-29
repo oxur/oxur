@@ -1,6 +1,7 @@
 # Oxur
 
-A Lisp dialect that compiles to Rust with 100% interoperability.
+[![Build Status][gh-actions-badge]][gh-actions]
+[![Tags][github-tags-badge]][github-tags]
 
 <a href="https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v2.3-1000x.png">
   <img src="https://raw.githubusercontent.com/oxur/oxur/main/assets/images/logo/v2.3-250x.png"
@@ -8,9 +9,11 @@ A Lisp dialect that compiles to Rust with 100% interoperability.
        title="Our mascot, Orux! ('Ruxxy' to his friends)">
 </a>
 
+*A Rust Lisp dialect with 100% interoperability*
+
 ## Overview
 
-Oxur is a Lisp that treats Rust as its compilation target and runtime. Drawing inspiration from Zetalisp, LFE, and Clojure, Oxur provides Lisp's expressiveness and metaprogramming power while leveraging Rust's type system, ownership model, and ecosystem.
+Oxur is a Lisp that treats Rust as its compilation target and runtime. Drawing inspiration from Zetalisp, LFE, and Clojure, Oxur provides Lisp's expressiveness and metaprogramming power while leveraging Rust's type system, ownership model, and ecosystem. Simply put, Oxur lets you write your Rust as Lisp.
 
 ## Project Status
 
@@ -48,25 +51,56 @@ cargo build --release
 
 ### Design Documentation CLI
 
+Current `oxd` help text:
+
 ```bash
-# List all design documents
-cargo run -p design -- list
+./bin/oxd --help
 
-# Show a specific document
-cargo run -p design -- show 0001
+Oxur Design Documentation Manager
 
-# Create a new design document
-cargo run -p design -- new "Document Title"
+Usage: oxd [OPTIONS] <COMMAND>
 
-# Validate all documents
-cargo run -p design -- validate
+Commands:
+  add            Add a new document with full processing
+  add-batch      Add multiple documents (supports glob patterns)
+  add-headers    Add or update YAML frontmatter headers [aliases: headers]
+  debug          Debug and introspection commands
+  help           Print this message or the help of the given subcommand(s)
+  index          Generate the index file [aliases: gen-index]
+  info           Show tool information and documentation
+  list           List all design documents [aliases: ls]
+  new            Create a new design document
+  remove         Remove a document (moves to dustbin) [aliases: rm]
+  rename         Rename a document file (preserves number)
+  replace        Replace a document while preserving its ID
+  scan           Scan filesystem and update document state [aliases: rescan]
+  search         Search documents [aliases: grep]
+  show           Show a specific document
+  sync-location  Move document to directory matching its state header [aliases: sync]
+  transition     Transition document to a new state [aliases: mv]
+  update-index   Synchronize the index with documents on filesystem [aliases: sync-index]
+  validate       Validate all documents [aliases: check]
+
+Options:
+  -d, --docs-dir <DOCS_DIR>  Path to docs directory (defaults to ./docs) [default: docs]
+  -h, --help                 Print help
+
+Use 'oxd <command> --help' for more information about a command.
 ```
+
+List all design documents:
+
+```bash
+./bin/oxd list
+```
+
+[![oxd cli tool screenshot of list command][oxd-list-screenshot]][oxd-list-screenshot]
 
 ## Design Documents
 
 ODDs ("Oxur Design Documents"), like [Erlang EEPs](https://github.com/erlang/eep) and [Rust RFCs](https://github.com/rust-lang/rfcs), document all architectural decisions, specifications, and design discussions in the `crates/design/docs/` directory.
 
-[Start here](crates/design/docs/index.md).
+To explore Oxur's design decisions, you probably want to [start here](crates/design/docs/index.md).
 
 ## Contributing
 
@@ -76,4 +110,12 @@ ODDs ("Oxur Design Documents"), like [Erlang EEPs](https://github.com/erlang/eep
 
 Apache License, Version 2.0
 
-Copyright © 2020, Oxur Group
+Copyright © 2020-2026, Oxur Group
+
+[//]: ---Named-Links---
+
+[gh-actions-badge]: https://github.com/oxur/oxur/workflows/CI/badge.svg
+[gh-actions]: https://github.com/oxur/oxur/actions
+[github-tags]: https://github.com/oxur/oxur/tags
+[github-tags-badge]: https://img.shields.io/github/tag/oxur/oxur.svg
+[oxd-list-screenshot]: assets/images/screenshots/oxd-list.png
