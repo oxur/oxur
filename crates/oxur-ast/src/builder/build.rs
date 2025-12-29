@@ -90,7 +90,7 @@ impl AstBuilder {
         Ok(ModSpans::new(inner_span))
     }
 
-    pub(super) fn build_span(&mut self, sexp: &SExp) -> Result<Span> {
+    pub fn build_span(&mut self, sexp: &SExp) -> Result<Span> {
         let list = expect_list(sexp)?;
 
         if list.elements.is_empty() {

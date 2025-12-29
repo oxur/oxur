@@ -7,8 +7,27 @@ license.workspace = true
 repository.workspace = true
 description = "Rust AST ↔ S-expression conversion for Oxur"
 
+# Binary configuration (following oxd pattern)
+[[bin]]
+name = "aster"
+path = "src/main.rs"
+
 [dependencies]
 thiserror.workspace = true
+# Phase 3: Integration with Rust's parser
+syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
+quote = "1.0"
+# Phase 3: CLI dependencies
+clap.workspace = true
+anyhow.workspace = true
+colored.workspace = true
 
 [dev-dependencies]
 tempfile = "3.8"
+# Phase 3: Benchmarking
+criterion = "0.5"
+
+# Benchmark will be created in Chunk 4
+# [[bench]]
+# name = "conversion_bench"
+# harness = false
