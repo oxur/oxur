@@ -28,7 +28,7 @@
 
 use tabled::Table;
 
-mod config;
+pub mod config;
 mod themes;
 
 pub use config::TableStyleConfig;

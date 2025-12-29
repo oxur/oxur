@@ -408,7 +408,7 @@ fn parse_color(bg: &str, fg: &str) -> Color {
 }
 
 /// Parse just a background color
-fn parse_bg_color(bg: &str) -> Color {
+pub fn parse_bg_color(bg: &str) -> Color {
     // Check if it's a hex color
     if let Some(rgb) = parse_hex_color(bg) {
         return Color::rgb_bg(rgb.0, rgb.1, rgb.2);

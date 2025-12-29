@@ -6,12 +6,12 @@ use design::doc::DocState;
 use design::index::DocumentIndex;
 use design::state::StateManager;
 use design::theme;
-use oxur_table::TableStyleConfig;
+use oxur_table::{config::parse_bg_color, TableStyleConfig};
 use tabled::{
     builder::Builder,
     settings::{
-        object::{Columns, Object, Rows},
-        Format, Modify,
+        object::{Cell, Columns, Object, Rows},
+        Color as TabledColor, Format, Modify,
     },
     Table, Tabled,
 };
@@ -25,45 +25,45 @@ fn preserve_bg(colored: colored::ColoredString) -> String {
     s.replace("\x1b[0m", "\x1b[22m\x1b[39m").replace("\u{001b}[0m", "\u{001b}[22m\u{001b}[39m")
 }
 
-/// Apply bold formatting to document numbers (column 0)
-/// Applied AFTER table structure is built to avoid width calculation issues
-fn apply_doc_number_formatting(table: &mut Table) {
-    table.with(
-        Modify::new(
-            Columns::single(0)
-                .not(Rows::first()) // Skip title row
-                .not(Rows::new(1..2)), // Skip header row
-        )
-        .with(Format::content(|s| preserve_bg(s.bold()))),
-    );
+fn get_state_color(state: &str) -> Option<TabledColor> {
+    match state.to_lowercase().as_str() {
+        "draft" => Some(TabledColor::FG_YELLOW),
+        "under review" | "under-review" => Some(TabledColor::FG_CYAN),
+        "revised" => Some(TabledColor::FG_BLUE),
+        "accepted" => Some(TabledColor::FG_GREEN),
+        "active" => Some(TabledColor::FG_BRIGHT_GREEN),
+        "final" => Some(TabledColor::FG_GREEN),
+        "deferred" => Some(TabledColor::FG_MAGENTA),
+        "rejected" => Some(TabledColor::FG_RED),
+        "withdrawn" => Some(TabledColor::FG_RED),
+        "superseded" => Some(TabledColor::FG_RED),
+        _ => None,
+    }
 }
 
-/// Apply state badge colors and formatting (column 2)
-/// Applied AFTER table structure is built to avoid width calculation issues
-fn apply_state_formatting(table: &mut Table) {
-    table.with(
-        Modify::new(
-            Columns::single(2)
-                .not(Rows::first()) // Skip title row
-                .not(Rows::new(1..2)), // Skip header row
-        )
-        .with(Format::content(|state_str| {
-            let colored = match state_str.to_lowercase().as_str() {
-                "draft" => state_str.yellow(),
-                "under review" | "under-review" => state_str.cyan(),
-                "revised" => state_str.blue(),
-                "accepted" => state_str.green(),
-                "active" => state_str.green(),
-                "final" => state_str.green(),
-                "deferred" => state_str.magenta(),
-                "rejected" => state_str.red(),
-                "withdrawn" => state_str.red(),
-                "superseded" => state_str.red(),
-                _ => state_str.white(),
-            };
-            preserve_bg(colored)
-        })),
-    );
+fn apply_state_cell_colors(
+    table: &mut Table,
+    docs: &[&design::doc::DesignDoc],
+    config: &TableStyleConfig,
+) {
+    // Parse the row background colors from the theme
+    let row_bg_colors: Vec<TabledColor> =
+        config.rows.colors.iter().map(|rc| parse_bg_color(&rc.bg)).collect();
+
+    for (i, doc) in docs.iter().enumerate() {
+        let row_idx = 2 + i;
+
+        if let Some(fg_color) = get_state_color(doc.metadata.state.as_str()) {
+            // Determine which background color this row uses (alternating)
+            let color_idx = i % row_bg_colors.len();
+            let bg_color = row_bg_colors[color_idx].clone();
+
+            // Combine foreground and background
+            let combined_color = fg_color | bg_color;
+
+            table.modify(Cell::new(row_idx, 2), combined_color);
+        }
+    }
 }
 
 /// Apply title formatting (row 0)
@@ -72,7 +72,8 @@ fn apply_title_formatting(table: &mut Table) {
     table.with(Modify::new(Rows::first()).with(Format::content(|s| {
         if !s.is_empty() {
             // preserve_bg(s.bold())
-            preserve_bg(s.into())
+            // preserve_bg(s.into())
+            s.to_string()
         } else {
             s.to_string()
         }
@@ -87,7 +88,8 @@ fn apply_removed_doc_number_formatting(table: &mut Table) {
                 .not(Rows::first()) // Skip title row
                 .not(Rows::new(1..2)), // Skip header row
         )
-        .with(Format::content(|s| preserve_bg(s.yellow()))),
+        .with(Format::content(|s| s.yellow().to_string())),
+        // .with(Format::content(|s| preserve_bg(s.yellow()))),
     );
 }
 
@@ -231,7 +233,7 @@ fn list_documents_impl(
         let mut builder = Builder::default();
 
         // Row 0: Title - PLAIN TEXT (formatting applied later)
-        builder.push_record(["DESIGN DOCUMENTS", "", ""]);
+        builder.push_record(["DESIGN", "DOCUMENTS", ""]);
 
         // Row 1: Header - PLAIN TEXT
         builder.push_record(["Number", "Title", "State"]);
@@ -239,15 +241,15 @@ fn list_documents_impl(
         // Data rows - PLAIN TEXT (no ANSI codes, formatting applied later)
         for doc in &docs {
             builder.push_record([
-                &format!("{:04}", doc.metadata.number), // Plain text, no .bold()
-                &doc.metadata.title,
-                doc.metadata.state.as_str(), // Plain text, no state_badge()
+                &format!(" {:04}", doc.metadata.number),
+                doc.metadata.title.as_str(),
+                &format!("{:<14}", doc.metadata.state.as_str()),
             ]);
         }
 
         // Last row: Footer with total count - PLAIN TEXT
-        let total_text = format!("Total: {} documents", docs.len());
-        builder.push_record([&total_text, "", ""]);
+        let total_text = format!("{} documents", docs.len());
+        builder.push_record(["Total:", &total_text, ""]);
 
         // Build the table structure (width calculation happens here with plain text)
         let mut table = builder.build();
@@ -257,9 +259,10 @@ fn list_documents_impl(
         config.apply_to_table::<DocumentRow>(&mut table);
 
         // NOW apply formatting AFTER width calculation
-        apply_title_formatting(&mut table); // Make title bold
-        apply_doc_number_formatting(&mut table); // Make numbers bold
-        apply_state_formatting(&mut table); // Color the states
+        // apply_title_formatting(&mut table);
+        // apply_doc_number_formatting(&mut table);
+        // apply_state_formatting(&mut table);
+        apply_state_cell_colors(&mut table, &docs, &config);
 
         println!();
         println!("{}", table);
@@ -365,10 +368,10 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     config.apply_to_table::<RemovedDocRow>(&mut table);
 
     // NOW apply formatting AFTER width calculation
-    apply_title_formatting(&mut table); // Make title bold
-    apply_removed_doc_number_formatting(&mut table); // Yellow numbers
-    apply_removed_date_formatting(&mut table); // White dates
-    apply_deleted_status_formatting(&mut table); // Green/red for deleted status
+    apply_title_formatting(&mut table);
+    apply_removed_doc_number_formatting(&mut table);
+    apply_removed_date_formatting(&mut table);
+    apply_deleted_status_formatting(&mut table);
 
     println!();
     println!("{}", table);
