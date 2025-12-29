@@ -242,8 +242,8 @@ fn list_documents_impl(
         for doc in &docs {
             builder.push_record([
                 &format!(" {:04}", doc.metadata.number),
-                doc.metadata.title.as_str(),
-                &format!("{:<14}", doc.metadata.state.as_str()),
+                &format!(" {:} ", doc.metadata.title.as_str()),
+                &format!(" {:<14}", doc.metadata.state.as_str()),
             ]);
         }
 

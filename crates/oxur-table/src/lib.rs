@@ -29,10 +29,16 @@
 use tabled::Table;
 
 pub mod config;
+pub mod helpers;
 mod themes;
 
 pub use config::TableStyleConfig;
 pub use tabled::Tabled; // Re-export for convenience
+
+// Re-exports for advanced usage (manual table building and cell coloring)
+pub use tabled::builder::Builder;
+pub use tabled::settings::object::Cell;
+pub use tabled::settings::Color as TabledColor;
 
 /// A themed table builder for terminal output
 ///

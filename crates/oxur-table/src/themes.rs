@@ -14,12 +14,13 @@ enabled = true
 bg_color = "#F97316"
 fg_color = "#451A03"
 justification_char = " "
+vertical_fg_color = "#F97316"
 
 [header]
 bg_color = "#D45500"
 fg_color = "#451A03"
 justification_char = " "
-vertical_char = " "
+vertical_char = "│"
 vertical_bg_color = "#D45500"
 vertical_fg_color = "#D45500"
 
@@ -32,7 +33,7 @@ justification_char = " "
 
 [style]
 vertical_bg_color = "#451A03"
-vertical_fg_color = "#D45500"
+vertical_fg_color = "#803300"
 
 [footer]
 enabled = true

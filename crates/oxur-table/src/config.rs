@@ -6,7 +6,7 @@ use tabled::{
         style::BorderColor,
         style::Style,
         themes::Colorization,
-        Color, Padding, Width,
+        Color, Padding,
     },
     Table,
 };
@@ -145,10 +145,6 @@ impl TableStyleConfig {
             self.table.padding_top,
             self.table.padding_bottom,
         ));
-
-        // Ensure consistent row widths by setting column widths
-        // This works correctly when table is built with plain text first
-        table.with(Width::list([10, 75, 15]));
 
         // Apply alternating row colors
         let row_colors: Vec<Color> =
