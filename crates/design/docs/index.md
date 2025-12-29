@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0018 | Oxur Remote REPL Protocol Design | Under Review | 2025-12-28 |
 | 0017 | Recommendations for Future-proofing Multiple REPL Protocols | Under Review | 2025-12-28 |
 | 0016 | Research: Building a transport-agnostic REPL protocol in Rust | Final | 2025-12-28 |
 | 0015 | oxur-table API (re)Design | Accepted | 2025-12-28 |
@@ -28,6 +29,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Under Review
 
+- [0018 - Oxur Remote REPL Protocol Design](02-under-review/0018-oxur-remote-repl-protocol-design.md)
 - [0017 - Recommendations for Future-proofing Multiple REPL Protocols](02-under-review/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
 
 ### Accepted
