@@ -1,38 +1,129 @@
 //! Show command implementation
 
 use anyhow::{bail, Result};
-use colored::*;
 use design::index::DocumentIndex;
+use oxur_table::TableStyleConfig;
+use std::env;
+use tabled::{builder::Builder, Tabled};
 
-pub fn show_document(index: &DocumentIndex, number: u32, metadata_only: bool) -> Result<()> {
+/// Minimal struct for type parameter when building tables with Builder
+/// (Not used for actual data - Builder uses plain strings)
+#[derive(Tabled)]
+struct DocumentInfoRow {
+    field: String,
+    content: String,
+}
+
+/// Get the relative path from the current working directory to the document
+fn get_relative_path(doc_path: &std::path::Path) -> String {
+    let current_dir = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+    match doc_path.strip_prefix(&current_dir) {
+        Ok(rel_path) => rel_path.to_string_lossy().to_string(),
+        Err(_) => doc_path.to_string_lossy().to_string(),
+    }
+}
+
+pub fn show_document(index: &DocumentIndex, number: u32, _metadata_only: bool) -> Result<()> {
     let doc = match index.get(number) {
         Some(d) => d,
         None => bail!("Document {:04} not found", number),
     };
 
-    println!("\n{}", format!("Document {:04}", number).bold().underline());
-    println!();
-    println!("{}: {}", "Title".bold(), doc.metadata.title);
-    println!("{}: {}", "Author".bold(), doc.metadata.author);
-    println!("{}: {}", "State".bold(), doc.metadata.state.as_str());
-    println!("{}: {}", "Created".bold(), doc.metadata.created);
-    println!("{}: {}", "Updated".bold(), doc.metadata.updated);
+    // Build table with Builder (plain text only)
+    let mut builder = Builder::default();
 
+    // Row 0: Title - PLAIN TEXT (formatting applied later)
+    builder.push_record(["DOCUMENT", "INFORMATION", ""]);
+
+    // Row 1: Header - PLAIN TEXT
+    builder.push_record(["Field", "Content", ""]);
+
+    // Data rows - PLAIN TEXT with space prefix (no ANSI codes, formatting applied later)
+
+    // Number (0-padded to 4 digits)
+    builder.push_record([
+        " Number",
+        &format!(" {:04}", doc.metadata.number),
+        "",
+    ]);
+
+    // Title
+    builder.push_record([
+        " Title",
+        &format!(" {}", doc.metadata.title),
+        "",
+    ]);
+
+    // Author
+    builder.push_record([
+        " Author",
+        &format!(" {}", doc.metadata.author),
+        "",
+    ]);
+
+    // State
+    builder.push_record([
+        " State",
+        &format!(" {}", doc.metadata.state.as_str()),
+        "",
+    ]);
+
+    // Created
+    builder.push_record([
+        " Created",
+        &format!(" {}", doc.metadata.created),
+        "",
+    ]);
+
+    // Updated
+    builder.push_record([
+        " Updated",
+        &format!(" {}", doc.metadata.updated),
+        "",
+    ]);
+
+    // Path (relative to current working directory)
+    let rel_path = get_relative_path(&doc.path);
+    builder.push_record([
+        " Path",
+        &format!(" {}", rel_path),
+        "",
+    ]);
+
+    // Supersedes (only if not null)
     if let Some(supersedes) = doc.metadata.supersedes {
-        println!("{}: {:04}", "Supersedes".bold(), supersedes);
+        builder.push_record([
+            " Supersedes",
+            &format!(" {:04}", supersedes),
+            "",
+        ]);
     }
+
+    // Superseded By (only if not null)
     if let Some(superseded_by) = doc.metadata.superseded_by {
-        println!("{}: {:04}", "Superseded by".bold(), superseded_by);
+        builder.push_record([
+            " Superseded By",
+            &format!(" {:04}", superseded_by),
+            "",
+        ]);
     }
 
-    if !metadata_only {
-        println!("\n{}", "Content:".bold());
-        println!("{}", "─".repeat(80));
-        println!("{}", doc.content);
-        println!("{}", "─".repeat(80));
-    }
+    // Empty footer row
+    builder.push_record(["", "", ""]);
 
+    // Build the table structure (width calculation happens here with plain text)
+    let mut table = builder.build();
+
+    // Apply the theme (background colors, padding, justification)
+    let config = TableStyleConfig::default();
+    config.apply_to_table::<DocumentInfoRow>(&mut table);
+
+    // Print with blank lines for spacing
     println!();
+    println!("{}", table);
+    println!();
+
     Ok(())
 }
 
@@ -139,6 +230,7 @@ mod tests {
     fn test_show_metadata_only() {
         let index = create_test_index_with_docs();
 
+        // The metadata_only parameter is now unused but the function should still work
         let result = show_document(&index, 1, true);
         assert!(result.is_ok());
     }
