@@ -44,9 +44,14 @@ fn test_build_block_wrong_node_type() {
 #[test]
 fn test_build_expr_macro_call() {
     let input = r#"(Expr
+      :id 1
       :kind (MacCall
-              :path (Path :segments ((PathSegment :ident (Ident :name "println")))))
-      :id 1)"#;
+              (MacCall
+                :path (Path :segments ((PathSegment :ident (Ident :name "println"))))
+                :args Empty
+                :prior-type-ascription nil))
+      :span (Span :lo 0 :hi 0)
+      :attrs ())"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -147,9 +152,14 @@ fn test_build_path_with_span() {
 #[test]
 fn test_build_expr_mac_call_with_empty_args() {
     let input = r#"(Expr
+      :id 1
       :kind (MacCall
-              :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-              :args (Empty)))"#;
+              (MacCall
+                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
+                :args Empty
+                :prior-type-ascription nil))
+      :span (Span :lo 0 :hi 0)
+      :attrs ())"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -166,11 +176,17 @@ fn test_build_expr_mac_call_with_empty_args() {
 #[test]
 fn test_build_expr_mac_call_with_delimited_args() {
     let input = r#"(Expr
+      :id 1
       :kind (MacCall
-              :path (Path :segments ((PathSegment :ident (Ident :name "vec"))))
-              :args (Delimited
-                      :delim Bracket
-                      :tokens (TokenStream :source "1, 2, 3"))))"#;
+              (MacCall
+                :path (Path :segments ((PathSegment :ident (Ident :name "vec"))))
+                :args (Delimited
+                        :dspan (DelSpan :open (Span :lo 0 :hi 0) :close (Span :lo 0 :hi 0))
+                        :delim Bracket
+                        :tokens (TokenStream :source "1, 2, 3"))
+                :prior-type-ascription nil))
+      :span (Span :lo 0 :hi 0)
+      :attrs ())"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -215,9 +231,16 @@ fn test_build_mac_args_with_all_delimiters() {
     for (delim_str, expected_delim) in test_cases {
         let input = format!(
             r#"(Expr
+              :id 1
               :kind (MacCall
-                      :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-                      :args (Delimited :delim {})))"#,
+                      (MacCall
+                        :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
+                        :args (Delimited
+                                :dspan (DelSpan :open (Span :lo 0 :hi 0) :close (Span :lo 0 :hi 0))
+                                :delim {})
+                        :prior-type-ascription nil))
+              :span (Span :lo 0 :hi 0)
+              :attrs ())"#,
             delim_str
         );
 
@@ -242,9 +265,17 @@ fn test_build_mac_args_with_all_delimiters() {
 #[test]
 fn test_build_token_stream_empty() {
     let input = r#"(Expr
+      :id 1
       :kind (MacCall
-              :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-              :args (Delimited :tokens (TokenStream))))"#;
+              (MacCall
+                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
+                :args (Delimited
+                        :dspan (DelSpan :open (Span :lo 0 :hi 0) :close (Span :lo 0 :hi 0))
+                        :delim Paren
+                        :tokens Empty)
+                :prior-type-ascription nil))
+      :span (Span :lo 0 :hi 0)
+      :attrs ())"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -264,9 +295,17 @@ fn test_build_token_stream_empty() {
 #[test]
 fn test_build_token_stream_with_source() {
     let input = r#"(Expr
+      :id 1
       :kind (MacCall
-              :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-              :args (Delimited :tokens (TokenStream :source "hello world"))))"#;
+              (MacCall
+                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
+                :args (Delimited
+                        :dspan (DelSpan :open (Span :lo 0 :hi 0) :close (Span :lo 0 :hi 0))
+                        :delim Paren
+                        :tokens (TokenStream :source "hello world"))
+                :prior-type-ascription nil))
+      :span (Span :lo 0 :hi 0)
+      :attrs ())"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -336,9 +375,14 @@ fn test_build_expr_kind_unsupported() {
 #[test]
 fn test_build_mac_args_unsupported_kind() {
     let input = r#"(Expr
+      :id 1
       :kind (MacCall
-              :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-              :args (Eq)))"#;
+              (MacCall
+                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
+                :args (Eq)
+                :prior-type-ascription nil))
+      :span (Span :lo 0 :hi 0)
+      :attrs ())"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -354,14 +398,17 @@ fn test_build_complex_macro_call_expression() {
     let input = r#"(Expr
       :id 100
       :kind (MacCall
-              :path (Path
-                      :segments ((PathSegment :ident (Ident :name "println") :id 101))
-                      :span (Span :lo 0 :hi 7))
-              :args (Delimited
-                      :delim Paren
-                      :dspan (DelSpan :open (Span :lo 7 :hi 8) :close (Span :lo 20 :hi 21))
-                      :tokens (TokenStream :source "\"Hello, world!\"")))
-      :span (Span :lo 0 :hi 21))"#;
+              (MacCall
+                :path (Path
+                        :segments ((PathSegment :ident (Ident :name "println") :id 101))
+                        :span (Span :lo 0 :hi 7))
+                :args (Delimited
+                        :dspan (DelSpan :open (Span :lo 7 :hi 8) :close (Span :lo 20 :hi 21))
+                        :delim Paren
+                        :tokens (TokenStream :source "\"Hello, world!\""))
+                :prior-type-ascription nil))
+      :span (Span :lo 0 :hi 21)
+      :attrs ())"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();

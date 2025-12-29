@@ -50,11 +50,10 @@ fn test_build_stmt_empty_generates_id() {
 fn test_build_stmt_semi_with_keyword_syntax() {
     let input = r#"(Stmt
       :id 10
-      :kind (Semi
-              :expr (Expr
+      :kind (Semi (Expr
                       :id 11
                       :kind (MacCall
-                              :path (Path :segments ((PathSegment :ident (Ident :name "test")))))))
+                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
       :span (Span))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
@@ -74,11 +73,10 @@ fn test_build_stmt_semi_with_keyword_syntax() {
 fn test_build_stmt_semi_with_macro_call() {
     let input = r#"(Stmt
       :id 20
-      :kind (Semi
-              :expr (Expr
+      :kind (Semi (Expr
                       :id 21
                       :kind (MacCall
-                              :path (Path :segments ((PathSegment :ident (Ident :name "println")))))))
+                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "println"))))))))
       :span (Span))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
@@ -113,11 +111,10 @@ fn test_build_stmt_semi_missing_expr() {
 fn test_build_stmt_expr_with_keyword_syntax() {
     let input = r#"(Stmt
       :id 40
-      :kind (Expr
-              :expr (Expr
+      :kind (Expr (Expr
                       :id 41
                       :kind (MacCall
-                              :path (Path :segments ((PathSegment :ident (Ident :name "test")))))))
+                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
       :span (Span))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
@@ -137,11 +134,10 @@ fn test_build_stmt_expr_with_keyword_syntax() {
 fn test_build_stmt_expr_with_macro_call() {
     let input = r#"(Stmt
       :id 50
-      :kind (Expr
-              :expr (Expr
+      :kind (Expr (Expr
                       :id 51
                       :kind (MacCall
-                              :path (Path :segments ((PathSegment :ident (Ident :name "value")))))))
+                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "value"))))))))
       :span (Span))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
@@ -217,17 +213,15 @@ fn test_build_stmt_unsupported_kind() {
 fn test_build_multiple_statements_in_block() {
     let input = r#"(Block
       :stmts ((Stmt :id 1 :kind (Empty) :span (Span))
-              (Stmt :id 2 :kind (Semi
-                                  :expr (Expr
+              (Stmt :id 2 :kind (Semi (Expr
                                           :id 3
                                           :kind (MacCall
-                                                  :path (Path :segments ((PathSegment :ident (Ident :name "test")))))))
+                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
                     :span (Span))
-              (Stmt :id 4 :kind (Expr
-                                  :expr (Expr
+              (Stmt :id 4 :kind (Expr (Expr
                                           :id 5
                                           :kind (MacCall
-                                                  :path (Path :segments ((PathSegment :ident (Ident :name "final")))))))
+                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "final"))))))))
                     :span (Span)))
       :id 10
       :span (Span :lo 0 :hi 100))"#;
@@ -267,12 +261,11 @@ fn test_build_multiple_statements_in_block() {
 fn test_build_stmt_with_complex_expression() {
     let input = r#"(Stmt
       :id 100
-      :kind (Semi
-              :expr (Expr
+      :kind (Semi (Expr
                       :id 101
                       :kind (MacCall
-                              :path (Path
-                                      :segments ((PathSegment :ident (Ident :name "println") :id 102))
+                              (MacCall :path (Path
+                                      :segments ((PathSegment :ident (Ident :name "println") :id 102)))
                                       :span (Span :lo 0 :hi 7))
                               :args (Delimited
                                       :delim Paren
@@ -382,10 +375,9 @@ fn test_stmt_id_generation_sequence() {
 #[test]
 fn test_nested_expr_in_stmt_id_generation() {
     let input = r#"(Stmt
-      :kind (Semi
-              :expr (Expr
+      :kind (Semi (Expr
                       :kind (MacCall
-                              :path (Path :segments ((PathSegment :ident (Ident :name "test")))))))
+                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
       :span (Span))"#;
 
     let sexp = Parser::parse_str(input).unwrap();

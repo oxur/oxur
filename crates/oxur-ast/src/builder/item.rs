@@ -114,7 +114,10 @@ impl AstBuilder {
 
         match node_type.value.as_str() {
             "Fn" => {
-                let fn_item = self.build_fn(list)?;
+                // Extract the inner Fn node from element 1
+                let fn_sexp = &list.elements[1];
+                let fn_list = expect_list(fn_sexp)?;
+                let fn_item = self.build_fn(fn_list)?;
                 Ok(ItemKind::Fn(Box::new(fn_item)))
             }
             _ => Err(ParseError::Expected {

@@ -28,14 +28,14 @@ fn test_build_crate_with_items() {
                 :vis (Inherited)
                 :ident (Ident :name "main")
                 :kind (Fn
-                        :defaultness Final
+              (Fn :defaultness Final
                         :sig (FnSig
                                :header (FnHeader
                                          :safety Default
                                          :constness NotConst)
                                :decl (FnDecl
                                        :inputs ()
-                                       :output (Default)))
+                                       :output (Default))))
                         :generics (Generics :params () :where-clause (WhereClause :has-where-token false :predicates ()))
                         :body nil)))
       :spans (ModSpans :inner-span (Span :lo 0 :hi 50))
@@ -54,10 +54,10 @@ fn test_build_item() {
       :vis (Inherited)
       :ident (Ident :name "foo")
       :kind (Fn
-              :defaultness Final
+              (Fn :defaultness Final
               :sig (FnSig
                      :header (FnHeader :safety Default :constness NotConst)
-                     :decl (FnDecl :inputs () :output (Default)))
+                     :decl (FnDecl :inputs () :output (Default))))
               :generics (Generics :params ())
               :body nil))"#;
 
@@ -138,12 +138,13 @@ fn test_build_fn_with_body() {
       :vis (Inherited)
       :ident (Ident :name "main")
       :kind (Fn
-              :defaultness Final
-              :sig (FnSig
-                     :header (FnHeader :safety Default :constness NotConst)
-                     :decl (FnDecl :inputs () :output (Default)))
-              :generics (Generics :params ())
-              :body (Block :stmts () :id 1)))"#;
+              (Fn
+                :defaultness Final
+                :sig (FnSig
+                       :header (FnHeader :safety Default :constness NotConst)
+                       :decl (FnDecl :inputs () :output (Default)))
+                :generics (Generics :params ())
+                :body (Block :stmts () :id 1))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -167,19 +168,20 @@ fn test_complex_nested_build() {
                 :vis (Public)
                 :ident (Ident :name "main")
                 :kind (Fn
-                        :defaultness Final
-                        :sig (FnSig
-                               :header (FnHeader
-                                         :safety Default
-                                         :constness NotConst)
-                               :decl (FnDecl :inputs () :output (Default)))
-                        :generics (Generics :params ())
-                        :body (Block
-                                :stmts ((Stmt
-                                          :id 1
-                                          :kind (Empty)
-                                          :span (Span)))
-                                :id 2))))
+                        (Fn
+                          :defaultness Final
+                          :sig (FnSig
+                                 :header (FnHeader
+                                           :safety Default
+                                           :constness NotConst)
+                                 :decl (FnDecl :inputs () :output (Default)))
+                          :generics (Generics :params ())
+                          :body (Block
+                                  :stmts ((Stmt
+                                            :id 1
+                                            :kind (Empty)
+                                            :span (Span)))
+                                  :id 2)))))
       :spans (ModSpans :inner-span (Span :lo 0 :hi 100))
       :id 0)"#;
 

@@ -90,7 +90,10 @@ impl AstBuilder {
 
         match node_type.value.as_str() {
             "MacCall" => {
-                let mac_call = self.build_mac_call_inner(list)?;
+                // Extract the inner MacCall node from element 1
+                let mac_call_sexp = &list.elements[1];
+                let mac_call_list = expect_list(mac_call_sexp)?;
+                let mac_call = self.build_mac_call_inner(mac_call_list)?;
                 Ok(ExprKind::MacCall(mac_call))
             }
             _ => Err(ParseError::Expected {
@@ -101,7 +104,7 @@ impl AstBuilder {
         }
     }
 
-    fn build_mac_call_inner(&mut self, list: &crate::sexp::List) -> Result<MacCall> {
+    pub(super) fn build_mac_call_inner(&mut self, list: &crate::sexp::List) -> Result<MacCall> {
         let kwargs = parse_kwargs(list)?;
 
         let path = if let Some(path_sexp) = kwargs.get("path") {
@@ -191,6 +194,13 @@ impl AstBuilder {
     }
 
     fn build_mac_args(&mut self, sexp: &SExp) -> Result<MacArgs> {
+        // Handle both `Empty` as a bare symbol and `(Empty)` as a list
+        if let Ok(sym) = expect_symbol(sexp) {
+            if sym.value == "Empty" {
+                return Ok(MacArgs::Empty);
+            }
+        }
+
         let list = expect_list(sexp)?;
         let node_type = expect_symbol(&list.elements[0])?;
 
@@ -262,10 +272,18 @@ impl AstBuilder {
     }
 
     fn build_token_stream(&mut self, sexp: &SExp) -> Result<TokenStream> {
+        // Handle both `Empty` as a bare symbol and `(TokenStream ...)` as a list
+        if let Ok(sym) = expect_symbol(sexp) {
+            if sym.value == "Empty" {
+                return Ok(TokenStream::Empty);
+            }
+        }
+
         let list = expect_list(sexp)?;
         let node_type = expect_symbol(&list.elements[0])?;
 
         match node_type.value.as_str() {
+            "Empty" => Ok(TokenStream::Empty),
             "TokenStream" => {
                 let kwargs = parse_kwargs(list)?;
                 if let Some(source_sexp) = kwargs.get("source") {

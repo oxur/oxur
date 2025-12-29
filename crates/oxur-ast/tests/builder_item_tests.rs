@@ -18,7 +18,8 @@ fn test_build_visibility_public() {
     let input = r#"(Item
       :vis (Public)
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -32,7 +33,8 @@ fn test_build_visibility_inherited() {
     let input = r#"(Item
       :vis (Inherited)
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -45,7 +47,8 @@ fn test_build_visibility_inherited() {
 fn test_build_visibility_default_inherited() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -107,7 +110,8 @@ fn test_build_ident_wrong_node_type() {
 
 #[test]
 fn test_build_item_missing_ident() {
-    let input = r#"(Item :kind (Fn :sig (FnSig)))"#;
+    let input = r#"(Item :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -129,7 +133,8 @@ fn test_build_item_missing_kind() {
 
 #[test]
 fn test_build_item_wrong_node_type() {
-    let input = r#"(NotItem :ident (Ident :name "foo") :kind (Fn :sig (FnSig)))"#;
+    let input = r#"(NotItem :ident (Ident :name "foo") :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -143,7 +148,8 @@ fn test_build_item_with_explicit_id() {
     let input = r#"(Item
       :id 42
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -158,7 +164,8 @@ fn test_build_item_with_explicit_id() {
 fn test_build_fn_minimal() {
     let input = r#"(Item
       :ident (Ident :name "main")
-      :kind (Fn :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -176,7 +183,8 @@ fn test_build_fn_minimal() {
 fn test_build_fn_with_defaultness_final() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :defaultness Final :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :defaultness Final :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -193,7 +201,8 @@ fn test_build_fn_with_defaultness_final() {
 fn test_build_fn_with_defaultness_default() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :defaultness Default :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :defaultness Default :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -211,8 +220,8 @@ fn test_build_fn_with_body() {
     let input = r#"(Item
       :ident (Ident :name "main")
       :kind (Fn
-              :sig (FnSig)
-              :body (Block :stmts () :id 1)))"#;
+              (Fn :sig (FnSig)
+              :body (Block :stmts () :id 1))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -232,7 +241,8 @@ fn test_build_fn_with_body() {
 fn test_build_fn_with_nil_body() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig) :body nil))"#;
+      :kind (Fn
+              (Fn :sig (FnSig) :body nil)))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -249,7 +259,8 @@ fn test_build_fn_with_nil_body() {
 fn test_build_fn_missing_sig() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :defaultness Final))"#;
+      :kind (Fn
+              (Fn :defaultness Final)))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -264,7 +275,8 @@ fn test_build_fn_missing_sig() {
 fn test_build_fn_sig_minimal() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig)))"#;
+      :kind (Fn
+              (Fn :sig (FnSig))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -283,7 +295,8 @@ fn test_build_fn_sig_minimal() {
 fn test_build_fn_sig_with_header() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :header (FnHeader :safety Unsafe :constness Const))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :header (FnHeader :safety Unsafe :constness Const)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -301,7 +314,8 @@ fn test_build_fn_sig_with_header() {
 fn test_build_fn_sig_with_decl() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :decl (FnDecl :inputs () :output (Default)))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :decl (FnDecl :inputs () :output (Default))))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -321,7 +335,8 @@ fn test_build_fn_sig_with_decl() {
 fn test_build_fn_header_default_safety() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :header (FnHeader :safety Default))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :header (FnHeader :safety Default)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -338,7 +353,8 @@ fn test_build_fn_header_default_safety() {
 fn test_build_fn_header_safe() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :header (FnHeader :safety Safe))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :header (FnHeader :safety Safe)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -355,7 +371,8 @@ fn test_build_fn_header_safe() {
 fn test_build_fn_header_unsafe() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :header (FnHeader :safety Unsafe))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :header (FnHeader :safety Unsafe)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -372,7 +389,8 @@ fn test_build_fn_header_unsafe() {
 fn test_build_fn_header_const() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :header (FnHeader :constness Const))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :header (FnHeader :constness Const)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -389,7 +407,8 @@ fn test_build_fn_header_const() {
 fn test_build_fn_header_not_const() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :header (FnHeader :constness NotConst))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :header (FnHeader :constness NotConst)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -408,7 +427,8 @@ fn test_build_fn_header_not_const() {
 fn test_build_fn_decl_no_inputs_default_output() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :decl (FnDecl :inputs () :output (Default)))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :decl (FnDecl :inputs () :output (Default))))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -426,8 +446,9 @@ fn test_build_fn_decl_no_inputs_default_output() {
 fn test_build_fn_decl_with_inputs() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :decl (FnDecl
-                                    :inputs ((Param))
+      :kind (Fn
+              (Fn :sig (FnSig :decl (FnDecl
+                                    :inputs ((Param)))
                                     :output (Default)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
@@ -445,8 +466,9 @@ fn test_build_fn_decl_with_inputs() {
 fn test_build_fn_decl_with_multiple_inputs() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :decl (FnDecl
-                                    :inputs ((Param) (Param) (Param))
+      :kind (Fn
+              (Fn :sig (FnSig :decl (FnDecl
+                                    :inputs ((Param) (Param) (Param)))
                                     :output (Default)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
@@ -466,7 +488,8 @@ fn test_build_fn_decl_with_multiple_inputs() {
 fn test_build_fn_ret_ty_default() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :decl (FnDecl :output (Default)))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :decl (FnDecl :output (Default))))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -483,7 +506,8 @@ fn test_build_fn_ret_ty_default() {
 fn test_build_fn_ret_ty_ty_variant() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig :decl (FnDecl :output (Ty)))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :decl (FnDecl :output (Ty))))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -503,7 +527,8 @@ fn test_build_fn_ret_ty_ty_variant() {
 fn test_build_fn_with_generics() {
     let input = r#"(Item
       :ident (Ident :name "foo")
-      :kind (Fn :sig (FnSig) :generics (Generics :params ())))"#;
+      :kind (Fn
+              (Fn :sig (FnSig) :generics (Generics :params ()))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();
@@ -525,18 +550,19 @@ fn test_build_complete_function_item() {
       :vis (Public)
       :ident (Ident :name "calculate" :span (Span :lo 0 :hi 9))
       :kind (Fn
-              :defaultness Final
-              :sig (FnSig
-                     :header (FnHeader :safety Default :constness NotConst)
-                     :decl (FnDecl
-                             :inputs ((Param) (Param))
-                             :output (Default))
-                     :span (Span :lo 10 :hi 40))
-              :generics (Generics :params ())
-              :body (Block
-                      :stmts ((Stmt :id 101 :kind (Empty) :span (Span)))
-                      :id 102
-                      :span (Span :lo 40 :hi 50)))
+              (Fn
+                :defaultness Final
+                :sig (FnSig
+                       :header (FnHeader :safety Default :constness NotConst)
+                       :decl (FnDecl
+                               :inputs ((Param) (Param))
+                               :output (Default))
+                       :span (Span :lo 10 :hi 40))
+                :generics (Generics :params ())
+                :body (Block
+                        :stmts ((Stmt :id 101 :kind (Empty) :span (Span)))
+                        :id 102
+                        :span (Span :lo 40 :hi 50))))
       :span (Span :lo 0 :hi 50))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
@@ -569,7 +595,8 @@ fn test_build_complete_function_item() {
 fn test_build_unsafe_const_function() {
     let input = r#"(Item
       :ident (Ident :name "unsafe_const_fn")
-      :kind (Fn :sig (FnSig :header (FnHeader :safety Unsafe :constness Const))))"#;
+      :kind (Fn
+              (Fn :sig (FnSig :header (FnHeader :safety Unsafe :constness Const)))))"#;
 
     let sexp = Parser::parse_str(input).unwrap();
     let mut builder = AstBuilder::new();

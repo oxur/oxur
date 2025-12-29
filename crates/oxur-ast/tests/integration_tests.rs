@@ -1,5 +1,8 @@
+use oxur_ast::ast;
 use oxur_ast::builder::AstBuilder;
+use oxur_ast::integration::parse_rust_file;
 use oxur_ast::sexp::{print_sexp, Parser};
+use oxur_ast::Generator;
 
 #[test]
 fn test_parse_and_build_simple_crate() {
@@ -120,3 +123,117 @@ fn test_simple_crate_build() {
     assert_eq!(crate_ast.attrs.len(), 0);
     assert!(!crate_ast.is_placeholder);
 }
+
+
+// Phase 3: Integration tests with syn
+
+#[test]
+fn test_parse_hello_world() {
+    let source = r#"
+fn main() {
+    println!("Hello, world!");
+}
+    "#;
+
+    let crate_node = parse_rust_file(source).expect("Failed to parse");
+
+    assert_eq!(crate_node.items.len(), 1);
+    assert_eq!(crate_node.items[0].ident.name, "main");
+}
+
+#[test]
+fn test_round_trip_hello_world() {
+    let source = r#"
+fn main() {
+    println!("Hello, world!");
+}
+    "#;
+
+    // Parse Rust
+    let crate1 = parse_rust_file(source).expect("Failed to parse");
+
+    // Generate S-expression
+    let gen = Generator::new();
+    let sexp = gen.generate_crate(&crate1).expect("Failed to generate");
+
+    // Parse S-expression
+    let sexp_text = print_sexp(&sexp);
+    let sexp2 = Parser::parse_str(&sexp_text).expect("Failed to parse S-expr");
+
+    // Build AST
+    let mut builder = AstBuilder::new();
+    let crate2 = builder.build_crate(&sexp2).expect("Failed to build");
+
+    // Verify
+    assert_eq!(crate1.items.len(), crate2.items.len());
+    assert_eq!(crate1.items[0].ident.name, crate2.items[0].ident.name);
+}
+
+#[test]
+fn test_parse_simple_function() {
+    let source = r#"
+fn add(a: i32, b: i32) -> i32 {
+    42
+}
+    "#;
+
+    let crate_node = parse_rust_file(source).expect("Failed to parse");
+
+    assert_eq!(crate_node.items.len(), 1);
+
+    let item = &crate_node.items[0];
+    assert_eq!(item.ident.name, "add");
+
+    // Verify it has parameters
+    if let ast::ItemKind::Fn(fn_item) = &item.kind {
+        assert_eq!(fn_item.sig.decl.inputs.len(), 2);
+    } else {
+        panic!("Expected function item");
+    }
+}
+
+#[test]
+fn test_parse_with_let_binding() {
+    let source = r#"
+fn test() {
+    let x = 42;
+    let y = "hello";
+}
+    "#;
+
+    let crate_node = parse_rust_file(source).expect("Failed to parse");
+    assert_eq!(crate_node.items.len(), 1);
+}
+
+#[test]
+fn test_parse_unsafe_function() {
+    let source = r#"
+unsafe fn dangerous() {
+    println!("danger!");
+}
+    "#;
+
+    let crate_node = parse_rust_file(source).expect("Failed to parse");
+
+    let item = &crate_node.items[0];
+    if let ast::ItemKind::Fn(fn_item) = &item.kind {
+        assert_eq!(fn_item.sig.header.safety, ast::Safety::Unsafe);
+    }
+}
+
+#[test]
+fn test_parse_const_function() {
+    let source = r#"
+const fn compile_time() -> i32 {
+    42
+}
+    "#;
+
+    let crate_node = parse_rust_file(source).expect("Failed to parse");
+
+    let item = &crate_node.items[0];
+    if let ast::ItemKind::Fn(fn_item) = &item.kind {
+        assert_eq!(fn_item.sig.header.constness, ast::Constness::Const);
+    }
+}
+
