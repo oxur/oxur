@@ -1,9 +1,8 @@
 default: build
 
 BIN_DIR := ./bin
-TARGET := ./target
-TARGET_OXD := $(TARGET)/debug/oxd
-BIN_OXD := $(BIN_DIR)/oxd
+MODE := debug
+TARGET := ./target/$(MODE)
 
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
@@ -11,7 +10,8 @@ $(BIN_DIR):
 build: clean $(BIN_DIR)
 	@echo "Building oxur..."
 	@cargo build
-	@cp $(TARGET_OXD) $(BIN_OXD)
+	@cp $(TARGET)/aster $(BIN_DIR)/aster
+	@cp $(TARGET)/oxd $(BIN_DIR)/oxd
 
 clean:
 	@echo "Cleaning project..."
