@@ -40,7 +40,8 @@ fn apply_state_cell_colors(
     for (i, doc) in docs.iter().enumerate() {
         let row_idx = 2 + i; // Data rows start at index 2 (after title and header)
 
-        if let Some(fg_color) = oxur_table::helpers::state_to_fg_color(doc.metadata.state.as_str()) {
+        if let Some(fg_color) = oxur_table::helpers::state_to_fg_color(doc.metadata.state.as_str())
+        {
             let bg_color = oxur_table::helpers::get_data_row_bg_color(i, &row_bg_colors);
             oxur_table::helpers::apply_cell_color(table, row_idx, 2, fg_color, bg_color);
         }

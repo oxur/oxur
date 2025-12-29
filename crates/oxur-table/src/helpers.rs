@@ -57,12 +57,7 @@ use crate::config::{parse_bg_color, TableStyleConfig};
 /// assert_eq!(row_bg_colors.len(), 2); // Default theme has 2 alternating colors
 /// ```
 pub fn parse_row_bg_colors(theme: &TableStyleConfig) -> Vec<TabledColor> {
-    theme
-        .rows
-        .colors
-        .iter()
-        .map(|rc| parse_bg_color(&rc.bg))
-        .collect()
+    theme.rows.colors.iter().map(|rc| parse_bg_color(&rc.bg)).collect()
 }
 
 /// Get the background color for a data row using alternating colors.
