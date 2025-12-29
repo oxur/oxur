@@ -1,0 +1,21 @@
+[package]
+name = "oxur-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Oxur CLI tool for running, compiling, and managing Oxur projects"
+
+[[bin]]
+name = "oxur"
+path = "src/main.rs"
+
+[dependencies]
+oxur-lang = { path = "../oxur-lang" }
+oxur-comp = { path = "../oxur-comp" }
+oxur-repl = { path = "../oxur-repl" }
+anyhow.workspace = true
+clap.workspace = true
+
+[dev-dependencies]

@@ -1,0 +1,16 @@
+[package]
+name = "oxur-lang"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Oxur language processing: parser, expander, and Core Forms IR"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+syn.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true

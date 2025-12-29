@@ -4,11 +4,10 @@ members = [
     "crates/design",
     "crates/oxur-ast",
     "crates/oxur-table",
-    # Future crates will be added here:
-    # "crates/rast",
-    # "crates/lang",
-    # "crates/repl",
-    # "crates/cli",
+    "crates/oxur-lang",
+    "crates/oxur-comp",
+    "crates/oxur-repl",
+    "crates/oxur-cli",
 ]
 
 # Workspace-wide dependencies (shared versions)
@@ -34,6 +33,8 @@ tempfile = "3.10"
 cargo-llvm-cov = "0.6"
 syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
 quote = "1.0"
+proc-macro2 = "1.0"
+prettyplease = "0.2"
 criterion = "0.5"
 tabled = "0.17"
 

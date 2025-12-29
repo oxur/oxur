@@ -695,6 +695,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxur-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "oxur-comp",
+ "oxur-lang",
+ "oxur-repl",
+]
+
+[[package]]
+name = "oxur-comp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "oxur-lang",
+ "prettyplease",
+ "quote",
+ "serde_json",
+ "syn 2.0.111",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "oxur-lang"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "syn 2.0.111",
+ "thiserror",
+]
+
+[[package]]
+name = "oxur-repl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "oxur-comp",
+ "oxur-lang",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "oxur-table"
 version = "0.1.0"
 dependencies = [
@@ -788,6 +836,16 @@ checksum = "72dd2d6d381dfb73a193c7fca536518d7caee39fc8503f74e7dc0be0531b425c"
 dependencies = [
  "predicates-core",
  "termtree",
+]
+
+[[package]]
+name = "prettyplease"
+version = "0.2.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.111",
 ]
 
 [[package]]
