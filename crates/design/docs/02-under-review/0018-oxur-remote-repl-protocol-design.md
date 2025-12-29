@@ -1,7 +1,7 @@
 ---
 number: 18
 title: "Oxur Remote REPL Protocol Design"
-author: "allowing clients"
+author: "Duncan McGreggor & Claude"
 created: 2025-12-28
 updated: 2025-12-28
 state: Under Review

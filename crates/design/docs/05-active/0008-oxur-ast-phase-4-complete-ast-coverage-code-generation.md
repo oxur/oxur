@@ -1,7 +1,7 @@
 ---
 number: 8
 title: "oxur-ast Phase 4: Complete AST Coverage & Code Generation"
-author: "implementing all"
+author: "Duncan McGreggor"
 created: 2025-12-27
 updated: 2025-12-27
 state: Active
@@ -11,9 +11,9 @@ superseded-by: null
 
 # oxur-ast Phase 4: Complete AST Coverage & Code Generation
 
-**Phase**: 4 - Complete Implementation  
-**Goal**: Full Rust AST coverage and proper code generation  
-**Estimated Time**: 10-14 days  
+**Phase**: 4 - Complete Implementation
+**Goal**: Full Rust AST coverage and proper code generation
+**Estimated Time**: 10-14 days
 **Prerequisites**: Phases 0-3 complete (basic system working)
 
 ---
@@ -23,6 +23,7 @@ superseded-by: null
 Phase 4 completes `oxur-ast` by implementing all remaining AST node types and adding proper Rust code generation. This transforms the library from "handles Hello World" to "handles all of Rust".
 
 **What we're building:**
+
 1. Complete ExprKind coverage (~35+ variants)
 2. Complete ItemKind coverage (~17 variants)
 3. Complete PatKind coverage (~15+ variants)
@@ -99,129 +100,129 @@ pub enum ExprKind {
     MacCall(Box<MacCall>),
     Lit(Lit),
     Path(Option<QSelf>, Path),
-    
+
     // Phase 4: Collections
     /// Array literal: `[a, b, c]`
     Array(Vec<Expr>),
-    
+
     /// Tuple: `(a, b, c)`
     Tup(Vec<Expr>),
-    
+
     /// Repeat: `[expr; count]`
     Repeat(Box<Expr>, Box<AnonConst>),
-    
+
     // Phase 4: Function calls
     /// Function call: `foo(a, b)`
     Call(Box<Expr>, Vec<Expr>),
-    
+
     /// Method call: `obj.method(a, b)`
     MethodCall(Box<MethodCall>),
-    
+
     // Phase 4: Operators
     /// Binary operation: `a + b`, `a && b`
     Binary(BinOp, Box<Expr>, Box<Expr>),
-    
+
     /// Unary operation: `!x`, `-x`, `*x`
     Unary(UnOp, Box<Expr>),
-    
+
     /// Cast: `expr as Type`
     Cast(Box<Expr>, Box<Ty>),
-    
+
     /// Type ascription: `expr: Type` (removed in newer Rust, but in AST)
     Type(Box<Expr>, Box<Ty>),
-    
+
     // Phase 4: Control flow
     /// If expression: `if cond { } else { }`
     If(Box<Expr>, Box<Block>, Option<Box<Expr>>),
-    
+
     /// While loop: `while cond { }`
     While(Box<Expr>, Box<Block>, Option<Label>),
-    
+
     /// For loop: `for pat in expr { }`
     ForLoop(Box<Pat>, Box<Expr>, Box<Block>, Option<Label>),
-    
+
     /// Loop: `loop { }`
     Loop(Box<Block>, Option<Label>),
-    
+
     /// Match: `match expr { arms }`
     Match(Box<Expr>, Vec<Arm>),
-    
+
     // Phase 4: Closures and blocks
     /// Closure: `|a, b| expr`
     Closure(Box<Closure>),
-    
+
     /// Block: `{ stmts }`
     Block(Box<Block>, Option<Label>),
-    
+
     // Phase 4: Async/await
     /// Async block: `async { }`
     Async(CaptureBy, Box<Block>),
-    
+
     /// Await: `expr.await`
     Await(Box<Expr>),
-    
+
     /// Try block: `try { }`
     TryBlock(Box<Block>),
-    
+
     // Phase 4: Assignment and fields
     /// Assignment: `place = value`
     Assign(Box<Expr>, Box<Expr>, Span),
-    
+
     /// Assignment with operator: `place += value`
     AssignOp(BinOp, Box<Expr>, Box<Expr>),
-    
+
     /// Field access: `obj.field`
     Field(Box<Expr>, Ident),
-    
+
     /// Index: `arr[index]`
     Index(Box<Expr>, Box<Expr>),
-    
+
     // Phase 4: Ranges
     /// Range: `start..end`, `..end`, `start..`, `..`
     Range(Option<Box<Expr>>, Option<Box<Expr>>, RangeLimits),
-    
+
     // Phase 4: Struct and paths
     /// Struct literal: `Point { x: 1, y: 2 }`
     Struct(Box<StructExpr>),
-    
+
     // Phase 4: Special
     /// Underscore: `_`
     Underscore,
-    
+
     /// Break: `break`, `break 'label`, `break expr`
     Break(Option<Label>, Option<Box<Expr>>),
-    
+
     /// Continue: `continue`, `continue 'label`
     Continue(Option<Label>),
-    
+
     /// Return: `return`, `return expr`
     Return(Option<Box<Expr>>),
-    
+
     /// Yield: `yield expr` (generators)
     Yield(Option<Box<Expr>>),
-    
+
     /// Yeet: `do yeet expr` (try trait v2)
     Yeet(Option<Box<Expr>>),
-    
+
     /// Become: `become expr` (tail calls)
     Become(Box<Expr>),
-    
+
     // Phase 4: Advanced
     /// Inline assembly: `asm!(...)`
     InlineAsm(Box<InlineAsm>),
-    
+
     /// Offset of: `offset_of!(Type, field)`
     OffsetOf(Box<Ty>, Vec<Ident>),
-    
+
     /// Format args: `format_args!(...)`
     FormatArgs(Box<FormatArgs>),
-    
+
     /// Parenthesized: `(expr)`
     Paren(Box<Expr>),
-    
+
     /// Try: `expr?`
     Try(Box<Expr>),
-    
+
     // Error recovery
     Err,
 }
@@ -361,57 +362,57 @@ Add all item variants:
 pub enum ItemKind {
     // Phase 1-3 (existing)
     Fn(Box<Fn>),
-    
+
     // Phase 4: Use and modules
     /// Extern crate: `extern crate foo;`
     ExternCrate(Option<Ident>),
-    
+
     /// Use declaration: `use std::io;`
     Use(Box<UseTree>),
-    
+
     /// Module: `mod foo { }` or `mod foo;`
     Mod(Option<Ident>, ModKind),
-    
+
     /// Foreign module: `extern "C" { }`
     ForeignMod(ForeignMod),
-    
+
     // Phase 4: Constants and statics
     /// Static: `static FOO: i32 = 42;`
     Static(Box<StaticItem>),
-    
+
     /// Const: `const FOO: i32 = 42;`
     Const(Box<ConstItem>),
-    
+
     // Phase 4: Types
     /// Type alias: `type Foo = Bar;`
     TyAlias(Box<TyAlias>),
-    
+
     /// Enum: `enum Foo { A, B }`
     Enum(EnumDef, Generics),
-    
+
     /// Struct: `struct Foo { x: i32 }`
     Struct(VariantData, Generics),
-    
+
     /// Union: `union Foo { x: i32 }`
     Union(VariantData, Generics),
-    
+
     // Phase 4: Traits
     /// Trait: `trait Foo { }`
     Trait(Box<TraitDef>),
-    
+
     /// Trait alias: `trait Foo = Bar + Baz;`
     TraitAlias(Generics, GenericBounds),
-    
+
     /// Impl: `impl Foo for Bar { }`
     Impl(Box<ImplDef>),
-    
+
     // Phase 4: Macros
     /// Macro invocation: `foo!(...);`
     MacCall(Box<MacCall>),
-    
+
     /// Macro definition: `macro_rules! foo { }`
     MacroDef(Box<MacroDef>),
-    
+
     // Phase 4: Advanced
     /// Global assembly: `global_asm!(...)`
     GlobalAsm(Box<InlineAsm>),
@@ -645,49 +646,49 @@ pub enum PatKind {
     // Phase 1-3 (existing)
     /// Identifier pattern: `x`, `mut x`, `ref x`
     Ident(BindingMode, Ident, Option<Box<Pat>>),
-    
+
     // Phase 4: Literals and ranges
     /// Wildcard pattern: `_`
     Wild,
-    
+
     /// Rest pattern: `..`
     Rest,
-    
+
     /// Literal: `42`, `"hello"`, `true`
     Lit(Box<Expr>),
-    
+
     /// Range: `1..=10`, `'a'..='z'`
     Range(Option<Box<Expr>>, Option<Box<Expr>>, RangeEnd),
-    
+
     // Phase 4: Structured patterns
     /// Slice: `[a, b, c]`, `[first, .., last]`
     Slice(Vec<Pat>),
-    
+
     /// Path: `Option::None`
     Path(Option<QSelf>, Path),
-    
+
     /// Tuple: `(a, b, c)`
     Tuple(Vec<Pat>),
-    
+
     /// Struct: `Point { x, y }`
     Struct(Option<QSelf>, Path, Vec<PatField>, PatFieldsRest),
-    
+
     /// Tuple struct: `Some(x)`
     TupleStruct(Option<QSelf>, Path, Vec<Pat>),
-    
+
     // Phase 4: Special
     /// Or pattern: `A | B`
     Or(Vec<Pat>),
-    
+
     /// Reference: `&x`, `&mut x`
     Ref(Box<Pat>, Mutability),
-    
+
     /// Box pattern: `box x`
     Box(Box<Pat>),
-    
+
     /// Parenthesized: `(pat)`
     Paren(Box<Pat>),
-    
+
     /// Macro invocation: `mac!(...)`
     MacCall(Box<MacCall>),
 }
@@ -751,51 +752,51 @@ pub enum TyKind {
     // Phase 1-3 (existing)
     /// Path type: `std::io::Error`
     Path(Option<QSelf>, Path),
-    
+
     // Phase 4: Basic types
     /// Slice: `[T]`
     Slice(Box<Ty>),
-    
+
     /// Array: `[T; N]`
     Array(Box<Ty>, Box<AnonConst>),
-    
+
     /// Raw pointer: `*const T`, `*mut T`
     Ptr(Box<MutTy>),
-    
+
     /// Reference: `&T`, `&mut T`, `&'a T`
     Ref(Option<Lifetime>, Box<MutTy>),
-    
+
     /// Bare function: `fn(i32) -> i32`
     BareFn(Box<BareFnTy>),
-    
+
     /// Never: `!`
     Never,
-    
+
     /// Tuple: `(A, B, C)`
     Tup(Vec<Ty>),
-    
+
     // Phase 4: Advanced types
     /// Trait object: `dyn Trait + Send`
     TraitObject(GenericBounds, TraitObjectSyntax),
-    
+
     /// Impl trait: `impl Trait`
     ImplTrait(NodeId, GenericBounds),
-    
+
     /// Parenthesized: `(T)`
     Paren(Box<Ty>),
-    
+
     /// Typeof: `typeof(expr)` (unstable)
     Typeof(Box<AnonConst>),
-    
+
     /// Inferred: `_`
     Infer,
-    
+
     /// Macro invocation: `mac!(...)`
     MacCall(Box<MacCall>),
-    
+
     // Error recovery
     Err,
-    
+
     /// CVarArgs: `...` (C varargs)
     CVarArgs,
 }
@@ -852,7 +853,7 @@ pub struct Attribute {
 pub enum AttrKind {
     /// Normal attribute: `#[attr]` or `#![attr]`
     Normal(Box<NormalAttr>),
-    
+
     /// Doc comment: `/// ...` or `//! ...`
     DocComment(CommentKind, String),
 }
@@ -945,39 +946,39 @@ impl RustCodegen {
             indent_str: "    ".to_string(), // 4 spaces
         }
     }
-    
+
     pub fn generate_crate(&self, crate_node: &Crate) -> Result<String> {
         let mut output = String::new();
-        
+
         // Generate attributes
         for attr in &crate_node.attrs {
             self.generate_attr(attr, &mut output)?;
             writeln!(output).unwrap();
         }
-        
+
         // Generate items
         for item in &crate_node.items {
             self.generate_item(item, &mut output)?;
             writeln!(output).unwrap();
         }
-        
+
         Ok(output)
     }
-    
+
     fn current_indent(&self) -> String {
         self.indent_str.repeat(self.indent)
     }
-    
+
     fn indent(&mut self) {
         self.indent += 1;
     }
-    
+
     fn dedent(&mut self) {
         if self.indent > 0 {
             self.indent -= 1;
         }
     }
-    
+
     fn generate_attr(&self, _attr: &Attribute, _output: &mut String) -> Result<()> {
         // Simplified for Phase 4
         // Full implementation would parse attribute structure
@@ -1006,7 +1007,7 @@ impl RustCodegen {
     pub fn generate_item(&self, item: &Item, output: &mut String) -> Result<()> {
         // Generate visibility
         self.generate_visibility(&item.vis, output)?;
-        
+
         // Generate item kind
         match &item.kind {
             ItemKind::Fn(fn_item) => {
@@ -1048,10 +1049,10 @@ impl RustCodegen {
                 write!(output, "// Unsupported item: {:?}", item.kind).unwrap();
             }
         }
-        
+
         Ok(())
     }
-    
+
     fn generate_visibility(&self, vis: &Visibility, output: &mut String) -> Result<()> {
         match vis {
             Visibility::Public => write!(output, "pub ").unwrap(),
@@ -1060,7 +1061,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_fn_item(
         &self,
         ident: &Ident,
@@ -1070,10 +1071,10 @@ impl RustCodegen {
         // Generate function header
         self.generate_fn_header(&fn_item.sig.header, output)?;
         write!(output, "fn {}", ident.name).unwrap();
-        
+
         // Generate generics
         self.generate_generics(&fn_item.generics, output)?;
-        
+
         // Generate parameters
         write!(output, "(").unwrap();
         for (i, param) in fn_item.sig.decl.inputs.iter().enumerate() {
@@ -1083,13 +1084,13 @@ impl RustCodegen {
             self.generate_param(param, output)?;
         }
         write!(output, ")").unwrap();
-        
+
         // Generate return type
         self.generate_fn_ret_ty(&fn_item.sig.decl.output, output)?;
-        
+
         // Generate where clause
         self.generate_where_clause(&fn_item.generics.where_clause, output)?;
-        
+
         // Generate body
         if let Some(body) = &fn_item.body {
             write!(output, " ").unwrap();
@@ -1097,10 +1098,10 @@ impl RustCodegen {
         } else {
             write!(output, ";").unwrap();
         }
-        
+
         Ok(())
     }
-    
+
     fn generate_fn_header(&self, header: &FnHeader, output: &mut String) -> Result<()> {
         if header.constness == Constness::Const {
             write!(output, "const ").unwrap();
@@ -1119,14 +1120,14 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_param(&self, param: &Param, output: &mut String) -> Result<()> {
         self.generate_pat(&param.pat, output)?;
         write!(output, ": ").unwrap();
         self.generate_ty(&param.ty, output)?;
         Ok(())
     }
-    
+
     fn generate_fn_ret_ty(&self, ret_ty: &FnRetTy, output: &mut String) -> Result<()> {
         match ret_ty {
             FnRetTy::Default(_) => {},
@@ -1137,7 +1138,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_generics(&self, generics: &Generics, output: &mut String) -> Result<()> {
         if !generics.params.is_empty() {
             write!(output, "<").unwrap();
@@ -1151,13 +1152,13 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_generic_param(&self, _param: &GenericParam, output: &mut String) -> Result<()> {
         // Simplified for Phase 4
         write!(output, "T").unwrap();
         Ok(())
     }
-    
+
     fn generate_where_clause(&self, clause: &WhereClause, output: &mut String) -> Result<()> {
         if clause.has_where_token && !clause.predicates.is_empty() {
             write!(output, " where ").unwrap();
@@ -1165,7 +1166,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_variant_data(&self, data: &VariantData, output: &mut String) -> Result<()> {
         match data {
             VariantData::Struct(fields, _) => {
@@ -1193,7 +1194,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_field_def(&self, field: &FieldDef, output: &mut String) -> Result<()> {
         self.generate_visibility(&field.vis, output)?;
         if let Some(ident) = &field.ident {
@@ -1202,7 +1203,7 @@ impl RustCodegen {
         self.generate_ty(&field.ty, output)?;
         Ok(())
     }
-    
+
     fn generate_enum_def(&self, enum_def: &EnumDef, output: &mut String) -> Result<()> {
         writeln!(output, " {{").unwrap();
         for variant in &enum_def.variants {
@@ -1213,7 +1214,7 @@ impl RustCodegen {
         write!(output, "}}").unwrap();
         Ok(())
     }
-    
+
     fn generate_use_tree(&self, use_tree: &UseTree, output: &mut String) -> Result<()> {
         self.generate_path(&use_tree.prefix, output)?;
         match &use_tree.kind {
@@ -1237,7 +1238,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_mod_kind(&self, kind: &ModKind, output: &mut String) -> Result<()> {
         match kind {
             ModKind::Loaded(items, inline, _) => {
@@ -1258,7 +1259,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_static(&self, ident: &Ident, static_item: &StaticItem, output: &mut String) -> Result<()> {
         write!(output, "static ").unwrap();
         if static_item.mutability == Mutability::Mut {
@@ -1273,7 +1274,7 @@ impl RustCodegen {
         write!(output, ";").unwrap();
         Ok(())
     }
-    
+
     fn generate_const(&self, ident: &Ident, const_item: &ConstItem, output: &mut String) -> Result<()> {
         write!(output, "const {}: ", ident.name).unwrap();
         self.generate_ty(&const_item.ty, output)?;
@@ -1284,7 +1285,7 @@ impl RustCodegen {
         write!(output, ";").unwrap();
         Ok(())
     }
-    
+
     fn generate_trait(&self, ident: &Ident, trait_def: &TraitDef, output: &mut String) -> Result<()> {
         if trait_def.safety == Safety::Unsafe {
             write!(output, "unsafe ").unwrap();
@@ -1299,7 +1300,7 @@ impl RustCodegen {
         write!(output, "}}").unwrap();
         Ok(())
     }
-    
+
     fn generate_impl(&self, impl_def: &ImplDef, output: &mut String) -> Result<()> {
         if impl_def.safety == Safety::Unsafe {
             write!(output, "unsafe ").unwrap();
@@ -1307,14 +1308,14 @@ impl RustCodegen {
         write!(output, "impl").unwrap();
         self.generate_generics(&impl_def.generics, output)?;
         write!(output, " ").unwrap();
-        
+
         if let Some(trait_ref) = &impl_def.of_trait {
             self.generate_path(&trait_ref.path, output)?;
             write!(output, " for ").unwrap();
         }
-        
+
         self.generate_ty(&impl_def.self_ty, output)?;
-        
+
         writeln!(output, " {{").unwrap();
         for item in &impl_def.items {
             self.generate_assoc_item(item, output)?;
@@ -1323,7 +1324,7 @@ impl RustCodegen {
         write!(output, "}}").unwrap();
         Ok(())
     }
-    
+
     fn generate_assoc_item(&self, item: &AssocItem, output: &mut String) -> Result<()> {
         write!(output, "    ").unwrap();
         match &item.kind {
@@ -1344,7 +1345,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_path(&self, path: &Path, output: &mut String) -> Result<()> {
         for (i, segment) in path.segments.iter().enumerate() {
             if i > 0 {
@@ -1370,17 +1371,17 @@ use std::fmt::Write;
 impl RustCodegen {
     pub fn generate_block(&self, block: &Block, output: &mut String) -> Result<()> {
         writeln!(output, "{{").unwrap();
-        
+
         for stmt in &block.stmts {
             write!(output, "{}", self.current_indent()).unwrap();
             self.generate_stmt(stmt, output)?;
             writeln!(output).unwrap();
         }
-        
+
         write!(output, "{}}}", self.current_indent()).unwrap();
         Ok(())
     }
-    
+
     pub fn generate_stmt(&self, stmt: &Stmt, output: &mut String) -> Result<()> {
         match &stmt.kind {
             StmtKind::Expr(expr) => {
@@ -1407,25 +1408,25 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_local(&self, local: &Local, output: &mut String) -> Result<()> {
         write!(output, "let ").unwrap();
         self.generate_pat(&local.pat, output)?;
-        
+
         if let Some(ty) = &local.ty {
             write!(output, ": ").unwrap();
             self.generate_ty(ty, output)?;
         }
-        
+
         if let Some(init) = &local.init {
             write!(output, " = ").unwrap();
             self.generate_expr(&init.expr, output)?;
         }
-        
+
         write!(output, ";").unwrap();
         Ok(())
     }
-    
+
     pub fn generate_expr(&self, expr: &Expr, output: &mut String) -> Result<()> {
         match &expr.kind {
             ExprKind::Lit(lit) => {
@@ -1494,7 +1495,7 @@ impl RustCodegen {
                 self.generate_expr(cond, output)?;
                 write!(output, " ").unwrap();
                 self.generate_block(then_block, output)?;
-                
+
                 if let Some(else_expr) = else_opt {
                     write!(output, " else ").unwrap();
                     if let ExprKind::If(_, _, _) = else_expr.kind {
@@ -1576,7 +1577,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_lit(&self, lit: &Lit, output: &mut String) -> Result<()> {
         match &lit.kind {
             LitKind::Str(s) => write!(output, "\"{}\"", s).unwrap(),
@@ -1584,7 +1585,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     pub fn generate_pat(&self, pat: &Pat, output: &mut String) -> Result<()> {
         match &pat.kind {
             PatKind::Ident(binding_mode, ident, sub_pat) => {
@@ -1638,7 +1639,7 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     pub fn generate_ty(&self, ty: &Ty, output: &mut String) -> Result<()> {
         match &ty.kind {
             TyKind::Path(_, path) => {
@@ -1691,11 +1692,11 @@ impl RustCodegen {
         }
         Ok(())
     }
-    
+
     fn generate_mac_call(&self, mac_call: &MacCall, output: &mut String) -> Result<()> {
         self.generate_path(&mac_call.path, output)?;
         write!(output, "!").unwrap();
-        
+
         match &mac_call.args {
             MacArgs::Delimited { delim, tokens, .. } => {
                 let (open, close) = match delim {
@@ -1714,10 +1715,10 @@ impl RustCodegen {
             MacArgs::Empty => write!(output, "()").unwrap(),
             _ => {}
         }
-        
+
         Ok(())
     }
-    
+
     fn binop_str(&self, op: BinOp) -> &'static str {
         match op {
             BinOp::Add => "+",
@@ -1740,7 +1741,7 @@ impl RustCodegen {
             BinOp::Gt => ">",
         }
     }
-    
+
     fn unop_str(&self, op: UnOp) -> &'static str {
         match op {
             UnOp::Deref => "*",
@@ -1764,14 +1765,14 @@ I'll show the pattern for a few key ones:
 ```rust
 impl AstBuilder {
     // Add methods for all new ExprKind variants
-    
+
     fn build_binary_expr(&mut self, kwargs: &HashMap<String, SExp>) -> Result<ExprKind> {
         let op = self.build_binop(get_required(kwargs, "op", pos)?)?;
         let left = self.build_expr(get_required(kwargs, "left", pos)?)?;
         let right = self.build_expr(get_required(kwargs, "right", pos)?)?;
         Ok(ExprKind::Binary(op, Box::new(left), Box::new(right)))
     }
-    
+
     fn build_binop(&mut self, sexp: &SExp) -> Result<BinOp> {
         let sym = expect_symbol(sexp)?;
         match sym.as_str() {
@@ -1785,7 +1786,7 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_if_expr(&mut self, elements: &[SExp]) -> Result<ExprKind> {
         // Parse: (If <cond> <then> <else-opt>)
         let cond = self.build_expr(&elements[1])?;
@@ -1797,17 +1798,17 @@ impl AstBuilder {
         };
         Ok(ExprKind::If(Box::new(cond), Box::new(then_block), else_opt))
     }
-    
+
     fn build_match_expr(&mut self, elements: &[SExp]) -> Result<ExprKind> {
         let expr = self.build_expr(&elements[1])?;
         let arms = parse_list(&elements[2], |s| self.build_arm(s))?;
         Ok(ExprKind::Match(Box::new(expr), arms))
     }
-    
+
     fn build_arm(&mut self, sexp: &SExp) -> Result<Arm> {
         let elements = expect_list(sexp)?;
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         Ok(Arm {
             attrs: vec![],
             pat: self.build_pat(get_required(&kwargs, "pat", sexp.position())?)?,
@@ -1836,7 +1837,7 @@ impl Generator {
     fn generate_expr_kind(&self, kind: &ExprKind) -> Result<SExp> {
         match kind {
             // Existing variants...
-            
+
             ExprKind::Binary(op, left, right) => {
                 let fields = kwargs(vec![
                     kwarg("op", self.generate_binop(*op)),
@@ -1845,7 +1846,7 @@ impl Generator {
                 ]);
                 Ok(typed_node("Binary", fields))
             }
-            
+
             ExprKind::If(cond, then_block, else_opt) => {
                 let mut elements = vec![
                     sym("If"),
@@ -1857,7 +1858,7 @@ impl Generator {
                 }
                 Ok(list(elements))
             }
-            
+
             ExprKind::Match(expr, arms) => {
                 let expr_sexp = self.generate_expr(expr)?;
                 let arms_sexp = list(
@@ -1867,13 +1868,13 @@ impl Generator {
                 );
                 Ok(list(vec![sym("Match"), expr_sexp, arms_sexp]))
             }
-            
+
             // ... all other ExprKind variants
-            
+
             _ => Ok(sym("UnsupportedExpr"))
         }
     }
-    
+
     fn generate_binop(&self, op: BinOp) -> SExp {
         sym(match op {
             BinOp::Add => "Add",
@@ -1881,14 +1882,14 @@ impl Generator {
             // ... etc
         })
     }
-    
+
     fn generate_arm(&self, arm: &Arm) -> Result<SExp> {
         let fields = kwargs(vec![
             kwarg("pat", self.generate_pat(&arm.pat)?),
             kwarg("body", self.generate_expr(&arm.body)?),
             kwarg("span", self.generate_span(arm.span)),
         ]);
-        
+
         let fields = if let Some(guard) = &arm.guard {
             let mut f = fields;
             f.extend(kwarg("guard", self.generate_expr(guard)?));
@@ -1896,7 +1897,7 @@ impl Generator {
         } else {
             fields
         };
-        
+
         Ok(typed_node("Arm", fields))
     }
 }
@@ -1921,7 +1922,7 @@ fn main() {
     let x = 1 + 2;
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     // Verify AST contains binary expression
 }
@@ -1937,7 +1938,7 @@ fn main() {
     }
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     // Verify AST contains if expression
 }
@@ -1952,7 +1953,7 @@ fn main() {
     }
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     // Verify AST contains match expression
 }
@@ -1966,7 +1967,7 @@ struct Point {
     y: i32,
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     assert_eq!(crate_node.items.len(), 1);
 }
@@ -1979,7 +1980,7 @@ enum Option<T> {
     None,
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     assert_eq!(crate_node.items.len(), 1);
 }
@@ -1991,7 +1992,7 @@ trait Display {
     fn fmt(&self) -> String;
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     assert_eq!(crate_node.items.len(), 1);
 }
@@ -2005,7 +2006,7 @@ impl Point {
     }
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     assert_eq!(crate_node.items.len(), 1);
 }
@@ -2023,7 +2024,7 @@ impl Point {
     fn new(x: i32, y: i32) -> Self {
         Point { x, y }
     }
-    
+
     fn distance(&self, other: &Point) -> f64 {
         let dx = self.x - other.x;
         let dy = self.y - other.y;
@@ -2031,22 +2032,22 @@ impl Point {
     }
 }
     "#;
-    
+
     // Parse
     let crate1 = parse_rust_file(source).unwrap();
-    
+
     // Generate S-expr
     let gen = Generator::new();
     let sexp = gen.generate_crate(&crate1).unwrap();
-    
+
     // Parse S-expr
     let sexp_text = print_sexp(&sexp);
     let sexp2 = Parser::parse_str(&sexp_text).unwrap();
-    
+
     // Build AST
     let mut builder = AstBuilder::new();
     let crate2 = builder.build_crate(&sexp2).unwrap();
-    
+
     // Verify structure
     assert_eq!(crate1.items.len(), crate2.items.len());
 }
@@ -2066,10 +2067,10 @@ fn main() {
     println!("Hello, world!");
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     let generated = generate_rust(&crate_node).unwrap();
-    
+
     // Verify generated code compiles
     assert!(generated.contains("fn main"));
     assert!(generated.contains("println!"));
@@ -2083,10 +2084,10 @@ struct Point {
     y: i32,
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     let generated = generate_rust(&crate_node).unwrap();
-    
+
     assert!(generated.contains("struct Point"));
 }
 
@@ -2099,10 +2100,10 @@ impl Point {
     }
 }
     "#;
-    
+
     let crate_node = parse_rust_file(source).unwrap();
     let generated = generate_rust(&crate_node).unwrap();
-    
+
     assert!(generated.contains("impl Point"));
     assert!(generated.contains("fn new"));
 }
@@ -2114,19 +2115,19 @@ fn add(a: i32, b: i32) -> i32 {
     a + b
 }
     "#;
-    
+
     // Parse original
     let crate1 = parse_rust_file(original).unwrap();
-    
+
     // Generate Rust code
     let generated1 = generate_rust(&crate1).unwrap();
-    
+
     // Parse generated code
     let crate2 = parse_rust_file(&generated1).unwrap();
-    
+
     // Generate again
     let generated2 = generate_rust(&crate2).unwrap();
-    
+
     // Should be stable
     assert_eq!(generated1, generated2);
 }
@@ -2181,6 +2182,7 @@ oxur-ast provides bidirectional conversion between Rust's AST and S-expressions.
 ## Data Flow
 
 ```
+
 Rust Source
     ↓ (syn parser)
 syn AST
@@ -2194,6 +2196,7 @@ S-exp AST
 oxur AST
     ↓ (RustCodegen)
 Rust Source
+
 ```
 
 ## Coverage
@@ -2273,6 +2276,7 @@ After Phase 4, validate with progressively complex Rust code:
 7. **Level 7**: Complex real-world code
 
 For each level:
+
 ```bash
 # Parse
 oxur-ast to-sexp test.rs > test.sexp

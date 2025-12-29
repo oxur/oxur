@@ -1,7 +1,7 @@
 ---
 number: 2
 title: "Oxur Design Documentation CLI - Build Plan"
-author: "document number"
+author: "Duncan McGreggor & Claude"
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
@@ -18,6 +18,7 @@ This document outlines the plan to bring the Rust-based `oxd` CLI tool to featur
 ## Current State Analysis
 
 ### Rust Tool (oxd) - Current Features
+
 - List documents with optional state filtering and verbose mode
 - Show individual documents with metadata
 - Create new documents from templates
@@ -27,6 +28,7 @@ This document outlines the plan to bring the Rust-based `oxd` CLI tool to featur
 - Has library structure with doc/index modules
 
 ### Go Tool (zdp) - Complete Feature Set
+
 - Eight operational modes (detailed below)
 - Git integration for author/date extraction and file operations
 - YAML frontmatter parsing and updating
@@ -82,6 +84,7 @@ This document outlines the plan to bring the Rust-based `oxd` CLI tool to featur
 ### Phase 1: Foundation Enhancements
 
 #### 1.1 Expand State System
+
 - Extend `DocState` enum to include all 10 states from Go tool
 - Add state normalization (handle hyphens, spaces, case)
 - Create bidirectional mappings between state names and directories
@@ -89,7 +92,9 @@ This document outlines the plan to bring the Rust-based `oxd` CLI tool to featur
 - Add title-case conversion for display
 
 #### 1.2 Git Integration Module
+
 Create new `src/git.rs` module with functions:
+
 - `get_author(path)` - extract original author from git log
 - `get_created_date(path)` - extract first commit date
 - `get_updated_date(path)` - extract last commit date
@@ -98,7 +103,9 @@ Create new `src/git.rs` module with functions:
 - All functions should handle errors gracefully and provide fallbacks
 
 #### 1.3 Enhanced YAML Operations
+
 Extend `src/doc.rs`:
+
 - Add `update_yaml_field()` function for surgical updates
 - Add `add_missing_headers()` function to complete partial frontmatter
 - Add validation for all required fields
@@ -108,7 +115,9 @@ Extend `src/doc.rs`:
 ### Phase 2: Core Command Implementation
 
 #### 2.1 Implement Index Generation
+
 Complete the stubbed `Commands::Index`:
+
 - Generate markdown table with columns: Number, Title, State, Updated
 - Sort by document number
 - Create state sections with document links
@@ -116,7 +125,9 @@ Complete the stubbed `Commands::Index`:
 - Support both markdown and JSON output formats
 
 #### 2.2 Add Document Header Management
+
 New command: `oxd add-headers <doc>`
+
 - Check if document has frontmatter
 - Extract metadata from filename and content
 - Query git for author/dates
@@ -124,7 +135,9 @@ New command: `oxd add-headers <doc>`
 - Report what was added/updated
 
 #### 2.3 Implement State Transitions
+
 Enhance existing functionality:
+
 - New command: `oxd transition <doc> <state>`
 - Validate current state
 - Update YAML frontmatter (state and updated date)
@@ -133,7 +146,9 @@ Enhance existing functionality:
 - Provide clear feedback on what changed
 
 #### 2.4 Implement Move-to-Match-Header
+
 New command: `oxd sync-location <doc>`
+
 - Read state from document's YAML
 - Check current directory
 - Move to correct directory if mismatched
@@ -143,14 +158,18 @@ New command: `oxd sync-location <doc>`
 ### Phase 3: Index Synchronization
 
 #### 3.1 Index Scanning
+
 New module `src/index_sync.rs`:
+
 - Parse existing index markdown
 - Extract table entries
 - Extract state section entries
 - Track document numbers and locations
 
 #### 3.2 Index Update Logic
+
 Implement comprehensive sync:
+
 - Compare git-tracked files vs index entries
 - Add missing documents to table
 - Update changed dates/states in table
@@ -159,13 +178,16 @@ Implement comprehensive sync:
 - Maintain sorted order by document number
 
 #### 3.3 Formatting Cleanup
+
 - Ensure consistent blank line spacing around headers
 - Remove extra blank lines between bullet items
 - Keep exactly one blank line before section headers
 - Apply formatting atomically with content updates
 
 #### 3.4 Index Update Command
+
 New command: `oxd update-index`
+
 - Scan all state directories for .md files
 - Sync table with actual documents
 - Sync all state sections
@@ -176,12 +198,14 @@ New command: `oxd update-index`
 ### Phase 4: Document Addition Workflow
 
 #### 4.1 Number Assignment
+
 - Extract highest number from index
 - Assign next sequential number
 - Rename file with 4-digit prefix
 - Handle files that already have numbers
 
 #### 4.2 Directory Placement
+
 - Detect if file is in project directory
 - Move to project root if external
 - Check if in a state directory
@@ -189,19 +213,23 @@ New command: `oxd update-index`
 - Create directories as needed
 
 #### 4.3 Header Processing
+
 - Check for YAML frontmatter
 - Add complete headers if missing
 - Validate all required fields
 - Sync state field with directory location
 
 #### 4.4 Git Integration
+
 - Stage file after processing
 - Provide clear feedback at each step
 - Handle errors gracefully
 
 #### 4.5 Add Command
+
 New command: `oxd add <doc>`
 Orchestrates full workflow:
+
 1. Validate file exists
 2. Assign number if needed
 3. Move to project if external
@@ -214,6 +242,7 @@ Orchestrates full workflow:
 ### Phase 5: Testing & Polish
 
 #### 5.1 Error Handling
+
 - Provide clear, actionable error messages
 - Suggest supported states when invalid state given
 - Handle missing files gracefully
@@ -221,6 +250,7 @@ Orchestrates full workflow:
 - Check git repository status
 
 #### 5.2 Colored Output
+
 - Leverage existing `colored` crate usage
 - Consistent color scheme:
   - Errors: red
@@ -230,14 +260,18 @@ Orchestrates full workflow:
   - State badges: match existing pattern
 
 #### 5.3 Command Aliases
+
 Add convenient aliases:
+
 - `oxd ls` → `oxd list`
 - `oxd new` already exists
 - `oxd mv` → `oxd transition`
 - `oxd sync` → `oxd update-index`
 
 #### 5.4 Validation Enhancements
+
 Extend `validate` command:
+
 - Check for files not in index
 - Check for index entries without files
 - Validate all supersedes/superseded-by links
@@ -245,6 +279,7 @@ Extend `validate` command:
 - Optionally fix issues with `--fix` flag
 
 #### 5.5 Documentation
+
 - Update CLI help text with examples
 - Add README with common workflows
 - Document state transition rules
@@ -253,6 +288,7 @@ Extend `validate` command:
 ## Implementation Order Priority
 
 ### High Priority (Core Functionality)
+
 1. Git integration module
 2. State system expansion
 3. YAML update operations
@@ -261,6 +297,7 @@ Extend `validate` command:
 6. Update-index command
 
 ### Medium Priority (Workflow Enhancement)
+
 1. Add-headers command
 2. Add command (full workflow)
 3. Sync-location command
@@ -268,6 +305,7 @@ Extend `validate` command:
 5. Formatting cleanup
 
 ### Low Priority (Polish)
+
 1. JSON output format
 2. Command aliases
 3. Advanced error handling
@@ -277,11 +315,13 @@ Extend `validate` command:
 ## Technical Considerations
 
 ### Dependencies to Add
+
 - `regex` - for pattern matching in YAML and filenames
 - `walkdir` - already present, continue using
 - Git operations can use `std::process::Command` (no git2 needed)
 
 ### Module Structure
+
 ```
 src/
 ├── lib.rs          (existing)
@@ -306,6 +346,7 @@ src/
 ```
 
 ### Testing Strategy
+
 - Unit tests for each git operation (mock git commands)
 - Integration tests for document operations
 - Test fixtures with sample documents
@@ -315,12 +356,14 @@ src/
 ## Migration Path
 
 ### For Users
+
 - Existing documents should work unchanged
 - State directories may need renaming if switching from 4-state to 10-state model
 - Index file will need regeneration
 - Consider providing migration script
 
 ### Backward Compatibility
+
 - Keep existing 4-state model as option
 - Add `--state-model` flag to switch between models
 - Or detect from existing directory structure
@@ -329,6 +372,7 @@ src/
 ## Success Criteria
 
 The Rust tool will have feature parity when:
+
 1. All 8 modes from Go tool are implemented
 2. Git integration works seamlessly
 3. Index stays synchronized automatically

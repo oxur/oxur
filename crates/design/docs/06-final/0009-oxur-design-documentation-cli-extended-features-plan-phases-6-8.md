@@ -1,7 +1,7 @@
 ---
 number: 9
 title: "Oxur Design Documentation CLI - Extended Features Plan (Phases 6-8)"
-author: "Alice Smith"
+author: "Duncan McGreggor & Claude"
 created: 2025-12-27
 updated: 2025-12-27
 state: Final

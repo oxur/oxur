@@ -1,7 +1,7 @@
 ---
 number: 16
 title: "Research: Building a transport-agnostic REPL protocol in Rust"
-author: "already exist"
+author: "Duncan McGreggor & Claude"
 created: 2025-12-28
 updated: 2025-12-28
 state: Final

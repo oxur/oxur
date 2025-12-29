@@ -1,7 +1,7 @@
 ---
 number: 15
 title: "oxur-table API (re)Design"
-author: "helpers module"
+author: "Duncan McGreggor & Claude"
 created: 2025-12-28
 updated: 2025-12-28
 state: Accepted

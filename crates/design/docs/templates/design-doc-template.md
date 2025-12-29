@@ -1,7 +1,7 @@
 ---
 number: XXXX
 title: "Document Title"
-author: "Your Name"
+author: "Author Name"
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 state: Draft

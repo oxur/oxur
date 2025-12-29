@@ -1,7 +1,7 @@
 ---
 number: 12
 title: "Implementation Plan: File-Based S-Expression Test Data"
-author: "AST node"
+author: "Duncan McGreggor & Claude"
 created: 2025-12-27
 updated: 2025-12-27
 state: Accepted
@@ -30,11 +30,11 @@ This plan outlines how to enhance the `oxur-ast` crate with file I/O capabilitie
 
 ## Why Keep Our Custom Implementation?
 
-The external `sexpr` crate (https://github.com/zv/sexpr) exists, but we should keep our custom implementation because:
+The external `sexpr` crate (<https://github.com/zv/sexpr>) exists, but we should keep our custom implementation because:
 
 1. **Full control**: We can extend exactly as needed for Rust AST
 2. **No dependencies**: Keeps the crate lightweight
-3. **Tailored errors**: Custom error messages for our use case  
+3. **Tailored errors**: Custom error messages for our use case
 4. **Integrated**: Works seamlessly with our position tracking
 5. **Learning**: Understanding S-expressions helps with Oxur design
 6. **Specialized**: Our printer is optimized for AST output
@@ -60,7 +60,7 @@ The `sexpr` crate is general-purpose; ours is specialized for AST serialization.
    - Add basic tests
 
 3. **Extend Printer** (`src/sexp/printer.rs`)
-   - Add `write_file()` method  
+   - Add `write_file()` method
    - Add `write_sexp_file()` convenience function
    - Add basic tests (use `tempfile` crate)
 
@@ -68,6 +68,7 @@ The `sexpr` crate is general-purpose; ours is specialized for AST serialization.
    - Add `tempfile` to `dev-dependencies` for tests
 
 **Deliverables**:
+
 - [ ] Updated `error.rs` with `FileReadError`
 - [ ] `Parser::parse_file()` implemented and tested
 - [ ] `Printer::write_file()` implemented and tested
@@ -75,6 +76,7 @@ The `sexpr` crate is general-purpose; ours is specialized for AST serialization.
 - [ ] No breaking changes to existing API
 
 **Files to modify**:
+
 - `oxur-ast/src/error.rs`
 - `oxur-ast/src/sexp/parser.rs`
 - `oxur-ast/src/sexp/printer.rs`
@@ -87,6 +89,7 @@ The `sexpr` crate is general-purpose; ours is specialized for AST serialization.
 **Tasks**:
 
 1. **Create directory hierarchy**
+
    ```
    oxur-ast/
    └── test-data/
@@ -106,11 +109,13 @@ The `sexpr` crate is general-purpose; ours is specialized for AST serialization.
    - `fixtures/README.md` with organization notes
 
 **Deliverables**:
+
 - [ ] Directory structure created
 - [ ] README files written
 - [ ] `.gitignore` updated if needed
 
 **Commands**:
+
 ```bash
 cd oxur-ast
 mkdir -p test-data/{examples,fixtures/{crate,item,expr,stmt,block},error-cases}
@@ -140,11 +145,13 @@ mkdir -p test-data/{examples,fixtures/{crate,item,expr,stmt,block},error-cases}
    - Test building AST from each example
 
 **Deliverables**:
+
 - [ ] 6-10 well-documented example files
 - [ ] All examples parse without errors
 - [ ] README explains each example
 
 **File naming convention**:
+
 - Use descriptive hyphenated names
 - Include AST node type in name
 - Example: `empty-crate.sexp`, `public-function.sexp`
@@ -161,13 +168,13 @@ mkdir -p test-data/{examples,fixtures/{crate,item,expr,stmt,block},error-cases}
    - Document current test coverage
 
 2. **Extract to fixture files** (by directory)
-   
+
    **`fixtures/crate/`**:
    - `empty-crate.sexp`
-   - `crate-with-one-item.sexp`  
+   - `crate-with-one-item.sexp`
    - `crate-with-multiple-items.sexp`
    - `complex-nested-crate.sexp`
-   
+
    **`fixtures/item/`**:
    - `public-function.sexp`
    - `inherited-visibility.sexp`
@@ -175,18 +182,18 @@ mkdir -p test-data/{examples,fixtures/{crate,item,expr,stmt,block},error-cases}
    - `const-function.sexp`
    - `function-with-body.sexp`
    - `function-with-params.sexp`
-   
+
    **`fixtures/expr/`**:
    - `macro-call-empty.sexp`
    - `macro-call-delimited.sexp`
    - `path-single-segment.sexp`
    - `path-multiple-segments.sexp`
-   
+
    **`fixtures/stmt/`**:
    - `empty-stmt.sexp`
    - `semi-stmt.sexp`
    - `expr-stmt.sexp`
-   
+
    **`fixtures/block/`**:
    - `empty-block.sexp`
    - `block-with-stmts.sexp`
@@ -196,6 +203,7 @@ mkdir -p test-data/{examples,fixtures/{crate,item,expr,stmt,block},error-cases}
    - Reference related Rust AST node
 
 **Deliverables**:
+
 - [ ] 20-30 fixture files created
 - [ ] All fixtures parse correctly
 - [ ] Organized by AST node type
@@ -215,7 +223,7 @@ mkdir -p test-data/{examples,fixtures/{crate,item,expr,stmt,block},error-cases}
    - Migrate expression tests to use fixtures
    - Ensure all scenarios still covered
 
-3. **Update `builder_item_tests.rs`**  
+3. **Update `builder_item_tests.rs`**
    - Migrate item tests to use fixtures
    - Test error cases
 
@@ -231,6 +239,7 @@ mkdir -p test-data/{examples,fixtures/{crate,item,expr,stmt,block},error-cases}
    - Run in CI to catch corruption
 
 **Helper function pattern**:
+
 ```rust
 fn parse_fixture(path: &str) -> SExp {
     Parser::parse_file(format!("test-data/fixtures/{}", path))
@@ -239,6 +248,7 @@ fn parse_fixture(path: &str) -> SExp {
 ```
 
 **Deliverables**:
+
 - [ ] All test files updated
 - [ ] All tests passing
 - [ ] Validation test added
@@ -264,6 +274,7 @@ fn parse_fixture(path: &str) -> SExp {
    - Show round-trip: file → parse → print → file
 
 **Deliverables**:
+
 - [ ] All examples updated
 - [ ] New file I/O example added
 - [ ] Examples run successfully
@@ -294,6 +305,7 @@ fn parse_fixture(path: &str) -> SExp {
    - Note improved test organization
 
 **Deliverables**:
+
 - [ ] README updated
 - [ ] CONTRIBUTING.md created/updated
 - [ ] API docs complete
@@ -314,17 +326,20 @@ We'll know this is successful when:
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test `parse_file()` with valid files
 - Test `parse_file()` with nonexistent files
 - Test `write_file()` creates correct content
 - Test `write_file()` with invalid paths
 
-### Integration Tests  
+### Integration Tests
+
 - Test all fixture files parse correctly
 - Test round-trip: file → parse → build → serialize → file
 - Test examples work with file I/O
 
 ### CI Validation
+
 - Add step to parse all .sexp files
 - Fail build if any .sexp file is invalid
 - Check formatting consistency
@@ -332,41 +347,50 @@ We'll know this is successful when:
 ## Rollout Plan
 
 ### Week 1: Implementation
+
 - Days 1-2: Phase 1 (File I/O)
 - Day 3: Phase 2 (Directory structure)
 - Days 4-5: Phase 3 (Examples)
 
 ### Week 2: Migration
+
 - Days 1-3: Phase 4 (Extract fixtures)
 - Days 4-5: Phase 5 (Migrate tests)
 
 ### Week 3: Polish
+
 - Days 1-2: Phase 6 (Update examples)
 - Days 3-5: Phase 7 (Documentation)
 
 ## Risk Mitigation
 
 ### Risk: Breaking existing tests
+
 **Mitigation**: Run tests after each phase; keep inline strings until files are proven
 
 ### Risk: File path issues across platforms
+
 **Mitigation**: Use `Path::new()` and test on multiple platforms
 
 ### Risk: Large diffs make review difficult
+
 **Mitigation**: Break into small PRs, one phase at a time
 
 ### Risk: Lost test coverage
+
 **Mitigation**: Checklist of all current tests; verify each is migrated
 
 ## Dependencies
 
 ### New Crate Dependencies
+
 ```toml
 [dev-dependencies]
 tempfile = "3.8"  # For testing file I/O
 ```
 
 ### External Tools (Optional)
+
 - Lisp formatter for .sexp files (if available)
 - Git hooks for .sexp validation
 
@@ -385,7 +409,7 @@ Track these metrics to measure success:
 After this plan is complete, consider:
 
 1. **Fuzzing**: Generate random .sexp files for testing
-2. **Schema validation**: Define schema for valid S-expressions  
+2. **Schema validation**: Define schema for valid S-expressions
 3. **Pretty printer**: Format all .sexp files consistently
 4. **AST→S-expression generator**: Auto-generate test files from Rust AST
 5. **Documentation generator**: Generate docs from example files

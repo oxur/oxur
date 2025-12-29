@@ -1,7 +1,7 @@
 ---
 number: 10
 title: "Oxur Design Documentation CLI - Phases 9-10 Build Plan"
-author: "\"Jane Developer\""
+author: "Duncan McGreggor & Claude"
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
@@ -14,6 +14,7 @@ superseded-by: null
 ## Executive Summary
 
 This document outlines the next phase of development for the `oxd` CLI tool, focusing on:
+
 - **Phase 9**: Advanced document lifecycle management (replace, remove, list removed)
 - **Phase 10**: Tool introspection and discovery features (info command suite)
 
@@ -33,6 +34,7 @@ After implementing core functionality (Phases 1-5), establishing canonical data 
 ### Problem Statement
 
 Current limitations:
+
 - No way to replace an existing document while preserving its ID and history
 - Document "removal" means deletion, with no recovery option
 - Can't easily track what's been removed vs permanently deleted
@@ -50,14 +52,17 @@ Current limitations:
 ## Task 9.1: Implement Replace Command
 
 ### Purpose
+
 Allow users to replace an existing document with new content while preserving the document ID and selected metadata.
 
 ### Command Signature
+
 ```bash
 oxd replace <old-id-or-filename> <new-filename>
 ```
 
 ### Examples
+
 ```bash
 # Replace by ID
 oxd replace 42 new-feature-design.md
@@ -69,18 +74,22 @@ oxd replace 0042-old-feature.md new-feature-design.md
 ### Behavior Specification
 
 #### Step 1: Validate Inputs
+
 - Verify old document exists in data sources
 - Verify new file exists on filesystem
 - Verify new file is not already in the project
 - Parse and validate new file content
 
 #### Step 2: Preserve Critical Metadata
+
 From old document, preserve:
+
 - `number` - Document ID (most important!)
 - `created` - Original creation date (required)
 - Any other metadata fields that exist in old but not in new
 
 From new document, use:
+
 - `title` - New title
 - `author` - New author (or old if missing)
 - `state` - Set to "draft" initially (user can transition later)
@@ -88,12 +97,14 @@ From new document, use:
 - All other present metadata fields
 
 #### Step 3: Handle Old Document
+
 - Change old document's state to "overwritten"
 - Add UUIDv4 suffix to filename: `0042-old-feature-{uuid}.md`
 - Move to dustbin directory (preserve state subdirectory structure)
 - Update data sources to reflect new state and location
 
 #### Step 4: Install New Document
+
 - Rename new file with old document's number: `0042-old-feature.md`
 - Update frontmatter with merged metadata
 - Move to appropriate state directory (likely draft)
@@ -101,6 +112,7 @@ From new document, use:
 - Create superseded-by link from old → new (optional, configurable)
 
 #### Step 5: Git Operations
+
 ```bash
 git mv old-location .dustbin/XX-state/0042-old-feature-{uuid}.md
 git add new-location/0042-old-feature.md
@@ -109,6 +121,7 @@ git add new-location/0042-old-feature.md
 ### New State: "overwritten"
 
 Add to `DocState` enum:
+
 ```rust
 pub enum DocState {
     // ... existing states ...
@@ -119,12 +132,14 @@ pub enum DocState {
 Directory mapping: `.dustbin/overwritten/` or integrated into state-specific dustbin subdirs
 
 ### Implementation Files
+
 - `design/src/commands/replace.rs` - New command implementation
 - `design/src/state.rs` - Add Overwritten state
 - `design/src/doc.rs` - Metadata merging logic
 - Update CLI enum in `design/src/cli.rs`
 
 ### Error Handling
+
 - Old document not found
 - New file not found
 - New file already has frontmatter with different number
@@ -133,6 +148,7 @@ Directory mapping: `.dustbin/overwritten/` or integrated into state-specific dus
 - Dustbin directory creation failures
 
 ### Output Example
+
 ```
 Replacing document 0042: "Old Feature Design"
 
@@ -156,14 +172,17 @@ Replacement complete! Use 'oxd show 42' to view the new document.
 ## Task 9.2: Implement Remove Command
 
 ### Purpose
+
 Safely remove documents from active use while preserving them in a dustbin directory for potential recovery.
 
 ### Command Signature
+
 ```bash
 oxd remove <id-or-filename>
 ```
 
 ### Examples
+
 ```bash
 # Remove by ID
 oxd remove 42
@@ -175,12 +194,14 @@ oxd remove 0042-obsolete-feature.md
 ### Configuration
 
 Add to `Cargo.toml`:
+
 ```toml
 [package.metadata.oxd]
 dustbin_directory = "./design/docs/.dustbin"
 ```
 
 Or create dedicated config file `.oxd/config.toml`:
+
 ```toml
 [dustbin]
 directory = "./design/docs/.dustbin"
@@ -190,39 +211,46 @@ preserve_structure = true  # Keep state subdirectories
 ### Behavior Specification
 
 #### Step 1: Validate Input
+
 - Verify document exists in data sources
 - Check current state (warn if already removed)
 - Confirm document file exists on filesystem
 
 #### Step 2: Prepare Dustbin
+
 - Read dustbin_directory from config
 - Create dustbin directory if it doesn't exist
 - Create state-specific subdirectory if preserve_structure=true
 
 #### Step 3: Generate Unique Filename
+
 - Extract base filename and number
 - Generate UUIDv4
 - Create new name: `{number}-{slug}-{uuid}.md`
 - Example: `0042-feature-design-7f3e9a12.md`
 
 #### Step 4: Move to Dustbin
+
 ```bash
 # From: 04-accepted/0042-feature-design.md
 # To: .dustbin/04-accepted/0042-feature-design-7f3e9a12.md
 ```
 
 #### Step 5: Update Data Sources
+
 - Change document state to "removed"
 - Update file path to dustbin location
 - Set `updated` to current date
 - Preserve all other metadata
 
 #### Step 6: Git Operations
+
 ```bash
 git mv 04-accepted/0042-feature-design.md .dustbin/04-accepted/0042-feature-design-7f3e9a12.md
 ```
 
 ### Dustbin Directory Structure
+
 ```
 .dustbin/
 ├── 01-draft/
@@ -238,6 +266,7 @@ git mv 04-accepted/0042-feature-design.md .dustbin/04-accepted/0042-feature-desi
 ### New State: "removed"
 
 Add to `DocState` enum (if not already present):
+
 ```rust
 pub enum DocState {
     // ... existing states ...
@@ -246,12 +275,14 @@ pub enum DocState {
 ```
 
 ### Implementation Files
+
 - `design/src/commands/remove.rs` - New command implementation
 - `design/src/state.rs` - Ensure Removed state exists
 - `design/src/config.rs` - Configuration loading
 - Update CLI enum in `design/src/cli.rs`
 
 ### Output Example
+
 ```
 Removing document 0042: "Obsolete Feature"
 
@@ -273,9 +304,11 @@ Document removed! To recover: oxd restore 42
 ## Task 9.3: Enhance List Command for Removed Documents
 
 ### Purpose
+
 Provide visibility into removed documents and track whether they've been permanently deleted from the dustbin.
 
 ### Command Enhancement
+
 ```bash
 # List only removed documents
 oxd list --removed
@@ -287,6 +320,7 @@ oxd list --removed --verbose
 ### Output Format
 
 #### Basic Output
+
 ```
 Removed Documents:
 
@@ -301,6 +335,7 @@ Total: 4 removed (2 in dustbin, 2 deleted)
 ```
 
 #### Verbose Output
+
 ```
 Removed Documents:
 
@@ -315,33 +350,40 @@ Number | Title                  | Removed    | Deleted | Dustbin Location
 ### Behavior Specification
 
 #### Step 1: Query Data Sources
+
 - Filter documents with state="removed"
 - Extract metadata: number, title, updated date (as "removed" date)
 - Get dustbin file path from data sources
 
 #### Step 2: Check Filesystem
+
 For each removed document:
+
 - Check if file exists at dustbin location
 - Set `deleted` = true if file not found
 - Set `deleted` = false if file exists
 
 #### Step 3: Format and Display
+
 - Sort by number (ascending)
 - Display table with columns: Number, Title, Removed, Deleted
 - Optionally show dustbin path if --verbose
 - Show summary count
 
 ### Color Coding
+
 - `deleted: true` → Red text
 - `deleted: false` → Green text (recoverable)
 - Header row → Cyan bold
 
 ### Implementation Files
+
 - `design/src/commands/list.rs` - Enhance existing list command
 - Add `--removed` flag to CLI args
 - Add deleted status checking logic
 
 ### Edge Cases
+
 - No removed documents: Display "No removed documents found."
 - Dustbin directory doesn't exist: All show as deleted=true
 - Multiple versions in dustbin: Show most recent only, or all with verbose
@@ -353,6 +395,7 @@ For each removed document:
 ### Problem Statement
 
 Current challenges:
+
 - Users don't know what states are valid without reading docs/code
 - Frontmatter field requirements are unclear
 - Configuration values are hidden in code
@@ -372,9 +415,11 @@ Current challenges:
 ## Task 10.1: Create Info Command Framework
 
 ### Purpose
+
 Establish a command structure for tool introspection and self-documentation.
 
 ### Command Structure
+
 ```bash
 oxd info [SUBCOMMAND]
 
@@ -388,6 +433,7 @@ Subcommands:
 ```
 
 ### Implementation Files
+
 - `design/src/commands/info.rs` - New command module
 - Add Info enum to CLI in `design/src/cli.rs`
 - Create subcommand routing logic
@@ -397,16 +443,18 @@ Subcommands:
 ## Task 10.2: Implement `oxd info` (Default)
 
 ### Purpose
+
 Provide high-level overview of the tool and quick links to other info.
 
 ### Output Example
+
 ```
 Oxur Design Documentation Tool (oxd) v0.3.0
 
 Project: /home/user/project/design
 Documents: 42 total
   - 3 draft
-  - 5 under-review  
+  - 5 under-review
   - 30 accepted
   - 2 removed
   - 2 superseded
@@ -422,6 +470,7 @@ Documentation: https://github.com/yourusername/oxur
 ```
 
 ### Implementation
+
 - Count documents by state from data sources
 - Display version from Cargo.toml
 - Show project root path
@@ -432,9 +481,11 @@ Documentation: https://github.com/yourusername/oxur
 ## Task 10.3: Implement `oxd info states`
 
 ### Purpose
+
 List all valid document states with descriptions.
 
 ### Output Example
+
 ```
 Valid Document States:
 
@@ -478,6 +529,7 @@ Transition a document: oxd transition <doc> <state>
 ```
 
 ### Implementation
+
 - Iterate through DocState enum variants
 - Display state name in lowercase with hyphens
 - Show description for each state
@@ -489,9 +541,11 @@ Transition a document: oxd transition <doc> <state>
 ## Task 10.4: Implement `oxd info fields`
 
 ### Purpose
+
 Document all supported frontmatter fields with examples.
 
 ### Output Example
+
 ```
 Supported Frontmatter Fields:
 
@@ -547,6 +601,7 @@ Commands:
 ```
 
 ### Implementation
+
 - Group fields by required/optional
 - Show field name, type, and description
 - Provide examples for each field
@@ -558,24 +613,26 @@ Commands:
 ## Task 10.5: Implement `oxd info config`
 
 ### Purpose
+
 Display current configuration values and locations.
 
 ### Output Example
+
 ```
 Configuration:
 
 Project:
   Root:          /home/user/project
   Docs Directory: ./design/docs
-  
+
 Data Sources:
   Index File:    ./design/docs/00-index.md
   Database File: ./design/docs/.oxd-db.json
-  
+
 Templates:
   Template Dir:  ./design/docs/templates
   Default:       design-doc-template.md
-  
+
 Dustbin:
   Directory:     ./design/docs/.dustbin
   Structure:     preserve_state_dirs
@@ -603,6 +660,7 @@ Modify Configuration:
 ```
 
 ### Implementation
+
 - Read from all configuration sources
 - Display merged/resolved values
 - Show which config takes precedence
@@ -614,15 +672,17 @@ Modify Configuration:
 ## Task 10.6: Implement `oxd info stats`
 
 ### Purpose
+
 Provide statistics and health metrics for the project.
 
 ### Output Example
+
 ```
 Project Statistics:
 
 Document Counts:
   Total Documents:        42
-  
+
   By State:
     Draft:                3 docs
     Under Review:         5 docs
@@ -647,7 +707,7 @@ Data Sources:
   Index Entries:         42
   Database Records:      42
   Files on Disk:         40 (2 in dustbin)
-  
+
 Health:
   ✓ Index synchronized
   ✓ Database synchronized
@@ -656,6 +716,7 @@ Health:
 ```
 
 ### Implementation
+
 - Query data sources for all documents
 - Count by state
 - Calculate activity metrics (today, week, month)
@@ -668,9 +729,11 @@ Health:
 ## Task 10.7: Implement `oxd info dirs` (Optional)
 
 ### Purpose
+
 Show the project directory structure.
 
 ### Output Example
+
 ```
 Directory Structure:
 
@@ -705,6 +768,7 @@ Document Distribution:
 ```
 
 ### Implementation
+
 - Scan project directory structure
 - Count documents in each state directory
 - Display as tree with counts
@@ -718,11 +782,13 @@ Document Distribution:
 ### Task 10.8: Formalize Configuration System
 
 ### Current Approach
+
 Configuration is currently hardcoded or partially implemented.
 
 ### New Approach: Layered Configuration
 
 #### Layer 1: Built-in Defaults
+
 ```rust
 // src/config.rs
 pub struct Config {
@@ -749,6 +815,7 @@ impl Default for Config {
 ```
 
 #### Layer 2: Cargo.toml Metadata
+
 ```toml
 [package.metadata.oxd]
 docs_directory = "./design/docs"
@@ -757,6 +824,7 @@ preserve_dustbin_structure = true
 ```
 
 #### Layer 3: Dedicated Config File (Optional)
+
 ```toml
 # .oxd/config.toml
 [paths]
@@ -775,28 +843,30 @@ require_confirmation = false
 ```
 
 ### Configuration Loading Logic
+
 ```rust
 impl Config {
     pub fn load() -> Result<Self> {
         // Start with defaults
         let mut config = Config::default();
-        
+
         // Override with Cargo.toml if present
         if let Some(cargo_config) = load_cargo_metadata()? {
             config.merge(cargo_config);
         }
-        
+
         // Override with .oxd/config.toml if present
         if let Some(file_config) = load_config_file()? {
             config.merge(file_config);
         }
-        
+
         Ok(config)
     }
 }
 ```
 
 ### Implementation Files
+
 - `design/src/config.rs` - New configuration module
 - Update all commands to use Config instead of hardcoded paths
 
@@ -807,6 +877,7 @@ impl Config {
 ### Phase 9 Tests
 
 #### Replace Command Tests
+
 - Replace with valid new document
 - Replace preserves critical metadata
 - Replace moves old to dustbin with UUID
@@ -816,6 +887,7 @@ impl Config {
 - Replace handles git operation failures
 
 #### Remove Command Tests
+
 - Remove moves to dustbin
 - Remove adds UUID suffix
 - Remove preserves state subdirectory
@@ -825,6 +897,7 @@ impl Config {
 - Remove handles duplicate removals (same doc twice)
 
 #### List Removed Tests
+
 - List shows only removed documents
 - List accurately detects deleted status
 - List handles missing dustbin directory
@@ -834,6 +907,7 @@ impl Config {
 ### Phase 10 Tests
 
 #### Info Command Tests
+
 - Info (default) displays correctly
 - Info states lists all states
 - Info fields shows all required/optional fields
@@ -842,6 +916,7 @@ impl Config {
 - Info stats detects health issues
 
 #### Configuration Tests
+
 - Default config loads correctly
 - Cargo.toml overrides defaults
 - File config overrides Cargo.toml
@@ -853,6 +928,7 @@ impl Config {
 ## Implementation Order Priority
 
 ### High Priority (Core Lifecycle)
+
 1. Configuration system (Task 10.8)
 2. Add "overwritten" state to DocState enum
 3. Remove command (Task 9.2)
@@ -860,6 +936,7 @@ impl Config {
 5. List --removed enhancement (Task 9.3)
 
 ### Medium Priority (Discovery)
+
 1. Info command framework (Task 10.1)
 2. Info states (Task 10.3)
 3. Info fields (Task 10.4)
@@ -867,6 +944,7 @@ impl Config {
 5. Info default (Task 10.2)
 
 ### Low Priority (Polish)
+
 1. Info stats (Task 10.6)
 2. Info dirs (Task 10.7)
 
@@ -892,11 +970,13 @@ design/src/
 ## Dependencies to Add
 
 Current dependencies should be sufficient, but verify:
+
 - `uuid` crate (for UUIDv4 generation)
 - `toml` crate (for config file parsing, if not already present)
 - `serde` with derive features (likely already present)
 
 Add to `Cargo.toml`:
+
 ```toml
 [dependencies]
 uuid = { version = "1.0", features = ["v4"] }
@@ -908,6 +988,7 @@ toml = "0.8"
 ## Success Criteria
 
 Phase 9 is complete when:
+
 1. ✓ Documents can be replaced with `oxd replace`
 2. ✓ Old document metadata is intelligently preserved
 3. ✓ Replaced documents move to dustbin with UUID suffix
@@ -919,6 +1000,7 @@ Phase 9 is complete when:
 9. ✓ Git operations preserve history
 
 Phase 10 is complete when:
+
 1. ✓ `oxd info` provides tool overview
 2. ✓ `oxd info states` lists all valid states
 3. ✓ `oxd info fields` documents all frontmatter fields
