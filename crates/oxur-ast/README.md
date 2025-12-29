@@ -1,16 +1,19 @@
 # oxur-ast
 
-Rust AST representation and manipulation library using S-expressions.
+Rust AST ↔ S-expression bidirectional conversion library with CLI tool.
 
 ## Overview
 
 `oxur-ast` provides a comprehensive toolkit for working with Rust Abstract Syntax Trees (AST) using S-expression syntax. It includes:
 
+- **Rust parsing** - Parse real Rust source code into AST structures via `syn`
 - **S-expression parsing** - Convert S-expression strings and files into structured data
 - **S-expression printing** - Format S-expressions with customizable indentation
 - **File I/O** - Read and write S-expressions from/to files
 - **AST building** - Transform S-expressions into Rust AST structures
 - **Position tracking** - Maintain source location information throughout parsing
+- **CLI tool** - `aster` command-line tool for conversions and verification
+- **Round-trip verification** - Ensure conversion integrity
 
 ## Features
 
@@ -91,9 +94,104 @@ let mut builder = AstBuilder::new();
 let crate_ast = builder.build_crate(&sexp)?;
 ```
 
+### Rust Parsing Integration
+
+Parse real Rust source code into AST structures:
+
+```rust
+use oxur_ast::integration::parse_rust_file;
+use oxur_ast::Generator;
+use oxur_ast::sexp::print_sexp;
+
+// Parse Rust source
+let source = r#"
+fn main() {
+    println!("Hello, world!");
+}
+"#;
+
+let crate_node = parse_rust_file(source)?;
+
+// Generate S-expression
+let gen = Generator::new();
+let sexp = gen.generate_crate(&crate_node)?;
+
+// Print formatted output
+println!("{}", print_sexp(&sexp));
+```
+
+## CLI Tool: `aster`
+
+The `aster` command-line tool provides convenient commands for AST conversions and verification.
+
+### Installation
+
+```bash
+cargo install --path .
+```
+
+### Commands
+
+**Convert Rust to S-expression:**
+
+```bash
+# Output to stdout
+aster to-ast hello.rs
+
+# Save to file
+aster to-ast hello.rs -o hello.sexp
+
+# Compact format
+aster to-ast hello.rs --compact
+```
+
+**Convert S-expression to Rust:**
+
+```bash
+# Output to stdout
+aster to-rust hello.sexp
+
+# Save to file
+aster to-rust hello.sexp -o output.rs
+```
+
+**Verify round-trip conversion:**
+
+```bash
+# Basic verification
+aster verify hello.rs
+
+# Verbose output
+aster verify hello.rs --verbose
+```
+
+### Architecture
+
+```
+Rust Source → syn → oxur AST → Generator → S-expression
+                      ↑                          ↓
+                      └────── Builder ← Parser ──┘
+```
+
 ## Examples
 
 The crate includes several examples demonstrating different features:
+
+### Parse Rust File
+
+Parse a Rust source file and display AST information:
+
+```bash
+cargo run --example parse_rust_file tests/fixtures/simple_fn.rs
+```
+
+### Convert File
+
+Convert a Rust source file to S-expression format:
+
+```bash
+cargo run --example convert_file tests/fixtures/hello_world.rs /tmp/hello.sexp
+```
 
 ### Parse Example
 
@@ -221,7 +319,24 @@ Run specific test suite:
 cargo test --test parser_tests
 cargo test --test builder_tests
 cargo test --test test_data_validation
+cargo test --test integration_tests
 ```
+
+## Performance Benchmarks
+
+Run performance benchmarks:
+
+```bash
+cargo bench
+```
+
+The benchmark suite includes:
+
+- **parse_rust**: Parsing Rust source code via syn
+- **generate_sexp**: Generating S-expressions from AST
+- **parse_sexp**: Parsing S-expression text
+- **build_ast**: Building AST from S-expressions
+- **round_trip**: Full round-trip conversion (Rust → S-expr → AST)
 
 ## License
 

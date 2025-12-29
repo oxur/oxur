@@ -27,7 +27,6 @@ tempfile = "3.8"
 # Phase 3: Benchmarking
 criterion = "0.5"
 
-# Benchmark will be created in Chunk 4
-# [[bench]]
-# name = "conversion_bench"
-# harness = false
+[[bench]]
+name = "conversion_bench"
+harness = false
