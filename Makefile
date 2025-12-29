@@ -36,7 +36,7 @@ coverage:
 
 check: build lint test
 
-check-all: check coverage
+check-all: build lint coverage
 
 format:
 	@echo "Formatting code..."
