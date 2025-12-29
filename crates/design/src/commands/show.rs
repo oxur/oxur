@@ -236,4 +236,23 @@ mod tests {
         let result = show_document(&index, 1, false);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_get_relative_path_strips_prefix() {
+        // Test with a path under current directory - should strip prefix
+        let current_dir = env::current_dir().unwrap();
+        let doc_path = current_dir.join("some/nested/path.md");
+
+        let result = get_relative_path(&doc_path);
+        assert_eq!(result, "some/nested/path.md");
+    }
+
+    #[test]
+    fn test_get_relative_path_returns_full_path() {
+        // Test with a path NOT under current directory - should return full path
+        let doc_path = std::path::PathBuf::from("/some/absolute/path/not/under/cwd/doc.md");
+
+        let result = get_relative_path(&doc_path);
+        assert_eq!(result, "/some/absolute/path/not/under/cwd/doc.md");
+    }
 }
