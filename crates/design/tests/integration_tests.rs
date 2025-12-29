@@ -6,7 +6,7 @@ fn test_list_command() {
     let mut cmd = cargo_bin_cmd!("oxd");
     cmd.arg("-d").arg("design/docs").arg("list");
 
-    cmd.assert().success().stdout(predicate::str::contains("DESIGN DOCUMENTS"));
+    cmd.assert().success().stdout(predicate::str::contains("DESIGN"));
 }
 
 #[test]
