@@ -6,7 +6,9 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0015 | oxur-table API (re)Design | Under Review | 2025-12-28 |
+| 0017 | Recommendations for Future-proofing Multiple REPL Protocols | Under Review | 2025-12-28 |
+| 0016 | Research: Building a transport-agnostic REPL protocol in Rust | Final | 2025-12-28 |
+| 0015 | oxur-table API (re)Design | Accepted | 2025-12-28 |
 | 0014 | Rust AST Inventory for Oxur Lisp | Accepted | 2025-12-27 |
 | 0013 | Oxur Compilation Chain Architecture | Active | 2025-12-27 |
 | 0012 | Implementation Plan: File-Based S-Expression Test Data | Accepted | 2025-12-27 |
@@ -26,10 +28,11 @@ This index is automatically generated. Do not edit manually.
 
 ### Under Review
 
-- [0015 - Phase 2: oxur-table API Design](02-under-review/0015-phase-2-oxur-table-api-design.md)
+- [0017 - Recommendations for Future-proofing Multiple REPL Protocols](02-under-review/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
 
 ### Accepted
 
+- [0015 - oxur-table API (re)Design](04-accepted/0015-phase-2-oxur-table-api-design.md)
 - [0014 - Rust AST Inventory for Oxur Lisp](04-accepted/0014-rust-ast-inventory-for-oxur-lisp.md)
 - [0012 - Implementation Plan: File-Based S-Expression Test Data](04-accepted/0012-implementation-plan-file-based-s-expression-test-data.md)
 
@@ -44,6 +47,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Final
 
+- [0016 - Building a transport-agnostic REPL protocol in Rust](06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)
 - [0011 - Dead Code Remediation Plan: oxur-ast Builder System](06-final/0011-dead-code-remediation-plan-oxur-ast-builder-system.md)
 - [0010 - Oxur Design Documentation CLI - Phases 9-10 Build Plan](06-final/0010-oxur-design-documentation-cli-phases-9-10-build-plan.md)
 - [0009 - Oxur Design Documentation CLI - Extended Features Plan (Phases 6-8)](06-final/0009-oxur-design-documentation-cli-extended-features-plan-phases-6-8.md)

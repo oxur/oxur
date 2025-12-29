@@ -4,7 +4,7 @@ title: "oxur-table API (re)Design"
 author: "helpers module"
 created: 2025-12-28
 updated: 2025-12-28
-state: Under Review
+state: Accepted
 supersedes: null
 superseded-by: null
 ---
