@@ -63,9 +63,7 @@ fn main() -> Result<()> {
     if cli.verbose {
         println!("Stage 3-5: Lowering, generating, and compiling...");
     }
-    let output = cli.output.unwrap_or_else(|| {
-        cli.input.with_extension("")
-    });
+    let output = cli.output.unwrap_or_else(|| cli.input.with_extension(""));
 
     let mut compiler = oxur_comp::Compiler::new(cli.build_dir.clone());
     compiler.compile(core_forms, &output)?;

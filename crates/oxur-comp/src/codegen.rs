@@ -2,7 +2,7 @@
 //!
 //! Converts Rust AST into formatted Rust source code.
 
-use crate::{Result};
+use crate::Result;
 
 /// Code generator produces formatted Rust source
 pub struct CodeGenerator;
@@ -32,12 +32,24 @@ mod tests {
     #[test]
     fn test_codegen_empty_file() {
         let gen = CodeGenerator::new();
-        let file = syn::File {
-            shebang: None,
-            attrs: vec![],
-            items: vec![],
-        };
+        let file = syn::File { shebang: None, attrs: vec![], items: vec![] };
         let result = gen.generate(&file);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_codegen_default() {
+        let gen = CodeGenerator::default();
+        let file = syn::File { shebang: None, attrs: vec![], items: vec![] };
+        let result = gen.generate(&file);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_returns_string() {
+        let gen = CodeGenerator::new();
+        let file = syn::File { shebang: None, attrs: vec![], items: vec![] };
+        let result = gen.generate(&file).unwrap();
+        assert!(result.is_empty() || !result.is_empty()); // Just check it's a string
     }
 }

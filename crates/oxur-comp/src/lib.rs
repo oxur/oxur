@@ -5,13 +5,13 @@
 //! - Stage 4: Generate (Rust AST → Rust source)
 //! - Stage 5: Compile (Rust source → Binary via rustc)
 
-pub mod lowering;
 pub mod codegen;
 pub mod compiler;
+pub mod lowering;
 
+pub use codegen::CodeGenerator;
 pub use compiler::Compiler;
 pub use lowering::Lowerer;
-pub use codegen::CodeGenerator;
 
 /// Result type for compilation operations
 pub type Result<T> = std::result::Result<T, Error>;

@@ -3,8 +3,8 @@
 //! Converts Surface Forms into Core Forms through macro expansion and desugaring.
 //! This is where syntactic sugar gets transformed into canonical forms.
 
-use crate::{core_forms::CoreForm, source_map::SourceMap, Result};
 use crate::parser::SurfaceForm;
+use crate::{core_forms::CoreForm, source_map::SourceMap, Result};
 
 /// Expander handles macro expansion and desugaring
 pub struct Expander {
@@ -13,9 +13,7 @@ pub struct Expander {
 
 impl Expander {
     pub fn new() -> Self {
-        Self {
-            source_map: SourceMap::new(),
-        }
+        Self { source_map: SourceMap::new() }
     }
 
     /// Expand Surface Forms into Core Forms
@@ -44,5 +42,26 @@ mod tests {
     fn test_expander_creation() {
         let expander = Expander::new();
         assert!(expander.source_map().is_empty());
+    }
+
+    #[test]
+    fn test_expander_default() {
+        let expander = Expander::default();
+        assert!(expander.source_map().is_empty());
+    }
+
+    #[test]
+    fn test_expand_empty() {
+        let mut expander = Expander::new();
+        let result = expander.expand(vec![]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_source_map_access() {
+        let expander = Expander::new();
+        let map = expander.source_map();
+        assert!(map.is_empty());
     }
 }
