@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0015 | oxur-table API (re)Design | Under Review | 2025-12-28 |
 | 0014 | Rust AST Inventory for Oxur Lisp | Accepted | 2025-12-27 |
 | 0013 | Oxur Compilation Chain Architecture | Active | 2025-12-27 |
 | 0012 | Implementation Plan: File-Based S-Expression Test Data | Accepted | 2025-12-27 |
@@ -22,6 +23,10 @@ This index is automatically generated. Do not edit manually.
 | 0001 | Oxur: A Letter of Intent | Active | 2025-12-26 |
 
 ## Documents by State
+
+### Under Review
+
+- [0015 - Phase 2: oxur-table API Design](02-under-review/0015-phase-2-oxur-table-api-design.md)
 
 ### Accepted
 
