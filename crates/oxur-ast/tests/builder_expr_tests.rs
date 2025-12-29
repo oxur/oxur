@@ -15,13 +15,7 @@ fn parse_fixture(path: &str) -> SExp {
 
 #[test]
 fn test_build_block_with_statements() {
-    let input = r#"(Block
-      :stmts ((Stmt :id 1 :kind (Empty) :span (Span))
-              (Stmt :id 2 :kind (Empty) :span (Span)))
-      :id 3
-      :span (Span :lo 0 :hi 10))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("block/with-statements.sexp");
     let mut builder = AstBuilder::new();
     let block = builder.build_block(&sexp).unwrap();
 
@@ -31,8 +25,7 @@ fn test_build_block_with_statements() {
 
 #[test]
 fn test_build_block_wrong_node_type() {
-    let input = "(NotBlock :stmts ())";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("block/wrong-node-type.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_block(&sexp);
 
@@ -43,17 +36,7 @@ fn test_build_block_wrong_node_type() {
 
 #[test]
 fn test_build_expr_macro_call() {
-    let input = r#"(Expr
-      :id 1
-      :kind (MacCall
-              (MacCall
-                :path (Path :segments ((PathSegment :ident (Ident :name "println"))))
-                :args Empty
-                :prior-type-ascription nil))
-      :span (Span :lo 0 :hi 0)
-      :attrs ())"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/macro-call.sexp");
     let mut builder = AstBuilder::new();
     let expr = builder.build_expr(&sexp).unwrap();
 
@@ -63,8 +46,7 @@ fn test_build_expr_macro_call() {
 
 #[test]
 fn test_build_expr_missing_kind() {
-    let input = "(Expr :id 1)";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/missing-kind.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_expr(&sexp);
 
@@ -73,8 +55,7 @@ fn test_build_expr_missing_kind() {
 
 #[test]
 fn test_build_expr_wrong_node_type() {
-    let input = "(NotExpr :kind (MacCall))";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/wrong-node-type.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_expr(&sexp);
 
@@ -85,10 +66,7 @@ fn test_build_expr_wrong_node_type() {
 
 #[test]
 fn test_build_path_single_segment() {
-    let input = r#"(Path
-      :segments ((PathSegment :ident (Ident :name "std"))))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/single-segment.sexp");
     let mut builder = AstBuilder::new();
     let path = builder.build_path(&sexp).unwrap();
 
@@ -98,12 +76,7 @@ fn test_build_path_single_segment() {
 
 #[test]
 fn test_build_path_multiple_segments() {
-    let input = r#"(Path
-      :segments ((PathSegment :ident (Ident :name "std"))
-                 (PathSegment :ident (Ident :name "collections"))
-                 (PathSegment :ident (Ident :name "HashMap"))))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/multiple-segments.sexp");
     let mut builder = AstBuilder::new();
     let path = builder.build_path(&sexp).unwrap();
 
@@ -115,8 +88,7 @@ fn test_build_path_multiple_segments() {
 
 #[test]
 fn test_build_path_empty_segments() {
-    let input = "(Path :segments ())";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/empty-segments.sexp");
     let mut builder = AstBuilder::new();
     let path = builder.build_path(&sexp).unwrap();
 
@@ -125,8 +97,7 @@ fn test_build_path_empty_segments() {
 
 #[test]
 fn test_build_path_wrong_node_type() {
-    let input = "(NotPath :segments ())";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/wrong-node-type.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_path(&sexp);
 
@@ -135,11 +106,7 @@ fn test_build_path_wrong_node_type() {
 
 #[test]
 fn test_build_path_with_span() {
-    let input = r#"(Path
-      :segments ()
-      :span (Span :lo 0 :hi 5))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/with-span.sexp");
     let mut builder = AstBuilder::new();
     let path = builder.build_path(&sexp).unwrap();
 
@@ -151,17 +118,7 @@ fn test_build_path_with_span() {
 
 #[test]
 fn test_build_expr_mac_call_with_empty_args() {
-    let input = r#"(Expr
-      :id 1
-      :kind (MacCall
-              (MacCall
-                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-                :args Empty
-                :prior-type-ascription nil))
-      :span (Span :lo 0 :hi 0)
-      :attrs ())"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/macro-call-empty.sexp");
     let mut builder = AstBuilder::new();
     let expr = builder.build_expr(&sexp).unwrap();
 
@@ -175,20 +132,7 @@ fn test_build_expr_mac_call_with_empty_args() {
 
 #[test]
 fn test_build_expr_mac_call_with_delimited_args() {
-    let input = r#"(Expr
-      :id 1
-      :kind (MacCall
-              (MacCall
-                :path (Path :segments ((PathSegment :ident (Ident :name "vec"))))
-                :args (Delimited
-                        :dspan (DelSpan :open (Span :lo 0 :hi 0) :close (Span :lo 0 :hi 0))
-                        :delim Bracket
-                        :tokens (TokenStream :source "1, 2, 3"))
-                :prior-type-ascription nil))
-      :span (Span :lo 0 :hi 0)
-      :attrs ())"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/mac-call-with-delimited-args.sexp");
     let mut builder = AstBuilder::new();
     let expr = builder.build_expr(&sexp).unwrap();
 
@@ -209,8 +153,7 @@ fn test_build_expr_mac_call_with_delimited_args() {
 
 #[test]
 fn test_build_expr_mac_call_missing_path() {
-    let input = "(Expr :kind (MacCall :args (Empty)))";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/mac-call-missing-path.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_expr(&sexp);
 
@@ -264,20 +207,7 @@ fn test_build_mac_args_with_all_delimiters() {
 
 #[test]
 fn test_build_token_stream_empty() {
-    let input = r#"(Expr
-      :id 1
-      :kind (MacCall
-              (MacCall
-                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-                :args (Delimited
-                        :dspan (DelSpan :open (Span :lo 0 :hi 0) :close (Span :lo 0 :hi 0))
-                        :delim Paren
-                        :tokens Empty)
-                :prior-type-ascription nil))
-      :span (Span :lo 0 :hi 0)
-      :attrs ())"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/token-stream-empty.sexp");
     let mut builder = AstBuilder::new();
     let expr = builder.build_expr(&sexp).unwrap();
 
@@ -294,20 +224,7 @@ fn test_build_token_stream_empty() {
 
 #[test]
 fn test_build_token_stream_with_source() {
-    let input = r#"(Expr
-      :id 1
-      :kind (MacCall
-              (MacCall
-                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-                :args (Delimited
-                        :dspan (DelSpan :open (Span :lo 0 :hi 0) :close (Span :lo 0 :hi 0))
-                        :delim Paren
-                        :tokens (TokenStream :source "hello world"))
-                :prior-type-ascription nil))
-      :span (Span :lo 0 :hi 0)
-      :attrs ())"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/token-stream-with-source.sexp");
     let mut builder = AstBuilder::new();
     let expr = builder.build_expr(&sexp).unwrap();
 
@@ -327,10 +244,7 @@ fn test_build_token_stream_with_source() {
 
 #[test]
 fn test_build_path_segment_with_explicit_id() {
-    let input = r#"(Path
-      :segments ((PathSegment :ident (Ident :name "test") :id 42)))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/segment-with-explicit-id.sexp");
     let mut builder = AstBuilder::new();
     let path = builder.build_path(&sexp).unwrap();
 
@@ -339,10 +253,7 @@ fn test_build_path_segment_with_explicit_id() {
 
 #[test]
 fn test_build_path_segment_generates_id() {
-    let input = r#"(Path
-      :segments ((PathSegment :ident (Ident :name "test"))))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/segment-generates-id.sexp");
     let mut builder = AstBuilder::new();
     let path = builder.build_path(&sexp).unwrap();
 
@@ -352,8 +263,7 @@ fn test_build_path_segment_generates_id() {
 
 #[test]
 fn test_build_path_segment_missing_ident() {
-    let input = "(Path :segments ((PathSegment :id 1)))";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("path/segment-missing-ident.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_path(&sexp);
 
@@ -364,8 +274,7 @@ fn test_build_path_segment_missing_ident() {
 
 #[test]
 fn test_build_expr_kind_unsupported() {
-    let input = "(Expr :kind (UnsupportedKind))";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/kind-unsupported.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_expr(&sexp);
 
@@ -374,17 +283,7 @@ fn test_build_expr_kind_unsupported() {
 
 #[test]
 fn test_build_mac_args_unsupported_kind() {
-    let input = r#"(Expr
-      :id 1
-      :kind (MacCall
-              (MacCall
-                :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-                :args (Eq)
-                :prior-type-ascription nil))
-      :span (Span :lo 0 :hi 0)
-      :attrs ())"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/mac-args-unsupported-kind.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_expr(&sexp);
 
@@ -395,22 +294,7 @@ fn test_build_mac_args_unsupported_kind() {
 
 #[test]
 fn test_build_complex_macro_call_expression() {
-    let input = r#"(Expr
-      :id 100
-      :kind (MacCall
-              (MacCall
-                :path (Path
-                        :segments ((PathSegment :ident (Ident :name "println") :id 101))
-                        :span (Span :lo 0 :hi 7))
-                :args (Delimited
-                        :dspan (DelSpan :open (Span :lo 7 :hi 8) :close (Span :lo 20 :hi 21))
-                        :delim Paren
-                        :tokens (TokenStream :source "\"Hello, world!\""))
-                :prior-type-ascription nil))
-      :span (Span :lo 0 :hi 21)
-      :attrs ())"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("expr/complex-macro-call.sexp");
     let mut builder = AstBuilder::new();
     let expr = builder.build_expr(&sexp).unwrap();
 

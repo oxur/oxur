@@ -15,12 +15,7 @@ fn parse_fixture(path: &str) -> SExp {
 
 #[test]
 fn test_build_stmt_empty_with_id() {
-    let input = r#"(Stmt
-      :id 5
-      :kind (Empty)
-      :span (Span :lo 0 :hi 1))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/empty-with-id.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -32,11 +27,7 @@ fn test_build_stmt_empty_with_id() {
 
 #[test]
 fn test_build_stmt_empty_generates_id() {
-    let input = r#"(Stmt
-      :kind (Empty)
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/empty-generates-id.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -48,15 +39,7 @@ fn test_build_stmt_empty_generates_id() {
 
 #[test]
 fn test_build_stmt_semi_with_keyword_syntax() {
-    let input = r#"(Stmt
-      :id 10
-      :kind (Semi (Expr
-                      :id 11
-                      :kind (MacCall
-                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/semi-with-keyword-syntax.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -71,15 +54,7 @@ fn test_build_stmt_semi_with_keyword_syntax() {
 
 #[test]
 fn test_build_stmt_semi_with_macro_call() {
-    let input = r#"(Stmt
-      :id 20
-      :kind (Semi (Expr
-                      :id 21
-                      :kind (MacCall
-                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "println"))))))))
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/semi-with-macro-call.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -93,12 +68,7 @@ fn test_build_stmt_semi_with_macro_call() {
 
 #[test]
 fn test_build_stmt_semi_missing_expr() {
-    let input = r#"(Stmt
-      :id 30
-      :kind (Semi)
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/semi-missing-expr.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_stmt(&sexp);
 
@@ -109,15 +79,7 @@ fn test_build_stmt_semi_missing_expr() {
 
 #[test]
 fn test_build_stmt_expr_with_keyword_syntax() {
-    let input = r#"(Stmt
-      :id 40
-      :kind (Expr (Expr
-                      :id 41
-                      :kind (MacCall
-                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/expr-with-keyword-syntax.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -132,15 +94,7 @@ fn test_build_stmt_expr_with_keyword_syntax() {
 
 #[test]
 fn test_build_stmt_expr_with_macro_call() {
-    let input = r#"(Stmt
-      :id 50
-      :kind (Expr (Expr
-                      :id 51
-                      :kind (MacCall
-                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "value"))))))))
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/expr-with-macro-call.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -154,12 +108,7 @@ fn test_build_stmt_expr_with_macro_call() {
 
 #[test]
 fn test_build_stmt_expr_missing_expr() {
-    let input = r#"(Stmt
-      :id 60
-      :kind (Expr)
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/expr-missing-expr.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_stmt(&sexp);
 
@@ -170,10 +119,7 @@ fn test_build_stmt_expr_missing_expr() {
 
 #[test]
 fn test_build_stmt_wrong_node_type() {
-    let input = r#"(NotStmt
-      :kind (Empty))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/wrong-node-type.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_stmt(&sexp);
 
@@ -182,11 +128,7 @@ fn test_build_stmt_wrong_node_type() {
 
 #[test]
 fn test_build_stmt_missing_kind() {
-    let input = r#"(Stmt
-      :id 70
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/missing-kind.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_stmt(&sexp);
 
@@ -195,12 +137,7 @@ fn test_build_stmt_missing_kind() {
 
 #[test]
 fn test_build_stmt_unsupported_kind() {
-    let input = r#"(Stmt
-      :id 80
-      :kind (UnsupportedKind)
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/unsupported-kind.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_stmt(&sexp);
 
@@ -211,22 +148,7 @@ fn test_build_stmt_unsupported_kind() {
 
 #[test]
 fn test_build_multiple_statements_in_block() {
-    let input = r#"(Block
-      :stmts ((Stmt :id 1 :kind (Empty) :span (Span))
-              (Stmt :id 2 :kind (Semi (Expr
-                                          :id 3
-                                          :kind (MacCall
-                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
-                    :span (Span))
-              (Stmt :id 4 :kind (Expr (Expr
-                                          :id 5
-                                          :kind (MacCall
-                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "final"))))))))
-                    :span (Span)))
-      :id 10
-      :span (Span :lo 0 :hi 100))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("block/multiple-statements.sexp");
     let mut builder = AstBuilder::new();
     let block = builder.build_block(&sexp).unwrap();
 
@@ -259,21 +181,7 @@ fn test_build_multiple_statements_in_block() {
 
 #[test]
 fn test_build_stmt_with_complex_expression() {
-    let input = r#"(Stmt
-      :id 100
-      :kind (Semi (Expr
-                      :id 101
-                      :kind (MacCall
-                              (MacCall :path (Path
-                                      :segments ((PathSegment :ident (Ident :name "println") :id 102)))
-                                      :span (Span :lo 0 :hi 7))
-                              :args (Delimited
-                                      :delim Paren
-                                      :tokens (TokenStream :source "\"Hello\"")))
-                      :span (Span :lo 0 :hi 20)))
-      :span (Span :lo 0 :hi 21))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/complex-expression.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -299,12 +207,7 @@ fn test_build_stmt_with_complex_expression() {
 
 #[test]
 fn test_build_empty_block() {
-    let input = r#"(Block
-      :stmts ()
-      :id 200
-      :span (Span :lo 0 :hi 2))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("block/empty-block.sexp");
     let mut builder = AstBuilder::new();
     let block = builder.build_block(&sexp).unwrap();
 
@@ -314,11 +217,7 @@ fn test_build_empty_block() {
 
 #[test]
 fn test_build_block_without_explicit_stmts() {
-    let input = r#"(Block
-      :id 300
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("block/without-explicit-stmts.sexp");
     let mut builder = AstBuilder::new();
     let block = builder.build_block(&sexp).unwrap();
 
@@ -331,11 +230,7 @@ fn test_build_block_without_explicit_stmts() {
 #[test]
 fn test_build_stmt_without_span() {
     // Test that missing :span field uses Span::DUMMY (line 35)
-    let input = r#"(Stmt
-      :id 10
-      :kind (Empty))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/without-span.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 
@@ -356,31 +251,22 @@ fn test_build_stmt_without_span() {
 fn test_stmt_id_generation_sequence() {
     let mut builder = AstBuilder::new();
 
-    let input1 = r#"(Stmt :kind (Empty) :span (Span))"#;
-    let sexp1 = Parser::parse_str(input1).unwrap();
+    let sexp1 = parse_fixture("stmt/empty-generates-id.sexp");
     let stmt1 = builder.build_stmt(&sexp1).unwrap();
     assert_eq!(stmt1.id, NodeId(0));
 
-    let input2 = r#"(Stmt :kind (Empty) :span (Span))"#;
-    let sexp2 = Parser::parse_str(input2).unwrap();
+    let sexp2 = parse_fixture("stmt/empty-generates-id.sexp");
     let stmt2 = builder.build_stmt(&sexp2).unwrap();
     assert_eq!(stmt2.id, NodeId(1));
 
-    let input3 = r#"(Stmt :kind (Empty) :span (Span))"#;
-    let sexp3 = Parser::parse_str(input3).unwrap();
+    let sexp3 = parse_fixture("stmt/empty-generates-id.sexp");
     let stmt3 = builder.build_stmt(&sexp3).unwrap();
     assert_eq!(stmt3.id, NodeId(2));
 }
 
 #[test]
 fn test_nested_expr_in_stmt_id_generation() {
-    let input = r#"(Stmt
-      :kind (Semi (Expr
-                      :kind (MacCall
-                              (MacCall :path (Path :segments ((PathSegment :ident (Ident :name "test"))))))))
-      :span (Span))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("stmt/semi-with-keyword-syntax.sexp");
     let mut builder = AstBuilder::new();
     let stmt = builder.build_stmt(&sexp).unwrap();
 

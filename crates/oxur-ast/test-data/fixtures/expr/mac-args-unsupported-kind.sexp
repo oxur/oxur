@@ -3,7 +3,7 @@
   :kind (MacCall
           (MacCall
             :path (Path :segments ((PathSegment :ident (Ident :name "test"))))
-            :args Empty
+            :args (Eq)
             :prior-type-ascription nil))
   :span (Span :lo 0 :hi 0)
   :attrs ())

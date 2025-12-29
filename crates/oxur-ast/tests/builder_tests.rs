@@ -22,26 +22,7 @@ fn test_build_simple_crate() {
 
 #[test]
 fn test_build_crate_with_items() {
-    let input = r#"(Crate
-      :attrs ()
-      :items ((Item
-                :vis (Inherited)
-                :ident (Ident :name "main")
-                :kind (Fn
-              (Fn :defaultness Final
-                        :sig (FnSig
-                               :header (FnHeader
-                                         :safety Default
-                                         :constness NotConst)
-                               :decl (FnDecl
-                                       :inputs ()
-                                       :output (Default))))
-                        :generics (Generics :params () :where-clause (WhereClause :has-where-token false :predicates ()))
-                        :body nil)))
-      :spans (ModSpans :inner-span (Span :lo 0 :hi 50))
-      :id 0)"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("crate/with-items-fn-with-body.sexp");
     let mut builder = AstBuilder::new();
     let crate_ast = builder.build_crate(&sexp).unwrap();
 
@@ -50,18 +31,7 @@ fn test_build_crate_with_items() {
 
 #[test]
 fn test_build_item() {
-    let input = r#"(Item
-      :vis (Inherited)
-      :ident (Ident :name "foo")
-      :kind (Fn
-              (Fn :defaultness Final
-              :sig (FnSig
-                     :header (FnHeader :safety Default :constness NotConst)
-                     :decl (FnDecl :inputs () :output (Default))))
-              :generics (Generics :params ())
-              :body nil))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("item/simple-fn-item.sexp");
     let mut builder = AstBuilder::new();
     let item = builder.build_item(&sexp).unwrap();
 
@@ -114,8 +84,7 @@ fn test_builder_next_id() {
 
 #[test]
 fn test_build_error_wrong_node_type() {
-    let input = "(Symbol)";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("crate/wrong-node-type.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_crate(&sexp);
 
@@ -124,8 +93,7 @@ fn test_build_error_wrong_node_type() {
 
 #[test]
 fn test_build_error_missing_field() {
-    let input = "(Crate)";
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("crate/missing-field.sexp");
     let mut builder = AstBuilder::new();
     let result = builder.build_crate(&sexp);
 
@@ -134,19 +102,7 @@ fn test_build_error_missing_field() {
 
 #[test]
 fn test_build_fn_with_body() {
-    let input = r#"(Item
-      :vis (Inherited)
-      :ident (Ident :name "main")
-      :kind (Fn
-              (Fn
-                :defaultness Final
-                :sig (FnSig
-                       :header (FnHeader :safety Default :constness NotConst)
-                       :decl (FnDecl :inputs () :output (Default)))
-                :generics (Generics :params ())
-                :body (Block :stmts () :id 1))))"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("item/fn-with-body-block.sexp");
     let mut builder = AstBuilder::new();
     let item = builder.build_item(&sexp).unwrap();
 
@@ -162,30 +118,7 @@ fn test_build_fn_with_body() {
 
 #[test]
 fn test_complex_nested_build() {
-    let input = r#"(Crate
-      :attrs ()
-      :items ((Item
-                :vis (Public)
-                :ident (Ident :name "main")
-                :kind (Fn
-                        (Fn
-                          :defaultness Final
-                          :sig (FnSig
-                                 :header (FnHeader
-                                           :safety Default
-                                           :constness NotConst)
-                                 :decl (FnDecl :inputs () :output (Default)))
-                          :generics (Generics :params ())
-                          :body (Block
-                                  :stmts ((Stmt
-                                            :id 1
-                                            :kind (Empty)
-                                            :span (Span)))
-                                  :id 2)))))
-      :spans (ModSpans :inner-span (Span :lo 0 :hi 100))
-      :id 0)"#;
-
-    let sexp = Parser::parse_str(input).unwrap();
+    let sexp = parse_fixture("crate/complex-nested.sexp");
     let mut builder = AstBuilder::new();
     let crate_ast = builder.build_crate(&sexp).unwrap();
 
