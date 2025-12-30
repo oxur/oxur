@@ -146,8 +146,34 @@ impl AstBuilder {
                 let enum_def = self.build_enum_def(enum_sexp)?;
                 Ok(ItemKind::Enum(enum_def))
             }
+            "Trait" => {
+                // Extract the TraitDef from element 1
+                if list.elements.len() < 2 {
+                    return Err(ParseError::Expected {
+                        expected: "TraitDef after Trait".to_string(),
+                        found: "nothing".to_string(),
+                        pos: list.pos,
+                    });
+                }
+                let trait_sexp = &list.elements[1];
+                let trait_def = self.build_trait_def(trait_sexp)?;
+                Ok(ItemKind::Trait(Box::new(trait_def)))
+            }
+            "Impl" => {
+                // Extract the ImplDef from element 1
+                if list.elements.len() < 2 {
+                    return Err(ParseError::Expected {
+                        expected: "ImplDef after Impl".to_string(),
+                        found: "nothing".to_string(),
+                        pos: list.pos,
+                    });
+                }
+                let impl_sexp = &list.elements[1];
+                let impl_def = self.build_impl_def(impl_sexp)?;
+                Ok(ItemKind::Impl(Box::new(impl_def)))
+            }
             _ => Err(ParseError::Expected {
-                expected: "Fn, Struct, or Enum".to_string(),
+                expected: "Fn, Struct, Enum, Trait, or Impl".to_string(),
                 found: node_type.value.clone(),
                 pos: node_type.pos,
             }),
@@ -586,5 +612,239 @@ impl AstBuilder {
     fn build_variant_list(&mut self, sexp: &SExp) -> Result<Vec<Variant>> {
         let list = expect_list(sexp)?;
         list.elements.iter().map(|elem| self.build_variant(elem)).collect()
+    }
+
+    fn build_trait_def(&mut self, sexp: &SExp) -> Result<TraitDef> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "TraitDef" {
+            return Err(ParseError::Expected {
+                expected: "TraitDef".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let safety = if let Some(safety_sexp) = kwargs.get("safety") {
+            self.build_safety(safety_sexp)?
+        } else {
+            Safety::Default
+        };
+
+        let generics = if let Some(generics_sexp) = kwargs.get("generics") {
+            self.build_generics(generics_sexp)?
+        } else {
+            Generics::empty()
+        };
+
+        let bounds = if let Some(bounds_sexp) = kwargs.get("bounds") {
+            self.build_generic_bound_list(bounds_sexp)?
+        } else {
+            Vec::new()
+        };
+
+        let items = if let Some(items_sexp) = kwargs.get("items") {
+            self.build_assoc_item_list(items_sexp)?
+        } else {
+            Vec::new()
+        };
+
+        Ok(TraitDef { safety, generics, bounds, items })
+    }
+
+    fn build_impl_def(&mut self, sexp: &SExp) -> Result<ImplDef> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "ImplDef" {
+            return Err(ParseError::Expected {
+                expected: "ImplDef".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let safety = if let Some(safety_sexp) = kwargs.get("safety") {
+            self.build_safety(safety_sexp)?
+        } else {
+            Safety::Default
+        };
+
+        let generics = if let Some(generics_sexp) = kwargs.get("generics") {
+            self.build_generics(generics_sexp)?
+        } else {
+            Generics::empty()
+        };
+
+        let of_trait = if let Some(trait_sexp) = kwargs.get("of-trait") {
+            if !is_nil(trait_sexp) {
+                Some(self.build_trait_ref(trait_sexp)?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let self_ty = self.build_ty(kwargs.get("self-ty").ok_or_else(|| ParseError::Expected {
+            expected: ":self-ty field".to_string(),
+            found: "missing".to_string(),
+            pos: list.pos,
+        })?)?;
+
+        let items = if let Some(items_sexp) = kwargs.get("items") {
+            self.build_assoc_item_list(items_sexp)?
+        } else {
+            Vec::new()
+        };
+
+        Ok(ImplDef { safety, generics, of_trait, self_ty, items })
+    }
+
+    fn build_assoc_item(&mut self, sexp: &SExp) -> Result<AssocItem> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "AssocItem" {
+            return Err(ParseError::Expected {
+                expected: "AssocItem".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let attrs = Vec::new(); // Simplified for now
+        let id = if let Some(id_sexp) = kwargs.get("id") {
+            NodeId(expect_number(id_sexp)? as u32)
+        } else {
+            self.next_id()
+        };
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+        let vis = if let Some(vis_sexp) = kwargs.get("vis") {
+            self.build_visibility(vis_sexp)?
+        } else {
+            Visibility::Inherited
+        };
+        let ident = self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
+            expected: ":ident field".to_string(),
+            found: "missing".to_string(),
+            pos: list.pos,
+        })?)?;
+
+        let kind = self.build_assoc_item_kind(
+            kwargs.get("kind").ok_or_else(|| ParseError::Expected {
+                expected: ":kind field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            })?,
+        )?;
+
+        Ok(AssocItem { attrs, id, span, vis, ident, kind })
+    }
+
+    fn build_assoc_item_kind(&mut self, sexp: &SExp) -> Result<AssocItemKind> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        match node_type.value.as_str() {
+            "Fn" => {
+                let fn_sexp = &list.elements[1];
+                let fn_list = expect_list(fn_sexp)?;
+                let fn_item = self.build_fn(fn_list)?;
+                Ok(AssocItemKind::Fn(Box::new(fn_item)))
+            }
+            "Type" => {
+                if list.elements.len() > 1 {
+                    let ty_sexp = &list.elements[1];
+                    if !is_nil(ty_sexp) {
+                        Ok(AssocItemKind::Type(Some(self.build_ty(ty_sexp)?)))
+                    } else {
+                        Ok(AssocItemKind::Type(None))
+                    }
+                } else {
+                    Ok(AssocItemKind::Type(None))
+                }
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Fn or Type".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
+    }
+
+    fn build_trait_ref(&mut self, sexp: &SExp) -> Result<TraitRef> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "TraitRef" {
+            return Err(ParseError::Expected {
+                expected: "TraitRef".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+        let path = self.build_path(kwargs.get("path").ok_or_else(|| ParseError::Expected {
+            expected: ":path field".to_string(),
+            found: "missing".to_string(),
+            pos: list.pos,
+        })?)?;
+
+        Ok(TraitRef { path })
+    }
+
+    fn build_generic_bound(&mut self, sexp: &SExp) -> Result<GenericBound> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        match node_type.value.as_str() {
+            "Trait" => {
+                let trait_ref_sexp = &list.elements[1];
+                let trait_ref = self.build_trait_ref(trait_ref_sexp)?;
+                Ok(GenericBound::Trait(trait_ref))
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Trait".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
+    }
+
+    fn build_generic_bound_list(&mut self, sexp: &SExp) -> Result<Vec<GenericBound>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_generic_bound(elem)).collect()
+    }
+
+    fn build_assoc_item_list(&mut self, sexp: &SExp) -> Result<Vec<AssocItem>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_assoc_item(elem)).collect()
+    }
+
+    fn build_safety(&mut self, sexp: &SExp) -> Result<Safety> {
+        let sym = expect_symbol(sexp)?;
+        match sym.value.as_str() {
+            "Safe" => Ok(Safety::Safe),
+            "Unsafe" => Ok(Safety::Unsafe),
+            "Default" => Ok(Safety::Default),
+            _ => Err(ParseError::Expected {
+                expected: "Safe, Unsafe, or Default".to_string(),
+                found: sym.value.clone(),
+                pos: sym.pos,
+            }),
+        }
     }
 }
