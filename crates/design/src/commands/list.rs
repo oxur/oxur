@@ -1,13 +1,19 @@
 //! List command implementation
 
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use colored::*;
 use design::doc::DocState;
 use design::index::DocumentIndex;
 use design::state::StateManager;
 use design::theme;
 use oxur_table::TableStyleConfig;
+use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use tabled::{builder::Builder, Table, Tabled};
+use walkdir::WalkDir;
 
 /// Minimal struct for type parameter when building tables with Builder
 /// (Not used for actual data - Builder uses plain strings)
@@ -27,6 +33,14 @@ struct RemovedDocRow {
     removed: String,
     deleted: String,
     location: String,
+}
+
+/// Minimal struct for type parameter when building dev document tables
+/// (Not used for actual data - Builder uses plain strings)
+#[derive(Tabled)]
+struct DevDocRow {
+    filename: String,
+    updated: String,
 }
 
 /// Apply cell-specific colors to the state column while preserving theme backgrounds
@@ -54,7 +68,7 @@ pub fn list_documents(
     state_filter: Option<String>,
     verbose: bool,
 ) -> Result<()> {
-    list_documents_impl(index, None, state_filter, verbose, false)
+    list_documents_impl(index, None, state_filter, verbose, false, false)
 }
 
 pub fn list_documents_with_state(
@@ -63,8 +77,9 @@ pub fn list_documents_with_state(
     state_filter: Option<String>,
     verbose: bool,
     removed: bool,
+    dev: bool,
 ) -> Result<()> {
-    list_documents_impl(index, state_mgr, state_filter, verbose, removed)
+    list_documents_impl(index, state_mgr, state_filter, verbose, removed, dev)
 }
 
 fn list_documents_impl(
@@ -73,7 +88,13 @@ fn list_documents_impl(
     state_filter: Option<String>,
     verbose: bool,
     removed: bool,
+    dev: bool,
 ) -> Result<()> {
+    // If showing dev documents, use special handling
+    if dev {
+        return list_dev_documents(verbose);
+    }
+
     // If showing removed documents, we need special handling
     if removed {
         if let Some(mgr) = state_mgr {
@@ -263,6 +284,229 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     println!();
     println!("{}", table);
     println!();
+
+    Ok(())
+}
+
+// ============================================================================
+// Dev Documents Listing
+// ============================================================================
+
+/// Check if filename has valid NNNN prefix (0000-9999)
+fn has_valid_prefix(filename: &str) -> bool {
+    if filename.len() < 5 {
+        return false;
+    }
+
+    // Check first 4 chars are digits, followed by '-'
+    let chars: Vec<char> = filename.chars().collect();
+    chars[0].is_numeric()
+        && chars[1].is_numeric()
+        && chars[2].is_numeric()
+        && chars[3].is_numeric()
+        && chars.get(4) == Some(&'-')
+}
+
+/// Extract numerical prefix from filename (e.g., "0019" from "0019-foo.md")
+fn extract_prefix_number(path: &Path) -> u32 {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .and_then(|s| s.get(0..4))
+        .and_then(|prefix| prefix.parse::<u32>().ok())
+        .unwrap_or(0)
+}
+
+/// Format file modification time for display
+fn format_mtime(mtime: &SystemTime) -> String {
+    let datetime: DateTime<Local> = (*mtime).into();
+    datetime.format("%Y-%m-%d %H:%M").to_string()
+}
+
+/// Get relative path from invocation directory
+fn get_relative_path_from(path: &Path, from: &Path) -> String {
+    match path.strip_prefix(from) {
+        Ok(rel) => rel.to_string_lossy().to_string(),
+        Err(_) => path.to_string_lossy().to_string(),
+    }
+}
+
+/// Filter and validate a potential dev document file
+/// Returns Some((path, metadata)) if valid, None otherwise
+fn filter_dev_file(path: &Path) -> Result<Option<(PathBuf, fs::Metadata)>> {
+    // Must be .md file
+    if path.extension().and_then(|s| s.to_str()) != Some("md") {
+        return Ok(None);
+    }
+
+    // Must have NNNN prefix
+    let filename = match path.file_name().and_then(|s| s.to_str()) {
+        Some(f) => f,
+        None => return Ok(None),
+    };
+
+    if !has_valid_prefix(filename) {
+        return Ok(None);
+    }
+
+    // Get metadata for mtime
+    let metadata = fs::metadata(path)?;
+
+    Ok(Some((path.to_path_buf(), metadata)))
+}
+
+/// Collect .md files with NNNN prefixes from a directory
+///
+/// # Arguments
+/// * `dir` - Directory to scan
+/// * `recursive` - If true, descend into subdirectories
+///
+/// Returns sorted list of (PathBuf, file metadata) tuples
+fn collect_dev_docs(dir: &Path, recursive: bool) -> Result<Vec<(PathBuf, fs::Metadata)>> {
+    let mut docs = Vec::new();
+
+    if recursive {
+        // Recursive walk
+        for entry in WalkDir::new(dir).min_depth(1).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                if let Some(doc) = filter_dev_file(entry.path())? {
+                    docs.push(doc);
+                }
+            }
+        }
+    } else {
+        // Top-level only
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_file() {
+                if let Some(doc) = filter_dev_file(&path)? {
+                    docs.push(doc);
+                }
+            }
+        }
+    }
+
+    // Sort by NNNN prefix (descending: highest first)
+    docs.sort_by(|a, b| {
+        let a_num = extract_prefix_number(&a.0);
+        let b_num = extract_prefix_number(&b.0);
+        b_num.cmp(&a_num) // Reversed for descending
+    });
+
+    Ok(docs)
+}
+
+/// Get list of subdirectories (excluding hidden dirs like .git)
+fn collect_subdirectories(dir: &Path) -> Result<Vec<String>> {
+    let mut subdirs = Vec::new();
+
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
+                // Skip hidden directories
+                if !name.starts_with('.') {
+                    subdirs.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    // Sort alphabetically
+    subdirs.sort();
+
+    Ok(subdirs)
+}
+
+/// Print a table for dev documents in a specific directory
+fn print_dev_table(
+    table_name: &str,
+    docs: &[(PathBuf, fs::Metadata)],
+    invocation_dir: &Path,
+    _verbose: bool,
+) -> Result<()> {
+    let mut builder = Builder::default();
+
+    // Row 0: Title (uppercase directory name)
+    let title = table_name.to_uppercase();
+    builder.push_record([&title, ""]);
+
+    // Row 1: Header
+    builder.push_record(["Filename", "Updated"]);
+
+    // Data rows (sorted, descending by prefix)
+    for (path, metadata) in docs {
+        let rel_path = get_relative_path_from(path, invocation_dir);
+
+        // Format mtime
+        let mtime_str = format_mtime(&metadata.modified()?);
+
+        builder.push_record([&format!(" {} ", rel_path), &format!(" {} ", mtime_str)]);
+    }
+
+    // Footer: Total count
+    let total_text = if docs.len() == 1 {
+        "Total: 1 document".to_string()
+    } else {
+        format!("Total: {} documents", docs.len())
+    };
+    builder.push_record([&total_text, ""]);
+
+    // Build and style
+    let mut table = builder.build();
+    let config = TableStyleConfig::default();
+    config.apply_to_table::<DevDocRow>(&mut table);
+
+    println!();
+    println!("{}", table);
+    println!();
+
+    Ok(())
+}
+
+/// List untracked development documents in crates/design/dev
+fn list_dev_documents(_verbose: bool) -> Result<()> {
+    // Determine base path (from CLI invocation point)
+    let invocation_dir = env::current_dir()?;
+
+    // Find dev directory (assume we're in repo)
+    let dev_dir = if let Some(repo_root) = design::git::get_repo_root() {
+        repo_root.join("crates/design/dev")
+    } else {
+        // Fallback: try relative path
+        invocation_dir.join("crates/design/dev")
+    };
+
+    if !dev_dir.exists() {
+        eprintln!(
+            "{} Dev directory not found: {}",
+            "ERROR:".red().bold(),
+            dev_dir.display()
+        );
+        return Ok(());
+    }
+
+    // Collect documents by directory
+    let dev_root_docs = collect_dev_docs(&dev_dir, false)?;
+    let subdirs = collect_subdirectories(&dev_dir)?;
+
+    // Print dev/ root table (non-recursive)
+    if !dev_root_docs.is_empty() {
+        print_dev_table("dev", &dev_root_docs, &invocation_dir, _verbose)?;
+    }
+
+    // Print table for each subdirectory (recursive)
+    for subdir_name in subdirs {
+        let subdir_path = dev_dir.join(&subdir_name);
+        let docs = collect_dev_docs(&subdir_path, true)?;
+
+        if !docs.is_empty() {
+            print_dev_table(&subdir_name, &docs, &invocation_dir, _verbose)?;
+        }
+    }
 
     Ok(())
 }

@@ -121,8 +121,8 @@ pub(crate) fn execute_command(
     state_mgr: &mut StateManager,
 ) -> Result<()> {
     match command {
-        Commands::List { state, verbose, removed } => {
-            list_documents_with_state(index, Some(state_mgr), state, verbose, removed)
+        Commands::List { state, verbose, removed, dev } => {
+            list_documents_with_state(index, Some(state_mgr), state, verbose, removed, dev)
         }
         Commands::Show { number, metadata_only } => show_document(index, number, metadata_only),
         Commands::New { title, author } => new_document(index, title, author),

@@ -67,6 +67,10 @@ pub enum Commands {
         /// Show only removed documents
         #[arg(long)]
         removed: bool,
+
+        /// Show untracked development documents
+        #[arg(long)]
+        dev: bool,
     },
 
     /// Show a specific document
