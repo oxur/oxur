@@ -25,9 +25,9 @@ This is a Cargo workspace containing multiple related crates:
 
 - **design/** - Design documentation and CLI tool for managing docs
 - **oxur-ast/** - Rust AST ↔ S-expression representation
-- **oxur-lang/** *(planned)* - The Oxur Lisp dialect
-- **oxur-repl/** *(planned)* - REPL server/client
-- **oxur-cli/** *(planned)* - User-facing CLI tool
+- **oxur-cli/** - CLI infrastructure and unified command-line tool
+- **oxur-lang/** *(in progress)* - The Oxur Lisp dialect
+- **oxur-repl/** *(in progress)* - REPL server/client
 
 ## Getting Started
 
@@ -51,6 +51,36 @@ cargo build -p design
 # Build with optimizations
 cargo build --release
 ```
+
+## CLI Tools
+
+Oxur includes several command-line tools:
+
+- **aster** - AST manipulation (Rust ↔ S-expression conversion)
+- **oxd** - Design documentation manager
+- **oxur** - Unified CLI tool (in progress)
+
+### Building CLI Tools
+
+```bash
+# Build all CLIs
+cargo build --release --bins
+
+# Build specific CLI
+cargo build --release --bin aster
+cargo build --release --bin oxd
+cargo build --release --bin oxur --features binary
+```
+
+### CLI Infrastructure
+
+All CLI tools use the `oxur-cli` library for common utilities:
+
+- File I/O helpers (stdin/stdout/file handling)
+- Colored terminal output
+- Progress tracking
+
+See `crates/oxur-cli/docs/USAGE.md` for development guide.
 
 ## Design Documents
 
