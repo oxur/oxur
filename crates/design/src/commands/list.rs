@@ -747,12 +747,10 @@ mod tests {
         let result = list_documents_with_state(
             &index,
             Some(&state_mgr),
-            None,
+            &ListFilters::default(),
             false,
             false,
             false,
-            None,
-            Vec::new(),
         );
         assert!(result.is_ok());
     }
@@ -766,12 +764,10 @@ mod tests {
         let result = list_documents_with_state(
             &index,
             Some(&state_mgr),
-            None,
+            &ListFilters::default(),
             false,
             true,
             false,
-            None,
-            Vec::new(),
         );
         assert!(result.is_ok());
     }
@@ -785,12 +781,10 @@ mod tests {
         let result = list_documents_with_state(
             &index,
             Some(&state_mgr),
-            None,
+            &ListFilters::default(),
             true,
             true,
             false,
-            None,
-            Vec::new(),
         );
         assert!(result.is_ok());
     }

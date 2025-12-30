@@ -378,7 +378,7 @@ mod tests {
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
 
-        let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap());
+        let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap(), None);
         assert!(result.is_ok());
 
         std::env::set_current_dir(original_dir).unwrap();
@@ -394,7 +394,7 @@ mod tests {
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
 
-        let result = execute(&mut state_mgr, "old-doc", new_doc.to_str().unwrap());
+        let result = execute(&mut state_mgr, "old-doc", new_doc.to_str().unwrap(), None);
         assert!(result.is_ok());
 
         std::env::set_current_dir(original_dir).unwrap();
@@ -406,7 +406,7 @@ mod tests {
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
 
-        let result = execute(&mut state_mgr, "999", new_doc.to_str().unwrap());
+        let result = execute(&mut state_mgr, "999", new_doc.to_str().unwrap(), None);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));
     }
@@ -416,7 +416,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let mut state_mgr = create_test_state_manager(&temp);
 
-        let result = execute(&mut state_mgr, "1", "/nonexistent/file.md");
+        let result = execute(&mut state_mgr, "1", "/nonexistent/file.md", None);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));
     }
@@ -431,7 +431,7 @@ mod tests {
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", false);
 
-        let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap());
+        let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap(), None);
         assert!(result.is_ok());
 
         std::env::set_current_dir(original_dir).unwrap();
@@ -449,7 +449,7 @@ mod tests {
         let old_created = old_doc.metadata.created;
 
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
-        execute(&mut state_mgr, "1", new_doc.to_str().unwrap()).unwrap();
+        execute(&mut state_mgr, "1", new_doc.to_str().unwrap(), None).unwrap();
 
         let updated_doc = state_mgr.state().get(1).unwrap();
         assert_eq!(updated_doc.metadata.number, 1);
@@ -469,7 +469,7 @@ mod tests {
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
 
-        execute(&mut state_mgr, "1", new_doc.to_str().unwrap()).unwrap();
+        execute(&mut state_mgr, "1", new_doc.to_str().unwrap(), None).unwrap();
 
         let dustbin = temp.path().join("docs/.dustbin/overwritten");
         assert!(dustbin.exists());
@@ -489,7 +489,7 @@ mod tests {
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
 
-        execute(&mut state_mgr, "1", new_doc.to_str().unwrap()).unwrap();
+        execute(&mut state_mgr, "1", new_doc.to_str().unwrap(), None).unwrap();
 
         let draft_dir = temp.path().join("docs/01-draft");
         assert!(draft_dir.exists());
