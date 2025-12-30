@@ -2,11 +2,14 @@
 number: 10
 title: "Oxur Design Documentation CLI - Phases 9-10 Build Plan"
 author: "Duncan McGreggor & Claude"
+component: Tooling
+tags: [CLI, Phase-9, Phase-10]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # Oxur Design Documentation CLI - Phases 9-10 Build Plan

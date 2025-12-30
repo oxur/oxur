@@ -121,11 +121,22 @@ pub(crate) fn execute_command(
     state_mgr: &mut StateManager,
 ) -> Result<()> {
     match command {
-        Commands::List { state, verbose, removed, dev } => {
-            list_documents_with_state(index, Some(state_mgr), state, verbose, removed, dev)
+        Commands::List { state, verbose, removed, dev, component, tags } => {
+            list_documents_with_state(
+                index,
+                Some(state_mgr),
+                state,
+                verbose,
+                removed,
+                dev,
+                component,
+                tags,
+            )
         }
         Commands::Show { number, metadata_only } => show_document(index, number, metadata_only),
-        Commands::New { title, author } => new_document(index, title, author),
+        Commands::New { title, author, component, tags } => {
+            new_document(index, title, author, component, tags)
+        }
         Commands::Validate { fix } => validate_documents(index, state_mgr, fix),
         Commands::Index { format } => generate_index(index, &format),
         Commands::AddHeaders { path } => add_headers(&path),

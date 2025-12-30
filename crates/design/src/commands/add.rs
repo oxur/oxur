@@ -121,11 +121,14 @@ pub fn add_document(
         number,
         title: title.clone(),
         author: author.clone(),
+        component: None,
+        tags: Vec::new(),
         created: today,
         updated: today,
         state,
         supersedes: None,
         superseded_by: None,
+        version: "1.0".to_string(),
     };
 
     // Step 6: Process content

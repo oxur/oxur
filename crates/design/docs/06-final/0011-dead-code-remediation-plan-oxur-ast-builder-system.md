@@ -2,11 +2,14 @@
 number: 11
 title: "Dead Code Remediation Plan: oxur-ast Builder System"
 author: "Duncan McGreggor"
+component: AST
+tags: [Maintenance, Refactoring]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # Dead Code Remediation Plan: oxur-ast Builder System

@@ -9,22 +9,41 @@ use design::index::DocumentIndex;
 use std::fs;
 use std::path::PathBuf;
 
-pub fn new_document(index: &DocumentIndex, title: String, author: Option<String>) -> Result<()> {
+pub fn new_document(
+    index: &DocumentIndex,
+    title: String,
+    author: Option<String>,
+    component: Option<String>,
+    tags: Vec<String>,
+) -> Result<()> {
     let number = index.next_number();
     let author = author.unwrap_or_else(|| git::get_author("."));
 
     let today = Local::now().naive_local().date();
+
+    // Format component YAML (only if Some)
+    let component_yaml = component.as_ref()
+        .map(|c| format!("component: {}\n", c))
+        .unwrap_or_default();
+
+    // Format tags YAML (only if non-empty)
+    let tags_yaml = if tags.is_empty() {
+        String::new()
+    } else {
+        format!("tags: [{}]\n", tags.join(", "))
+    };
 
     let template = format!(
         r#"---
 number: {}
 title: "{}"
 author: "{}"
-created: {}
+{}{}created: {}
 updated: {}
 state: Draft
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # {}
@@ -57,7 +76,7 @@ superseded-by: null
 
 *How will we know this design is successful?*
 "#,
-        number, title, author, today, today, title
+        number, title, author, component_yaml, tags_yaml, today, today, title
     );
 
     let filename = format!(

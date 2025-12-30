@@ -2,11 +2,14 @@
 number: 15
 title: "oxur-table API (re)Design"
 author: "Duncan McGreggor & Claude"
+component: UI
+tags: [API-Design, Table]
 created: 2025-12-28
 updated: 2025-12-28
 state: Accepted
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # oxur-table API Design

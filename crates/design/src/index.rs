@@ -165,11 +165,14 @@ mod tests {
             number,
             title: format!("Test Doc {}", number),
             author: "Test Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         }
     }
 

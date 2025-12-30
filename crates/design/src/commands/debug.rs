@@ -642,11 +642,14 @@ mod tests {
                 number: num,
                 title: title.to_string(),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, num).unwrap(),
                 state: doc_state,
                 supersedes: None,
                 superseded_by: None,
+            version: "1.0".to_string(),
             };
             state_mgr.state_mut().upsert(
                 num,
@@ -758,11 +761,14 @@ mod tests {
             number: 1,
             title: "Test Doc".to_string(),
             author: "Test".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -822,11 +828,14 @@ mod tests {
             number: 1,
             title: "Test Doc".to_string(),
             author: "Test".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -920,11 +929,14 @@ mod tests {
             number: 1,
             title: long_title.to_string(),
             author: "Test Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -951,11 +963,14 @@ mod tests {
             number: 2,
             title: "Doc with supersedes".to_string(),
             author: "Test".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Active,
             supersedes: Some(1),
             superseded_by: None,
+        version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             2,
@@ -982,11 +997,14 @@ mod tests {
             number: 1,
             title: "Doc superseded".to_string(),
             author: "Test".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Superseded,
             supersedes: None,
             superseded_by: Some(2),
+        version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -1018,11 +1036,14 @@ mod tests {
             number: 1,
             title: "Test Doc".to_string(),
             author: "Test".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -1055,11 +1076,14 @@ mod tests {
             number: 1,
             title: long_title.to_string(),
             author: "Test".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,

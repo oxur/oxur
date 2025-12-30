@@ -2,11 +2,14 @@
 number: 5
 title: "oxur-ast Phase 1: Rust AST Types & Builder"
 author: "Duncan McGreggor"
+component: AST
+tags: [Phase-1, Builder]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # oxur-ast Phase 1: Rust AST Types & Builder

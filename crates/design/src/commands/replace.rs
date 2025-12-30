@@ -170,11 +170,14 @@ fn extract_basic_doc(content: &str, path: &PathBuf) -> Result<DesignDoc> {
             number: 0, // Will be overridden
             title,
             author,
+            component: None,
+            tags: Vec::new(),
             created,
             updated,
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         },
         content: content.to_string(),
         path: path.clone(),
@@ -214,11 +217,14 @@ fn merge_metadata(
         number,
         title,
         author,
+        component: new_meta.component.clone().or_else(|| old_meta.component.clone()),
+        tags: if new_meta.tags.is_empty() { old_meta.tags.clone() } else { new_meta.tags.clone() },
         created,
         updated,
         state: DocState::Draft, // New version always starts as draft
         supersedes,
         superseded_by,
+        version: "1.0".to_string(),
     }
 }
 
@@ -273,11 +279,14 @@ mod tests {
             number: 1,
             title: "Old Doc".to_string(),
             author: "Old Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Active,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
 
         let doc_path = docs_dir.join("05-active/0001-old-doc.md");
@@ -450,22 +459,28 @@ mod tests {
             number: 42,
             title: "Old".to_string(),
             author: "Old Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Active,
             supersedes: Some(10),
             superseded_by: None,
+        version: "1.0".to_string(),
         };
 
         let new_meta = DocMetadata {
             number: 999,
             title: "New".to_string(),
             author: "New Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: Some(50),
+        version: "1.0".to_string(),
         };
 
         let merged = merge_metadata(&old_meta, &new_meta, 42);
@@ -483,22 +498,28 @@ mod tests {
             number: 42,
             title: "Old".to_string(),
             author: "Old Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Active,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
 
         let new_meta = DocMetadata {
             number: 999,
             title: "Untitled Document".to_string(),
             author: "Unknown Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+        version: "1.0".to_string(),
         };
 
         let merged = merge_metadata(&old_meta, &new_meta, 42);

@@ -2,11 +2,14 @@
 number: 14
 title: "Rust AST Inventory for Oxur Lisp"
 author: "Duncan McGreggor"
+component: AST
+tags: [Reference, Documentation]
 created: 2025-12-27
 updated: 2025-12-27
 state: Accepted
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # Rust AST Inventory for Oxur Lisp

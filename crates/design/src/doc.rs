@@ -175,18 +175,58 @@ impl<'de> Deserialize<'de> for DocState {
     }
 }
 
+/// Custom deserializer for version field with major.minor validation
+fn deserialize_version<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Deserialize;
+    let s = String::deserialize(deserializer)?;
+
+    // Validate format: major.minor (e.g., "1.0", "2.3")
+    let parts: Vec<&str> = s.split('.').collect();
+
+    if parts.len() != 2 {
+        return Err(serde::de::Error::custom(
+            format!("Version must be in major.minor format (e.g., '1.0'), got: '{}'", s)
+        ));
+    }
+
+    // Validate both parts are numeric
+    for (idx, part) in parts.iter().enumerate() {
+        if part.parse::<u32>().is_err() {
+            let label = if idx == 0 { "major" } else { "minor" };
+            return Err(serde::de::Error::custom(
+                format!("Invalid {} version number: '{}' in '{}'", label, part, s)
+            ));
+        }
+    }
+
+    Ok(s)
+}
+
 /// Metadata from the YAML frontmatter
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocMetadata {
     pub number: u32,
     pub title: String,
     pub author: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub created: NaiveDate,
     pub updated: NaiveDate,
     pub state: DocState,
     pub supersedes: Option<u32>,
     #[serde(rename = "superseded-by")]
     pub superseded_by: Option<u32>,
+    #[serde(default = "default_version", deserialize_with = "deserialize_version")]
+    pub version: String,
+}
+
+fn default_version() -> String {
+    "1.0".to_string()
 }
 
 /// A complete design document
@@ -262,13 +302,28 @@ fn escape_yaml_string(s: &str) -> String {
 /// Build complete YAML frontmatter from metadata
 pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
     let mut yaml = String::from("---\n");
+
+    // 1-3: number, title, author
     yaml.push_str(&format!("number: {}\n", metadata.number));
     yaml.push_str(&format!("title: \"{}\"\n", escape_yaml_string(&metadata.title)));
     yaml.push_str(&format!("author: \"{}\"\n", escape_yaml_string(&metadata.author)));
+
+    // 4: component (only if Some)
+    if let Some(component) = &metadata.component {
+        yaml.push_str(&format!("component: {}\n", component));
+    }
+
+    // 5: tags (only if non-empty) - YAML flow sequence
+    if !metadata.tags.is_empty() {
+        yaml.push_str(&format!("tags: [{}]\n", metadata.tags.join(", ")));
+    }
+
+    // 6-8: created, updated, state
     yaml.push_str(&format!("created: {}\n", metadata.created));
     yaml.push_str(&format!("updated: {}\n", metadata.updated));
     yaml.push_str(&format!("state: {}\n", metadata.state.as_str()));
 
+    // 9-10: supersedes, superseded-by
     if let Some(supersedes) = metadata.supersedes {
         yaml.push_str(&format!("supersedes: {}\n", supersedes));
     } else {
@@ -280,6 +335,9 @@ pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
     } else {
         yaml.push_str("superseded-by: null\n");
     }
+
+    // 11: version (always present)
+    yaml.push_str(&format!("version: {}\n", metadata.version));
 
     yaml.push_str("---\n\n");
     yaml
@@ -384,11 +442,14 @@ pub fn add_missing_headers(
                     number,
                     title,
                     author,
+                    component: None,
+                    tags: Vec::new(),
                     created,
                     updated,
                     state: DocState::Draft,
                     supersedes: None,
                     superseded_by: None,
+                    version: "1.0".to_string(),
                 };
                 added_fields = [
                     "number",
@@ -399,6 +460,7 @@ pub fn add_missing_headers(
                     "state",
                     "supersedes",
                     "superseded-by",
+                    "version",
                 ]
                 .iter()
                 .map(|s| s.to_string())
@@ -417,11 +479,14 @@ pub fn add_missing_headers(
             number,
             title,
             author,
+            component: None,
+            tags: Vec::new(),
             created,
             updated,
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         };
 
         added_fields = [
@@ -433,6 +498,7 @@ pub fn add_missing_headers(
             "state",
             "supersedes",
             "superseded-by",
+            "version",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -851,11 +917,14 @@ mod parsing_tests {
             number: 42,
             title: "My Cool Feature".to_string(),
             author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         };
         let doc =
             DesignDoc { metadata, content: "test".to_string(), path: PathBuf::from("test.md") };
@@ -869,11 +938,14 @@ mod parsing_tests {
             number: 1,
             title: "Test!!! Document???".to_string(),
             author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 2).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         };
         let doc =
             DesignDoc { metadata, content: "test".to_string(), path: PathBuf::from("test.md") };
@@ -986,11 +1058,14 @@ mod frontmatter_tests {
             number: 42,
             title: "Test Document".to_string(),
             author: "Test Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             state: DocState::Draft,
             supersedes: Some(41),
             superseded_by: Some(43),
+            version: "1.0".to_string(),
         };
 
         let yaml = build_yaml_frontmatter(&metadata);
@@ -1002,6 +1077,7 @@ mod frontmatter_tests {
         assert!(yaml.contains("state: Draft\n"));
         assert!(yaml.contains("supersedes: 41\n"));
         assert!(yaml.contains("superseded-by: 43\n"));
+        assert!(yaml.contains("version: 1.0\n"));
         assert!(yaml.ends_with("---\n\n"));
     }
 
@@ -1011,11 +1087,14 @@ mod frontmatter_tests {
             number: 1,
             title: "Test".to_string(),
             author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         };
 
         let yaml = build_yaml_frontmatter(&metadata);
@@ -1031,11 +1110,14 @@ mod frontmatter_tests {
                 number: 1,
                 title: "Test".to_string(),
                 author: "Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
 
             let yaml = build_yaml_frontmatter(&metadata);
@@ -1049,11 +1131,14 @@ mod frontmatter_tests {
             number: 1,
             title: "Test \"Title\" with Quotes".to_string(),
             author: "\"Jane Developer\"".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         };
 
         let yaml = build_yaml_frontmatter(&metadata);
@@ -1073,11 +1158,14 @@ mod frontmatter_tests {
             number: 1,
             title: "Path\\to\\file".to_string(),
             author: "Author\\Name".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         };
 
         let yaml = build_yaml_frontmatter(&metadata);
@@ -1254,7 +1342,7 @@ mod file_operations_tests {
         assert!(new_content.contains("number: 42"));
         assert!(new_content.contains("title: \"Test Document\""));
         assert!(new_content.contains("state: Draft"));
-        assert_eq!(added_fields.len(), 8);
+        assert_eq!(added_fields.len(), 9);
         assert!(added_fields.contains(&"number".to_string()));
     }
 
@@ -1298,7 +1386,7 @@ mod file_operations_tests {
         assert!(new_content.starts_with("---\n"));
         assert!(new_content.contains("number: 42"));
         assert!(new_content.contains("title: \"Test Document\""));
-        assert_eq!(added_fields.len(), 8);
+        assert_eq!(added_fields.len(), 9);
     }
 
     #[test]
@@ -1421,11 +1509,14 @@ mod property_tests {
                 number: num,
                 title: "Test".to_string(),
                 author: "Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
 
             let yaml = build_yaml_frontmatter(&metadata);

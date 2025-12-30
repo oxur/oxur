@@ -59,6 +59,20 @@ pub fn show_document(index: &DocumentIndex, number: u32, _metadata_only: bool) -
     // Updated
     builder.push_record([" Updated ", &format!(" {}", doc.metadata.updated)]);
 
+    // Component (only if present)
+    if let Some(component) = &doc.metadata.component {
+        builder.push_record([" Component", &format!(" {}", component)]);
+    }
+
+    // Tags (only if non-empty)
+    if !doc.metadata.tags.is_empty() {
+        let tags_str = doc.metadata.tags.join(", ");
+        builder.push_record([" Tags", &format!(" {}", tags_str)]);
+    }
+
+    // Version
+    builder.push_record([" Version", &format!(" {}", doc.metadata.version)]);
+
     // Path (relative to current working directory)
     let rel_path = get_relative_path(&doc.path);
     builder.push_record([" Path", &format!(" {} ", rel_path)]);

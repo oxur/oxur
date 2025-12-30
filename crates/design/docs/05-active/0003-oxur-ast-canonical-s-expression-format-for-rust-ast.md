@@ -2,11 +2,14 @@
 number: 3
 title: "oxur-ast: Canonical S-Expression Format for Rust AST"
 author: "Duncan McGreggor"
+component: AST
+tags: [S-Expression, Phase-0]
 created: 2025-12-27
 updated: 2025-12-27
 state: Active
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # oxur-ast: Canonical S-Expression Format for Rust AST

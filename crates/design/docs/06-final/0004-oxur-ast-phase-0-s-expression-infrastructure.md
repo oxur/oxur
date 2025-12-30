@@ -2,11 +2,14 @@
 number: 4
 title: "oxur-ast Phase 0: S-Expression Infrastructure"
 author: "Duncan McGreggor"
+component: AST
+tags: [Phase-0, Infrastructure]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # oxur-ast Phase 0: S-Expression Infrastructure

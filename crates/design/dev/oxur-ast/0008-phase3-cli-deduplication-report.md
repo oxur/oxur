@@ -11,6 +11,7 @@
 This report analyzes code patterns shared between two Oxur CLI tools to identify opportunities for deduplication and the creation of a shared `oxur-cli-common` crate.
 
 **Key Findings:**
+
 - Both CLIs share identical structural patterns for organization, error handling, and command dispatch
 - Colored terminal output is handled identically in both tools
 - Command-line parsing follows the same clap-based patterns
@@ -22,11 +23,13 @@ This report analyzes code patterns shared between two Oxur CLI tools to identify
 ## CLI Tools Analyzed
 
 ### 1. `aster` - AST Manipulation CLI
+
 **Location:** `crates/oxur-ast/`
 **Purpose:** Rust AST ↔ S-expression conversion and verification
 **Commands:** `to-ast`, `to-rust`, `verify`
 
 ### 2. `oxd` - Design Documentation Manager
+
 **Location:** `crates/design/`
 **Purpose:** Manage design documents with state tracking
 **Commands:** `list`, `show`, `new`, `validate`, `transition`, `add`, `scan`, `debug`, etc.
@@ -40,6 +43,7 @@ This report analyzes code patterns shared between two Oxur CLI tools to identify
 Both tools use identical organizational patterns:
 
 **Pattern:**
+
 ```rust
 // Identical structure in both
 use anyhow::Result;
@@ -62,6 +66,7 @@ fn main() -> Result<()> {
 ```
 
 **Locations:**
+
 - `aster`: `crates/oxur-ast/src/main.rs` (lines 1-21)
 - `oxd`: `crates/design/src/main.rs` (lines 1-60)
 
@@ -75,6 +80,7 @@ fn main() -> Result<()> {
 Both tools use identical patterns for separating CLI definitions:
 
 **Pattern:**
+
 ```rust
 //! CLI argument parsing
 
@@ -96,6 +102,7 @@ pub enum Commands {
 ```
 
 **Locations:**
+
 - `aster`: `crates/oxur-ast/src/cli.rs` (lines 1-95)
 - `oxd`: `crates/design/src/cli.rs` (lines 1-200+)
 
@@ -109,6 +116,7 @@ pub enum Commands {
 Both tools use identical error formatting:
 
 **Pattern:**
+
 ```rust
 use colored::*;
 
@@ -123,6 +131,7 @@ println!("{} ...", "→".cyan());
 ```
 
 **Locations:**
+
 - `aster`: `src/main.rs` (line 16), `src/commands/verify.rs` (lines 534, 545, 555, 565, 577, 581)
 - `oxd`: `src/main.rs` (lines 25-50), `src/errors.rs` (custom error module)
 
@@ -136,6 +145,7 @@ println!("{} ...", "→".cyan());
 Both tools use match-based command dispatch:
 
 **Pattern:**
+
 ```rust
 fn execute_command(command: Commands, ...) -> Result<()> {
     match command {
@@ -147,6 +157,7 @@ fn execute_command(command: Commands, ...) -> Result<()> {
 ```
 
 **Locations:**
+
 - `aster`: `src/main.rs` (lines 23-29)
 - `oxd`: `src/main.rs` (lines 117-170)
 
@@ -160,6 +171,7 @@ fn execute_command(command: Commands, ...) -> Result<()> {
 Both tools handle stdin/stdout and file paths similarly:
 
 **Pattern:**
+
 ```rust
 // Read from stdin or file
 let content = if input.to_str() == Some("-") {
@@ -183,6 +195,7 @@ if let Some(output_path) = output {
 ```
 
 **Locations:**
+
 - `aster`: `src/commands/to_ast.rs` (lines 422-453), `src/commands/to_rust.rs` (lines 474-502)
 - `oxd`: Various command modules (file reading patterns)
 
@@ -196,6 +209,7 @@ if let Some(output_path) = output {
 Both tools use step-by-step progress output:
 
 **Pattern:**
+
 ```rust
 println!("1. Doing step one...");
 println!("   {} Done", "✓".green());
@@ -207,6 +221,7 @@ println!("\n{} All complete!", "✓".green().bold());
 ```
 
 **Locations:**
+
 - `aster`: `src/commands/verify.rs` (lines 528-584), `examples/convert_file.rs` (lines 26-42)
 - `oxd`: `src/commands/scan.rs`, `src/commands/validate.rs`
 
@@ -220,6 +235,7 @@ println!("\n{} All complete!", "✓".green().bold());
 Both CLIs use identical error handling strategy:
 
 **Pattern:**
+
 ```rust
 use anyhow::Result;
 
@@ -232,6 +248,7 @@ pub fn command(...) -> Result<()> {
 ```
 
 **Locations:**
+
 - Used throughout both codebases
 - `aster`: All command modules
 - `oxd`: All command modules
@@ -244,16 +261,19 @@ pub fn command(...) -> Result<()> {
 ## Patterns NOT Currently Shared
 
 ### 1. Table Rendering
+
 **oxd only:** Uses custom colored ASCII table rendering
 **Location:** `crates/design/src/commands/list.rs`, integration with `oxur-table` crate
 **Potential:** `aster` may need table output in the future
 
 ### 2. State Management
+
 **oxd only:** Complex state tracking with checksums and git integration
 **Location:** `crates/design/src/state/`
 **Potential:** Not applicable to `aster`
 
 ### 3. Interactive Prompts
+
 **oxd only:** Interactive mode for document addition
 **Location:** `crates/design/src/commands/add.rs`
 **Potential:** Could be useful for future `aster` features
@@ -277,13 +297,13 @@ oxur-cli-common/
 └── Cargo.toml
 ```
 
-2. **Extract High-Priority Patterns:**
+1. **Extract High-Priority Patterns:**
    - ✅ **io.rs**: `read_input()`, `write_output()` functions
    - ✅ **output.rs**: Colored helpers (success, error, info, etc.)
    - ✅ **progress.rs**: Step tracking with visual feedback
    - ✅ **errors.rs**: Standardized error formatting
 
-3. **Document CLI Pattern Guidelines:**
+2. **Document CLI Pattern Guidelines:**
    - Standard main.rs structure
    - CLI/command separation pattern
    - Error handling conventions
@@ -334,6 +354,7 @@ pub fn write_output(content: &str, path: Option<&PathBuf>) -> Result<()> {
 ```
 
 **Impact:**
+
 - `aster`: Replace 30+ lines across `to_ast.rs`, `to_rust.rs`
 - `oxd`: Could replace similar patterns in multiple command modules
 - **Est. LOC Reduction:** ~60-80 lines across both CLIs
@@ -374,6 +395,7 @@ pub fn step_done() {
 ```
 
 **Impact:**
+
 - `aster`: Replace ~15 lines in `verify.rs`, `convert_file.rs`
 - `oxd`: Could standardize output across all commands
 - **Est. LOC Reduction:** ~40-60 lines across both CLIs
@@ -422,6 +444,7 @@ impl ProgressTracker {
 ```
 
 **Impact:**
+
 - `aster`: Simplify `verify.rs` verbose mode
 - `oxd`: Could enhance progress feedback in long-running commands
 - **Est. LOC Reduction:** ~25-35 lines
@@ -431,12 +454,14 @@ impl ProgressTracker {
 ## Migration Strategy
 
 ### Phase 1: Create Foundation (Week 1)
+
 1. Create `oxur-cli-common` crate skeleton
 2. Add to workspace Cargo.toml
 3. Implement `io.rs` module with comprehensive tests
 4. Implement `output.rs` module
 
 ### Phase 2: Migrate `aster` (Week 2)
+
 1. Add dependency on `oxur-cli-common`
 2. Replace I/O patterns in `to_ast.rs`, `to_rust.rs`
 3. Replace output patterns in `verify.rs`
@@ -444,6 +469,7 @@ impl ProgressTracker {
 5. Run full test suite to verify
 
 ### Phase 3: Migrate `oxd` (Week 3)
+
 1. Add dependency on `oxur-cli-common`
 2. Identify command modules to update
 3. Incremental migration (one command at a time)
@@ -451,6 +477,7 @@ impl ProgressTracker {
 5. Full regression testing
 
 ### Phase 4: Documentation & Guidelines (Week 4)
+
 1. Write `oxur-cli-common` usage guide
 2. Document CLI development patterns
 3. Create example "hello world" CLI using common utilities
@@ -533,6 +560,7 @@ The analysis reveals significant opportunities for code reuse between `aster` an
 ---
 
 **Next Steps:**
+
 1. Create GitHub issue for `oxur-cli-common` crate
 2. Design detailed API for initial modules (io, output, progress)
 3. Write comprehensive tests before extraction

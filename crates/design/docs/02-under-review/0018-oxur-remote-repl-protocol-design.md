@@ -2,11 +2,14 @@
 number: 18
 title: "Oxur Remote REPL Protocol Design"
 author: "Duncan McGreggor & Claude"
+component: REPL
+tags: [Protocol, Multi-Transport, API-Design]
 created: 2025-12-28
 updated: 2025-12-28
 state: Under Review
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # Oxur Remote REPL Protocol Design

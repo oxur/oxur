@@ -2,11 +2,14 @@
 number: 17
 title: "Recommendations for Future-proofing Multiple REPL Protocols"
 author: "Duncan McGreggor & Claude"
+component: REPL
+tags: [Protocol, Design]
 created: 2025-12-28
 updated: 2025-12-28
 state: Under Review
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # Recommendations for Future-proofing Multiple REPL Protocols

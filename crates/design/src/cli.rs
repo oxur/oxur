@@ -71,6 +71,14 @@ pub enum Commands {
         /// Show untracked development documents
         #[arg(long)]
         dev: bool,
+
+        /// Filter by component
+        #[arg(short, long)]
+        component: Option<String>,
+
+        /// Filter by tags (comma-separated, matches ANY tag)
+        #[arg(short, long, value_delimiter = ',')]
+        tags: Vec<String>,
     },
 
     /// Show a specific document
@@ -91,6 +99,14 @@ pub enum Commands {
         /// Author name (defaults to git config user.name)
         #[arg(short, long)]
         author: Option<String>,
+
+        /// System component (e.g., Compiler, AST, REPL, Tooling)
+        #[arg(short, long)]
+        component: Option<String>,
+
+        /// Tags (comma-separated, e.g., "Phase-0,Research,Protocol")
+        #[arg(short, long, value_delimiter = ',')]
+        tags: Vec<String>,
     },
 
     /// Validate all documents

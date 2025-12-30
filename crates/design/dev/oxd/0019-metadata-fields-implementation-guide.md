@@ -3,6 +3,7 @@
 ## Overview
 
 This guide details the implementation steps needed to extend the design document metadata/frontmatter with three new fields:
+
 - `component` (String) - The system component this document relates to
 - `tags` (Vec<String>) - Keywords/topics for categorization
 - `version` (String) - Document version number
@@ -10,6 +11,7 @@ This guide details the implementation steps needed to extend the design document
 ## Current State
 
 ### Current Metadata Structure
+
 ```yaml
 ---
 number: 17
@@ -24,6 +26,7 @@ superseded-by: null
 ```
 
 ### Target Metadata Structure
+
 ```yaml
 ---
 number: 17
@@ -43,11 +46,13 @@ version: 1.0
 ## Files to Modify
 
 ### Primary Changes
+
 1. `crates/design/src/doc.rs` - Core metadata type definitions
 2. `crates/design/src/commands/add_headers.rs` - Header addition logic
 3. Test files in `crates/design/tests/` and `crates/design/src/` test modules
 
 ### Secondary Changes (Validation)
+
 - Any code that serializes/deserializes `DocMetadata`
 - Documentation in `crates/design/README.md`
 - Template file at `crates/design/docs/templates/design-doc-template.md`
@@ -61,6 +66,7 @@ version: 1.0
 **Location:** Around line 74-86 (the `DocMetadata` struct definition)
 
 **Current Code:**
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocMetadata {
@@ -77,6 +83,7 @@ pub struct DocMetadata {
 ```
 
 **New Code:**
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocMetadata {
@@ -103,6 +110,7 @@ fn default_version() -> String {
 ```
 
 **Rationale:**
+
 - `component` is optional and won't be serialized if None (backward compatibility)
 - `tags` defaults to empty vector and won't be serialized if empty
 - `version` has a default of "1.0" for backward compatibility
@@ -115,6 +123,7 @@ fn default_version() -> String {
 **Location:** Around line 246-271 (the `build_yaml_frontmatter` function)
 
 **Current Code:**
+
 ```rust
 pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
     let mut yaml = String::from("---\n");
@@ -143,24 +152,25 @@ pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
 ```
 
 **New Code:**
+
 ```rust
 pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
     let mut yaml = String::from("---\n");
     yaml.push_str(&format!("number: {}\n", metadata.number));
     yaml.push_str(&format!("title: \"{}\"\n", escape_yaml_string(&metadata.title)));
     yaml.push_str(&format!("author: \"{}\"\n", escape_yaml_string(&metadata.author)));
-    
+
     // Add component if present
     if let Some(component) = &metadata.component {
         yaml.push_str(&format!("component: {}\n", component));
     }
-    
+
     // Add tags if present
     if !metadata.tags.is_empty() {
         let tags_str = metadata.tags.join(", ");
         yaml.push_str(&format!("tags: {}\n", tags_str));
     }
-    
+
     yaml.push_str(&format!("created: {}\n", metadata.created));
     yaml.push_str(&format!("updated: {}\n", metadata.updated));
     yaml.push_str(&format!("state: {}\n", metadata.state.as_str()));
@@ -176,7 +186,7 @@ pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
     } else {
         yaml.push_str("superseded-by: null\n");
     }
-    
+
     yaml.push_str(&format!("version: {}\n", metadata.version));
 
     yaml.push_str("---\n\n");
@@ -191,12 +201,14 @@ pub fn build_yaml_frontmatter(metadata: &DocMetadata) -> String {
 **Location:** Around line 302-387 (the `add_missing_headers` function)
 
 **Changes Needed:**
+
 1. Initialize new fields in metadata creation
 2. Add new fields to the `added_fields` list when creating from scratch
 
 **In the section where metadata is created from scratch (around line 360-369):**
 
 **Current Code:**
+
 ```rust
 let metadata = DocMetadata {
     number,
@@ -211,6 +223,7 @@ let metadata = DocMetadata {
 ```
 
 **New Code:**
+
 ```rust
 let metadata = DocMetadata {
     number,
@@ -230,6 +243,7 @@ let metadata = DocMetadata {
 **And update the added_fields list (around line 370-382):**
 
 **Current Code:**
+
 ```rust
 added_fields = [
     "number",
@@ -247,6 +261,7 @@ added_fields = [
 ```
 
 **New Code:**
+
 ```rust
 added_fields = [
     "number",
@@ -269,6 +284,7 @@ added_fields = [
 ### Step 4: Update All Test Fixtures
 
 **Files to Update:**
+
 - All test functions in `crates/design/src/doc.rs` (docstate_tests, parsing_tests, frontmatter_tests, file_operations_tests, property_tests)
 - `crates/design/src/commands/add_headers.rs` test module
 - Any integration tests in `crates/design/tests/`
@@ -276,6 +292,7 @@ added_fields = [
 **Pattern for updating test metadata creation:**
 
 **Old:**
+
 ```rust
 let metadata = DocMetadata {
     number: 42,
@@ -290,6 +307,7 @@ let metadata = DocMetadata {
 ```
 
 **New:**
+
 ```rust
 let metadata = DocMetadata {
     number: 42,
@@ -309,16 +327,19 @@ let metadata = DocMetadata {
 **For test YAML strings, add the new fields in the appropriate location:**
 
 **Old:**
+
 ```rust
 let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\nContent";
 ```
 
 **New (minimal - no component/tags):**
+
 ```rust
 let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\nversion: 1.0\n---\n\nContent";
 ```
 
 **New (with component and tags):**
+
 ```rust
 let content = "---\nnumber: 42\ntitle: \"Test\"\nauthor: \"Author\"\ncomponent: REPL\ntags: tcp, ipc, serde\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\nversion: 1.0\n---\n\nContent";
 ```
@@ -415,9 +436,9 @@ fn test_build_yaml_frontmatter_with_version() {
 #[test]
 fn test_parse_document_with_new_fields() {
     let content = "---\nnumber: 42\ntitle: \"Test Document\"\nauthor: \"Test Author\"\ncomponent: REPL\ntags: tcp, ipc, serde\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\nversion: 1.0\n---\n\n# Test Document\n\nThis is the content.";
-    
+
     let result = DesignDoc::parse(content, PathBuf::from("test.md"));
-    
+
     assert!(result.is_ok());
     let doc = result.unwrap();
     assert_eq!(doc.metadata.component, Some("REPL".to_string()));
@@ -432,9 +453,9 @@ fn test_parse_document_with_new_fields() {
 fn test_parse_document_backward_compatibility() {
     // Old format without new fields should still parse
     let content = "---\nnumber: 42\ntitle: \"Test Document\"\nauthor: \"Test Author\"\ncreated: 2024-01-01\nupdated: 2024-01-02\nstate: Draft\nsupersedes: null\nsuperseded-by: null\n---\n\n# Test Document\n\nThis is the content.";
-    
+
     let result = DesignDoc::parse(content, PathBuf::from("test.md"));
-    
+
     assert!(result.is_ok());
     let doc = result.unwrap();
     assert_eq!(doc.metadata.component, None);
@@ -492,7 +513,9 @@ Design documents use YAML frontmatter with the following fields:
 ## Testing Strategy
 
 ### Unit Tests
+
 1. Run existing tests to ensure backward compatibility:
+
    ```bash
    cd crates/design
    cargo test
@@ -505,6 +528,7 @@ Design documents use YAML frontmatter with the following fields:
    - Test metadata serialization/deserialization
 
 ### Integration Tests
+
 1. Create a test document with all new fields
 2. Run `oxd add` to verify it processes correctly
 3. Run `oxd list` to verify display works
@@ -512,6 +536,7 @@ Design documents use YAML frontmatter with the following fields:
 5. Run `oxd validate` to ensure validation passes
 
 ### Manual Tests
+
 1. Create a new document with the new fields manually
 2. Run `oxd add-headers` on a document without the new fields
 3. Verify existing documents still work without the new fields
@@ -520,17 +545,20 @@ Design documents use YAML frontmatter with the following fields:
 ## Migration Considerations
 
 ### Backward Compatibility
+
 - **Critical:** Existing documents without the new fields MUST continue to work
 - The `component` and `tags` fields are optional (Option/Vec)
 - The `version` field has a default value
 - Serde attributes handle deserialization of old documents
 
 ### Forward Compatibility
+
 - New documents should include `version: 1.0` by default
 - `component` and `tags` can be omitted if not applicable
 - Consider adding a migration command if bulk updates are needed
 
 ### Recommended Migration Path
+
 1. Deploy changes without requiring updates to existing documents
 2. Update template and documentation
 3. Optionally create a migration tool: `oxd migrate-metadata`
@@ -539,10 +567,12 @@ Design documents use YAML frontmatter with the following fields:
 ## Potential Issues and Solutions
 
 ### Issue 1: Serde Deserialization Order
+
 **Problem:** YAML field order might matter for readability
 **Solution:** The implementation controls serialization order in `build_yaml_frontmatter`, so output will always be consistent
 
 ### Issue 2: Tags Parsing
+
 **Problem:** Tags are comma-separated in YAML but Vec in Rust
 **Solution:** Consider implementing custom deserializer if the simple string approach doesn't work:
 
@@ -568,6 +598,7 @@ where
 ```
 
 ### Issue 3: Existing State Files
+
 **Problem:** State files might have serialized metadata without new fields
 **Solution:** The serde `default` attributes handle this automatically
 
@@ -591,11 +622,13 @@ where
 Once the basic implementation is complete, consider:
 
 1. **Filtering by component:**
+
    ```bash
    oxd list --component REPL
    ```
 
 2. **Searching by tags:**
+
    ```bash
    oxd search --tag tcp
    ```

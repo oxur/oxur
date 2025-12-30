@@ -2,11 +2,14 @@
 number: 2
 title: "Oxur Design Documentation CLI - Build Plan"
 author: "Duncan McGreggor & Claude"
+component: Tooling
+tags: [CLI, Infrastructure]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # Oxur Design Documentation CLI - Build Plan

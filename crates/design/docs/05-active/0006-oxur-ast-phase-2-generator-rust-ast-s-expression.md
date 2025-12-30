@@ -2,11 +2,14 @@
 number: 6
 title: "oxur-ast Phase 2: Generator (Rust AST → S-expression)"
 author: Duncan McGreggor & Claude
+component: AST
+tags: [Phase-2, Generator]
 created: 2025-12-27
 updated: 2025-12-27
 state: Active
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # oxur-ast Phase 2: Generator (Rust AST → S-expression)

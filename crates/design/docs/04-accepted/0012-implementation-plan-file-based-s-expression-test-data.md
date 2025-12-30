@@ -2,11 +2,14 @@
 number: 12
 title: "Implementation Plan: File-Based S-Expression Test Data"
 author: "Duncan McGreggor & Claude"
+component: Testing
+tags: [Infrastructure, S-Expression]
 created: 2025-12-27
 updated: 2025-12-27
 state: Accepted
 supersedes: null
 superseded-by: null
+version: 1.0
 ---
 
 # Implementation Plan: File-Based S-Expression Test Data

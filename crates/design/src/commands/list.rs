@@ -68,7 +68,7 @@ pub fn list_documents(
     state_filter: Option<String>,
     verbose: bool,
 ) -> Result<()> {
-    list_documents_impl(index, None, state_filter, verbose, false, false)
+    list_documents_impl(index, None, state_filter, verbose, false, false, None, Vec::new())
 }
 
 pub fn list_documents_with_state(
@@ -78,8 +78,19 @@ pub fn list_documents_with_state(
     verbose: bool,
     removed: bool,
     dev: bool,
+    component_filter: Option<String>,
+    tags_filter: Vec<String>,
 ) -> Result<()> {
-    list_documents_impl(index, state_mgr, state_filter, verbose, removed, dev)
+    list_documents_impl(
+        index,
+        state_mgr,
+        state_filter,
+        verbose,
+        removed,
+        dev,
+        component_filter,
+        tags_filter,
+    )
 }
 
 fn list_documents_impl(
@@ -89,6 +100,8 @@ fn list_documents_impl(
     verbose: bool,
     removed: bool,
     dev: bool,
+    component_filter: Option<String>,
+    tags_filter: Vec<String>,
 ) -> Result<()> {
     // If showing dev documents, use special handling
     if dev {
@@ -107,7 +120,7 @@ fn list_documents_impl(
             return Ok(());
         }
     }
-    let docs = if let Some(state_str) = state_filter {
+    let mut docs = if let Some(state_str) = state_filter {
         match DocState::from_str_flexible(&state_str) {
             Some(state) => index.by_state(state),
             None => {
@@ -119,6 +132,24 @@ fn list_documents_impl(
     } else {
         index.all()
     };
+
+    // Apply component filter
+    if let Some(component) = &component_filter {
+        docs.retain(|doc| {
+            doc.metadata.component.as_ref()
+                .map(|c| c == component)
+                .unwrap_or(false)
+        });
+    }
+
+    // Apply tags filter (OR logic - match ANY tag)
+    if !tags_filter.is_empty() {
+        docs.retain(|doc| {
+            tags_filter.iter().any(|filter_tag| {
+                doc.metadata.tags.iter().any(|doc_tag| doc_tag == filter_tag)
+            })
+        });
+    }
 
     if verbose {
         // Verbose mode: keep the detailed multi-line format with separate title
