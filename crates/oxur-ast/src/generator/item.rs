@@ -239,6 +239,14 @@ impl Generator {
                 };
                 Ok(list(vec![sym("Path"), qself_sexp, self.generate_path(path)]))
             }
+            // Stage 6: Advanced types (TODO - implement)
+            TyKind::Ref { .. } => Ok(sym("TODO-Ref")),
+            TyKind::Ptr { .. } => Ok(sym("TODO-Ptr")),
+            TyKind::Array { .. } => Ok(sym("TODO-Array")),
+            TyKind::Slice(..) => Ok(sym("TODO-Slice")),
+            TyKind::Tuple(..) => Ok(sym("TODO-Tuple")),
+            TyKind::Never => Ok(sym("Never")),
+            TyKind::Infer => Ok(sym("Infer")),
         }
     }
 
@@ -274,6 +282,15 @@ impl Generator {
 
                 Ok(typed_node("Ident", fields))
             }
+            // Stage 6: Advanced patterns (TODO - implement)
+            PatKind::Wild => Ok(sym("Wild")),
+            PatKind::Struct { .. } => Ok(sym("TODO-Struct")),
+            PatKind::TupleStruct { .. } => Ok(sym("TODO-TupleStruct")),
+            PatKind::Tuple(..) => Ok(sym("TODO-Tuple")),
+            PatKind::Slice(..) => Ok(sym("TODO-Slice")),
+            PatKind::Or(..) => Ok(sym("TODO-Or")),
+            PatKind::Ref { .. } => Ok(sym("TODO-Ref")),
+            PatKind::Lit(..) => Ok(sym("TODO-Lit")),
         }
     }
 

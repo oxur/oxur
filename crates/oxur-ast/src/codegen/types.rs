@@ -28,6 +28,31 @@ impl RustCodegen {
                     self.generate_pat(sub_pat)?;
                 }
             }
+            // Stage 6: Advanced patterns (TODO - implement)
+            PatKind::Wild => {
+                self.write("_");
+            }
+            PatKind::Struct { .. } => {
+                self.write("/* struct pattern */");
+            }
+            PatKind::TupleStruct { .. } => {
+                self.write("/* tuple struct pattern */");
+            }
+            PatKind::Tuple(..) => {
+                self.write("/* tuple pattern */");
+            }
+            PatKind::Slice(..) => {
+                self.write("/* slice pattern */");
+            }
+            PatKind::Or(..) => {
+                self.write("/* or pattern */");
+            }
+            PatKind::Ref { .. } => {
+                self.write("/* ref pattern */");
+            }
+            PatKind::Lit(..) => {
+                self.write("/* lit pattern */");
+            }
         }
         Ok(())
     }
@@ -41,6 +66,28 @@ impl RustCodegen {
                     self.write("/* qualified type */");
                 }
                 self.generate_path(path)?;
+            }
+            // Stage 6: Advanced types (TODO - implement)
+            TyKind::Ref { .. } => {
+                self.write("/* ref type */");
+            }
+            TyKind::Ptr { .. } => {
+                self.write("/* ptr type */");
+            }
+            TyKind::Array { .. } => {
+                self.write("/* array type */");
+            }
+            TyKind::Slice(..) => {
+                self.write("/* slice type */");
+            }
+            TyKind::Tuple(..) => {
+                self.write("/* tuple type */");
+            }
+            TyKind::Never => {
+                self.write("!");
+            }
+            TyKind::Infer => {
+                self.write("_");
             }
         }
         Ok(())

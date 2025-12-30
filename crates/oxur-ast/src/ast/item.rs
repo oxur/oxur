@@ -132,9 +132,36 @@ pub struct Ty {
 /// Type kind
 #[derive(Debug, Clone, PartialEq)]
 pub enum TyKind {
-    // Phase 1: Only path types (e.g., i32, String)
+    // Phase 1: Path types (e.g., i32, String)
     Path(Option<QSelf>, Path),
-    // Future: Ptr, Ref, Array, Tup, etc.
+
+    // Stage 6: Advanced types
+    /// Reference type: `&T`, `&mut T`, `&'a T`, `&'a mut T`
+    Ref { lifetime: Option<Lifetime>, mutability: Mutability, ty: Box<Ty> },
+
+    /// Raw pointer type: `*const T`, `*mut T`
+    Ptr { mutability: Mutability, ty: Box<Ty> },
+
+    /// Array type: `[T; N]`
+    Array { ty: Box<Ty>, len: Expr },
+
+    /// Slice type: `[T]`
+    Slice(Box<Ty>),
+
+    /// Tuple type: `(A, B, C)`
+    Tuple(Vec<Ty>),
+
+    /// Never type: `!`
+    Never,
+
+    /// Infer type: `_`
+    Infer,
+}
+
+/// Lifetime (e.g., `'a`, `'static`)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Lifetime {
+    pub ident: Ident,
 }
 
 /// Qualified self (for associated types)
@@ -155,9 +182,43 @@ pub struct Pat {
 /// Pattern kind
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatKind {
-    // Phase 1: Only identifier patterns
+    // Phase 1: Identifier patterns
     Ident { binding_mode: BindingMode, ident: Ident, sub: Option<Box<Pat>> },
-    // Future: Struct, TupleStruct, Tuple, Slice, etc.
+
+    // Stage 6: Advanced patterns
+    /// Wildcard pattern: `_`
+    Wild,
+
+    /// Struct pattern: `Point { x, y }`
+    Struct { path: Path, fields: Vec<PatField> },
+
+    /// Tuple struct pattern: `Some(x)`
+    TupleStruct { path: Path, elems: Vec<Pat> },
+
+    /// Tuple pattern: `(a, b, c)`
+    Tuple(Vec<Pat>),
+
+    /// Slice pattern: `[a, b, .., c]`
+    Slice(Vec<Pat>),
+
+    /// Or pattern: `Some(x) | None`
+    Or(Vec<Pat>),
+
+    /// Reference pattern: `&x`, `&mut x`
+    Ref { pat: Box<Pat>, mutability: Mutability },
+
+    /// Literal pattern: `42`, `"hello"`
+    Lit(Box<Expr>),
+}
+
+/// Pattern field (for struct patterns)
+#[derive(Debug, Clone, PartialEq)]
+pub struct PatField {
+    pub attrs: AttrVec,
+    pub ident: Ident,
+    pub pat: Pat,
+    pub is_shorthand: bool, // true for `Point { x, y }` vs `Point { x: x, y: y }`
+    pub span: Span,
 }
 
 /// Binding mode
