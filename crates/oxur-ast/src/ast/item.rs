@@ -203,7 +203,6 @@ impl Block {
 // Stmt and StmtKind are defined in stmt.rs
 
 /// Stage 4: Struct and Enum types
-
 /// Variant data (for structs and enum variants)
 #[derive(Debug, Clone, PartialEq)]
 pub enum VariantData {
