@@ -21,7 +21,12 @@ pub enum ItemKind {
     // Stage 4: Struct and Enum items
     Struct(VariantData),
     Enum(EnumDef),
-    // Future: ExternCrate, Use, Static, Const, Mod, Trait, Impl, etc.
+
+    // Stage 5: Trait and Impl items
+    Trait(Box<TraitDef>),
+    Impl(Box<ImplDef>),
+
+    // Future: ExternCrate, Use, Static, Const, Mod, etc.
 }
 
 /// Function item
@@ -244,4 +249,58 @@ pub struct FieldDef {
     pub vis: Visibility,
     pub ident: Option<Ident>, // None for tuple fields
     pub ty: Ty,
+}
+
+/// Stage 5: Trait and Impl types
+/// Trait definition
+#[derive(Debug, Clone, PartialEq)]
+pub struct TraitDef {
+    pub safety: Safety,
+    pub generics: Generics,
+    pub bounds: Vec<GenericBound>,
+    pub items: Vec<AssocItem>,
+}
+
+/// Implementation definition
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImplDef {
+    pub safety: Safety,
+    pub generics: Generics,
+    pub of_trait: Option<TraitRef>, // None for inherent impls
+    pub self_ty: Ty,
+    pub items: Vec<AssocItem>,
+}
+
+/// Associated item (in traits and impls)
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssocItem {
+    pub attrs: AttrVec,
+    pub id: NodeId,
+    pub span: Span,
+    pub vis: Visibility,
+    pub ident: Ident,
+    pub kind: AssocItemKind,
+}
+
+/// Associated item kind
+#[derive(Debug, Clone, PartialEq)]
+pub enum AssocItemKind {
+    /// Associated function: `fn foo() { ... }`
+    Fn(Box<Fn>),
+    /// Associated type: `type Foo = Bar;`
+    Type(Option<Ty>), // None for type declarations without default
+    // Future: Const, MacCall
+}
+
+/// Trait reference (for trait bounds and impl blocks)
+#[derive(Debug, Clone, PartialEq)]
+pub struct TraitRef {
+    pub path: Path,
+}
+
+/// Generic bound (for trait bounds)
+#[derive(Debug, Clone, PartialEq)]
+pub enum GenericBound {
+    Trait(TraitRef),
+    // Future: Lifetime bounds
 }

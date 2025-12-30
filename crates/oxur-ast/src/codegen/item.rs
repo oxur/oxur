@@ -17,6 +17,8 @@ impl RustCodegen {
             ItemKind::Fn(func) => self.generate_fn_item(&item.ident, func)?,
             ItemKind::Struct(data) => self.generate_struct_item(&item.ident, data)?,
             ItemKind::Enum(enum_def) => self.generate_enum_item(&item.ident, enum_def)?,
+            ItemKind::Trait(trait_def) => self.generate_trait_item(&item.ident, trait_def)?,
+            ItemKind::Impl(impl_def) => self.generate_impl_item(impl_def)?,
         }
 
         Ok(())
@@ -274,6 +276,129 @@ impl RustCodegen {
             self.generate_expr(expr)?;
         }
 
+        Ok(())
+    }
+
+    /// Generate a trait item
+    fn generate_trait_item(&mut self, ident: &Ident, trait_def: &TraitDef) -> Result<()> {
+        // Safety keyword
+        if matches!(trait_def.safety, Safety::Unsafe) {
+            self.write("unsafe ");
+        }
+
+        self.write("trait ");
+        self.write(&ident.name);
+
+        // Generic parameters (simplified for now)
+        if !trait_def.generics.params.is_empty() {
+            self.write("</* generics */>");
+        }
+
+        // Trait bounds
+        if !trait_def.bounds.is_empty() {
+            self.write(": ");
+            for (i, bound) in trait_def.bounds.iter().enumerate() {
+                if i > 0 {
+                    self.write(" + ");
+                }
+                self.generate_generic_bound(bound)?;
+            }
+        }
+
+        self.write(" {");
+        self.writeln();
+        self.indent();
+
+        // Associated items
+        for item in &trait_def.items {
+            self.generate_assoc_item(item)?;
+        }
+
+        self.dedent();
+        self.write_indent();
+        self.write("}");
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate an impl item
+    fn generate_impl_item(&mut self, impl_def: &ImplDef) -> Result<()> {
+        // Safety keyword
+        if matches!(impl_def.safety, Safety::Unsafe) {
+            self.write("unsafe ");
+        }
+
+        self.write("impl");
+
+        // Generic parameters (simplified for now)
+        if !impl_def.generics.params.is_empty() {
+            self.write("</* generics */>");
+        }
+
+        self.write(" ");
+
+        // Trait reference (for trait impls)
+        if let Some(trait_ref) = &impl_def.of_trait {
+            self.generate_trait_ref(trait_ref)?;
+            self.write(" for ");
+        }
+
+        // Self type
+        self.generate_ty(&impl_def.self_ty)?;
+
+        self.write(" {");
+        self.writeln();
+        self.indent();
+
+        // Associated items
+        for item in &impl_def.items {
+            self.generate_assoc_item(item)?;
+        }
+
+        self.dedent();
+        self.write_indent();
+        self.write("}");
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate an associated item
+    fn generate_assoc_item(&mut self, item: &AssocItem) -> Result<()> {
+        self.write_indent();
+        self.generate_visibility(&item.vis)?;
+
+        match &item.kind {
+            AssocItemKind::Fn(func) => {
+                self.generate_fn_item(&item.ident, func)?;
+            }
+            AssocItemKind::Type(ty_opt) => {
+                self.write("type ");
+                self.write(&item.ident.name);
+                if let Some(ty) = ty_opt {
+                    self.write(" = ");
+                    self.generate_ty(ty)?;
+                }
+                self.write(";");
+                self.writeln();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Generate a trait reference
+    fn generate_trait_ref(&mut self, trait_ref: &TraitRef) -> Result<()> {
+        self.generate_path(&trait_ref.path)?;
+        Ok(())
+    }
+
+    /// Generate a generic bound
+    fn generate_generic_bound(&mut self, bound: &GenericBound) -> Result<()> {
+        match bound {
+            GenericBound::Trait(trait_ref) => {
+                self.generate_trait_ref(trait_ref)?;
+            }
+        }
         Ok(())
     }
 }

@@ -60,6 +60,12 @@ impl Generator {
             ItemKind::Enum(enum_def) => {
                 Ok(list(vec![sym("Enum"), self.generate_enum_def(enum_def)]))
             }
+            ItemKind::Trait(trait_def) => {
+                Ok(list(vec![sym("Trait"), self.generate_trait_def(trait_def)?]))
+            }
+            ItemKind::Impl(impl_def) => {
+                Ok(list(vec![sym("Impl"), self.generate_impl_def(impl_def)?]))
+            }
         }
     }
 
@@ -400,5 +406,98 @@ impl Generator {
         fields.extend(kwarg("ty", self.generate_ty(&field.ty).unwrap_or_else(|_| sym("ERROR"))));
 
         typed_node("FieldDef", fields)
+    }
+
+    fn generate_trait_def(&self, trait_def: &TraitDef) -> Result<SExp> {
+        let bounds_sexp = list(
+            trait_def
+                .bounds
+                .iter()
+                .map(|b| self.generate_generic_bound(b))
+                .collect::<Vec<_>>(),
+        );
+        let items_sexp = list(
+            trait_def
+                .items
+                .iter()
+                .map(|item| self.generate_assoc_item(item))
+                .collect::<Result<Vec<_>>>()?,
+        );
+
+        Ok(typed_node(
+            "TraitDef",
+            kwargs(vec![
+                kwarg("safety", self.generate_safety(trait_def.safety)),
+                kwarg("generics", self.generate_generics(&trait_def.generics)?),
+                kwarg("bounds", bounds_sexp),
+                kwarg("items", items_sexp),
+            ]),
+        ))
+    }
+
+    fn generate_impl_def(&self, impl_def: &ImplDef) -> Result<SExp> {
+        let mut fields = kwargs(vec![
+            kwarg("safety", self.generate_safety(impl_def.safety)),
+            kwarg("generics", self.generate_generics(&impl_def.generics)?),
+        ]);
+
+        // Optional trait reference
+        if let Some(ref trait_ref) = impl_def.of_trait {
+            fields.extend(kwarg("of-trait", self.generate_trait_ref(trait_ref)));
+        } else {
+            fields.extend(kwarg("of-trait", sym("nil")));
+        }
+
+        fields.extend(kwarg("self-ty", self.generate_ty(&impl_def.self_ty)?));
+
+        let items_sexp = list(
+            impl_def
+                .items
+                .iter()
+                .map(|item| self.generate_assoc_item(item))
+                .collect::<Result<Vec<_>>>()?,
+        );
+        fields.extend(kwarg("items", items_sexp));
+
+        Ok(typed_node("ImplDef", fields))
+    }
+
+    fn generate_assoc_item(&self, item: &AssocItem) -> Result<SExp> {
+        let kind_sexp = match &item.kind {
+            AssocItemKind::Fn(func) => {
+                list(vec![sym("Fn"), self.generate_fn(func)?])
+            }
+            AssocItemKind::Type(ty_opt) => {
+                if let Some(ty) = ty_opt {
+                    list(vec![sym("Type"), self.generate_ty(ty)?])
+                } else {
+                    list(vec![sym("Type"), sym("nil")])
+                }
+            }
+        };
+
+        Ok(typed_node(
+            "AssocItem",
+            kwargs(vec![
+                kwarg("attrs", self.generate_attr_vec(&item.attrs)?),
+                kwarg("id", self.generate_node_id(item.id)),
+                kwarg("span", self.generate_span(item.span)),
+                kwarg("vis", self.generate_visibility(&item.vis)),
+                kwarg("ident", self.generate_ident(&item.ident)),
+                kwarg("kind", kind_sexp),
+            ]),
+        ))
+    }
+
+    fn generate_trait_ref(&self, trait_ref: &TraitRef) -> SExp {
+        typed_node("TraitRef", kwargs(vec![kwarg("path", self.generate_path(&trait_ref.path))]))
+    }
+
+    fn generate_generic_bound(&self, bound: &GenericBound) -> SExp {
+        match bound {
+            GenericBound::Trait(trait_ref) => {
+                list(vec![sym("Trait"), self.generate_trait_ref(trait_ref)])
+            }
+        }
     }
 }
