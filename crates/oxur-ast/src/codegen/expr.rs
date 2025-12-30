@@ -116,6 +116,21 @@ impl RustCodegen {
                 }
                 self.generate_path(path)?;
             }
+            ExprKind::If { cond, then_branch, else_branch } => {
+                self.generate_if(cond, then_branch, else_branch.as_deref())?;
+            }
+            ExprKind::Match { expr, arms } => {
+                self.generate_match(expr, arms)?;
+            }
+            ExprKind::While { label, cond, body } => {
+                self.generate_while(label.as_ref(), cond, body)?;
+            }
+            ExprKind::ForLoop { label, pat, iter, body } => {
+                self.generate_for_loop(label.as_ref(), pat, iter, body)?;
+            }
+            ExprKind::Loop { label, body } => {
+                self.generate_loop(label.as_ref(), body)?;
+            }
         }
         Ok(())
     }
@@ -187,6 +202,124 @@ impl RustCodegen {
             }
             TokenStream::Empty => {}
         }
+        Ok(())
+    }
+
+    /// Generate an if expression
+    fn generate_if(
+        &mut self,
+        cond: &Expr,
+        then_branch: &Block,
+        else_branch: Option<&Expr>,
+    ) -> Result<()> {
+        self.write("if ");
+        self.generate_expr(cond)?;
+        self.write(" ");
+        self.generate_block(then_branch)?;
+
+        if let Some(else_expr) = else_branch {
+            self.write(" else ");
+            // Check if it's another if (else if chain) or a block
+            match &else_expr.kind {
+                ExprKind::If { .. } => {
+                    self.generate_expr(else_expr)?;
+                }
+                _ => {
+                    // Assume it's a block expression for else
+                    self.generate_expr(else_expr)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Generate a match expression
+    fn generate_match(&mut self, expr: &Expr, arms: &[Arm]) -> Result<()> {
+        self.write("match ");
+        self.generate_expr(expr)?;
+        self.write(" {");
+        self.writeln();
+        self.indent();
+
+        for arm in arms {
+            self.write_indent();
+            self.generate_pat(&arm.pat)?;
+
+            if let Some(guard) = &arm.guard {
+                self.write(" if ");
+                self.generate_expr(guard)?;
+            }
+
+            self.write(" => ");
+            self.generate_expr(&arm.body)?;
+            self.write(",");
+            self.writeln();
+        }
+
+        self.dedent();
+        self.write_indent();
+        self.write("}");
+
+        Ok(())
+    }
+
+    /// Generate a while loop
+    fn generate_while(
+        &mut self,
+        label: Option<&Label>,
+        cond: &Expr,
+        body: &Block,
+    ) -> Result<()> {
+        if let Some(lbl) = label {
+            self.write("'");
+            self.write(&lbl.ident.name);
+            self.write(": ");
+        }
+
+        self.write("while ");
+        self.generate_expr(cond)?;
+        self.write(" ");
+        self.generate_block(body)?;
+
+        Ok(())
+    }
+
+    /// Generate a for loop
+    fn generate_for_loop(
+        &mut self,
+        label: Option<&Label>,
+        pat: &Pat,
+        iter: &Expr,
+        body: &Block,
+    ) -> Result<()> {
+        if let Some(lbl) = label {
+            self.write("'");
+            self.write(&lbl.ident.name);
+            self.write(": ");
+        }
+
+        self.write("for ");
+        self.generate_pat(pat)?;
+        self.write(" in ");
+        self.generate_expr(iter)?;
+        self.write(" ");
+        self.generate_block(body)?;
+
+        Ok(())
+    }
+
+    /// Generate an infinite loop
+    fn generate_loop(&mut self, label: Option<&Label>, body: &Block) -> Result<()> {
+        if let Some(lbl) = label {
+            self.write("'");
+            self.write(&lbl.ident.name);
+            self.write(": ");
+        }
+
+        self.write("loop ");
+        self.generate_block(body)?;
+
         Ok(())
     }
 }

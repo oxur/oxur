@@ -17,7 +17,34 @@ pub enum ExprKind {
     MacCall(MacCall),
     Lit(Lit),
     Path(Option<QSelf>, Path),
-    // Future: Array, Call, MethodCall, Binary, If, Match, etc.
+
+    // Stage 2: Control flow
+    If {
+        cond: Box<Expr>,
+        then_branch: Block,
+        else_branch: Option<Box<Expr>>,
+    },
+    Match {
+        expr: Box<Expr>,
+        arms: Vec<Arm>,
+    },
+    While {
+        label: Option<Label>,
+        cond: Box<Expr>,
+        body: Block,
+    },
+    ForLoop {
+        label: Option<Label>,
+        pat: Pat,
+        iter: Box<Expr>,
+        body: Block,
+    },
+    Loop {
+        label: Option<Label>,
+        body: Block,
+    },
+
+    // Future: Array, Call, MethodCall, Binary, etc.
 }
 
 /// Macro call
@@ -64,4 +91,21 @@ pub enum LitKind {
     Str(String),
     Int(i128),
     // Future: Float, Char, Bool, Byte, ByteStr, etc.
+}
+
+/// Match arm
+#[derive(Debug, Clone, PartialEq)]
+pub struct Arm {
+    pub attrs: AttrVec,
+    pub pat: Pat,
+    pub guard: Option<Box<Expr>>,
+    pub body: Box<Expr>,
+    pub span: Span,
+    pub id: NodeId,
+}
+
+/// Loop label (e.g., 'outer in 'outer: loop { ... })
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Label {
+    pub ident: Ident,
 }
