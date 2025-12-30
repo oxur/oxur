@@ -20,6 +20,8 @@ quote = "1.0"
 # Phase 3: CLI dependencies
 clap.workspace = true
 anyhow.workspace = true
+oxur-cli = { path = "../oxur-cli" }
+# Keep colored for some specific formatting (e.g., file names in verify)
 colored.workspace = true
 
 [dev-dependencies]

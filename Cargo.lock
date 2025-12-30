@@ -849,6 +849,7 @@ dependencies = [
  "clap",
  "colored",
  "criterion",
+ "oxur-cli",
  "quote",
  "syn 2.0.111",
  "tempfile",

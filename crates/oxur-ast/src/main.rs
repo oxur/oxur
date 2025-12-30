@@ -2,7 +2,6 @@
 
 use anyhow::Result;
 use clap::Parser;
-use colored::*;
 use oxur_ast::commands;
 
 mod cli;
@@ -13,7 +12,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if let Err(e) = execute_command(cli.command) {
-        eprintln!("{} {}", "Error:".red().bold(), e);
+        oxur_cli::common::output::error(&e.to_string());
         std::process::exit(1);
     }
 

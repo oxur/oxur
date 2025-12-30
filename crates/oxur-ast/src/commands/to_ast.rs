@@ -2,19 +2,11 @@ use crate::integration::parse_rust_file;
 use crate::sexp::print_sexp;
 use crate::Generator;
 use anyhow::Result;
-use std::fs;
-use std::io::{self, Read};
 use std::path::PathBuf;
 
 pub fn execute(input: PathBuf, output: Option<PathBuf>, compact: bool) -> Result<()> {
-    // Read input
-    let source = if input.to_str() == Some("-") {
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        buffer
-    } else {
-        fs::read_to_string(&input)?
-    };
+    // Read input using common utility
+    let source = oxur_cli::common::io::read_input(&input)?;
 
     // Parse Rust
     let crate_node = parse_rust_file(&source)?;
@@ -32,16 +24,8 @@ pub fn execute(input: PathBuf, output: Option<PathBuf>, compact: bool) -> Result
         print_sexp(&sexp)
     };
 
-    // Write output
-    if let Some(output_path) = output {
-        if output_path.to_str() == Some("-") {
-            println!("{}", output_text);
-        } else {
-            fs::write(output_path, output_text)?;
-        }
-    } else {
-        println!("{}", output_text);
-    }
+    // Write output using common utility
+    oxur_cli::common::io::write_output(&output_text, output.as_deref())?;
 
     Ok(())
 }

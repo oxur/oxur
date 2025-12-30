@@ -2,74 +2,46 @@ use crate::integration::parse_rust_file;
 use crate::sexp::{print_sexp, Parser};
 use crate::{AstBuilder, Generator};
 use anyhow::Result;
-use colored::*;
+use colored::*; // Keep for the file name display
+use oxur_cli::common::progress::ProgressTracker;
 use std::fs;
 use std::path::PathBuf;
 
 pub fn execute(input: PathBuf, verbose: bool) -> Result<()> {
     let source = fs::read_to_string(&input)?;
+    let mut progress = ProgressTracker::new(verbose);
 
     println!("{} {}", "Verifying round-trip for:".bold(), input.display());
     if verbose {
         println!();
     }
 
-    // Step 1: Parse Rust
-    if verbose {
-        println!("1. Parsing Rust source...");
-    }
+    progress.step("Parsing Rust source");
     let crate1 = parse_rust_file(&source)?;
-    if verbose {
-        println!("   {} Parsed successfully", "✓".green());
-    }
+    progress.done();
 
-    // Step 2: Generate S-expression
-    if verbose {
-        println!("2. Generating S-expression...");
-    }
+    progress.step("Generating S-expression");
     let gen = Generator::new();
     let sexp = gen.generate_crate(&crate1)?;
-    if verbose {
-        println!("   {} Generated successfully", "✓".green());
-    }
+    progress.done();
 
-    // Step 3: Parse S-expression back
-    if verbose {
-        println!("3. Parsing S-expression...");
-    }
+    progress.step("Parsing S-expression");
     let sexp_text = print_sexp(&sexp);
     let sexp2 = Parser::parse_str(&sexp_text)?;
-    if verbose {
-        println!("   {} Parsed successfully", "✓".green());
-    }
+    progress.done();
 
-    // Step 4: Build AST
-    if verbose {
-        println!("4. Building AST from S-expression...");
-    }
+    progress.step("Building AST from S-expression");
     let mut builder = AstBuilder::new();
     let crate2 = builder.build_crate(&sexp2)?;
-    if verbose {
-        println!("   {} Built successfully", "✓".green());
-    }
+    progress.done();
 
-    // Step 5: Verify
-    if verbose {
-        println!("5. Verifying equivalence...");
-    }
+    progress.step("Verifying equivalence");
     if crate1.items.len() != crate2.items.len() {
         anyhow::bail!("Item count mismatch: {} vs {}", crate1.items.len(), crate2.items.len());
     }
-    if verbose {
-        println!("   {} Basic verification passed", "✓".green());
-    }
+    progress.done();
 
-    if !verbose {
-        println!("{} Round-trip verification successful!", "✓".green().bold());
-    } else {
-        println!();
-        println!("{} Round-trip verification successful!", "✓".green().bold());
-    }
+    progress.success("Round-trip verification successful!");
 
     Ok(())
 }
