@@ -11,6 +11,8 @@ pub enum InfoCommand {
     Config,
     Stats,
     Dirs,
+    Tags,
+    Components,
 }
 
 impl InfoCommand {
@@ -21,6 +23,8 @@ impl InfoCommand {
             Some("config") => InfoCommand::Config,
             Some("stats") => InfoCommand::Stats,
             Some("dirs") | Some("structure") => InfoCommand::Dirs,
+            Some("tags") => InfoCommand::Tags,
+            Some("components") => InfoCommand::Components,
             _ => InfoCommand::Overview,
         }
     }
@@ -36,6 +40,8 @@ pub fn execute(subcommand: Option<String>, state_mgr: &StateManager) -> Result<(
         InfoCommand::Config => show_config(state_mgr)?,
         InfoCommand::Stats => show_stats(state_mgr)?,
         InfoCommand::Dirs => show_dirs(state_mgr)?,
+        InfoCommand::Tags => show_tags(state_mgr)?,
+        InfoCommand::Components => show_components(state_mgr)?,
     }
 
     Ok(())
@@ -96,6 +102,8 @@ fn show_overview(state_mgr: &StateManager) -> Result<()> {
     println!("  {}  Frontmatter fields", "oxd info fields".yellow());
     println!("  {}  Configuration values", "oxd info config".yellow());
     println!("  {}  Project statistics", "oxd info stats".yellow());
+    println!("  {}  List all tags", "oxd info tags".yellow());
+    println!("  {}  List all components", "oxd info components".yellow());
     println!();
 
     println!("{}", "Documentation:".cyan().bold());
@@ -489,6 +497,118 @@ fn show_dirs(state_mgr: &StateManager) -> Result<()> {
     Ok(())
 }
 
+fn show_tags(state_mgr: &StateManager) -> Result<()> {
+    use std::collections::HashMap;
+    use tabled::builder::Builder;
+    use tabled::Tabled;
+
+    // Marker struct for table type parameter
+    #[derive(Tabled)]
+    struct TagRow {
+        tag: String,
+        occurrences: String,
+    }
+
+    // Collect all tags with occurrence counts
+    let all_docs = state_mgr.state().all();
+    let mut tag_counts: HashMap<String, usize> = HashMap::new();
+
+    for doc in &all_docs {
+        for tag in &doc.metadata.tags {
+            *tag_counts.entry(tag.clone()).or_insert(0) += 1;
+        }
+    }
+
+    // Convert to sorted vector (by occurrence count, descending)
+    let mut tag_vec: Vec<_> = tag_counts.into_iter().collect();
+    tag_vec.sort_by(|a, b| b.1.cmp(&a.1));
+
+    // Build table
+    let mut builder = Builder::default();
+
+    // Row 0: Title
+    builder.push_record(["TAGS", ""]);
+
+    // Row 1: Header
+    builder.push_record(["Tag", "Occurrences"]);
+
+    // Rows 2+: Data rows
+    for (tag, count) in &tag_vec {
+        builder.push_record([&format!(" {}", tag), &format!(" {}", count)]);
+    }
+
+    // Last row: Footer
+    let total_text = format!("Total Tags: {}", tag_vec.len());
+    builder.push_record([&total_text, ""]);
+
+    // Build and style
+    let mut table = builder.build();
+    let config = oxur_table::TableStyleConfig::default();
+    config.apply_to_table::<TagRow>(&mut table);
+
+    println!();
+    println!("{}", table);
+    println!();
+
+    Ok(())
+}
+
+fn show_components(state_mgr: &StateManager) -> Result<()> {
+    use std::collections::HashMap;
+    use tabled::builder::Builder;
+    use tabled::Tabled;
+
+    // Marker struct for table type parameter
+    #[derive(Tabled)]
+    struct ComponentRow {
+        component: String,
+        occurrences: String,
+    }
+
+    // Collect all components with occurrence counts
+    let all_docs = state_mgr.state().all();
+    let mut component_counts: HashMap<String, usize> = HashMap::new();
+
+    for doc in &all_docs {
+        if let Some(component) = &doc.metadata.component {
+            *component_counts.entry(component.clone()).or_insert(0) += 1;
+        }
+    }
+
+    // Convert to sorted vector (by occurrence count, descending)
+    let mut component_vec: Vec<_> = component_counts.into_iter().collect();
+    component_vec.sort_by(|a, b| b.1.cmp(&a.1));
+
+    // Build table
+    let mut builder = Builder::default();
+
+    // Row 0: Title
+    builder.push_record(["COMPONENTS", ""]);
+
+    // Row 1: Header
+    builder.push_record(["Component", "Occurrences"]);
+
+    // Rows 2+: Data rows
+    for (component, count) in &component_vec {
+        builder.push_record([&format!(" {}", component), &format!(" {}", count)]);
+    }
+
+    // Last row: Footer
+    let total_text = format!("Total Components: {}", component_vec.len());
+    builder.push_record([&total_text, ""]);
+
+    // Build and style
+    let mut table = builder.build();
+    let config = oxur_table::TableStyleConfig::default();
+    config.apply_to_table::<ComponentRow>(&mut table);
+
+    println!();
+    println!("{}", table);
+    println!();
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -781,5 +901,103 @@ author: Test Author
         let cmd = InfoCommand::States;
         let debug_str = format!("{:?}", cmd);
         assert!(debug_str.contains("States"));
+    }
+
+    #[test]
+    fn test_info_command_from_str_tags() {
+        let cmd = InfoCommand::from_str(Some("tags"));
+        assert!(matches!(cmd, InfoCommand::Tags));
+    }
+
+    #[test]
+    fn test_info_command_from_str_components() {
+        let cmd = InfoCommand::from_str(Some("components"));
+        assert!(matches!(cmd, InfoCommand::Components));
+    }
+
+    #[test]
+    fn test_execute_tags() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(Some("tags".to_string()), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_components() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = execute(Some("components".to_string()), &state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_tags_executes() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = show_tags(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_components_executes() {
+        let (_temp, state_mgr) = setup_test_state_manager();
+        let result = show_components(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_tags_with_documents() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create documents with tags
+        let doc_path = temp.path().join("01-draft/0001-test.md");
+        fs::write(
+            &doc_path,
+            r#"---
+number: 1
+title: Test Document
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+tags: [Phase-0, Research]
+---
+
+# Test Document
+"#,
+        )
+        .unwrap();
+
+        state_mgr.quick_scan().unwrap();
+
+        let result = show_tags(&state_mgr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_components_with_documents() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create documents with components
+        let doc_path = temp.path().join("01-draft/0001-test.md");
+        fs::write(
+            &doc_path,
+            r#"---
+number: 1
+title: Test Document
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+component: REPL
+---
+
+# Test Document
+"#,
+        )
+        .unwrap();
+
+        state_mgr.quick_scan().unwrap();
+
+        let result = show_components(&state_mgr);
+        assert!(result.is_ok());
     }
 }
