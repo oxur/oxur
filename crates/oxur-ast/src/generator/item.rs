@@ -54,6 +54,8 @@ impl Generator {
     fn generate_item_kind(&self, kind: &ItemKind) -> Result<SExp> {
         match kind {
             ItemKind::Fn(func) => Ok(list(vec![sym("Fn"), self.generate_fn(func)?])),
+            ItemKind::Struct(data) => Ok(list(vec![sym("Struct"), self.generate_variant_data(data)])),
+            ItemKind::Enum(enum_def) => Ok(list(vec![sym("Enum"), self.generate_enum_def(enum_def)])),
         }
     }
 
@@ -325,5 +327,79 @@ impl Generator {
         }
 
         typed_node("PathSegment", fields)
+    }
+
+    fn generate_variant_data(&self, data: &VariantData) -> SExp {
+        match data {
+            VariantData::Struct { fields, recovered } => {
+                let fields_sexp = list(fields.iter().map(|f| self.generate_field_def(f)).collect());
+                typed_node(
+                    "Struct",
+                    kwargs(vec![
+                        kwarg("fields", fields_sexp),
+                        kwarg("recovered", sym(if *recovered { "true" } else { "false" })),
+                    ]),
+                )
+            }
+            VariantData::Tuple(fields) => {
+                let fields_sexp = list(fields.iter().map(|f| self.generate_field_def(f)).collect());
+                list(vec![sym("Tuple"), fields_sexp])
+            }
+            VariantData::Unit => sym("Unit"),
+        }
+    }
+
+    fn generate_enum_def(&self, enum_def: &EnumDef) -> SExp {
+        let variants_sexp = list(
+            enum_def
+                .variants
+                .iter()
+                .map(|v| self.generate_variant(v))
+                .collect::<Vec<_>>(),
+        );
+        typed_node("EnumDef", kwargs(vec![kwarg("variants", variants_sexp)]))
+    }
+
+    fn generate_variant(&self, variant: &Variant) -> SExp {
+        let mut fields = kwargs(vec![
+            kwarg("attrs", self.generate_attr_vec(&variant.attrs).unwrap_or_else(|_| sym("ERROR"))),
+            kwarg("id", self.generate_node_id(variant.id)),
+            kwarg("span", self.generate_span(variant.span)),
+            kwarg("vis", self.generate_visibility(&variant.vis)),
+            kwarg("ident", self.generate_ident(&variant.ident)),
+            kwarg("data", self.generate_variant_data(&variant.data)),
+        ]);
+
+        // Optional discriminant expression
+        if let Some(ref expr) = variant.disr_expr {
+            fields.extend(kwarg(
+                "disr-expr",
+                self.generate_expr(expr).unwrap_or_else(|_| sym("ERROR")),
+            ));
+        } else {
+            fields.extend(kwarg("disr-expr", sym("nil")));
+        }
+
+        typed_node("Variant", fields)
+    }
+
+    fn generate_field_def(&self, field: &FieldDef) -> SExp {
+        let mut fields = kwargs(vec![
+            kwarg("attrs", self.generate_attr_vec(&field.attrs).unwrap_or_else(|_| sym("ERROR"))),
+            kwarg("id", self.generate_node_id(field.id)),
+            kwarg("span", self.generate_span(field.span)),
+            kwarg("vis", self.generate_visibility(&field.vis)),
+        ]);
+
+        // Optional ident (None for tuple fields)
+        if let Some(ref ident) = field.ident {
+            fields.extend(kwarg("ident", self.generate_ident(ident)));
+        } else {
+            fields.extend(kwarg("ident", sym("nil")));
+        }
+
+        fields.extend(kwarg("ty", self.generate_ty(&field.ty).unwrap_or_else(|_| sym("ERROR"))));
+
+        typed_node("FieldDef", fields)
     }
 }

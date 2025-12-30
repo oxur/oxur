@@ -15,6 +15,8 @@ impl RustCodegen {
         // Dispatch on item kind
         match &item.kind {
             ItemKind::Fn(func) => self.generate_fn_item(&item.ident, func)?,
+            ItemKind::Struct(data) => self.generate_struct_item(&item.ident, data)?,
+            ItemKind::Enum(enum_def) => self.generate_enum_item(&item.ident, enum_def)?,
         }
 
         Ok(())
@@ -149,6 +151,131 @@ impl RustCodegen {
         }
         Ok(())
     }
+
+    /// Generate a struct item
+    fn generate_struct_item(&mut self, ident: &Ident, data: &VariantData) -> Result<()> {
+        self.write("struct ");
+        self.write(&ident.name);
+
+        match data {
+            VariantData::Struct { fields, .. } => {
+                // Named fields: struct Point { x: i32, y: i32 }
+                self.write(" {");
+                if !fields.is_empty() {
+                    self.writeln();
+                    self.indent();
+                    for field in fields {
+                        self.write_indent();
+                        self.generate_field(field)?;
+                        self.write(",");
+                        self.writeln();
+                    }
+                    self.dedent();
+                    self.write_indent();
+                }
+                self.write("}");
+            }
+            VariantData::Tuple(fields) => {
+                // Tuple struct: struct Color(u8, u8, u8)
+                self.write("(");
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_visibility(&field.vis)?;
+                    self.generate_ty(&field.ty)?;
+                }
+                self.write(");");
+            }
+            VariantData::Unit => {
+                // Unit struct: struct Marker;
+                self.write(";");
+            }
+        }
+
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate an enum item
+    fn generate_enum_item(&mut self, ident: &Ident, enum_def: &EnumDef) -> Result<()> {
+        self.write("enum ");
+        self.write(&ident.name);
+        self.write(" {");
+        self.writeln();
+        self.indent();
+
+        for variant in &enum_def.variants {
+            self.write_indent();
+            self.generate_variant(variant)?;
+            self.write(",");
+            self.writeln();
+        }
+
+        self.dedent();
+        self.write_indent();
+        self.write("}");
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate a field definition
+    fn generate_field(&mut self, field: &FieldDef) -> Result<()> {
+        self.generate_visibility(&field.vis)?;
+        if let Some(ident) = &field.ident {
+            self.write(&ident.name);
+            self.write(": ");
+        }
+        self.generate_ty(&field.ty)?;
+        Ok(())
+    }
+
+    /// Generate an enum variant
+    fn generate_variant(&mut self, variant: &Variant) -> Result<()> {
+        self.generate_visibility(&variant.vis)?;
+        self.write(&variant.ident.name);
+
+        match &variant.data {
+            VariantData::Struct { fields, .. } => {
+                // Struct variant: Point { x: i32, y: i32 }
+                self.write(" { ");
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    if let Some(ident) = &field.ident {
+                        self.write(&ident.name);
+                        self.write(": ");
+                    }
+                    self.generate_ty(&field.ty)?;
+                }
+                self.write(" }");
+            }
+            VariantData::Tuple(fields) => {
+                // Tuple variant: Some(T)
+                self.write("(");
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_ty(&field.ty)?;
+                }
+                self.write(")");
+            }
+            VariantData::Unit => {
+                // Unit variant: None
+                // No additional output needed
+            }
+        }
+
+        // Explicit discriminant: Foo = 1
+        if let Some(ref expr) = variant.disr_expr {
+            self.write(" = ");
+            self.generate_expr(expr)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -207,8 +334,9 @@ mod tests {
     #[test]
     fn test_generate_unsafe_function() {
         let mut item = make_fn_item("baz", vec![], FnRetTy::Default(Span::DUMMY), None);
-        let ItemKind::Fn(ref mut func) = item.kind;
-        func.sig.header.safety = Safety::Unsafe;
+        if let ItemKind::Fn(ref mut func) = item.kind {
+            func.sig.header.safety = Safety::Unsafe;
+        }
 
         let mut codegen = RustCodegen::new();
         codegen.generate_item(&item).unwrap();

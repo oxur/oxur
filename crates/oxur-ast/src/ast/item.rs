@@ -17,7 +17,12 @@ pub struct Item {
 pub enum ItemKind {
     // Phase 1: Only function items
     Fn(Box<Fn>),
-    // Future: ExternCrate, Use, Static, Const, Mod, etc.
+
+    // Stage 4: Struct and Enum items
+    Struct(VariantData),
+    Enum(EnumDef),
+
+    // Future: ExternCrate, Use, Static, Const, Mod, Trait, Impl, etc.
 }
 
 /// Function item
@@ -197,3 +202,48 @@ impl Block {
 }
 
 // Stmt and StmtKind are defined in stmt.rs
+
+/// Stage 4: Struct and Enum types
+
+/// Variant data (for structs and enum variants)
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariantData {
+    /// Struct with named fields: `struct Point { x: i32, y: i32 }`
+    Struct { fields: Vec<FieldDef>, recovered: bool },
+
+    /// Tuple struct: `struct Color(u8, u8, u8)`
+    Tuple(Vec<FieldDef>),
+
+    /// Unit struct: `struct Marker;`
+    Unit,
+}
+
+/// Enum definition
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDef {
+    pub variants: Vec<Variant>,
+}
+
+/// Enum variant
+#[derive(Debug, Clone, PartialEq)]
+pub struct Variant {
+    pub attrs: AttrVec,
+    pub id: NodeId,
+    pub span: Span,
+    pub vis: Visibility,
+    pub ident: Ident,
+    pub data: VariantData,
+    /// Explicit discriminant: `Foo = 1`
+    pub disr_expr: Option<Expr>,
+}
+
+/// Field definition (for structs and enum variants)
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldDef {
+    pub attrs: AttrVec,
+    pub id: NodeId,
+    pub span: Span,
+    pub vis: Visibility,
+    pub ident: Option<Ident>, // None for tuple fields
+    pub ty: Ty,
+}

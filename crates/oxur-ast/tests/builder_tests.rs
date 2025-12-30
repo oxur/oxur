@@ -110,6 +110,7 @@ fn test_build_fn_with_body() {
         ItemKind::Fn(f) => {
             assert!(f.body.is_some());
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -132,5 +133,6 @@ fn test_complex_nested_build() {
                 assert_eq!(block.stmts.len(), 1);
             }
         }
+        _ => panic!("Expected Fn item"),
     }
 }

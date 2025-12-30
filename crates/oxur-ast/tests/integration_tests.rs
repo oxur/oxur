@@ -184,7 +184,7 @@ fn add(a: i32, b: i32) -> i32 {
     assert_eq!(item.ident.name, "add");
 
     // Verify it has parameters
-    let ast::ItemKind::Fn(fn_item) = &item.kind;
+    let ast::ItemKind::Fn(fn_item) = &item.kind else { panic!("Expected Fn"); };
     assert_eq!(fn_item.sig.decl.inputs.len(), 2);
 }
 
@@ -212,7 +212,7 @@ unsafe fn dangerous() {
     let crate_node = parse_rust_file(source).expect("Failed to parse");
 
     let item = &crate_node.items[0];
-    let ast::ItemKind::Fn(fn_item) = &item.kind;
+    let ast::ItemKind::Fn(fn_item) = &item.kind else { panic!("Expected Fn"); };
     assert_eq!(fn_item.sig.header.safety, ast::Safety::Unsafe);
 }
 
@@ -227,7 +227,7 @@ const fn compile_time() -> i32 {
     let crate_node = parse_rust_file(source).expect("Failed to parse");
 
     let item = &crate_node.items[0];
-    let ast::ItemKind::Fn(fn_item) = &item.kind;
+    let ast::ItemKind::Fn(fn_item) = &item.kind else { panic!("Expected Fn"); };
     assert_eq!(fn_item.sig.header.constness, ast::Constness::Const);
 }
 

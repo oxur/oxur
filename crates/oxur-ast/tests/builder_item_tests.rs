@@ -132,6 +132,7 @@ fn test_build_fn_minimal() {
             assert!(matches!(f.defaultness, Defaultness::Final));
             assert!(f.body.is_none());
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -145,6 +146,7 @@ fn test_build_fn_with_defaultness_final() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.defaultness, Defaultness::Final));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -158,6 +160,7 @@ fn test_build_fn_with_defaultness_default() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.defaultness, Defaultness::Default));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -174,6 +177,7 @@ fn test_build_fn_with_body() {
                 assert_eq!(block.id, NodeId(1));
             }
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -187,6 +191,7 @@ fn test_build_fn_with_nil_body() {
         ItemKind::Fn(f) => {
             assert!(f.body.is_none());
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -213,6 +218,7 @@ fn test_build_fn_sig_minimal() {
             assert!(matches!(f.sig.header.constness, Constness::NotConst));
             assert_eq!(f.sig.decl.inputs.len(), 0);
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -227,6 +233,7 @@ fn test_build_fn_sig_with_header() {
             assert!(matches!(f.sig.header.safety, Safety::Unsafe));
             assert!(matches!(f.sig.header.constness, Constness::Const));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -241,6 +248,7 @@ fn test_build_fn_sig_with_decl() {
             assert_eq!(f.sig.decl.inputs.len(), 0);
             assert!(matches!(f.sig.decl.output, FnRetTy::Default(_)));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -256,6 +264,7 @@ fn test_build_fn_header_default_safety() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.sig.header.safety, Safety::Default));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -269,6 +278,7 @@ fn test_build_fn_header_safe() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.sig.header.safety, Safety::Safe));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -282,6 +292,7 @@ fn test_build_fn_header_unsafe() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.sig.header.safety, Safety::Unsafe));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -295,6 +306,7 @@ fn test_build_fn_header_const() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.sig.header.constness, Constness::Const));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -308,6 +320,7 @@ fn test_build_fn_header_not_const() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.sig.header.constness, Constness::NotConst));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -324,6 +337,7 @@ fn test_build_fn_decl_no_inputs_default_output() {
             assert_eq!(f.sig.decl.inputs.len(), 0);
             assert!(matches!(f.sig.decl.output, FnRetTy::Default(_)));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -337,6 +351,7 @@ fn test_build_fn_decl_with_inputs() {
         ItemKind::Fn(f) => {
             assert_eq!(f.sig.decl.inputs.len(), 1);
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -350,6 +365,7 @@ fn test_build_fn_decl_with_multiple_inputs() {
         ItemKind::Fn(f) => {
             assert_eq!(f.sig.decl.inputs.len(), 3);
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -365,6 +381,7 @@ fn test_build_fn_ret_ty_default() {
         ItemKind::Fn(f) => {
             assert!(matches!(f.sig.decl.output, FnRetTy::Default(_)));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -379,6 +396,7 @@ fn test_build_fn_ret_ty_ty_variant() {
             // Currently simplified to return Default - this is Phase 1 limitation
             assert!(matches!(f.sig.decl.output, FnRetTy::Default(_)));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -394,6 +412,7 @@ fn test_build_fn_with_generics() {
         ItemKind::Fn(f) => {
             assert_eq!(f.generics.params.len(), 0);
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -424,6 +443,7 @@ fn test_build_complete_function_item() {
                 assert_eq!(block.stmts.len(), 1);
             }
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
@@ -438,6 +458,7 @@ fn test_build_unsafe_const_function() {
             assert!(matches!(f.sig.header.safety, Safety::Unsafe));
             assert!(matches!(f.sig.header.constness, Constness::Const));
         }
+        _ => panic!("Expected Fn item"),
     }
 }
 
