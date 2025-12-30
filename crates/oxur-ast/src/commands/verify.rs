@@ -1,8 +1,8 @@
+use crate::integration::parse_rust_file;
+use crate::sexp::{print_sexp, Parser};
+use crate::{AstBuilder, Generator};
 use anyhow::Result;
 use colored::*;
-use oxur_ast::integration::parse_rust_file;
-use oxur_ast::sexp::{print_sexp, Parser};
-use oxur_ast::{AstBuilder, Generator};
 use std::fs;
 use std::path::PathBuf;
 

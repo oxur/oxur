@@ -230,3 +230,78 @@ const fn compile_time() -> i32 {
     let ast::ItemKind::Fn(fn_item) = &item.kind;
     assert_eq!(fn_item.sig.header.constness, ast::Constness::Const);
 }
+
+#[test]
+fn test_round_trip_multiple_empty_functions() {
+    let rust_code = r#"
+fn a() {}
+fn b() {}
+fn c() {}
+fn d() {}
+fn e() {}
+    "#;
+
+    let crate1 = parse_rust_file(rust_code).unwrap();
+    let gen = Generator::new();
+    let sexp = gen.generate_crate(&crate1).unwrap();
+    let sexp_text = print_sexp(&sexp);
+    let sexp2 = Parser::parse_str(&sexp_text).unwrap();
+    let mut builder = AstBuilder::new();
+    let crate2 = builder.build_crate(&sexp2).unwrap();
+
+    assert_eq!(crate1.items.len(), crate2.items.len());
+    assert_eq!(crate1.items.len(), 5);
+}
+
+#[test]
+fn test_parse_public_unsafe_const() {
+    let rust_code = "pub unsafe fn danger() {}";
+
+    let crate_node = parse_rust_file(rust_code).unwrap();
+
+    assert_eq!(crate_node.items.len(), 1);
+}
+
+#[test]
+fn test_parse_const_pub() {
+    let rust_code = "pub const fn const_pub() {}";
+
+    let crate_node = parse_rust_file(rust_code).unwrap();
+
+    assert_eq!(crate_node.items.len(), 1);
+}
+
+#[test]
+fn test_parse_many_functions_mixed_visibility() {
+    let rust_code = r#"
+fn private1() {}
+pub fn public1() {}
+fn private2() {}
+pub fn public2() {}
+unsafe fn unsafe_priv() {}
+pub unsafe fn unsafe_pub() {}
+const fn const_priv() {}
+pub const fn const_pub() {}
+    "#;
+
+    let crate_node = parse_rust_file(rust_code).unwrap();
+
+    assert_eq!(crate_node.items.len(), 8);
+}
+
+#[test]
+fn test_builder_generates_sequential_ids() {
+    let rust_code = "fn foo() {} fn bar() {} fn baz() {}";
+
+    let crate1 = parse_rust_file(rust_code).unwrap();
+    let gen = Generator::new();
+    let sexp = gen.generate_crate(&crate1).unwrap();
+    let sexp_text = print_sexp(&sexp);
+    let sexp2 = Parser::parse_str(&sexp_text).unwrap();
+    let mut builder = AstBuilder::new();
+    let crate2 = builder.build_crate(&sexp2).unwrap();
+
+    // Builder should generate sequential IDs
+    assert!(crate2.items[0].id.0 > 0);
+    assert!(crate2.items[1].id.0 > crate2.items[0].id.0);
+}

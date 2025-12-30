@@ -1,7 +1,7 @@
+use crate::integration::parse_rust_file;
+use crate::sexp::print_sexp;
+use crate::Generator;
 use anyhow::Result;
-use oxur_ast::integration::parse_rust_file;
-use oxur_ast::sexp::print_sexp;
-use oxur_ast::Generator;
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;

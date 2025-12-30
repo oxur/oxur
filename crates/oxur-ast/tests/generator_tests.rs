@@ -94,3 +94,80 @@ fn test_generate_mac_call() {
     assert!(output.contains("Delimited"));
     assert!(output.contains("Hello, world!"));
 }
+
+#[test]
+fn test_generate_crate_with_placeholder() {
+    let mut crate_node = Crate::new(vec![], ModSpans::new(Span::new(0, 10)), NodeId(0));
+    crate_node.is_placeholder = true;
+
+    let gen = Generator::new();
+    let sexp = gen.generate_crate(&crate_node).unwrap();
+
+    let output = print_sexp(&sexp);
+    assert!(output.contains("Crate"));
+    assert!(output.contains(":is-placeholder"));
+    assert!(output.contains("true"));
+}
+
+#[test]
+fn test_generate_span_with_ctxt() {
+    let span = Span { lo: 0, hi: 10, ctxt: 42 };
+    let gen = Generator::new();
+    let sexp = gen.generate_span(span);
+
+    let output = print_sexp(&sexp);
+    assert!(output.contains("Span"));
+    assert!(output.contains(":ctxt"));
+    assert!(output.contains("42"));
+}
+
+#[test]
+fn test_generator_default() {
+    let gen1 = Generator::new();
+    let gen2 = Generator::default();
+
+    // Both should be able to generate the same output
+    let span = Span::new(0, 5);
+    let sexp1 = gen1.generate_span(span);
+    let sexp2 = gen2.generate_span(span);
+
+    assert_eq!(print_sexp(&sexp1), print_sexp(&sexp2));
+}
+
+#[test]
+fn test_generate_crate_with_items() {
+    let item = Item {
+        ident: Ident::new("foo", Span::new(0, 3)),
+        attrs: vec![],
+        id: NodeId(1),
+        kind: ItemKind::Fn(Box::new(Fn {
+            defaultness: Defaultness::Final,
+            sig: FnSig {
+                header: FnHeader {
+                    safety: Safety::Safe,
+                    constness: Constness::NotConst,
+                    ext: Extern::None,
+                    coroutine_kind: None,
+                },
+                decl: FnDecl { inputs: vec![], output: FnRetTy::Default(Span::new(0, 0)) },
+                span: Span::new(0, 10),
+            },
+            generics: Generics::empty(),
+            body: None,
+        })),
+        vis: Visibility::Inherited,
+        span: Span::new(0, 10),
+        tokens: None,
+    };
+
+    let crate_node = Crate::new(vec![item], ModSpans::new(Span::new(0, 10)), NodeId(0));
+
+    let gen = Generator::new();
+    let sexp = gen.generate_crate(&crate_node).unwrap();
+
+    let output = print_sexp(&sexp);
+    assert!(output.contains("Crate"));
+    assert!(output.contains(":items"));
+    assert!(output.contains("Item"));
+    assert!(output.contains("foo"));
+}

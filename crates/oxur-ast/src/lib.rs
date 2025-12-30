@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod builder;
+pub mod commands;
 pub mod error;
 pub mod generator;
 pub mod integration;

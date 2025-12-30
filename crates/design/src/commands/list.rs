@@ -965,4 +965,193 @@ mod tests {
         let result = list_removed_documents(&state_mgr, false);
         assert!(result.is_ok());
     }
+
+    // Tests for --dev flag functionality
+
+    #[test]
+    fn test_has_valid_prefix_valid() {
+        assert!(has_valid_prefix("0001-test.md"));
+        assert!(has_valid_prefix("9999-test.md"));
+        assert!(has_valid_prefix("0000-test.md"));
+    }
+
+    #[test]
+    fn test_has_valid_prefix_invalid() {
+        assert!(!has_valid_prefix("001-test.md")); // Only 3 digits
+        assert!(!has_valid_prefix("test-0001.md")); // Prefix not at start
+        assert!(!has_valid_prefix("abcd-test.md")); // Not digits
+        assert!(!has_valid_prefix("0001test.md")); // No dash
+        assert!(!has_valid_prefix("readme.md")); // No prefix
+    }
+
+    #[test]
+    fn test_extract_prefix_number() {
+        use std::path::PathBuf;
+
+        assert_eq!(extract_prefix_number(&PathBuf::from("0001-test.md")), 1);
+        assert_eq!(extract_prefix_number(&PathBuf::from("0042-answer.md")), 42);
+        assert_eq!(extract_prefix_number(&PathBuf::from("9999-max.md")), 9999);
+        assert_eq!(extract_prefix_number(&PathBuf::from("invalid.md")), 0);
+    }
+
+    #[test]
+    fn test_filter_dev_file_valid() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0001-test.md");
+        fs::write(&file_path, "test content").unwrap();
+
+        let result = filter_dev_file(&file_path).unwrap();
+        assert!(result.is_some());
+
+        let (path, _metadata) = result.unwrap();
+        assert_eq!(path, file_path);
+    }
+
+    #[test]
+    fn test_filter_dev_file_invalid_prefix() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("readme.md");
+        fs::write(&file_path, "test content").unwrap();
+
+        let result = filter_dev_file(&file_path).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_filter_dev_file_not_markdown() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("0001-test.txt");
+        fs::write(&file_path, "test content").unwrap();
+
+        let result = filter_dev_file(&file_path).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_filter_dev_file_hidden() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join(".0001-hidden.md");
+        fs::write(&file_path, "test content").unwrap();
+
+        let result = filter_dev_file(&file_path).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_collect_subdirectories_empty() {
+        let temp = TempDir::new().unwrap();
+
+        let result = collect_subdirectories(temp.path()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_collect_subdirectories_with_dirs() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join("subdir1")).unwrap();
+        fs::create_dir(temp.path().join("subdir2")).unwrap();
+        fs::create_dir(temp.path().join(".hidden")).unwrap(); // Should be ignored
+
+        let result = collect_subdirectories(temp.path()).unwrap();
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&"subdir1".to_string()));
+        assert!(result.contains(&"subdir2".to_string()));
+        assert!(!result.contains(&".hidden".to_string()));
+    }
+
+    #[test]
+    fn test_collect_dev_docs_non_recursive() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        fs::write(temp.path().join("0001-first.md"), "content1").unwrap();
+        fs::write(temp.path().join("0002-second.md"), "content2").unwrap();
+        fs::write(temp.path().join("readme.md"), "readme").unwrap(); // Should be ignored
+
+        // Create subdir with file (should be ignored in non-recursive mode)
+        let subdir = temp.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        fs::write(subdir.join("0003-third.md"), "content3").unwrap();
+
+        let result = collect_dev_docs(temp.path(), false).unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_collect_dev_docs_recursive() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        fs::write(temp.path().join("0001-first.md"), "content1").unwrap();
+
+        let subdir = temp.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        fs::write(subdir.join("0002-second.md"), "content2").unwrap();
+
+        let result = collect_dev_docs(temp.path(), true).unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_collect_dev_docs_sorted_descending() {
+        use std::fs;
+
+        let temp = TempDir::new().unwrap();
+        fs::write(temp.path().join("0001-first.md"), "content").unwrap();
+        fs::write(temp.path().join("0003-third.md"), "content").unwrap();
+        fs::write(temp.path().join("0002-second.md"), "content").unwrap();
+
+        let result = collect_dev_docs(temp.path(), false).unwrap();
+
+        // Should be sorted in descending order by number
+        let numbers: Vec<u32> =
+            result.iter().map(|(path, _)| extract_prefix_number(path)).collect();
+
+        assert_eq!(numbers, vec![3, 2, 1]);
+    }
+
+    #[test]
+    fn test_get_relative_path_from() {
+        use std::path::PathBuf;
+
+        let from = PathBuf::from("/Users/test/project");
+        let path = PathBuf::from("/Users/test/project/docs/file.md");
+
+        let result = get_relative_path_from(&path, &from);
+        assert_eq!(result, "docs/file.md");
+    }
+
+    #[test]
+    fn test_get_relative_path_from_same_dir() {
+        use std::path::PathBuf;
+
+        let from = PathBuf::from("/Users/test/project");
+        let path = PathBuf::from("/Users/test/project/file.md");
+
+        let result = get_relative_path_from(&path, &from);
+        assert_eq!(result, "file.md");
+    }
+
+    #[test]
+    fn test_format_mtime() {
+        use std::time::SystemTime;
+
+        let time = SystemTime::now();
+        let result = format_mtime(&time);
+
+        // Should be formatted as YYYY-MM-DD HH:MM
+        assert!(result.len() >= 16); // "YYYY-MM-DD HH:MM" is 16 chars minimum
+        assert!(result.contains('-'));
+        assert!(result.contains(':'));
+    }
 }

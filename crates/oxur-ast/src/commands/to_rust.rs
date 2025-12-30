@@ -1,6 +1,6 @@
+use crate::sexp::Parser;
+use crate::AstBuilder;
 use anyhow::Result;
-use oxur_ast::sexp::Parser;
-use oxur_ast::AstBuilder;
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;

@@ -3,9 +3,9 @@
 use anyhow::Result;
 use clap::Parser;
 use colored::*;
+use oxur_ast::commands;
 
 mod cli;
-mod commands;
 
 use cli::{Cli, Commands};
 

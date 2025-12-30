@@ -1,0 +1,115 @@
+use oxur_ast::commands::to_rust;
+use std::fs;
+use std::path::PathBuf;
+use tempfile::TempDir;
+
+#[test]
+fn test_execute_file_to_stdout() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.path().join("test.sexp");
+
+    // Simple valid S-expression for a crate
+    fs::write(&input_file, "(Crate :items ())").unwrap();
+
+    // Execute with no output specified (should print to stdout)
+    let result = to_rust::execute(input_file, None);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_execute_file_to_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.path().join("test.sexp");
+    let output_file = temp_dir.path().join("output.rs");
+
+    fs::write(&input_file, "(Crate :items ())").unwrap();
+
+    // Execute with file output
+    let result = to_rust::execute(input_file, Some(output_file.clone()));
+
+    assert!(result.is_ok());
+    assert!(output_file.exists());
+
+    let content = fs::read_to_string(output_file).unwrap();
+    assert!(content.contains("Generated from S-expression"));
+}
+
+#[test]
+fn test_execute_file_to_stdout_dash() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.path().join("test.sexp");
+
+    fs::write(&input_file, "(Crate :items ())").unwrap();
+
+    // Execute with "-" as output (should print to stdout)
+    let result = to_rust::execute(input_file, Some(PathBuf::from("-")));
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_execute_invalid_sexp() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.path().join("test.sexp");
+
+    fs::write(&input_file, "(invalid sexp without closing paren").unwrap();
+
+    // Execute with invalid S-expression should fail
+    let result = to_rust::execute(input_file, None);
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_execute_missing_file() {
+    let input_file = PathBuf::from("/nonexistent/file.sexp");
+
+    // Execute with nonexistent file should fail
+    let result = to_rust::execute(input_file, None);
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_execute_with_output_none_explicitly() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.path().join("test.sexp");
+
+    fs::write(&input_file, "(Crate :items ())").unwrap();
+
+    // Execute with explicit None output
+    let result = to_rust::execute(input_file, None);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_execute_nonexistent_output_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.path().join("test.sexp");
+    let output_file = PathBuf::from("/nonexistent/directory/output.rs");
+
+    fs::write(&input_file, "(Crate :items ())").unwrap();
+
+    // Execute with output path in nonexistent directory
+    let result = to_rust::execute(input_file, Some(output_file));
+
+    // Should fail due to directory not existing
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_execute_wrong_sexp_structure() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.path().join("test.sexp");
+
+    // Valid S-expression but wrong structure (not a Crate)
+    fs::write(&input_file, "(NotACrate :wrong \"structure\")").unwrap();
+
+    // Execute with wrong S-expression structure
+    let result = to_rust::execute(input_file, None);
+
+    // Should fail during AST building
+    assert!(result.is_err());
+}
