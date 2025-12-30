@@ -102,7 +102,7 @@ Options:
 Use 'aster <command> --help' for more information.
 ```
 
-A full round-trip example that you can run yourself is provided in [the crate README](./crates/oxur-ast/README.md).
+A full round-trip example that you can run yourself is provided in [the crate README](./crates/oxur-ast/README.md#end-to-end-examples).
 
 ## Design Documents
 
