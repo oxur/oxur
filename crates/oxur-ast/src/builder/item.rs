@@ -120,8 +120,34 @@ impl AstBuilder {
                 let fn_item = self.build_fn(fn_list)?;
                 Ok(ItemKind::Fn(Box::new(fn_item)))
             }
+            "Struct" => {
+                // Extract the VariantData from element 1
+                if list.elements.len() < 2 {
+                    return Err(ParseError::Expected {
+                        expected: "VariantData after Struct".to_string(),
+                        found: "nothing".to_string(),
+                        pos: list.pos,
+                    });
+                }
+                let data_sexp = &list.elements[1];
+                let variant_data = self.build_variant_data(data_sexp)?;
+                Ok(ItemKind::Struct(variant_data))
+            }
+            "Enum" => {
+                // Extract the EnumDef from element 1
+                if list.elements.len() < 2 {
+                    return Err(ParseError::Expected {
+                        expected: "EnumDef after Enum".to_string(),
+                        found: "nothing".to_string(),
+                        pos: list.pos,
+                    });
+                }
+                let enum_sexp = &list.elements[1];
+                let enum_def = self.build_enum_def(enum_sexp)?;
+                Ok(ItemKind::Enum(enum_def))
+            }
             _ => Err(ParseError::Expected {
-                expected: "Fn (only supported in Phase 1)".to_string(),
+                expected: "Fn, Struct, or Enum".to_string(),
                 found: node_type.value.clone(),
                 pos: node_type.pos,
             }),
@@ -320,5 +346,247 @@ impl AstBuilder {
         // Simplified for Phase 1 - no generics support
         let _list = expect_list(sexp)?; // Validate it's a list
         Ok(Generics::empty())
+    }
+
+    fn build_ty(&mut self, sexp: &SExp) -> Result<Ty> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "Ty" {
+            return Err(ParseError::Expected {
+                expected: "Ty".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let kind = self.build_ty_kind(
+            kwargs.get("kind").ok_or_else(|| ParseError::Expected {
+                expected: ":kind field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            })?,
+        )?;
+
+        let id = if let Some(id_sexp) = kwargs.get("id") {
+            NodeId(expect_number(id_sexp)? as u32)
+        } else {
+            self.next_id()
+        };
+
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+
+        Ok(Ty { id, kind, span, tokens: None })
+    }
+
+    fn build_ty_kind(&mut self, sexp: &SExp) -> Result<TyKind> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        match node_type.value.as_str() {
+            "Path" => {
+                // For now, simplified - just get the path (element 2)
+                let path_sexp = &list.elements[2];
+                let path = self.build_path(path_sexp)?;
+                Ok(TyKind::Path(None, path))
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Path (other types not yet supported)".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
+    }
+
+    fn build_variant_data(&mut self, sexp: &SExp) -> Result<VariantData> {
+        // Check if it's a symbol (Unit) or a list (Struct/Tuple)
+        if let SExp::Symbol(sym) = sexp {
+            match sym.value.as_str() {
+                "Unit" => Ok(VariantData::Unit),
+                _ => Err(ParseError::Expected {
+                    expected: "Unit, Struct, or Tuple".to_string(),
+                    found: sym.value.clone(),
+                    pos: sym.pos,
+                }),
+            }
+        } else {
+            let list = expect_list(sexp)?;
+            let node_type = expect_symbol(&list.elements[0])?;
+
+            match node_type.value.as_str() {
+                "Struct" => {
+                    let kwargs = parse_kwargs(list)?;
+                    let fields_sexp =
+                        kwargs.get("fields").ok_or_else(|| ParseError::Expected {
+                            expected: ":fields field".to_string(),
+                            found: "missing".to_string(),
+                            pos: list.pos,
+                        })?;
+                    let fields = self.build_field_list(fields_sexp)?;
+                    let recovered = if let Some(rec_sexp) = kwargs.get("recovered") {
+                        expect_symbol(rec_sexp)?.value == "true"
+                    } else {
+                        false
+                    };
+                    Ok(VariantData::Struct { fields, recovered })
+                }
+                "Tuple" => {
+                    // Tuple has fields as second element
+                    let fields_sexp = &list.elements[1];
+                    let fields = self.build_field_list(fields_sexp)?;
+                    Ok(VariantData::Tuple(fields))
+                }
+                _ => Err(ParseError::Expected {
+                    expected: "Struct or Tuple".to_string(),
+                    found: node_type.value.clone(),
+                    pos: node_type.pos,
+                }),
+            }
+        }
+    }
+
+    fn build_enum_def(&mut self, sexp: &SExp) -> Result<EnumDef> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "EnumDef" {
+            return Err(ParseError::Expected {
+                expected: "EnumDef".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+        let variants_sexp = kwargs.get("variants").ok_or_else(|| ParseError::Expected {
+            expected: ":variants field".to_string(),
+            found: "missing".to_string(),
+            pos: list.pos,
+        })?;
+
+        let variants = self.build_variant_list(variants_sexp)?;
+        Ok(EnumDef { variants })
+    }
+
+    fn build_variant(&mut self, sexp: &SExp) -> Result<Variant> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "Variant" {
+            return Err(ParseError::Expected {
+                expected: "Variant".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let attrs = Vec::new(); // Simplified for now
+        let id = if let Some(id_sexp) = kwargs.get("id") {
+            NodeId(expect_number(id_sexp)? as u32)
+        } else {
+            self.next_id()
+        };
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+        let vis = if let Some(vis_sexp) = kwargs.get("vis") {
+            self.build_visibility(vis_sexp)?
+        } else {
+            Visibility::Inherited
+        };
+        let ident = self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
+            expected: ":ident field".to_string(),
+            found: "missing".to_string(),
+            pos: list.pos,
+        })?)?;
+        let data = self.build_variant_data(
+            kwargs.get("data").ok_or_else(|| ParseError::Expected {
+                expected: ":data field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            })?,
+        )?;
+
+        let disr_expr = if let Some(disr_sexp) = kwargs.get("disr-expr") {
+            if !is_nil(disr_sexp) {
+                Some(self.build_expr(disr_sexp)?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(Variant { attrs, id, span, vis, ident, data, disr_expr })
+    }
+
+    fn build_field_def(&mut self, sexp: &SExp) -> Result<FieldDef> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "FieldDef" {
+            return Err(ParseError::Expected {
+                expected: "FieldDef".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let attrs = Vec::new(); // Simplified for now
+        let id = if let Some(id_sexp) = kwargs.get("id") {
+            NodeId(expect_number(id_sexp)? as u32)
+        } else {
+            self.next_id()
+        };
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+        let vis = if let Some(vis_sexp) = kwargs.get("vis") {
+            self.build_visibility(vis_sexp)?
+        } else {
+            Visibility::Inherited
+        };
+
+        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
+            if !is_nil(ident_sexp) {
+                Some(self.build_ident(ident_sexp)?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let ty = self.build_ty(kwargs.get("ty").ok_or_else(|| ParseError::Expected {
+            expected: ":ty field".to_string(),
+            found: "missing".to_string(),
+            pos: list.pos,
+        })?)?;
+
+        Ok(FieldDef { attrs, id, span, vis, ident, ty })
+    }
+
+    fn build_field_list(&mut self, sexp: &SExp) -> Result<Vec<FieldDef>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_field_def(elem)).collect()
+    }
+
+    fn build_variant_list(&mut self, sexp: &SExp) -> Result<Vec<Variant>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_variant(elem)).collect()
     }
 }
