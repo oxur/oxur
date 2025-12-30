@@ -2,8 +2,8 @@
 number: 15
 title: "oxur-table API (re)Design"
 author: "Duncan McGreggor & Claude"
-component: UI
-tags: [API-Design, Table]
+component: Utility
+tags: [ascii, ansi, theme, terminal, cli, ui]
 created: 2025-12-28
 updated: 2025-12-28
 state: Accepted

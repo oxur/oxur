@@ -2,8 +2,8 @@
 number: 9
 title: "Oxur Design Documentation CLI - Extended Features Plan (Phases 6-8)"
 author: "Duncan McGreggor & Claude"
-component: Tooling
-tags: [CLI, Phase-6, Phase-7, Phase-8]
+component: Design
+tags: [cli, tooling]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final

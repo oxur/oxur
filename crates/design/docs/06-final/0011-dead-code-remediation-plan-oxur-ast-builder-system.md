@@ -3,7 +3,7 @@ number: 11
 title: "Dead Code Remediation Plan: oxur-ast Builder System"
 author: "Duncan McGreggor"
 component: AST
-tags: [Maintenance, Refactoring]
+tags: [breaking change]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
@@ -14,8 +14,8 @@ version: 1.0
 
 # Dead Code Remediation Plan: oxur-ast Builder System
 
-**Date:** 2025-12-26  
-**Target:** `crates/oxur-ast/src/builder/` directory  
+**Date:** 2025-12-26
+**Target:** `crates/oxur-ast/src/builder/` directory
 **Goal:** Remove unreachable dead code and improve test coverage to ~97%
 
 ## Background
@@ -33,12 +33,14 @@ During coverage analysis, we discovered unreachable "positional syntax" fallback
 ## Decision: Remove Dead Code (Clean Architecture Approach)
 
 After analysis, we've decided to:
+
 1. Remove all unreachable positional syntax fallback code
 2. Document the strict keyword-only design in `parse_kwargs`
 3. Simplify builder logic for clarity
 4. Achieve ~97% coverage with honest, maintainable code
 
 **Rationale:**
+
 - No evidence this feature was ever needed or requested
 - No tests exist for positional syntax (feature never worked)
 - Simpler code is more maintainable
@@ -57,6 +59,7 @@ grep -n "else if list.elements.len() > 1" crates/oxur-ast/src/builder/*.rs
 ```
 
 Expected files to check:
+
 - `crates/oxur-ast/src/builder/stmt.rs` (confirmed)
 - `crates/oxur-ast/src/builder/expr.rs` (suspected)
 - `crates/oxur-ast/src/builder/item.rs` (suspected)
@@ -64,6 +67,7 @@ Expected files to check:
 #### 1.2 Document Findings
 
 Create a list of all files and line numbers with this pattern. For each instance, verify:
+
 - [ ] Is it after a `parse_kwargs` call?
 - [ ] Is it checking `list.elements.len() > 1`?
 - [ ] Does it access `list.elements[1]` directly?
@@ -72,7 +76,7 @@ Create a list of all files and line numbers with this pattern. For each instance
 
 #### 2.1 Update `parse_kwargs` Documentation
 
-**File:** `crates/oxur-ast/src/builder/helpers.rs`  
+**File:** `crates/oxur-ast/src/builder/helpers.rs`
 **Location:** Lines 73-96
 
 Add clear documentation explaining the design choice:
@@ -84,9 +88,9 @@ Add clear documentation explaining the design choice:
 /// # Design Note
 /// This function enforces strict keyword-value pair syntax.
 /// All elements after the node type (index 0) must be keyword-value pairs.
-/// 
+///
 /// **Mixed positional/keyword syntax is intentionally NOT supported.**
-/// 
+///
 /// # Format
 /// ```lisp
 /// (NodeType :key1 value1 :key2 value2 ...)
@@ -124,10 +128,11 @@ pub fn parse_kwargs(list: &List) -> Result<std::collections::HashMap<String, &SE
 
 #### 3.1 Simplify `Semi` Statement Builder
 
-**File:** `crates/oxur-ast/src/builder/stmt.rs`  
+**File:** `crates/oxur-ast/src/builder/stmt.rs`
 **Lines:** 52-68
 
 **Before:**
+
 ```rust
 "Semi" => {
     let kwargs = parse_kwargs(list)?;
@@ -149,6 +154,7 @@ pub fn parse_kwargs(list: &List) -> Result<std::collections::HashMap<String, &SE
 ```
 
 **After:**
+
 ```rust
 "Semi" => {
     let kwargs = parse_kwargs(list)?;
@@ -166,10 +172,11 @@ pub fn parse_kwargs(list: &List) -> Result<std::collections::HashMap<String, &SE
 
 #### 3.2 Simplify `Expr` Statement Builder
 
-**File:** `crates/oxur-ast/src/builder/stmt.rs`  
+**File:** `crates/oxur-ast/src/builder/stmt.rs`
 **Lines:** 69-84
 
 **Before:**
+
 ```rust
 "Expr" => {
     let kwargs = parse_kwargs(list)?;
@@ -190,6 +197,7 @@ pub fn parse_kwargs(list: &List) -> Result<std::collections::HashMap<String, &SE
 ```
 
 **After:**
+
 ```rust
 "Expr" => {
     let kwargs = parse_kwargs(list)?;
@@ -212,6 +220,7 @@ pub fn parse_kwargs(list: &List) -> Result<std::collections::HashMap<String, &SE
 **File:** `crates/oxur-ast/src/builder/expr.rs`
 
 Search for similar patterns:
+
 ```bash
 grep -A 5 -B 5 "else if list.elements.len() > 1" crates/oxur-ast/src/builder/expr.rs
 ```
@@ -223,6 +232,7 @@ If found, apply the same simplification pattern.
 **File:** `crates/oxur-ast/src/builder/item.rs`
 
 Search for similar patterns:
+
 ```bash
 grep -A 5 -B 5 "else if list.elements.len() > 1" crates/oxur-ast/src/builder/item.rs
 ```
@@ -245,6 +255,7 @@ Expected: **All tests pass** (they already use keyword syntax exclusively)
 #### 5.2 Verify Error Handling Still Works
 
 The existing tests already cover the error cases:
+
 - `test_build_stmt_semi_missing_expr` - Tests missing `:expr` field
 - `test_build_stmt_expr_missing_expr` - Tests missing `:expr` field
 
@@ -257,6 +268,7 @@ cargo tarpaulin --out Html --output-dir coverage
 ```
 
 **Expected Results:**
+
 - `stmt.rs`: ~97% coverage (up from 93.65%)
 - Remaining uncovered: Error branches (^0 markers) that require error injection
 - Overall: Improved coverage with cleaner code
@@ -270,6 +282,7 @@ cargo tarpaulin --out Html --output-dir coverage
 Remove or update the note at line 225:
 
 **Before:**
+
 ```rust
 // Note: Lines 59-60 and 75-76 (positional syntax fallback) are unreachable
 // because parse_kwargs() requires ALL elements to be keyword-value pairs.
@@ -278,6 +291,7 @@ Remove or update the note at line 225:
 ```
 
 **After:**
+
 ```rust
 // Note: This test suite uses keyword syntax exclusively (e.g., :expr, :kind).
 // The builder enforces strict keyword-value pair syntax via parse_kwargs().
@@ -314,6 +328,7 @@ The AST builder uses a strict keyword-value pair syntax for all node constructio
 ```
 
 ### Invalid ❌
+
 ```lisp
 ; Positional syntax not supported
 (Stmt 10 (Semi (Expr ...)) (Span 0 10))
@@ -325,6 +340,7 @@ The AST builder uses a strict keyword-value pair syntax for all node constructio
 - **Flexibility:** Fields can appear in any order
 - **Robustness:** Missing fields produce clear error messages
 - **Consistency:** One syntax style across entire codebase
+
 ```
 
 ### Phase 7: Commit
@@ -373,18 +389,21 @@ Before considering this work complete, verify:
 ## Expected Outcomes
 
 ### Code Quality
+
 - ✅ Cleaner, more maintainable code
 - ✅ Honest implementation (code matches intent)
 - ✅ Better documentation of design decisions
 - ✅ Consistent syntax enforcement
 
 ### Coverage
+
 - ✅ stmt.rs: 93.65% → ~97%
 - ✅ Removed 4 lines of dead code
 - ✅ Remaining uncovered: legitimate error branches
 - ✅ Overall project coverage improved
 
 ### Maintenance
+
 - ✅ Fewer lines to maintain
 - ✅ Clear error messages
 - ✅ Self-documenting code structure
@@ -395,6 +414,7 @@ Before considering this work complete, verify:
 **Option: Implement Positional Syntax Support**
 
 We explicitly chose NOT to implement positional syntax because:
+
 1. No evidence of need (no issues, no requests)
 2. Feature was incomplete for unknown duration
 3. Would require extensive testing and validation
@@ -402,6 +422,7 @@ We explicitly chose NOT to implement positional syntax because:
 5. Current keyword syntax is more maintainable
 
 If positional syntax is needed in future, it should be:
+
 - Properly designed and documented
 - Fully tested from the start
 - Considered as a feature request with clear use cases

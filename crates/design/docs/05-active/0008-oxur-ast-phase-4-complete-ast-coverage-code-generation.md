@@ -3,7 +3,7 @@ number: 8
 title: "oxur-ast Phase 4: Complete AST Coverage & Code Generation"
 author: "Duncan McGreggor"
 component: AST
-tags: [Phase-4, Coverage]
+tags: [compiler, sexpr]
 created: 2025-12-27
 updated: 2025-12-27
 state: Active

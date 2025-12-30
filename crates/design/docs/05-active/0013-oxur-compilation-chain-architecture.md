@@ -3,7 +3,7 @@ number: 13
 title: "Oxur Compilation Chain Architecture"
 author: "Duncan McGreggor & Claude"
 component: Compiler
-tags: [Architecture, Multi-Stage]
+tags: [architecture, compiler, source maps]
 created: 2025-12-27
 updated: 2025-12-27
 state: Active

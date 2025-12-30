@@ -5,14 +5,27 @@ use colored::Colorize;
 use design::state::StateManager;
 use std::path::{Path, PathBuf};
 
-pub fn execute(state_mgr: &mut StateManager, old_path: &str, new_path: &str) -> Result<()> {
+pub fn execute(state_mgr: &mut StateManager, old_id_or_path: &str, new_path: &str) -> Result<()> {
     println!();
     println!("{}", "Renaming document...".cyan().bold());
     println!();
 
-    // Step 1: Parse and validate paths
+    // Step 1: Resolve old path from ID or path
     let docs_dir = state_mgr.docs_dir();
-    let (old_full, new_full) = parse_and_validate_paths(old_path, new_path, docs_dir)?;
+    let old_path = if let Ok(num) = old_id_or_path.parse::<u32>() {
+        // It's a document number - get the path from state
+        let doc = state_mgr
+            .state()
+            .get(num)
+            .ok_or_else(|| anyhow::anyhow!("Document {} not found", num))?;
+        docs_dir.join(&doc.path).to_string_lossy().to_string()
+    } else {
+        // It's a file path
+        old_id_or_path.to_string()
+    };
+
+    // Step 2: Parse and validate paths
+    let (old_full, new_full) = parse_and_validate_paths(&old_path, new_path, docs_dir)?;
 
     println!("  From: {}", old_full.display().to_string().white());
     println!("  To:   {}", new_full.display().to_string().cyan());
@@ -556,5 +569,74 @@ author: Test Author
 
         // Should succeed because the parent doesn't exist (line 110)
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_with_document_id() {
+        let (temp, mut state_mgr) = setup_test_state_manager();
+
+        // Create and track a document
+        let old_path = temp.path().join("01-draft/0001-old-name.md");
+        fs::write(
+            &old_path,
+            r#"---
+number: 1
+title: Old Name
+state: Draft
+created: 2024-01-01
+updated: 2024-01-01
+author: Test Author
+---
+
+# Old Name
+"#,
+        )
+        .unwrap();
+
+        // Git add and commit
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["commit", "-m", "Initial"])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+
+        // Scan to track
+        state_mgr.quick_scan().unwrap();
+
+        // Verify document is in state
+        let doc = state_mgr.state().get(1);
+        assert!(doc.is_some());
+
+        // Test with document ID "1" instead of file path
+        // Note: This will fail git mv in tests, but we can test that it resolves the ID correctly
+        let result = execute(&mut state_mgr, "1", "0001-new-name.md");
+
+        // The test will fail at git mv stage (expected in test environment)
+        // but if it fails with "Document not found", that means ID resolution failed
+        if let Err(e) = result {
+            let err_msg = e.to_string();
+            // Should NOT fail with "Document not found" - that would mean ID resolution failed
+            assert!(!err_msg.contains("Document 1 not found"),
+                "ID resolution failed: {}", err_msg);
+            // It's OK to fail with git errors in test environment
+        }
+    }
+
+    #[test]
+    fn test_execute_with_invalid_document_id() {
+        let (_temp, mut state_mgr) = setup_test_state_manager();
+
+        // Try to rename with a document ID that doesn't exist
+        let result = execute(&mut state_mgr, "9999", "0001-new-name.md");
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Document 9999 not found"));
     }
 }

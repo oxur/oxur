@@ -3,7 +3,7 @@ number: 17
 title: "Recommendations for Future-proofing Multiple REPL Protocols"
 author: "Duncan McGreggor & Claude"
 component: REPL
-tags: [Protocol, Design]
+tags: [protocols, networking, postcard, messagepack]
 created: 2025-12-28
 updated: 2025-12-28
 state: Under Review

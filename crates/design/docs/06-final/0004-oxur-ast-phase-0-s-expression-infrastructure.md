@@ -3,7 +3,7 @@ number: 4
 title: "oxur-ast Phase 0: S-Expression Infrastructure"
 author: "Duncan McGreggor"
 component: AST
-tags: [Phase-0, Infrastructure]
+tags: [compiler, sexpr]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
@@ -14,9 +14,9 @@ version: 1.0
 
 # oxur-ast Phase 0: S-Expression Infrastructure
 
-**Phase**: 0 - Foundation  
-**Goal**: Build the S-expression lexer, parser, and AST  
-**Estimated Time**: 3-5 days  
+**Phase**: 0 - Foundation
+**Goal**: Build the S-expression lexer, parser, and AST
+**Estimated Time**: 3-5 days
 **Prerequisites**: Workspace setup complete with `design` crate
 
 ---
@@ -26,12 +26,14 @@ version: 1.0
 This phase builds the foundational S-expression infrastructure needed for `oxur-ast`. Before we can convert between Rust AST and S-expressions, we need solid tools for working with S-expressions themselves.
 
 **What we're building:**
+
 1. S-expression lexer (text → tokens)
 2. S-expression parser (tokens → generic AST)
 3. S-expression types (the AST structure)
 4. S-expression printer (AST → formatted text)
 
 **Why this comes first:**
+
 - Self-contained and testable in isolation
 - No Rust AST dependencies yet (simpler)
 - Establishes patterns for later phases
@@ -100,13 +102,13 @@ impl fmt::Display for Position {
 pub enum LexError {
     #[error("Unexpected character '{ch}' at {pos}")]
     UnexpectedChar { ch: char, pos: Position },
-    
+
     #[error("Unterminated string at {pos}")]
     UnterminatedString { pos: Position },
-    
+
     #[error("Invalid escape sequence '\\{ch}' at {pos}")]
     InvalidEscape { ch: char, pos: Position },
-    
+
     #[error("Unexpected end of input")]
     UnexpectedEof,
 }
@@ -116,19 +118,19 @@ pub enum LexError {
 pub enum ParseError {
     #[error("Unexpected token {token:?} at {pos}")]
     UnexpectedToken { token: String, pos: Position },
-    
+
     #[error("Expected {expected}, found {found} at {pos}")]
     Expected { expected: String, found: String, pos: Position },
-    
+
     #[error("Unterminated list at {pos}")]
     UnterminatedList { pos: Position },
-    
+
     #[error("Unexpected closing parenthesis at {pos}")]
     UnexpectedCloseParen { pos: Position },
-    
+
     #[error("Empty input")]
     EmptyInput,
-    
+
     #[error("Lexer error: {0}")]
     LexError(#[from] LexError),
 }
@@ -137,6 +139,7 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 ```
 
 **Key design points:**
+
 - `Position` tracks location for error reporting
 - Separate error types for lexer vs parser
 - `thiserror` for clean error messages
@@ -158,19 +161,19 @@ use crate::error::Position;
 pub enum SExp {
     /// Symbol: foo, bar, ExprKind, etc.
     Symbol(Symbol),
-    
+
     /// Keyword: :name, :kind, :span
     Keyword(Keyword),
-    
+
     /// String: "hello", "main"
     String(StringLit),
-    
+
     /// Number: 42, 0, 123
     Number(Number),
-    
+
     /// Nil: nil
     Nil(Nil),
-    
+
     /// List: (foo bar baz)
     List(List),
 }
@@ -273,6 +276,7 @@ impl HasPosition for SExp {
 ```
 
 **Design rationale:**
+
 - Each variant has its own struct with position
 - `HasPosition` trait for uniform access
 - Keep `Number` as string for flexibility
@@ -328,35 +332,35 @@ impl Lexer {
             column: 1,
         }
     }
-    
+
     /// Get all tokens
     pub fn tokenize(mut self) -> Result<Vec<Token>, LexError> {
         let mut tokens = Vec::new();
-        
+
         loop {
             let token = self.next_token()?;
             let is_eof = token.typ == TokenType::Eof;
             tokens.push(token);
-            
+
             if is_eof {
                 break;
             }
         }
-        
+
         Ok(tokens)
     }
-    
+
     /// Get the next token
     fn next_token(&mut self) -> Result<Token, LexError> {
         self.skip_whitespace_and_comments();
-        
+
         if self.is_at_end() {
             return Ok(self.make_token(TokenType::Eof, ""));
         }
-        
+
         let start_pos = self.current_position();
         let ch = self.current_char();
-        
+
         match ch {
             '(' => {
                 self.advance();
@@ -372,13 +376,13 @@ impl Lexer {
                 self.read_number()
             }
             _ if self.is_symbol_start(ch) => self.read_symbol(),
-            _ => Err(LexError::UnexpectedChar { 
-                ch, 
-                pos: start_pos 
+            _ => Err(LexError::UnexpectedChar {
+                ch,
+                pos: start_pos
             }),
         }
     }
-    
+
     fn skip_whitespace_and_comments(&mut self) {
         while !self.is_at_end() {
             match self.current_char() {
@@ -395,49 +399,49 @@ impl Lexer {
             }
         }
     }
-    
+
     fn read_keyword(&mut self) -> Result<Token, LexError> {
         let start_pos = self.current_position();
         self.advance(); // Skip ':'
-        
+
         let mut name = String::new();
         while !self.is_at_end() && self.is_symbol_char(self.current_char()) {
             name.push(self.current_char());
             self.advance();
         }
-        
+
         Ok(Token {
             typ: TokenType::Keyword,
             lexeme: name,
             pos: start_pos,
         })
     }
-    
+
     fn read_string(&mut self) -> Result<Token, LexError> {
         let start_pos = self.current_position();
         self.advance(); // Skip opening "
-        
+
         let mut value = String::new();
-        
+
         while !self.is_at_end() && self.current_char() != '"' {
             if self.current_char() == '\\' {
                 self.advance();
                 if self.is_at_end() {
                     return Err(LexError::UnterminatedString { pos: start_pos });
                 }
-                
+
                 let escaped = match self.current_char() {
                     'n' => '\n',
                     't' => '\t',
                     'r' => '\r',
                     '\\' => '\\',
                     '"' => '"',
-                    ch => return Err(LexError::InvalidEscape { 
-                        ch, 
-                        pos: self.current_position() 
+                    ch => return Err(LexError::InvalidEscape {
+                        ch,
+                        pos: self.current_position()
                     }),
                 };
-                
+
                 value.push(escaped);
                 self.advance();
             } else {
@@ -445,82 +449,82 @@ impl Lexer {
                 self.advance();
             }
         }
-        
+
         if self.is_at_end() {
             return Err(LexError::UnterminatedString { pos: start_pos });
         }
-        
+
         self.advance(); // Skip closing "
-        
+
         Ok(Token {
             typ: TokenType::String,
             lexeme: value,
             pos: start_pos,
         })
     }
-    
+
     fn read_number(&mut self) -> Result<Token, LexError> {
         let start_pos = self.current_position();
         let mut num = String::new();
-        
+
         // Optional leading minus
         if self.current_char() == '-' {
             num.push('-');
             self.advance();
         }
-        
+
         // Integer part
         while !self.is_at_end() && self.current_char().is_ascii_digit() {
             num.push(self.current_char());
             self.advance();
         }
-        
+
         Ok(Token {
             typ: TokenType::Number,
             lexeme: num,
             pos: start_pos,
         })
     }
-    
+
     fn read_symbol(&mut self) -> Result<Token, LexError> {
         let start_pos = self.current_position();
         let mut sym = String::new();
-        
+
         while !self.is_at_end() && self.is_symbol_char(self.current_char()) {
             sym.push(self.current_char());
             self.advance();
         }
-        
+
         // Check for special symbol "nil"
         let typ = if sym == "nil" {
             TokenType::Nil
         } else {
             TokenType::Symbol
         };
-        
+
         Ok(Token {
             typ,
             lexeme: sym,
             pos: start_pos,
         })
     }
-    
+
     // Helper methods
-    
+
     fn is_symbol_start(&self, ch: char) -> bool {
-        ch.is_alphabetic() || ch == '_' || ch == '-' || ch == '+' || ch == '*' 
+        ch.is_alphabetic() || ch == '_' || ch == '-' || ch == '+' || ch == '*'
             || ch == '/' || ch == '<' || ch == '>' || ch == '=' || ch == '!' || ch == '?'
     }
-    
+
     fn is_symbol_char(&self, ch: char) -> bool {
-        ch.is_alphanumeric() || ch == '_' || ch == '-' || ch == '+' || ch == '*' 
+        ch.is_alphanumeric() || ch == '_' || ch == '-' || ch == '+' || ch == '*'
             || ch == '/' || ch == '<' || ch == '>' || ch == '=' || ch == '!' || ch == '?'
     }
-    
+
     fn current_char(&self) -> char {
         self.input[self.position]
     }
-    
+
     fn peek(&self) -> Option<char> {
         if self.position + 1 < self.input.len() {
             Some(self.input[self.position + 1])
@@ -528,30 +532,30 @@ impl Lexer {
             None
         }
     }
-    
+
     fn advance(&mut self) {
         if self.is_at_end() {
             return;
         }
-        
+
         if self.current_char() == '\n' {
             self.line += 1;
             self.column = 1;
         } else {
             self.column += 1;
         }
-        
+
         self.position += 1;
     }
-    
+
     fn is_at_end(&self) -> bool {
         self.position >= self.input.len()
     }
-    
+
     fn current_position(&self) -> Position {
         Position::new(self.position, self.line, self.column)
     }
-    
+
     fn make_token(&self, typ: TokenType, lexeme: impl Into<String>) -> Token {
         Token {
             typ,
@@ -563,6 +567,7 @@ impl Lexer {
 ```
 
 **Key features:**
+
 - Tracks line/column for errors
 - Handles escape sequences in strings
 - Comments (semicolon to end of line)
@@ -591,7 +596,7 @@ impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, current: 0 }
     }
-    
+
     /// Parse from source text
     pub fn parse_str(input: &str) -> Result<SExp> {
         let lexer = Lexer::new(input);
@@ -599,19 +604,19 @@ impl Parser {
         let mut parser = Parser::new(tokens);
         parser.parse()
     }
-    
+
     /// Parse the token stream
     pub fn parse(&mut self) -> Result<SExp> {
         if self.is_at_end() {
             return Err(ParseError::EmptyInput);
         }
-        
+
         self.parse_sexp()
     }
-    
+
     fn parse_sexp(&mut self) -> Result<SExp> {
         let token = self.current_token();
-        
+
         match token.typ {
             TokenType::LParen => self.parse_list(),
             TokenType::Symbol => self.parse_symbol(),
@@ -619,8 +624,8 @@ impl Parser {
             TokenType::String => self.parse_string(),
             TokenType::Number => self.parse_number(),
             TokenType::Nil => self.parse_nil(),
-            TokenType::RParen => Err(ParseError::UnexpectedCloseParen { 
-                pos: token.pos 
+            TokenType::RParen => Err(ParseError::UnexpectedCloseParen {
+                pos: token.pos
             }),
             TokenType::Eof => Err(ParseError::Expected {
                 expected: "S-expression".to_string(),
@@ -629,83 +634,84 @@ impl Parser {
             }),
         }
     }
-    
+
     fn parse_list(&mut self) -> Result<SExp> {
         let start_pos = self.current_token().pos;
         self.advance(); // Skip '('
-        
+
         let mut elements = Vec::new();
-        
+
         while !self.check(&TokenType::RParen) {
             if self.is_at_end() {
                 return Err(ParseError::UnterminatedList { pos: start_pos });
             }
-            
+
             elements.push(self.parse_sexp()?);
         }
-        
+
         self.advance(); // Skip ')'
-        
+
         Ok(SExp::List(List::new(elements, start_pos)))
     }
-    
+
     fn parse_symbol(&mut self) -> Result<SExp> {
         let token = self.current_token();
         self.advance();
         Ok(SExp::Symbol(Symbol::new(token.lexeme, token.pos)))
     }
-    
+
     fn parse_keyword(&mut self) -> Result<SExp> {
         let token = self.current_token();
         self.advance();
         Ok(SExp::Keyword(Keyword::new(token.lexeme, token.pos)))
     }
-    
+
     fn parse_string(&mut self) -> Result<SExp> {
         let token = self.current_token();
         self.advance();
         Ok(SExp::String(StringLit::new(token.lexeme, token.pos)))
     }
-    
+
     fn parse_number(&mut self) -> Result<SExp> {
         let token = self.current_token();
         self.advance();
         Ok(SExp::Number(Number::new(token.lexeme, token.pos)))
     }
-    
+
     fn parse_nil(&mut self) -> Result<SExp> {
         let token = self.current_token();
         self.advance();
         Ok(SExp::Nil(Nil::new(token.pos)))
     }
-    
+
     // Helper methods
-    
+
     fn current_token(&self) -> &Token {
         &self.tokens[self.current]
     }
-    
+
     fn check(&self, typ: &TokenType) -> bool {
         if self.is_at_end() {
             return false;
         }
         &self.current_token().typ == typ
     }
-    
+
     fn advance(&mut self) {
         if !self.is_at_end() {
             self.current += 1;
         }
     }
-    
+
     fn is_at_end(&self) -> bool {
-        self.current >= self.tokens.len() 
+        self.current >= self.tokens.len()
             || self.current_token().typ == TokenType::Eof
     }
 }
 ```
 
 **Design notes:**
+
 - Recursive descent parser
 - Clean error reporting
 - Convenience `parse_str` method
@@ -735,21 +741,21 @@ impl Printer {
             indent_str: "  ".to_string(), // 2 spaces
         }
     }
-    
+
     pub fn with_indent(indent_str: impl Into<String>) -> Self {
         Self {
             indent: 0,
             indent_str: indent_str.into(),
         }
     }
-    
+
     /// Print S-expression to string
     pub fn print(&mut self, sexp: &SExp) -> String {
         let mut output = String::new();
         self.print_sexp(sexp, &mut output);
         output
     }
-    
+
     fn print_sexp(&mut self, sexp: &SExp, output: &mut String) {
         match sexp {
             SExp::Symbol(s) => write!(output, "{}", s.value).unwrap(),
@@ -762,17 +768,17 @@ impl Printer {
             SExp::List(l) => self.print_list(l, output),
         }
     }
-    
+
     fn print_list(&mut self, list: &List, output: &mut String) {
         if list.elements.is_empty() {
             write!(output, "()").unwrap();
             return;
         }
-        
+
         // Check if this is a "simple" list (no nested lists, short)
-        let is_simple = list.elements.len() <= 3 
+        let is_simple = list.elements.len() <= 3
             && list.elements.iter().all(|e| !matches!(e, SExp::List(_)));
-        
+
         if is_simple {
             // Print on one line
             write!(output, "(").unwrap();
@@ -787,19 +793,19 @@ impl Printer {
             // Print with indentation
             write!(output, "(").unwrap();
             self.indent += 1;
-            
+
             for (i, elem) in list.elements.iter().enumerate() {
                 if i > 0 {
                     write!(output, "\n{}", self.current_indent()).unwrap();
                 }
                 self.print_sexp(elem, output);
             }
-            
+
             self.indent -= 1;
             write!(output, ")").unwrap();
         }
     }
-    
+
     fn current_indent(&self) -> String {
         self.indent_str.repeat(self.indent)
     }
@@ -832,6 +838,7 @@ pub fn print_sexp(sexp: &SExp) -> String {
 ```
 
 **Features:**
+
 - Smart indentation for nested lists
 - Configurable indent string
 - Escape sequences handled
@@ -1220,7 +1227,7 @@ fn main() {
               :body (Block
                       :stmts ((Stmt :kind (Expr ...))))))))
     "#;
-    
+
     match Parser::parse_str(input) {
         Ok(sexp) => {
             println!("Parsed successfully!");
@@ -1279,6 +1286,7 @@ cargo clippy -p oxur-ast -- -D warnings
 ## Notes for Claude Code
 
 **Implementation order:**
+
 1. Start with `error.rs` (foundation)
 2. Then `sexp/types.rs` (data structures)
 3. Then `sexp/lexer.rs` (tokenization)
@@ -1288,12 +1296,14 @@ cargo clippy -p oxur-ast -- -D warnings
 7. Finally tests and examples
 
 **Testing strategy:**
+
 - Write tests as you implement each component
 - Run tests frequently
 - Use `--nocapture` to see debug output
 - Add more edge case tests as you discover them
 
 **Common pitfalls:**
+
 - Don't forget to update workspace `Cargo.toml`
 - Position tracking must be accurate for good errors
 - Escape sequences must round-trip correctly

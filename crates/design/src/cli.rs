@@ -243,7 +243,7 @@ pub enum Commands {
 
     /// Rename a document file (preserves number)
     Rename {
-        /// Old file path
+        /// Document number or file path to rename
         old: String,
 
         /// New file path

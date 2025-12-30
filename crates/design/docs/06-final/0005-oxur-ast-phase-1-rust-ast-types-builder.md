@@ -3,7 +3,7 @@ number: 5
 title: "oxur-ast Phase 1: Rust AST Types & Builder"
 author: "Duncan McGreggor"
 component: AST
-tags: [Phase-1, Builder]
+tags: [compiler, syntax, types]
 created: 2025-12-27
 updated: 2025-12-27
 state: Final
@@ -14,9 +14,9 @@ version: 1.0
 
 # oxur-ast Phase 1: Rust AST Types & Builder
 
-**Phase**: 1 - AST Types  
-**Goal**: Define Rust AST types and build S-expression → Rust AST converter  
-**Estimated Time**: 5-7 days  
+**Phase**: 1 - AST Types
+**Goal**: Define Rust AST types and build S-expression → Rust AST converter
+**Estimated Time**: 5-7 days
 **Prerequisites**: Phase 0 complete (S-expression infrastructure working)
 
 ---
@@ -26,6 +26,7 @@ version: 1.0
 Phase 1 builds the Rust AST types needed for "Hello, World!" and the builder that converts S-expressions into these types. This is the core bidirectional conversion layer.
 
 **What we're building:**
+
 1. Rust AST type definitions (structs & enums)
 2. AST builder (S-expr → Rust AST)
 3. Node ID management
@@ -33,6 +34,7 @@ Phase 1 builds the Rust AST types needed for "Hello, World!" and the builder tha
 5. Builder tests
 
 **AST Coverage for Phase 1:**
+
 ```rust
 fn main() {
     println!("Hello, world!");
@@ -40,6 +42,7 @@ fn main() {
 ```
 
 This requires implementing:
+
 - `Crate`, `ModSpans`
 - `Item`, `ItemKind::Fn`
 - `FnSig`, `FnHeader`, `FnDecl`, `Param`, `FnRetTy`
@@ -104,7 +107,7 @@ pub struct NodeId(pub usize);
 
 impl NodeId {
     pub const DUMMY: NodeId = NodeId(usize::MAX);
-    
+
     pub fn new(id: usize) -> Self {
         NodeId(id)
     }
@@ -197,15 +200,15 @@ pub struct Span {
 
 impl Span {
     pub const DUMMY: Span = Span { lo: 0, hi: 0, ctxt: 0 };
-    
+
     pub fn new(lo: u32, hi: u32) -> Self {
         Self { lo, hi, ctxt: 0 }
     }
-    
+
     pub fn with_ctxt(lo: u32, hi: u32, ctxt: u32) -> Self {
         Self { lo, hi, ctxt }
     }
-    
+
     /// Convert to Position (for error reporting)
     pub fn to_position(&self) -> Position {
         // For Phase 1, we don't have line/column info
@@ -283,7 +286,7 @@ impl Path {
             tokens: None,
         }
     }
-    
+
     pub fn from_ident(ident: Ident) -> Self {
         Self {
             span: ident.span,
@@ -309,7 +312,7 @@ impl PathSegment {
             args: None,
         }
     }
-    
+
     pub fn from_ident(ident: Ident) -> Self {
         Self::new(ident, NodeId::DUMMY)
     }
@@ -675,19 +678,19 @@ pub struct Stmt {
 pub enum StmtKind {
     /// Expression statement (no semicolon)
     Expr(Box<Expr>),
-    
+
     /// Expression with semicolon
     Semi(Box<Expr>),
-    
+
     /// Let binding
     Let(Box<Local>),
-    
+
     /// Item declaration
     Item(Box<Item>),
-    
+
     /// Macro invocation
     MacCall(Box<MacCallStmt>),
-    
+
     /// Empty statement
     Empty,
 }
@@ -865,14 +868,14 @@ pub fn expect_number(sexp: &SExp) -> Result<String> {
 /// Returns a HashMap of keyword name → value SExp
 pub fn parse_kwargs(elements: &[SExp]) -> Result<std::collections::HashMap<String, SExp>> {
     use std::collections::HashMap;
-    
+
     let mut kwargs = HashMap::new();
     let mut i = 0;
-    
+
     while i < elements.len() {
         let key = expect_keyword(&elements[i])?;
         i += 1;
-        
+
         if i >= elements.len() {
             return Err(ParseError::Expected {
                 expected: "value for keyword".to_string(),
@@ -880,11 +883,11 @@ pub fn parse_kwargs(elements: &[SExp]) -> Result<std::collections::HashMap<Strin
                 pos: elements[i - 1].position(),
             });
         }
-        
+
         kwargs.insert(key, elements[i].clone());
         i += 1;
     }
-    
+
     Ok(kwargs)
 }
 
@@ -941,17 +944,17 @@ impl AstBuilder {
     pub fn new() -> Self {
         Self { next_node_id: 0 }
     }
-    
+
     pub fn next_id(&mut self) -> NodeId {
         let id = self.next_node_id;
         self.next_node_id += 1;
         NodeId::new(id)
     }
-    
+
     /// Build a complete Crate from S-expression
     pub fn build_crate(&mut self, sexp: &SExp) -> Result<Crate> {
         let elements = expect_list(sexp)?;
-        
+
         // First element should be "Crate"
         if elements.is_empty() {
             return Err(ParseError::Expected {
@@ -960,7 +963,7 @@ impl AstBuilder {
                 pos: sexp.position(),
             });
         }
-        
+
         let type_name = expect_symbol(&elements[0])?;
         if type_name != "Crate" {
             return Err(ParseError::Expected {
@@ -969,28 +972,28 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         // Parse keyword arguments
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         // Extract fields
         let attrs = self.build_attr_vec(
             get_optional(&kwargs, "attrs").unwrap_or(&SExp::List(List::new(vec![], sexp.position())))
         )?;
-        
+
         let items = self.build_items(get_required(&kwargs, "items", sexp.position())?)?;
-        
+
         let spans = self.build_mod_spans(get_required(&kwargs, "spans", sexp.position())?)?;
-        
+
         let id = self.build_node_id(get_required(&kwargs, "id", sexp.position())?)?;
-        
+
         let is_placeholder = get_optional(&kwargs, "is-placeholder")
             .and_then(|s| match s {
                 SExp::Symbol(sym) => Some(sym.value == "true"),
                 _ => None,
             })
             .unwrap_or(false);
-        
+
         Ok(Crate {
             attrs,
             items,
@@ -999,22 +1002,22 @@ impl AstBuilder {
             is_placeholder,
         })
     }
-    
+
     fn build_attr_vec(&mut self, sexp: &SExp) -> Result<AttrVec> {
         let elements = expect_list(sexp)?;
         // For Phase 1, just return empty vec
         // Will implement in future phases
         Ok(vec![])
     }
-    
+
     fn build_items(&mut self, sexp: &SExp) -> Result<Vec<Item>> {
         parse_list(sexp, |s| self.build_item(s))
     }
-    
+
     fn build_mod_spans(&mut self, sexp: &SExp) -> Result<ModSpans> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "ModSpans" {
             return Err(ParseError::Expected {
                 expected: "ModSpans".to_string(),
@@ -1022,19 +1025,19 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let inner_span = self.build_span(get_required(&kwargs, "inner-span", sexp.position())?)?;
         let inject_use_span = self.build_span(get_required(&kwargs, "inject-use-span", sexp.position())?)?;
-        
+
         Ok(ModSpans::new(inner_span, inject_use_span))
     }
-    
+
     fn build_span(&mut self, sexp: &SExp) -> Result<Span> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Span" {
             return Err(ParseError::Expected {
                 expected: "Span".to_string(),
@@ -1042,19 +1045,19 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let lo = expect_number(get_required(&kwargs, "lo", sexp.position())?)?.parse().unwrap();
         let hi = expect_number(get_required(&kwargs, "hi", sexp.position())?)?.parse().unwrap();
         let ctxt = get_optional(&kwargs, "ctxt")
             .and_then(|s| expect_number(s).ok())
             .and_then(|n| n.parse().ok())
             .unwrap_or(0);
-        
+
         Ok(Span::with_ctxt(lo, hi, ctxt))
     }
-    
+
     fn build_node_id(&mut self, sexp: &SExp) -> Result<NodeId> {
         let num = expect_number(sexp)?;
         Ok(NodeId::new(num.parse().unwrap()))
@@ -1088,7 +1091,7 @@ impl AstBuilder {
     pub fn build_item(&mut self, sexp: &SExp) -> Result<Item> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Item" {
             return Err(ParseError::Expected {
                 expected: "Item".to_string(),
@@ -1096,20 +1099,20 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let attrs = self.build_attr_vec(
             get_optional(&kwargs, "attrs").unwrap_or(&SExp::List(List::new(vec![], sexp.position())))
         )?;
-        
+
         let id = self.build_node_id(get_required(&kwargs, "id", sexp.position())?)?;
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
         let vis = self.build_visibility(get_required(&kwargs, "vis", sexp.position())?)?;
         let ident = self.build_ident(get_required(&kwargs, "ident", sexp.position())?)?;
         let kind = self.build_item_kind(get_required(&kwargs, "kind", sexp.position())?)?;
         let tokens = None; // Phase 1
-        
+
         Ok(Item {
             attrs,
             id,
@@ -1120,11 +1123,11 @@ impl AstBuilder {
             tokens,
         })
     }
-    
+
     fn build_visibility(&mut self, sexp: &SExp) -> Result<Visibility> {
         let elements = expect_list(sexp)?;
         let variant = expect_symbol(&elements[0])?;
-        
+
         match variant.as_str() {
             "Public" => Ok(Visibility::Public),
             "Inherited" => Ok(Visibility::Inherited),
@@ -1138,11 +1141,11 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     pub fn build_ident(&mut self, sexp: &SExp) -> Result<Ident> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Ident" {
             return Err(ParseError::Expected {
                 expected: "Ident".to_string(),
@@ -1150,22 +1153,22 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let name = expect_string(get_required(&kwargs, "name", sexp.position())?)?;
         let span = get_optional(&kwargs, "span")
             .map(|s| self.build_span(s))
             .transpose()?
             .unwrap_or(Span::DUMMY);
-        
+
         Ok(Ident::new(name, span))
     }
-    
+
     fn build_item_kind(&mut self, sexp: &SExp) -> Result<ItemKind> {
         let elements = expect_list(sexp)?;
         let variant = expect_symbol(&elements[0])?;
-        
+
         match variant.as_str() {
             "Fn" => {
                 let kwargs = parse_kwargs(&elements[1..])?;
@@ -1178,7 +1181,7 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_fn(
         &mut self,
         kwargs: &std::collections::HashMap<String, SExp>,
@@ -1188,13 +1191,13 @@ impl AstBuilder {
             .map(|s| self.build_defaultness(s))
             .transpose()?
             .unwrap_or(Defaultness::Final);
-        
+
         let sig = self.build_fn_sig(get_required(kwargs, "sig", pos)?)?;
         let generics = self.build_generics(get_required(kwargs, "generics", pos)?)?;
         let body = get_optional(kwargs, "body")
             .map(|s| self.build_block(s))
             .transpose()?;
-        
+
         Ok(Fn {
             defaultness,
             sig,
@@ -1202,7 +1205,7 @@ impl AstBuilder {
             body,
         })
     }
-    
+
     fn build_defaultness(&mut self, sexp: &SExp) -> Result<Defaultness> {
         let sym = expect_symbol(sexp)?;
         match sym.as_str() {
@@ -1214,11 +1217,11 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_fn_sig(&mut self, sexp: &SExp) -> Result<FnSig> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "FnSig" {
             return Err(ParseError::Expected {
                 expected: "FnSig".to_string(),
@@ -1226,20 +1229,20 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let header = self.build_fn_header(get_required(&kwargs, "header", sexp.position())?)?;
         let decl = self.build_fn_decl(get_required(&kwargs, "decl", sexp.position())?)?;
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
-        
+
         Ok(FnSig { header, decl, span })
     }
-    
+
     fn build_fn_header(&mut self, sexp: &SExp) -> Result<FnHeader> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "FnHeader" {
             return Err(ParseError::Expected {
                 expected: "FnHeader".to_string(),
@@ -1247,14 +1250,14 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let safety = self.build_safety(get_required(&kwargs, "safety", sexp.position())?)?;
         let constness = self.build_constness(get_required(&kwargs, "constness", sexp.position())?)?;
         let ext = self.build_extern(get_required(&kwargs, "ext", sexp.position())?)?;
         let coroutine_kind = None; // Phase 1
-        
+
         Ok(FnHeader {
             safety,
             coroutine_kind,
@@ -1262,7 +1265,7 @@ impl AstBuilder {
             ext,
         })
     }
-    
+
     fn build_safety(&mut self, sexp: &SExp) -> Result<Safety> {
         let sym = expect_symbol(sexp)?;
         match sym.as_str() {
@@ -1275,7 +1278,7 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_constness(&mut self, sexp: &SExp) -> Result<Constness> {
         let sym = expect_symbol(sexp)?;
         match sym.as_str() {
@@ -1287,7 +1290,7 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_extern(&mut self, sexp: &SExp) -> Result<Extern> {
         match sexp {
             SExp::Symbol(s) if s.value == "None" => Ok(Extern::None),
@@ -1301,11 +1304,11 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_fn_decl(&mut self, sexp: &SExp) -> Result<FnDecl> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "FnDecl" {
             return Err(ParseError::Expected {
                 expected: "FnDecl".to_string(),
@@ -1313,27 +1316,27 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let inputs = parse_list(get_required(&kwargs, "inputs", sexp.position())?, |s| {
             self.build_param(s)
         })?;
-        
+
         let output = self.build_fn_ret_ty(get_required(&kwargs, "output", sexp.position())?)?;
-        
+
         Ok(FnDecl { inputs, output })
     }
-    
+
     fn build_param(&mut self, _sexp: &SExp) -> Result<Param> {
         // Phase 1: Hello World has no params
         todo!("build_param")
     }
-    
+
     fn build_fn_ret_ty(&mut self, sexp: &SExp) -> Result<FnRetTy> {
         let elements = expect_list(sexp)?;
         let variant = expect_symbol(&elements[0])?;
-        
+
         match variant.as_str() {
             "Default" => {
                 let span = self.build_span(&elements[1])?;
@@ -1348,11 +1351,11 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_generics(&mut self, sexp: &SExp) -> Result<Generics> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Generics" {
             return Err(ParseError::Expected {
                 expected: "Generics".to_string(),
@@ -1360,24 +1363,24 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let params = vec![]; // Phase 1: no generic params
         let where_clause = self.build_where_clause(get_required(&kwargs, "where-clause", sexp.position())?)?;
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
-        
+
         Ok(Generics {
             params,
             where_clause,
             span,
         })
     }
-    
+
     fn build_where_clause(&mut self, sexp: &SExp) -> Result<WhereClause> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "WhereClause" {
             return Err(ParseError::Expected {
                 expected: "WhereClause".to_string(),
@@ -1385,19 +1388,19 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let has_where_token = get_optional(&kwargs, "has-where-token")
             .map(|s| match s {
                 SExp::Symbol(sym) => sym.value == "true",
                 _ => false,
             })
             .unwrap_or(false);
-        
+
         let predicates = vec![]; // Phase 1
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
-        
+
         Ok(WhereClause {
             has_where_token,
             predicates,
@@ -1427,7 +1430,7 @@ impl AstBuilder {
     pub fn build_block(&mut self, sexp: &SExp) -> Result<Block> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Block" {
             return Err(ParseError::Expected {
                 expected: "Block".to_string(),
@@ -1435,19 +1438,19 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let stmts = parse_list(get_required(&kwargs, "stmts", sexp.position())?, |s| {
             self.build_stmt(s)
         })?;
-        
+
         let id = self.build_node_id(get_required(&kwargs, "id", sexp.position())?)?;
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
         let rules = BlockCheckMode::Default; // Phase 1
         let tokens = None;
         let could_be_bare_literal = false;
-        
+
         Ok(Block {
             stmts,
             id,
@@ -1457,11 +1460,11 @@ impl AstBuilder {
             could_be_bare_literal,
         })
     }
-    
+
     pub fn build_expr(&mut self, sexp: &SExp) -> Result<Expr> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Expr" {
             return Err(ParseError::Expected {
                 expected: "Expr".to_string(),
@@ -1469,15 +1472,15 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let id = self.build_node_id(get_required(&kwargs, "id", sexp.position())?)?;
         let kind = self.build_expr_kind(get_required(&kwargs, "kind", sexp.position())?)?;
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
         let attrs = vec![]; // Phase 1
         let tokens = None;
-        
+
         Ok(Expr {
             id,
             kind,
@@ -1486,11 +1489,11 @@ impl AstBuilder {
             tokens,
         })
     }
-    
+
     fn build_expr_kind(&mut self, sexp: &SExp) -> Result<ExprKind> {
         let elements = expect_list(sexp)?;
         let variant = expect_symbol(&elements[0])?;
-        
+
         match variant.as_str() {
             "MacCall" => {
                 let mac_call = self.build_mac_call(&elements[1])?;
@@ -1502,11 +1505,11 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     pub fn build_mac_call(&mut self, sexp: &SExp) -> Result<MacCall> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "MacCall" {
             return Err(ParseError::Expected {
                 expected: "MacCall".to_string(),
@@ -1514,19 +1517,19 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let path = self.build_path(get_required(&kwargs, "path", sexp.position())?)?;
         let args = self.build_mac_args(get_required(&kwargs, "args", sexp.position())?)?;
-        
+
         Ok(MacCall::new(path, args))
     }
-    
+
     pub fn build_path(&mut self, sexp: &SExp) -> Result<Path> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Path" {
             return Err(ParseError::Expected {
                 expected: "Path".to_string(),
@@ -1534,21 +1537,21 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
         let segments = parse_list(get_required(&kwargs, "segments", sexp.position())?, |s| {
             self.build_path_segment(s)
         })?;
-        
+
         Ok(Path::new(span, segments))
     }
-    
+
     fn build_path_segment(&mut self, sexp: &SExp) -> Result<PathSegment> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "PathSegment" {
             return Err(ParseError::Expected {
                 expected: "PathSegment".to_string(),
@@ -1556,27 +1559,27 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let ident = self.build_ident(get_required(&kwargs, "ident", sexp.position())?)?;
         let id = self.build_node_id(get_required(&kwargs, "id", sexp.position())?)?;
-        
+
         Ok(PathSegment::new(ident, id))
     }
-    
+
     fn build_mac_args(&mut self, sexp: &SExp) -> Result<MacArgs> {
         let elements = expect_list(sexp)?;
         let variant = expect_symbol(&elements[0])?;
-        
+
         match variant.as_str() {
             "Delimited" => {
                 let kwargs = parse_kwargs(&elements[1..])?;
-                
+
                 let dspan = self.build_del_span(get_required(&kwargs, "dspan", sexp.position())?)?;
                 let delim = self.build_delimiter(get_required(&kwargs, "delim", sexp.position())?)?;
                 let tokens = self.build_token_stream(get_required(&kwargs, "tokens", sexp.position())?)?;
-                
+
                 Ok(MacArgs::Delimited { dspan, delim, tokens })
             }
             "Empty" => Ok(MacArgs::Empty),
@@ -1586,11 +1589,11 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_del_span(&mut self, sexp: &SExp) -> Result<DelSpan> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "DelSpan" {
             return Err(ParseError::Expected {
                 expected: "DelSpan".to_string(),
@@ -1598,15 +1601,15 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let open = self.build_span(get_required(&kwargs, "open", sexp.position())?)?;
         let close = self.build_span(get_required(&kwargs, "close", sexp.position())?)?;
-        
+
         Ok(DelSpan::new(open, close))
     }
-    
+
     fn build_delimiter(&mut self, sexp: &SExp) -> Result<Delimiter> {
         let sym = expect_symbol(sexp)?;
         match sym.as_str() {
@@ -1620,7 +1623,7 @@ impl AstBuilder {
             }),
         }
     }
-    
+
     fn build_token_stream(&mut self, sexp: &SExp) -> Result<TokenStream> {
         match sexp {
             SExp::String(s) => Ok(TokenStream::from_str(s.value.clone())),
@@ -1628,7 +1631,7 @@ impl AstBuilder {
                 // (TokenStream :source "...")
                 let elements = &list.elements;
                 let type_name = expect_symbol(&elements[0])?;
-                
+
                 if type_name != "TokenStream" {
                     return Err(ParseError::Expected {
                         expected: "TokenStream".to_string(),
@@ -1636,7 +1639,7 @@ impl AstBuilder {
                         pos: elements[0].position(),
                     });
                 }
-                
+
                 let kwargs = parse_kwargs(&elements[1..])?;
                 let source = expect_string(get_required(&kwargs, "source", sexp.position())?)?;
                 Ok(TokenStream::from_str(source))
@@ -1670,7 +1673,7 @@ impl AstBuilder {
     pub fn build_stmt(&mut self, sexp: &SExp) -> Result<Stmt> {
         let elements = expect_list(sexp)?;
         let type_name = expect_symbol(&elements[0])?;
-        
+
         if type_name != "Stmt" {
             return Err(ParseError::Expected {
                 expected: "Stmt".to_string(),
@@ -1678,20 +1681,20 @@ impl AstBuilder {
                 pos: elements[0].position(),
             });
         }
-        
+
         let kwargs = parse_kwargs(&elements[1..])?;
-        
+
         let id = self.build_node_id(get_required(&kwargs, "id", sexp.position())?)?;
         let kind = self.build_stmt_kind(get_required(&kwargs, "kind", sexp.position())?)?;
         let span = self.build_span(get_required(&kwargs, "span", sexp.position())?)?;
-        
+
         Ok(Stmt { id, kind, span })
     }
-    
+
     fn build_stmt_kind(&mut self, sexp: &SExp) -> Result<StmtKind> {
         let elements = expect_list(sexp)?;
         let variant = expect_symbol(&elements[0])?;
-        
+
         match variant.as_str() {
             "Semi" => {
                 let expr = self.build_expr(&elements[1])?;
@@ -1757,10 +1760,10 @@ use oxur_ast::sexp::Parser;
 fn test_build_span() {
     let sexp_str = "(Span :lo 0 :hi 10)";
     let sexp = Parser::parse_str(sexp_str).unwrap();
-    
+
     let mut builder = AstBuilder::new();
     let span = builder.build_span(&sexp).unwrap();
-    
+
     assert_eq!(span.lo, 0);
     assert_eq!(span.hi, 10);
 }
@@ -1769,10 +1772,10 @@ fn test_build_span() {
 fn test_build_ident() {
     let sexp_str = r#"(Ident :name "main" :span (Span :lo 3 :hi 7))"#;
     let sexp = Parser::parse_str(sexp_str).unwrap();
-    
+
     let mut builder = AstBuilder::new();
     let ident = builder.build_ident(&sexp).unwrap();
-    
+
     assert_eq!(ident.name, "main");
     assert_eq!(ident.span.lo, 3);
     assert_eq!(ident.span.hi, 7);
@@ -1788,11 +1791,11 @@ fn test_build_path() {
       :ident (Ident :name "println" :span (Span :lo 17 :hi 24))
       :id 0)))
     "#;
-    
+
     let sexp = Parser::parse_str(sexp_str).unwrap();
     let mut builder = AstBuilder::new();
     let path = builder.build_path(&sexp).unwrap();
-    
+
     assert_eq!(path.segments.len(), 1);
     assert_eq!(path.segments[0].ident.name, "println");
 }
@@ -1809,11 +1812,11 @@ fn test_build_simple_crate() {
   :id 0
   :is-placeholder false)
     "#;
-    
+
     let sexp = Parser::parse_str(sexp_str).unwrap();
     let mut builder = AstBuilder::new();
     let crate_node = builder.build_crate(&sexp).unwrap();
-    
+
     assert_eq!(crate_node.items.len(), 0);
     assert_eq!(crate_node.id.0, 0);
 }
@@ -1893,20 +1896,20 @@ fn main() {
   :id 0
   :is-placeholder false)
     "#;
-    
+
     println!("Parsing S-expression...");
     let sexp = Parser::parse_str(sexp_str).expect("Failed to parse S-expression");
-    
+
     println!("Building Rust AST...");
     let mut builder = AstBuilder::new();
     let crate_node = builder.build_crate(&sexp).expect("Failed to build AST");
-    
+
     println!("\n✓ Successfully built Hello World AST!");
     println!("  Items: {}", crate_node.items.len());
-    
+
     if let Some(item) = crate_node.items.first() {
         println!("  Function name: {}", item.ident.name);
-        
+
         if let ast::ItemKind::Fn(fn_item) = &item.kind {
             if let Some(body) = &fn_item.body {
                 println!("  Statements: {}", body.stmts.len());
@@ -1957,6 +1960,7 @@ cargo clippy -p oxur-ast -- -D warnings
 **Phase 2: Generator (Rust AST → S-expr)**
 
 Once Phase 1 is complete, we'll build the reverse direction:
+
 - Walk Rust AST nodes
 - Generate S-expressions
 - Implement visitor pattern

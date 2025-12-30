@@ -23,7 +23,7 @@ This index is automatically generated. Do not edit manually.
 | 0004 | oxur-ast Phase 0: S-Expression Infrastructure | Final | 2025-12-27 |
 | 0003 | oxur-ast: Canonical S-Expression Format for Rust AST | Active | 2025-12-27 |
 | 0002 | Oxur Design Documentation CLI - Build Plan | Final | 2025-12-27 |
-| 0001 | Oxur: A Letter of Intent | Active | 2025-12-26 |
+| 0001 | Oxur: A Letter of Intent | Active | 2025-12-30 |
 
 ## Documents by State
 

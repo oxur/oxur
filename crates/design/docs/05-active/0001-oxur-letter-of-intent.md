@@ -2,19 +2,21 @@
 number: 1
 title: "Oxur: A Letter of Intent"
 author: "Duncan McGreggor"
-component: Core
-tags: [Vision, Architecture]
+component: All
+tags: [vision, architecture]
 created: 2025-12-25
-updated: 2025-12-26
+updated: 2025-12-30
 state: Active
 supersedes: null
 superseded-by: null
-version: 1.0
+version: 1.1
 ---
+
 
 # Oxur: A Letter of Intent
 
 **Status**: Vision & Design Exploration
+**Version**: 1.1
 **Date**: December 2025
 **Mission**: To create a Lisp that compiles to Rust with 100% interop, drawing inspiration from Zetalisp, LFE, and Clojure's thoughtful design
 
@@ -100,14 +102,14 @@ Oxur Syntax → Core Forms (IR) → Rust AST → Rust Code → Binary
   (Stage 1)         (IR)          (Stage 2)
 ```
 
-**Stage 1**: The Oxur Compiler (`oxur/lang`)
+**Stage 1**: The Oxur Compiler (`oxur-comp`)
 
 - Parses Oxur syntax
 - Expands macros
 - Type checking and inference (optional)
 - Compiles to canonical S-expressions (Core Forms)
 
-**Stage 2**: The Rust AST Layer (`oxur/rast`)
+**Stage 2**: The Rust AST Layer (`oxur-ast`)
 
 - Bidirectional Rust AST ↔ S-expression conversion
 - Stable "assembly language" for Rust
@@ -127,22 +129,27 @@ Oxur Syntax → Core Forms (IR) → Rust AST → Rust Code → Binary
 Following Zylisp's success, we'll use S-expressions as our intermediate representation:
 
 - Every field of Rust's AST represented
-- All `token::Pos` information preserved (for error messages)
+- All position information preserved (for error messages)
 - Keyword arguments for clarity
 - Bidirectional transformation guaranteed
 
 Example:
 
 ```lisp
-(FuncDecl
-  :doc nil
-  :name (Ident :name "add")
-  :type (FuncType
-          :params (FieldList
-                    :list ((Param :name "a" :ty (Path :segments ["i32"]))
-                           (Param :name "b" :ty (Path :segments ["i32"]))))
-          :return (Path :segments ["i32"]))
-  :body (Block ...))
+(Item
+  :vis (Inherited)
+  :ident (Ident :name "add")
+  :kind (Fn
+          :sig (FnSig
+                 :decl (FnDecl
+                         :inputs [(Param :name "a" :ty (Path "i32"))
+                                  (Param :name "b" :ty (Path "i32"))]
+                         :output (Ty (Path "i32"))))
+          :body (Block
+                  :stmts [(Expr
+                            (Binary :op Add
+                                    :left (Path "a")
+                                    :right (Path "b")))])))
 ```
 
 This becomes Rust:
@@ -153,6 +160,26 @@ fn add(a: i32, b: i32) -> i32 {
 }
 ```
 
+### Wire Format: Postcard for Rust, MessagePack for Polyglot
+
+**Initial choice (v0.1)**: **postcard**
+
+- 3.4x faster serialization than MessagePack
+- Smaller wire format (724KB vs 784KB in benchmarks)
+- Rust-native ecosystem integration with `postcard-rpc`
+- Stable wire format since v1.0.0 (June 2022)
+- Acceptable trade-off: Rust-only clients initially
+
+**Migration path (v0.2+)**: **MessagePack** support
+
+- Multi-protocol server (different ports: 7888 for postcard, 7889 for msgpack)
+- 50+ language implementations available
+- ~50 lines of code to add (trait-based abstraction)
+- Zero breaking changes for existing clients
+- Enables Python, JavaScript, Clojure clients
+
+The architecture separates protocol semantics from wire serialization via a `Protocol` trait, allowing both formats to coexist when cross-language demand emerges. No premature optimization - start with optimal Rust performance, add polyglot support when needed.
+
 ### No Plugin Memory Leak Problem
 
 Unlike Go, Rust doesn't have the plugin memory leak that forced Zylisp into a complex supervised worker architecture. This simplifies our REPL design significantly:
@@ -160,7 +187,7 @@ Unlike Go, Rust doesn't have the plugin memory leak that forced Zylisp into a co
 - No need for disposable worker processes
 - No IPC overhead
 - No memory monitoring complexity
-- Simpler supervision model
+- Simpler supervision model (optional, not required)
 
 We still want reliability-first design, but we can achieve it more elegantly in Rust.
 
@@ -369,6 +396,25 @@ We might also provide a way to invoke Rust macros from Oxur:
 
 This needs design work, but the Rust AST's `MacCall` nodes suggest it's possible.
 
+### Phased Macro System
+
+**Phase 1 (v1.0)**: Core macros only
+
+- Pre-compiled by Oxur team
+- Shipped as `core-macros.so` dynamic library
+- Examples: `defn`, `when`, `->`, `when-let`, `unless`, `cond`
+- Loaded at compiler startup
+- 10-15 essential macros cover common patterns
+
+**Phase 2 (v2.0)**: User-definable macros
+
+- Multi-pass compilation with dependency graph
+- Layer-by-layer compilation (topological sort)
+- Cycle detection
+- Produces `user-macros.so` alongside `core-macros.so`
+
+This phased approach ships a complete, usable language in v1.0 while deferring the complexity of user macro compilation to v2.0.
+
 ## Module System
 
 Rust's module system is explicit and hierarchical:
@@ -458,58 +504,119 @@ Rust's ownership makes concurrency safe. Oxur inherits this:
 
 The `move` keyword is crucial for closures that capture their environment.
 
-## The REPL: Simpler than Zylisp
+## The REPL: Production Network Protocol from Day One
 
-Without Go's plugin memory leak, our REPL can be simpler:
+Without Go's plugin memory leak, our REPL architecture is fundamentally simpler. But we're not just building a local REPL - we're building a production-grade network protocol inspired by nREPL.
 
-### Tiered Execution (Kept from Zylisp)
-
-The three-tier strategy still makes sense:
-
-**Tier 1: Direct Interpretation** (~1ms)
-
-- Simple expressions: literals, arithmetic, variable lookups
-- No compilation needed
-
-**Tier 2: Cached Compilation** (~0ms after first compile)
-
-- Function definitions compile once
-- Subsequent calls are instant
-- But no worker process complexity!
-
-**Tier 3: JIT Compilation** (slower first time)
-
-- Complex expressions
-- Compile to Rust, then to native code
-- Cache the result
-
-### REPL Architecture
+### REPL Architecture: Three Components
 
 ```
-┌─────────────────────────────────────┐
-│         REPL Server                  │
-│  (Single process, no workers!)      │
-│                                      │
-│  ┌──────────────────────────────┐  │
-│  │  Tier 1: Interpreter         │  │
-│  └──────────────────────────────┘  │
-│  ┌──────────────────────────────┐  │
-│  │  Tier 2: Compiled Cache      │  │
-│  └──────────────────────────────┘  │
-│  ┌──────────────────────────────┐  │
-│  │  Tier 3: JIT Compiler        │  │
-│  └──────────────────────────────┘  │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│         REPL Server                       │
+│  (Single process, no workers!)           │
+│                                           │
+│  ┌───────────────────────────────────┐  │
+│  │  Tier 1: Interpreter              │  │
+│  │  Simple forms: ~1ms               │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │  Tier 2: Compiled Cache           │  │
+│  │  Functions: instant after compile │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │  Tier 3: JIT Compiler             │  │
+│  │  Complex exprs: 50-200ms first    │  │
+│  └───────────────────────────────────┘  │
+└──────────────────────────────────────────┘
 ```
 
-Much simpler! No IPC, no memory monitoring, no worker restarts.
+Much simpler than Zylisp! No IPC, no memory monitoring, no worker restarts.
 
-### Supervision: OTP-Style (Kept from Zylisp)
+### Network Protocol: nREPL-Inspired
+
+**Core Protocol Operations** (v0.1):
+
+- `clone` - Create new session (returns session UUID)
+- `eval` - Evaluate code (with mode: lisp/sexpr)
+- `load-file` - Load and evaluate file
+- `interrupt` - Cancel running evaluation
+- `close` - Close session
+- `describe` - Server capabilities/version
+- `ls-sessions` - Active session enumeration
+
+The `mode` parameter enables **dual-mode evaluation** (Oxur syntax vs s-expression AST) within a single protocol, allowing users to switch modes mid-session or run different clients in different modes against the same server.
+
+**Message Structure** (postcard-encoded):
+
+```rust
+#[derive(Serialize, Deserialize)]
+struct Request {
+    id: String,           // UUID correlation ID
+    session: String,      // Session UUID
+    op: Operation,        // Clone, Eval, Interrupt, etc.
+    mode: ReplMode,       // Lisp or Sexpr
+    params: HashMap<String, Value>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Response {
+    id: String,           // Echoed from request
+    session: String,
+    value: Option<String>,
+    out: Option<String>,  // Streaming stdout
+    err: Option<String>,  // Streaming stderr
+    status: Vec<Status>,  // ["done"], ["error"], ["interrupted"]
+}
+```
+
+### Transport Abstraction
+
+Unified API across all connection types via Tokio's `AsyncRead + AsyncWrite`:
+
+**Available transports:**
+
+- **TCP**: Primary for remote connections (port 7888)
+- **Unix sockets**: Low-latency local IPC (Linux/macOS)
+- **Named pipes**: Windows-native local IPC
+- **In-process channels**: Zero-overhead testing/embedding
+
+The `TransportListener` trait enables zero-cost monomorphization - no runtime overhead for the abstraction. All transport implementations satisfy the same bounds:
+
+```rust
+async fn handle_stream<S>(stream: S) -> io::Result<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send,
+{
+    // Protocol handling identical regardless of transport
+}
+```
+
+### Multi-Protocol Future (v0.2+)
+
+When cross-language client demand emerges, adding MessagePack support is trivial:
+
+```
+┌─────────────────────────────────────────┐
+│  Postcard Server (port 7888)            │
+│  ↓ Rust clients (optimal performance)   │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│  MessagePack Server (port 7889)         │
+│  ↓ Python/JS/Clojure clients            │
+└─────────────────────────────────────────┘
+
+Both share: EvalEngine, SessionManager, protocol semantics
+```
+
+The trait-based architecture means adding MessagePack is ~50 lines of code with zero breaking changes for existing postcard clients.
+
+### Supervision: OTP-Style (Optional)
 
 We still want reliability-first design, but adapted for Rust:
 
 ```rust
-// Supervisor in Rust (using rely-rs or similar)
+// Supervisor in Rust (using tokio's supervision patterns)
 let supervisor = Supervisor::new(OneForOne);
 
 supervisor.add_child(ChildSpec {
@@ -521,171 +628,202 @@ supervisor.add_child(ChildSpec {
 supervisor.start();
 ```
 
-But this is optional - Rust's safety means crashes are rarer.
+But this is **optional** - Rust's safety means crashes are rarer. The REPL can run perfectly well as a simple single-process server without supervision.
 
 ## Repository Structure
 
-Following Zylisp's successful pattern:
+Following Zylisp's successful pattern, adapted for the current codebase:
 
 ```
-github.com/oxur/
-├── rast/           # Rust AST ↔ S-expr conversion (Stage 2)
-├── lang/           # Oxur compiler (Stage 1)
-├── repl/           # REPL server/client
-├── cli/            # CLI tool
-├── rely-rs/        # Supervision library (Rust port of rely)
-├── design/         # This document and all design docs
-└── rust-ast-coverage/  # Comprehensive Rust test cases
+oxur/crates/
+├── oxur-ast/           # Rust AST ↔ S-expr (Stage 2) ✅ IMPLEMENTED
+├── oxur-comp/          # Oxur compiler (Stages 1-2)
+├── oxur-lang/          # Language definition, core macros
+├── oxur-repl/          # REPL server/client/protocol
+├── oxur-cli/           # CLI tool (oxur command)
+├── oxur-table/         # Table formatting utility ✅ IMPLEMENTED
+└── design/             # Design documents & CLI ✅ IMPLEMENTED
 ```
 
 **Dependency graph** (no circles!):
 
 ```
-cli → repl → lang → rast
-      ↓
-    rely-rs
+cli → repl → oxur-lang → oxur-comp → oxur-ast
+              ↓
+        (core-macros.so compiled from oxur-lang/core-macros/)
 ```
 
 Clean, testable, maintainable.
 
-## Development Priorities
+## Development Timeline (18 Weeks to v1.0)
 
-### Phase 0: Foundation
+### Phase 0: Foundation (Weeks 1-2) ✅ COMPLETE
 
-1. **Define Core Forms specification**
-   - Canonical S-expression format for Rust AST
-   - Document every Rust AST node type
-   - Establish conventions
+**Goal:** Set up project structure and basic tooling
 
-2. **Build `rast`**
-   - S-expression parser
-   - Rust AST → S-expr generator
-   - S-expr → Rust AST builder
-   - Comprehensive tests against `rust-ast-coverage`
+- [x] Create repositories (`oxur-ast`, `design`)
+- [x] Set up CI/CD
+- [x] Define Core Forms specification (Document 0003)
+- [x] Implement Node ID generator and source map types
+- [x] Write project README and contribution guidelines
 
-3. **Validate round-trip**
-   - Rust source → AST → S-expr → AST → Rust source
-   - Bootstrap demo like Zylisp's
+### Phase 1: Parse & Source Maps (Weeks 3-4) - IN PROGRESS
 
-### Phase 1: Minimal Viable Oxur
+**Goal:** Implement Stage 1 (Parse) with source map tracking
 
-1. **Basic Oxur syntax**
-   - Functions, variables, basic types
-   - Simple expressions
-   - No macros yet
+- [x] S-expression lexer with position tracking (`oxur-ast`) ✅
+- [x] S-expression parser (tokens → S-expressions) ✅
+- [ ] Reader (S-expressions → Surface Forms)
+- [ ] Node ID assignment for all forms
+- [ ] Input layer source map creation
+- [ ] Parse error reporting with context
 
-2. **Stage 1 compiler**
-   - Parse Oxur syntax
-   - Compile to Core Forms
-   - Integrate with `rast`
+**Current status:** S-expression infrastructure complete, need to add Surface Forms layer
 
-3. **Hello World**
-   - Write Oxur code that compiles to working Rust
-   - Prove the pipeline works
+### Phase 2: Core Forms & Lowering (Weeks 5-6)
 
-### Phase 2: Essential Features
+**Goal:** Define Core Forms and implement Stage 3 (Lower)
 
-1. **Pattern matching**
-   - Full `match` support
-   - Destructuring
-   - Guards
+**Deliverables:**
 
-2. **Ownership primitives**
-   - Borrow, borrow-mut, move
-   - Basic lifetime annotations
+- [ ] Complete Core Form types in `oxur-comp`
+- [ ] Core Form → Rust AST lowering
+- [ ] Rust AST → Core Form lifting (for testing)
+- [ ] Round-trip tests (Rust → Core Forms → Rust)
+- [ ] Source map for lowering stage
 
-3. **Traits (basic)**
-   - Trait definitions
-   - Trait implementations
-   - Simple bounds
+### Phase 3: Expansion (Weeks 7-8)
 
-### Phase 3: Power Features
+**Goal:** Implement Stage 2 (Expand) with core macros
 
-1. **Macros**
-    - Macro definition and expansion
-    - Hygiene and gensym
-    - Macro debugging
+**Deliverables:**
 
-2. **Advanced types**
-    - Generics with bounds
-    - Associated types
-    - Const generics
+- [ ] Expander implementation
+- [ ] Desugaring for common syntax sugar
+- [ ] Core macro framework
+- [ ] Implement 3-5 essential core macros
+- [ ] Macro expansion tests
+- [ ] Source map for expansion stage
 
-3. **REPL**
-    - Three-tier execution
-    - Session management
-    - Integration testing
+### Phase 4: Generation & End-to-End (Weeks 9-10)
 
-### Phase 4: Production Ready
+**Goal:** Complete the pipeline, compile Hello World
 
-1. **Complete Rust coverage**
-    - All control flow
-    - All type constructs
-    - All trait features
-    - Unsafe blocks (carefully!)
+**Deliverables:**
 
-2. **Tooling**
-    - LSP server
-    - Formatter
-    - Linter
-    - Documentation generator
+- [ ] Stage 4 (Generate) implementation
+- [ ] Stage 5 (Compile) integration
+- [ ] End-to-end compilation test
+- [ ] Compile and run "Hello, World!"
+- [ ] Error translation from rustc errors
+- [ ] Full pipeline integration tests
 
-3. **Standard library**
-    - Idiomatic wrappers for Rust std
-    - Lisp-friendly APIs
-    - Community-driven growth
+### Phase 5: Core Macros Library (Weeks 11-12)
 
-## Key Design Questions to Resolve
+**Goal:** Build comprehensive core macro library
 
-As we work through this, we'll need to decide:
+**Deliverables:**
 
-### Naming Conventions
+- [ ] Control flow macros (`when`, `unless`, `cond`)
+- [ ] Threading macros (`->`, `->>`)
+- [ ] Let variants (`when-let`, `if-let`)
+- [ ] Loop helpers (`dotimes`, `doseq`)
+- [ ] Core macro compilation infrastructure
+- [ ] Core macro tests
+- [ ] Documentation for core macros
 
-- Function definition: `defn`, `deffunc`, `fn`, `define`?
-- Struct definition: `defstruct`, `struct`, `record`?
-- Trait definition: `deftrait`, `trait`, `protocol`?
-- Variable binding: `let`, `bind`, `var`?
-- Match arms: keep `match`? Use `case`?
+### Phase 6: REPL (Weeks 13-14)
 
-We'll explore each with the question: "What would Zetalisp or LFE choose?"
+**Goal:** Build working REPL with tiered execution
 
-### Syntax for Rust-Specific Features
+**Deliverables:**
 
-- Lifetime syntax: `'a`, `<'a>`, `#'a`, something else?
-- Reference syntax: `(& x)`, `(ref x)`, `#&x`?
-- Mutable reference: `(&mut x)`, `(ref-mut x)`, `#&mut x`?
-- Generic type parameters: `[T]`, `<T>`, `{T}`?
-- Where clauses: `:where`, `:bounds`, `:constraints`?
+- [ ] Tier 1 interpreter for simple forms
+- [ ] Tier 2 compilation cache
+- [ ] Tier 3 JIT compilation
+- [ ] REPL server implementation
+- [ ] REPL client (CLI)
+- [ ] Network protocol (postcard)
+- [ ] Multi-transport support (TCP, Unix, named pipes)
+- [ ] REPL tests
+- [ ] REPL user documentation
 
-### Type Annotation Philosophy
+### Phase 7: CLI & Tooling (Weeks 15-16)
 
-- Required in function signatures? (Leaning yes)
-- Required in let bindings? (Leaning no, infer when possible)
-- Required in struct fields? (Leaning yes)
-- How verbose for complex types?
+**Goal:** Polish CLI and add essential tools
 
-### Macro Integration
+**Deliverables:**
 
-- Can Oxur macros generate Rust macros?
-- Can Oxur code invoke Rust macros?
-- How do we handle procedural macros?
-- Derive macros for Oxur structs?
+- [ ] `oxur build` command
+- [ ] `oxur repl` command (default when no command given)
+- [ ] `oxur check` command
+- [ ] `oxur format` command
+- [ ] Project configuration (`Oxur.toml`)
+- [ ] Build caching
+- [ ] Error message improvements
+- [ ] CLI documentation
 
-### Error Handling
+### Phase 8: v1.0 Release (Weeks 17-18)
 
-- Special syntax for `?` operator?
-- Syntactic sugar for Result/Option handling?
-- Debugging tools for error propagation?
+**Goal:** Polish, documentation, release
 
-### Module and Visibility
+**Deliverables:**
 
-- Follow Rust's module system exactly?
-- Any syntactic sugar for common patterns?
-- How to handle `pub(crate)`, `pub(super)`, etc.?
+- [ ] Complete documentation
+- [ ] Tutorial and examples
+- [ ] Performance benchmarks
+- [ ] Release notes
+- [ ] Blog post announcing v1.0
+- [ ] Package for distribution
+
+## Key Architectural Improvements Over Zylisp
+
+### Simpler REPL
+
+- **No plugin memory leak** → no supervised worker processes
+- **Direct function calls** instead of IPC
+- **Single-process architecture** (supervision optional, not required)
+- **Native compilation cache** (no memory leak when loading compiled code)
+
+### Better Protocol
+
+- **postcard/MessagePack** instead of bencode
+  - 3.4x faster serialization
+  - ~50% smaller wire format
+  - Full type support (floats, booleans)
+- **Multi-transport from day one** (not just TCP)
+  - Unix sockets, named pipes, in-process channels
+- **nREPL-inspired but Rust-native**
+  - Streaming output
+  - Session isolation
+  - Correlation IDs for multiplexing
+
+### More Capable Type System
+
+- **Expose Rust's lifetimes, traits, const generics**
+- **No runtime library needed** (Rust's type system is powerful enough)
+- **First-class pattern matching in AST**
+- **Ownership operations as primitives** (borrow, borrow-mut, move, clone)
+
+### Cleaner AST
+
+- **Rust's `Foo`/`FooKind` pattern** more systematic than Go's variety
+- **Smaller surface area** despite being more expressive
+- **Better position tracking** (`Span` vs `token.Pos`)
+- **S-expression format uses keyword arguments** for clarity
+
+### Phased Macro System
+
+- **Core macros pre-compiled** (v1.0) - shipped as `core-macros.so`
+- **User macros deferred to v2.0** - ships complete language without complexity
+- **Native compilation** instead of interpretation
+- **Dependency graph resolution** for layer-by-layer compilation
 
 ## Success Criteria
 
 We'll know Oxur is succeeding when:
+
+### Core Compilation
 
 1. **Round-trip works**: Rust → S-expr → Rust produces equivalent code
 2. **Hello World compiles**: Basic Oxur programs generate working binaries
@@ -694,9 +832,20 @@ We'll know Oxur is succeeding when:
 5. **Patterns are beautiful**: Match expressions are clean and powerful
 6. **Traits are accessible**: The trait system is approachable
 7. **Macros are powerful**: Compile-time metaprogramming works as expected
-8. **REPL is fast**: Sub-millisecond responses for simple expressions
-9. **Rust community approves**: Rustaceans see Oxur as idiomatic
-10. **Lisp community approves**: Lispers feel at home
+
+### REPL & Protocol
+
+1. **Sub-millisecond REPL**: Simple expressions complete in <1ms (Tier 1)
+2. **Multi-transport works**: Same code runs over TCP, Unix sockets, named pipes
+3. **Cross-language clients**: Python/JavaScript clients can connect via MessagePack (v0.2+)
+4. **Streaming output**: Incremental stdout/stderr during evaluation
+5. **Mode switching**: Seamlessly switch between Lisp syntax and s-expression modes
+
+### Community & Ecosystem
+
+1. **Rust community approves**: Rustaceans see Oxur as idiomatic
+2. **Lisp community approves**: Lispers feel at home
+3. **Production deployments**: People build real things with Oxur
 
 ## Why This Matters
 
@@ -706,6 +855,7 @@ We'll know Oxur is succeeding when:
 - Alternative syntax for Rust's semantics
 - Rapid prototyping with REPL
 - Code generation and analysis tools
+- Network REPL protocol for tooling integration
 
 **For Lisp Enthusiasts:**
 
@@ -713,6 +863,7 @@ We'll know Oxur is succeeding when:
 - Access to Rust's amazing ecosystem
 - Zero-cost abstractions with Lisp expressiveness
 - Pattern matching as a first-class citizen
+- Real ownership and lifetime control
 
 **For Everyone:**
 
@@ -720,6 +871,7 @@ We'll know Oxur is succeeding when:
 - Bridging paradigms thoughtfully
 - Learning through alternative representations
 - Having fun with powerful tools
+- Building a production-grade network REPL protocol for Rust
 
 ## Closing Thoughts
 
@@ -731,6 +883,14 @@ Oxur sits at the intersection of three powerful traditions:
 
 We're not making Rust into Lisp or Lisp into Rust. We're revealing that Rust *already has* a Lisp hiding inside it - we're just giving it S-expression syntax and the full power of homoiconicity.
 
+**Version 1.1 additions** bring architectural clarity earned through detailed design work:
+
+- **Wire format strategy**: Start with postcard (optimal Rust performance), add MessagePack when cross-language clients emerge
+- **Network protocol**: Production-grade nREPL-inspired protocol from day one, not an afterthought
+- **Transport abstraction**: Multi-transport support via zero-cost trait abstraction
+- **Phased macros**: Ship complete language (v1.0) without user macro complexity
+- **18-week timeline**: Concrete path to v1.0 with current progress tracked
+
 This is going to be a phenomenal journey. We have the benefit of Zylisp's lessons, Rust's superior design, and a clear architectural vision. The hard problems are obvious (lifetimes, ownership, traits), but they're *interesting* hard problems, not insurmountable ones.
 
 Let's build something beautiful.
@@ -740,3 +900,28 @@ Let's build something beautiful.
 ---
 
 *"In Lisp, code is data. In Rust, safety is fearless. In Oxur, we get both."*
+
+---
+
+## Appendix: Changes from v1.0
+
+**Major Additions:**
+
+- Wire format strategy (postcard → MessagePack migration path)
+- Network protocol details (nREPL-inspired, multi-transport)
+- Transport abstraction architecture
+- Phased macro system (core v1.0, user v2.0)
+- 18-week development timeline with current progress
+- Architectural improvements over Zylisp section
+- Enhanced success criteria (REPL & protocol)
+
+**Refinements:**
+
+- REPL architecture now includes three-tier execution detail
+- Repository structure updated to match actual codebase
+- Supervision model clarified as optional, not required
+- Source map architecture referenced (Node-ID based provenance)
+
+**Rationale:**
+
+Version 1.1 incorporates the architectural clarity gained from detailed design work in documents 0013 (Compilation Chain), 0017 (Protocol Serialization), and 0018 (REPL Protocol). The core vision remains unchanged, but implementation details are now concrete and battle-tested through design review.

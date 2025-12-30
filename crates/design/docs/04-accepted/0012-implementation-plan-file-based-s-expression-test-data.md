@@ -2,8 +2,8 @@
 number: 12
 title: "Implementation Plan: File-Based S-Expression Test Data"
 author: "Duncan McGreggor & Claude"
-component: Testing
-tags: [Infrastructure, S-Expression]
+component: AST
+tags: [sexpr, testing]
 created: 2025-12-27
 updated: 2025-12-27
 state: Accepted

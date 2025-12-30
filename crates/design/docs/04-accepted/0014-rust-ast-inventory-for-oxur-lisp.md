@@ -3,7 +3,7 @@ number: 14
 title: "Rust AST Inventory for Oxur Lisp"
 author: "Duncan McGreggor"
 component: AST
-tags: [Reference, Documentation]
+tags: [rust, reference]
 created: 2025-12-27
 updated: 2025-12-27
 state: Accepted
