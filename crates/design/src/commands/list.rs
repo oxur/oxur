@@ -43,6 +43,14 @@ struct DevDocRow {
     updated: String,
 }
 
+/// Filter options for listing documents
+#[derive(Default)]
+pub struct ListFilters {
+    pub state: Option<String>,
+    pub component: Option<String>,
+    pub tags: Vec<String>,
+}
+
 /// Apply cell-specific colors to the state column while preserving theme backgrounds
 fn apply_state_cell_colors(
     table: &mut Table,
@@ -68,40 +76,28 @@ pub fn list_documents(
     state_filter: Option<String>,
     verbose: bool,
 ) -> Result<()> {
-    list_documents_impl(index, None, state_filter, verbose, false, false, None, Vec::new())
+    let filters = ListFilters { state: state_filter, ..Default::default() };
+    list_documents_impl(index, None, &filters, verbose, false, false)
 }
 
 pub fn list_documents_with_state(
     index: &DocumentIndex,
     state_mgr: Option<&StateManager>,
-    state_filter: Option<String>,
+    filters: &ListFilters,
     verbose: bool,
     removed: bool,
     dev: bool,
-    component_filter: Option<String>,
-    tags_filter: Vec<String>,
 ) -> Result<()> {
-    list_documents_impl(
-        index,
-        state_mgr,
-        state_filter,
-        verbose,
-        removed,
-        dev,
-        component_filter,
-        tags_filter,
-    )
+    list_documents_impl(index, state_mgr, filters, verbose, removed, dev)
 }
 
 fn list_documents_impl(
     index: &DocumentIndex,
     state_mgr: Option<&StateManager>,
-    state_filter: Option<String>,
+    filters: &ListFilters,
     verbose: bool,
     removed: bool,
     dev: bool,
-    component_filter: Option<String>,
-    tags_filter: Vec<String>,
 ) -> Result<()> {
     // If showing dev documents, use special handling
     if dev {
@@ -120,8 +116,8 @@ fn list_documents_impl(
             return Ok(());
         }
     }
-    let mut docs = if let Some(state_str) = state_filter {
-        match DocState::from_str_flexible(&state_str) {
+    let mut docs = if let Some(state_str) = &filters.state {
+        match DocState::from_str_flexible(state_str) {
             Some(state) => index.by_state(state),
             None => {
                 eprintln!("{} Unknown state: {}", "ERROR:".red().bold(), state_str);
@@ -134,14 +130,15 @@ fn list_documents_impl(
     };
 
     // Apply component filter
-    if let Some(component) = &component_filter {
+    if let Some(component) = &filters.component {
         docs.retain(|doc| doc.metadata.component.as_ref().map(|c| c == component).unwrap_or(false));
     }
 
     // Apply tags filter (OR logic - match ANY tag)
-    if !tags_filter.is_empty() {
+    if !filters.tags.is_empty() {
         docs.retain(|doc| {
-            tags_filter
+            filters
+                .tags
                 .iter()
                 .any(|filter_tag| doc.metadata.tags.iter().any(|doc_tag| doc_tag == filter_tag))
         });
@@ -804,7 +801,7 @@ mod tests {
 
         // List with --removed but no state manager should handle gracefully
         let result =
-            list_documents_with_state(&index, None, None, false, true, false, None, Vec::new());
+            list_documents_with_state(&index, None, &ListFilters::default(), false, true, false);
         assert!(result.is_ok());
     }
 

@@ -122,16 +122,8 @@ pub(crate) fn execute_command(
 ) -> Result<()> {
     match command {
         Commands::List { state, verbose, removed, dev, component, tags } => {
-            list_documents_with_state(
-                index,
-                Some(state_mgr),
-                state,
-                verbose,
-                removed,
-                dev,
-                component,
-                tags,
-            )
+            let filters = commands::list::ListFilters { state, component, tags };
+            list_documents_with_state(index, Some(state_mgr), &filters, verbose, removed, dev)
         }
         Commands::Show { number, metadata_only } => show_document(index, number, metadata_only),
         Commands::New { title, author, component, tags } => {
