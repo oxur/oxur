@@ -131,6 +131,18 @@ impl RustCodegen {
             ExprKind::Loop { label, body } => {
                 self.generate_loop(label.as_ref(), body)?;
             }
+            ExprKind::Binary { .. } => {
+                self.write("/* TODO: Binary */");
+            }
+            ExprKind::Unary { .. } => {
+                self.write("/* TODO: Unary */");
+            }
+            ExprKind::Call { .. } => {
+                self.write("/* TODO: Call */");
+            }
+            ExprKind::MethodCall { .. } => {
+                self.write("/* TODO: MethodCall */");
+            }
         }
         Ok(())
     }

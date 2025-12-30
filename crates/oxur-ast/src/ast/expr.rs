@@ -24,7 +24,14 @@ pub enum ExprKind {
     While { label: Option<Label>, cond: Box<Expr>, body: Block },
     ForLoop { label: Option<Label>, pat: Pat, iter: Box<Expr>, body: Block },
     Loop { label: Option<Label>, body: Block },
-    // Future: Array, Call, MethodCall, Binary, etc.
+
+    // Stage 3: Operations and calls
+    Binary { left: Box<Expr>, op: BinOp, right: Box<Expr> },
+    Unary { op: UnOp, expr: Box<Expr> },
+    Call { func: Box<Expr>, args: Vec<Expr> },
+    MethodCall { receiver: Box<Expr>, method: Ident, args: Vec<Expr> },
+
+    // Future: Array, Field, Index, Assign, Closure, etc.
 }
 
 /// Macro call
@@ -88,4 +95,35 @@ pub struct Arm {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
     pub ident: Ident,
+}
+
+/// Binary operator
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinOp {
+    Add,    // +
+    Sub,    // -
+    Mul,    // *
+    Div,    // /
+    Rem,    // %
+    And,    // &&
+    Or,     // ||
+    BitAnd, // &
+    BitOr,  // |
+    BitXor, // ^
+    Shl,    // <<
+    Shr,    // >>
+    Eq,     // ==
+    Ne,     // !=
+    Lt,     // <
+    Le,     // <=
+    Gt,     // >
+    Ge,     // >=
+}
+
+/// Unary operator
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnOp {
+    Not,   // !
+    Neg,   // -
+    Deref, // *
 }

@@ -129,6 +129,10 @@ impl Generator {
                     self.generate_block(body)?,
                 ]))
             }
+            ExprKind::Binary { .. } => Ok(sym("TODO-Binary")),
+            ExprKind::Unary { .. } => Ok(sym("TODO-Unary")),
+            ExprKind::Call { .. } => Ok(sym("TODO-Call")),
+            ExprKind::MethodCall { .. } => Ok(sym("TODO-MethodCall")),
         }
     }
 
