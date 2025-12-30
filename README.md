@@ -42,12 +42,21 @@ This is a Cargo workspace containing multiple related crates:
 # Build all crates
 cargo build
 
+# or
+make build
+
 # Build specific crate
 cargo build -p design
 
 # Build with optimizations
 cargo build --release
 ```
+
+## Design Documents
+
+ODDs ("Oxur Design Documents"), like [Erlang EEPs](https://github.com/erlang/eep) and [Rust RFCs](https://github.com/rust-lang/rfcs), document all architectural decisions, specifications, and design discussions in the `crates/design/docs/` directory.
+
+To explore Oxur's design decisions, you probably want to [start here](crates/design/docs/index.md).
 
 ### Design Documentation CLI
 
@@ -95,12 +104,6 @@ List all design documents:
 ```
 
 [![oxd cli tool screenshot of list command][oxd-list-screenshot]][oxd-list-screenshot]
-
-## Design Documents
-
-ODDs ("Oxur Design Documents"), like [Erlang EEPs](https://github.com/erlang/eep) and [Rust RFCs](https://github.com/rust-lang/rfcs), document all architectural decisions, specifications, and design discussions in the `crates/design/docs/` directory.
-
-To explore Oxur's design decisions, you probably want to [start here](crates/design/docs/index.md).
 
 ## Contributing
 
