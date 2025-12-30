@@ -362,13 +362,12 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let kind = self.build_ty_kind(
-            kwargs.get("kind").ok_or_else(|| ParseError::Expected {
+        let kind =
+            self.build_ty_kind(kwargs.get("kind").ok_or_else(|| ParseError::Expected {
                 expected: ":kind field".to_string(),
                 found: "missing".to_string(),
                 pos: list.pos,
-            })?,
-        )?;
+            })?)?;
 
         let id = if let Some(id_sexp) = kwargs.get("id") {
             NodeId(expect_number(id_sexp)? as u32)
@@ -422,12 +421,11 @@ impl AstBuilder {
             match node_type.value.as_str() {
                 "Struct" => {
                     let kwargs = parse_kwargs(list)?;
-                    let fields_sexp =
-                        kwargs.get("fields").ok_or_else(|| ParseError::Expected {
-                            expected: ":fields field".to_string(),
-                            found: "missing".to_string(),
-                            pos: list.pos,
-                        })?;
+                    let fields_sexp = kwargs.get("fields").ok_or_else(|| ParseError::Expected {
+                        expected: ":fields field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    })?;
                     let fields = self.build_field_list(fields_sexp)?;
                     let recovered = if let Some(rec_sexp) = kwargs.get("recovered") {
                         expect_symbol(rec_sexp)?.value == "true"
@@ -504,18 +502,18 @@ impl AstBuilder {
         } else {
             Visibility::Inherited
         };
-        let ident = self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
-            expected: ":ident field".to_string(),
-            found: "missing".to_string(),
-            pos: list.pos,
-        })?)?;
-        let data = self.build_variant_data(
-            kwargs.get("data").ok_or_else(|| ParseError::Expected {
+        let ident =
+            self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
+                expected: ":ident field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            })?)?;
+        let data =
+            self.build_variant_data(kwargs.get("data").ok_or_else(|| ParseError::Expected {
                 expected: ":data field".to_string(),
                 found: "missing".to_string(),
                 pos: list.pos,
-            })?,
-        )?;
+            })?)?;
 
         let disr_expr = if let Some(disr_sexp) = kwargs.get("disr-expr") {
             if !is_nil(disr_sexp) {

@@ -54,8 +54,12 @@ impl Generator {
     fn generate_item_kind(&self, kind: &ItemKind) -> Result<SExp> {
         match kind {
             ItemKind::Fn(func) => Ok(list(vec![sym("Fn"), self.generate_fn(func)?])),
-            ItemKind::Struct(data) => Ok(list(vec![sym("Struct"), self.generate_variant_data(data)])),
-            ItemKind::Enum(enum_def) => Ok(list(vec![sym("Enum"), self.generate_enum_def(enum_def)])),
+            ItemKind::Struct(data) => {
+                Ok(list(vec![sym("Struct"), self.generate_variant_data(data)]))
+            }
+            ItemKind::Enum(enum_def) => {
+                Ok(list(vec![sym("Enum"), self.generate_enum_def(enum_def)]))
+            }
         }
     }
 
@@ -350,13 +354,8 @@ impl Generator {
     }
 
     fn generate_enum_def(&self, enum_def: &EnumDef) -> SExp {
-        let variants_sexp = list(
-            enum_def
-                .variants
-                .iter()
-                .map(|v| self.generate_variant(v))
-                .collect::<Vec<_>>(),
-        );
+        let variants_sexp =
+            list(enum_def.variants.iter().map(|v| self.generate_variant(v)).collect::<Vec<_>>());
         typed_node("EnumDef", kwargs(vec![kwarg("variants", variants_sexp)]))
     }
 

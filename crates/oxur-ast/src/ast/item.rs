@@ -21,7 +21,6 @@ pub enum ItemKind {
     // Stage 4: Struct and Enum items
     Struct(VariantData),
     Enum(EnumDef),
-
     // Future: ExternCrate, Use, Static, Const, Mod, Trait, Impl, etc.
 }
 

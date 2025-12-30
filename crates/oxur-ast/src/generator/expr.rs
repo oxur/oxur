@@ -129,28 +129,26 @@ impl Generator {
                     self.generate_block(body)?,
                 ]))
             }
-            ExprKind::Binary { left, op, right } => {
-                Ok(list(vec![
-                    sym("Binary"),
-                    kw("left"),
-                    self.generate_expr(left)?,
-                    kw("op"),
-                    self.generate_binop(*op),
-                    kw("right"),
-                    self.generate_expr(right)?,
-                ]))
-            }
-            ExprKind::Unary { op, expr } => {
-                Ok(list(vec![
-                    sym("Unary"),
-                    kw("op"),
-                    self.generate_unop(*op),
-                    kw("expr"),
-                    self.generate_expr(expr)?,
-                ]))
-            }
+            ExprKind::Binary { left, op, right } => Ok(list(vec![
+                sym("Binary"),
+                kw("left"),
+                self.generate_expr(left)?,
+                kw("op"),
+                self.generate_binop(*op),
+                kw("right"),
+                self.generate_expr(right)?,
+            ])),
+            ExprKind::Unary { op, expr } => Ok(list(vec![
+                sym("Unary"),
+                kw("op"),
+                self.generate_unop(*op),
+                kw("expr"),
+                self.generate_expr(expr)?,
+            ])),
             ExprKind::Call { func, args } => {
-                let args_sexp = list(args.iter().map(|arg| self.generate_expr(arg)).collect::<Result<Vec<_>>>()?);
+                let args_sexp = list(
+                    args.iter().map(|arg| self.generate_expr(arg)).collect::<Result<Vec<_>>>()?,
+                );
                 Ok(list(vec![
                     sym("Call"),
                     kw("func"),
@@ -160,7 +158,9 @@ impl Generator {
                 ]))
             }
             ExprKind::MethodCall { receiver, method, args } => {
-                let args_sexp = list(args.iter().map(|arg| self.generate_expr(arg)).collect::<Result<Vec<_>>>()?);
+                let args_sexp = list(
+                    args.iter().map(|arg| self.generate_expr(arg)).collect::<Result<Vec<_>>>()?,
+                );
                 Ok(list(vec![
                     sym("MethodCall"),
                     kw("receiver"),

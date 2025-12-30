@@ -366,7 +366,12 @@ impl RustCodegen {
     }
 
     /// Generate a method call
-    fn generate_method_call(&mut self, receiver: &Expr, method: &Ident, args: &[Expr]) -> Result<()> {
+    fn generate_method_call(
+        &mut self,
+        receiver: &Expr,
+        method: &Ident,
+        args: &[Expr],
+    ) -> Result<()> {
         self.generate_expr(receiver)?;
         self.write(".");
         self.write(&method.name);

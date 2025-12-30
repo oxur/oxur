@@ -30,7 +30,6 @@ pub enum ExprKind {
     Unary { op: UnOp, expr: Box<Expr> },
     Call { func: Box<Expr>, args: Vec<Expr> },
     MethodCall { receiver: Box<Expr>, method: Ident, args: Vec<Expr> },
-
     // Future: Array, Field, Index, Assign, Closure, etc.
 }
 

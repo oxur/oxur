@@ -229,13 +229,12 @@ impl AstBuilder {
                         pos: list.pos,
                     }
                 })?)?);
-                let op = self.build_binop(kwargs.get("op").ok_or_else(|| {
-                    ParseError::Expected {
+                let op =
+                    self.build_binop(kwargs.get("op").ok_or_else(|| ParseError::Expected {
                         expected: ":op field".to_string(),
                         found: "missing".to_string(),
                         pos: list.pos,
-                    }
-                })?)?;
+                    })?)?;
                 let right = Box::new(self.build_expr(kwargs.get("right").ok_or_else(|| {
                     ParseError::Expected {
                         expected: ":right field".to_string(),
@@ -247,13 +246,12 @@ impl AstBuilder {
             }
             "Unary" => {
                 let kwargs = parse_kwargs(list)?;
-                let op = self.build_unop(kwargs.get("op").ok_or_else(|| {
-                    ParseError::Expected {
+                let op =
+                    self.build_unop(kwargs.get("op").ok_or_else(|| ParseError::Expected {
                         expected: ":op field".to_string(),
                         found: "missing".to_string(),
                         pos: list.pos,
-                    }
-                })?)?;
+                    })?)?;
                 let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
                     ParseError::Expected {
                         expected: ":expr field".to_string(),
@@ -272,25 +270,24 @@ impl AstBuilder {
                         pos: list.pos,
                     }
                 })?)?);
-                let args_sexp = kwargs.get("args").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":args field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
+                let args_sexp = kwargs.get("args").ok_or_else(|| ParseError::Expected {
+                    expected: ":args field".to_string(),
+                    found: "missing".to_string(),
+                    pos: list.pos,
                 })?;
                 let args = self.build_expr_list(args_sexp)?;
                 Ok(ExprKind::Call { func, args })
             }
             "MethodCall" => {
                 let kwargs = parse_kwargs(list)?;
-                let receiver = Box::new(self.build_expr(kwargs.get("receiver").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":receiver field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
+                let receiver =
+                    Box::new(self.build_expr(kwargs.get("receiver").ok_or_else(|| {
+                        ParseError::Expected {
+                            expected: ":receiver field".to_string(),
+                            found: "missing".to_string(),
+                            pos: list.pos,
+                        }
+                    })?)?);
                 let method = self.build_ident(kwargs.get("method").ok_or_else(|| {
                     ParseError::Expected {
                         expected: ":method field".to_string(),
@@ -298,12 +295,10 @@ impl AstBuilder {
                         pos: list.pos,
                     }
                 })?)?;
-                let args_sexp = kwargs.get("args").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":args field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
+                let args_sexp = kwargs.get("args").ok_or_else(|| ParseError::Expected {
+                    expected: ":args field".to_string(),
+                    found: "missing".to_string(),
+                    pos: list.pos,
                 })?;
                 let args = self.build_expr_list(args_sexp)?;
                 Ok(ExprKind::MethodCall { receiver, method, args })
