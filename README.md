@@ -52,35 +52,57 @@ cargo build -p design
 cargo build --release
 ```
 
-## CLI Tools
+The build includes several command-line tools:
 
-Oxur includes several command-line tools:
+- **`aster`** - AST manipulation (Rust ↔ S-expression conversion)
+- **`oxd`** - Design documentation manager
 
-- **aster** - AST manipulation (Rust ↔ S-expression conversion)
-- **oxd** - Design documentation manager
-- **oxur** - Unified CLI tool (in progress)
-
-### Building CLI Tools
+Which you can also build individually:
 
 ```bash
-# Build all CLIs
-cargo build --release --bins
-
-# Build specific CLI
 cargo build --release --bin aster
 cargo build --release --bin oxd
-cargo build --release --bin oxur --features binary
 ```
 
-### CLI Infrastructure
+## Oxur's AST
 
-All CLI tools use the `oxur-cli` library for common utilities:
+The Oxur AST is really just the Rust AST in S-expression format. Here's a simple example taken from `crates/oxur-ast/test-data/examples/intermediate/`:
 
-- File I/O helpers (stdin/stdout/file handling)
-- Colored terminal output
-- Progress tracking
+```lisp
+(Item
+  :vis Public
+  :kind (Fn
+    :sig (FnSig
+      :name "main"
+      :params ()
+      :return-type nil)
+    :body (Block
+      :stmts ()
+      :span (Span :lo 0 :hi 0)))
+  :span (Span :lo 0 :hi 0))
+```
 
-See `crates/oxur-cli/docs/USAGE.md` for development guide.
+The `oxur-ast` crate includes the `aster` binary which may be used to convert between Oxur and Rust ASTs:
+
+```shell
+$ ./bin/aster --help
+AST manipulation and conversion tool
+
+Usage: aster <COMMAND>
+
+Commands:
+  to-ast   Convert Rust source to S-expression AST [aliases: ast]
+  to-rust  Convert S-expression to Rust source
+  verify   Verify round-trip conversion
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+Use 'aster <command> --help' for more information.
+```
+
+A full round-trip example that you can run yourself is provided in [the crate README](./crates/oxur-ast/README.md).
 
 ## Design Documents
 
@@ -134,10 +156,6 @@ List all design documents:
 ```
 
 [![oxd cli tool screenshot of list command][oxd-list-screenshot]][oxd-list-screenshot]
-
-## Contributing
-
-*(To be added)*
 
 ## License
 
