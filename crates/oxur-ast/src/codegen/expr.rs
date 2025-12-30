@@ -131,17 +131,17 @@ impl RustCodegen {
             ExprKind::Loop { label, body } => {
                 self.generate_loop(label.as_ref(), body)?;
             }
-            ExprKind::Binary { .. } => {
-                self.write("/* TODO: Binary */");
+            ExprKind::Binary { left, op, right } => {
+                self.generate_binary(left, *op, right)?;
             }
-            ExprKind::Unary { .. } => {
-                self.write("/* TODO: Unary */");
+            ExprKind::Unary { op, expr } => {
+                self.generate_unary(*op, expr)?;
             }
-            ExprKind::Call { .. } => {
-                self.write("/* TODO: Call */");
+            ExprKind::Call { func, args } => {
+                self.generate_call(func, args)?;
             }
-            ExprKind::MethodCall { .. } => {
-                self.write("/* TODO: MethodCall */");
+            ExprKind::MethodCall { receiver, method, args } => {
+                self.generate_method_call(receiver, method, args)?;
             }
         }
         Ok(())
@@ -328,6 +328,90 @@ impl RustCodegen {
         self.generate_block(body)?;
 
         Ok(())
+    }
+
+    /// Generate a binary operation
+    fn generate_binary(&mut self, left: &Expr, op: BinOp, right: &Expr) -> Result<()> {
+        // For now, use parentheses for all binary operations
+        // TODO Phase 2+: Implement proper operator precedence
+        self.write("(");
+        self.generate_expr(left)?;
+        self.write(" ");
+        self.write(self.binop_to_str(op));
+        self.write(" ");
+        self.generate_expr(right)?;
+        self.write(")");
+        Ok(())
+    }
+
+    /// Generate a unary operation
+    fn generate_unary(&mut self, op: UnOp, expr: &Expr) -> Result<()> {
+        self.write(self.unop_to_str(op));
+        self.generate_expr(expr)?;
+        Ok(())
+    }
+
+    /// Generate a function call
+    fn generate_call(&mut self, func: &Expr, args: &[Expr]) -> Result<()> {
+        self.generate_expr(func)?;
+        self.write("(");
+        for (i, arg) in args.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            self.generate_expr(arg)?;
+        }
+        self.write(")");
+        Ok(())
+    }
+
+    /// Generate a method call
+    fn generate_method_call(&mut self, receiver: &Expr, method: &Ident, args: &[Expr]) -> Result<()> {
+        self.generate_expr(receiver)?;
+        self.write(".");
+        self.write(&method.name);
+        self.write("(");
+        for (i, arg) in args.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            self.generate_expr(arg)?;
+        }
+        self.write(")");
+        Ok(())
+    }
+
+    /// Convert binary operator to string
+    fn binop_to_str(&self, op: BinOp) -> &'static str {
+        match op {
+            BinOp::Add => "+",
+            BinOp::Sub => "-",
+            BinOp::Mul => "*",
+            BinOp::Div => "/",
+            BinOp::Rem => "%",
+            BinOp::And => "&&",
+            BinOp::Or => "||",
+            BinOp::BitAnd => "&",
+            BinOp::BitOr => "|",
+            BinOp::BitXor => "^",
+            BinOp::Shl => "<<",
+            BinOp::Shr => ">>",
+            BinOp::Eq => "==",
+            BinOp::Ne => "!=",
+            BinOp::Lt => "<",
+            BinOp::Le => "<=",
+            BinOp::Gt => ">",
+            BinOp::Ge => ">=",
+        }
+    }
+
+    /// Convert unary operator to string
+    fn unop_to_str(&self, op: UnOp) -> &'static str {
+        match op {
+            UnOp::Not => "!",
+            UnOp::Neg => "-",
+            UnOp::Deref => "*",
+        }
     }
 }
 

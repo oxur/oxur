@@ -129,10 +129,48 @@ impl Generator {
                     self.generate_block(body)?,
                 ]))
             }
-            ExprKind::Binary { .. } => Ok(sym("TODO-Binary")),
-            ExprKind::Unary { .. } => Ok(sym("TODO-Unary")),
-            ExprKind::Call { .. } => Ok(sym("TODO-Call")),
-            ExprKind::MethodCall { .. } => Ok(sym("TODO-MethodCall")),
+            ExprKind::Binary { left, op, right } => {
+                Ok(list(vec![
+                    sym("Binary"),
+                    kw("left"),
+                    self.generate_expr(left)?,
+                    kw("op"),
+                    self.generate_binop(*op),
+                    kw("right"),
+                    self.generate_expr(right)?,
+                ]))
+            }
+            ExprKind::Unary { op, expr } => {
+                Ok(list(vec![
+                    sym("Unary"),
+                    kw("op"),
+                    self.generate_unop(*op),
+                    kw("expr"),
+                    self.generate_expr(expr)?,
+                ]))
+            }
+            ExprKind::Call { func, args } => {
+                let args_sexp = list(args.iter().map(|arg| self.generate_expr(arg)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![
+                    sym("Call"),
+                    kw("func"),
+                    self.generate_expr(func)?,
+                    kw("args"),
+                    args_sexp,
+                ]))
+            }
+            ExprKind::MethodCall { receiver, method, args } => {
+                let args_sexp = list(args.iter().map(|arg| self.generate_expr(arg)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![
+                    sym("MethodCall"),
+                    kw("receiver"),
+                    self.generate_expr(receiver)?,
+                    kw("method"),
+                    self.generate_ident(method),
+                    kw("args"),
+                    args_sexp,
+                ]))
+            }
         }
     }
 
@@ -240,5 +278,36 @@ impl Generator {
 
     fn generate_label(&self, label: &Label) -> SExp {
         typed_node("Label", kwargs(vec![kwarg("ident", self.generate_ident(&label.ident))]))
+    }
+
+    fn generate_binop(&self, op: BinOp) -> SExp {
+        sym(match op {
+            BinOp::Add => "Add",
+            BinOp::Sub => "Sub",
+            BinOp::Mul => "Mul",
+            BinOp::Div => "Div",
+            BinOp::Rem => "Rem",
+            BinOp::And => "And",
+            BinOp::Or => "Or",
+            BinOp::BitAnd => "BitAnd",
+            BinOp::BitOr => "BitOr",
+            BinOp::BitXor => "BitXor",
+            BinOp::Shl => "Shl",
+            BinOp::Shr => "Shr",
+            BinOp::Eq => "Eq",
+            BinOp::Ne => "Ne",
+            BinOp::Lt => "Lt",
+            BinOp::Le => "Le",
+            BinOp::Gt => "Gt",
+            BinOp::Ge => "Ge",
+        })
+    }
+
+    fn generate_unop(&self, op: UnOp) -> SExp {
+        sym(match op {
+            UnOp::Not => "Not",
+            UnOp::Neg => "Neg",
+            UnOp::Deref => "Deref",
+        })
     }
 }
