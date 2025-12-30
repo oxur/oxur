@@ -500,4 +500,302 @@ mod tests {
 
         assert_eq!(codegen.output(), "{\n}");
     }
+
+    // Stage 3: Binary operators
+    #[test]
+    fn test_generate_binary_add() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Binary {
+                left: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Lit(Lit { kind: LitKind::Int(1), span: Span::DUMMY }),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+                op: BinOp::Add,
+                right: Box::new(Expr {
+                    id: NodeId(2),
+                    kind: ExprKind::Lit(Lit { kind: LitKind::Int(2), span: Span::DUMMY }),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "(1 + 2)");
+    }
+
+    #[test]
+    fn test_generate_binary_comparison() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Binary {
+                left: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Lit(Lit { kind: LitKind::Int(5), span: Span::DUMMY }),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+                op: BinOp::Lt,
+                right: Box::new(Expr {
+                    id: NodeId(2),
+                    kind: ExprKind::Lit(Lit { kind: LitKind::Int(10), span: Span::DUMMY }),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "(5 < 10)");
+    }
+
+    #[test]
+    fn test_generate_binary_logical() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Binary {
+                left: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("a", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+                op: BinOp::And,
+                right: Box::new(Expr {
+                    id: NodeId(2),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("b", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "(a && b)");
+    }
+
+    // Stage 3: Unary operators
+    #[test]
+    fn test_generate_unary_not() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Unary {
+                op: UnOp::Not,
+                expr: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("flag", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "!flag");
+    }
+
+    #[test]
+    fn test_generate_unary_neg() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Unary {
+                op: UnOp::Neg,
+                expr: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Lit(Lit { kind: LitKind::Int(42), span: Span::DUMMY }),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "-42");
+    }
+
+    #[test]
+    fn test_generate_unary_deref() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Unary {
+                op: UnOp::Deref,
+                expr: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("ptr", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "*ptr");
+    }
+
+    // Stage 3: Function calls
+    #[test]
+    fn test_generate_call_no_args() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Call {
+                func: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("foo", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+                args: Vec::new(),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "foo()");
+    }
+
+    #[test]
+    fn test_generate_call_with_args() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::Call {
+                func: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("add", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+                args: vec![
+                    Expr {
+                        id: NodeId(2),
+                        kind: ExprKind::Lit(Lit { kind: LitKind::Int(1), span: Span::DUMMY }),
+                        span: Span::DUMMY,
+                        attrs: Vec::new(),
+                        tokens: None,
+                    },
+                    Expr {
+                        id: NodeId(3),
+                        kind: ExprKind::Lit(Lit { kind: LitKind::Int(2), span: Span::DUMMY }),
+                        span: Span::DUMMY,
+                        attrs: Vec::new(),
+                        tokens: None,
+                    },
+                ],
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "add(1, 2)");
+    }
+
+    // Stage 3: Method calls
+    #[test]
+    fn test_generate_method_call_no_args() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::MethodCall {
+                receiver: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("obj", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+                method: Ident::new("len", Span::DUMMY),
+                args: Vec::new(),
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "obj.len()");
+    }
+
+    #[test]
+    fn test_generate_method_call_with_args() {
+        let expr = Expr {
+            id: NodeId(0),
+            kind: ExprKind::MethodCall {
+                receiver: Box::new(Expr {
+                    id: NodeId(1),
+                    kind: ExprKind::Path(None, Path::from_ident(Ident::new("vec", Span::DUMMY))),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }),
+                method: Ident::new("push", Span::DUMMY),
+                args: vec![Expr {
+                    id: NodeId(2),
+                    kind: ExprKind::Lit(Lit { kind: LitKind::Int(42), span: Span::DUMMY }),
+                    span: Span::DUMMY,
+                    attrs: Vec::new(),
+                    tokens: None,
+                }],
+            },
+            span: Span::DUMMY,
+            attrs: Vec::new(),
+            tokens: None,
+        };
+
+        let mut codegen = RustCodegen::new();
+        codegen.generate_expr(&expr).unwrap();
+
+        assert_eq!(codegen.output(), "vec.push(42)");
+    }
 }
