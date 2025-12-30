@@ -2,10 +2,16 @@
 //!
 //! Main command-line interface for Oxur projects.
 
+#[cfg(feature = "binary")]
 use anyhow::Result;
+#[cfg(feature = "binary")]
 use clap::{Parser, Subcommand};
+#[cfg(feature = "binary")]
+use oxur_cli::common::output;
+#[cfg(feature = "binary")]
 use std::path::PathBuf;
 
+#[cfg(feature = "binary")]
 #[derive(Parser)]
 #[command(name = "oxur")]
 #[command(about = "Oxur - A Lisp that compiles to Rust", long_about = None)]
@@ -15,6 +21,7 @@ struct Cli {
     command: Commands,
 }
 
+#[cfg(feature = "binary")]
 #[derive(Subcommand)]
 enum Commands {
     /// Compile an Oxur file to binary
@@ -56,12 +63,13 @@ enum Commands {
     Test,
 }
 
+#[cfg(feature = "binary")]
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Compile { input, output } => {
-            println!("Compiling: {}", input.display());
+            output::info(&format!("Compiling: {}", input.display()));
 
             // Read source
             let source = std::fs::read_to_string(&input)?;
@@ -80,50 +88,57 @@ fn main() -> Result<()> {
             let mut compiler = oxur_comp::Compiler::new(build_dir);
             compiler.compile(core_forms, &output)?;
 
-            println!("Compiled successfully: {}", output.display());
+            output::success(&format!("Compiled successfully: {}", output.display()));
         }
 
         Commands::Run { input, args } => {
-            println!("Running: {}", input.display());
+            output::info(&format!("Running: {}", input.display()));
 
             // Would compile and execute
             if !args.is_empty() {
-                println!("With args: {:?}", args);
+                output::info(&format!("With args: {:?}", args));
             }
 
-            println!("(Not yet implemented)");
+            output::warning("Not yet implemented");
         }
 
         Commands::Repl => {
-            println!("Starting REPL...");
+            output::info("Starting REPL...");
             let mut client = oxur_repl::ReplClient::new();
             client.run()?;
         }
 
         Commands::New { name } => {
-            println!("Creating new project: {}", name);
+            output::info(&format!("Creating new project: {}", name));
 
             // Would create project directory structure
             let project_dir = PathBuf::from(&name);
             std::fs::create_dir_all(&project_dir)?;
 
-            println!("Created project directory: {}", project_dir.display());
-            println!("(Not yet fully implemented)");
+            output::success(&format!("Created project directory: {}", project_dir.display()));
+            output::warning("Not yet fully implemented");
         }
 
         Commands::Build { release } => {
-            println!("Building project...");
+            output::info("Building project...");
             if release {
-                println!("Release mode enabled");
+                output::info("Release mode enabled");
             }
-            println!("(Not yet implemented)");
+            output::warning("Not yet implemented");
         }
 
         Commands::Test => {
-            println!("Running tests...");
-            println!("(Not yet implemented)");
+            output::info("Running tests...");
+            output::warning("Not yet implemented");
         }
     }
 
     Ok(())
+}
+
+#[cfg(not(feature = "binary"))]
+fn main() {
+    eprintln!("Error: The oxur binary must be built with the 'binary' feature enabled");
+    eprintln!("Use: cargo build --bin oxur --features binary");
+    std::process::exit(1);
 }

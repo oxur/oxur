@@ -5,17 +5,33 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Oxur CLI tool for running, compiling, and managing Oxur projects"
+description = "CLI infrastructure and unified command-line tool for Oxur"
 
+# Binary configuration - the unified `oxur` tool
 [[bin]]
 name = "oxur"
 path = "src/main.rs"
 
+# Library configuration - common utilities for all Oxur CLIs
+[lib]
+name = "oxur_cli"
+path = "src/lib.rs"
+
 [dependencies]
-oxur-lang = { path = "../oxur-lang" }
-oxur-comp = { path = "../oxur-comp" }
-oxur-repl = { path = "../oxur-repl" }
+# For library utilities
 anyhow.workspace = true
-clap.workspace = true
+colored.workspace = true
+
+# For binary (when building the oxur command)
+oxur-lang = { path = "../oxur-lang", optional = true }
+oxur-comp = { path = "../oxur-comp", optional = true }
+oxur-repl = { path = "../oxur-repl", optional = true }
+clap = { workspace = true, optional = true }
+
+[features]
+default = ["binary"]
+# Feature for the binary (not needed by library users)
+binary = ["clap", "oxur-lang", "oxur-comp", "oxur-repl"]
 
 [dev-dependencies]
+tempfile.workspace = true

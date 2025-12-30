@@ -622,8 +622,7 @@ author: Test Author
         if let Err(e) = result {
             let err_msg = e.to_string();
             // Should NOT fail with "Document not found" - that would mean ID resolution failed
-            assert!(!err_msg.contains("Document 1 not found"),
-                "ID resolution failed: {}", err_msg);
+            assert!(!err_msg.contains("Document 1 not found"), "ID resolution failed: {}", err_msg);
             // It's OK to fail with git errors in test environment
         }
     }
