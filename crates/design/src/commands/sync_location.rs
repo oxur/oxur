@@ -165,14 +165,14 @@ Test content.
             number: 1,
             title: "Test Document".to_string(),
             author: "Test Author".to_string(),
-                component: None,
-                tags: Vec::new(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
-                version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state.upsert(
             1,

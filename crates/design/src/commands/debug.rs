@@ -649,7 +649,7 @@ mod tests {
                 state: doc_state,
                 supersedes: None,
                 superseded_by: None,
-            version: "1.0".to_string(),
+                version: "1.0".to_string(),
             };
             state_mgr.state_mut().upsert(
                 num,
@@ -768,7 +768,7 @@ mod tests {
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -835,7 +835,7 @@ mod tests {
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -936,7 +936,7 @@ mod tests {
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -970,7 +970,7 @@ mod tests {
             state: DocState::Active,
             supersedes: Some(1),
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             2,
@@ -1004,7 +1004,7 @@ mod tests {
             state: DocState::Superseded,
             supersedes: None,
             superseded_by: Some(2),
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -1043,7 +1043,7 @@ mod tests {
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,
@@ -1083,7 +1083,7 @@ mod tests {
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
         state_mgr.state_mut().upsert(
             1,

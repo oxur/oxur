@@ -238,7 +238,14 @@ This is a test document.
         let temp = setup_test_docs_dir();
         let cli = Cli {
             docs_dir: temp.path().to_str().unwrap().to_string(),
-            command: Commands::List { state: None, verbose: false, removed: false, dev: false, component: None, tags: Vec::new() },
+            command: Commands::List {
+                state: None,
+                verbose: false,
+                removed: false,
+                dev: false,
+                component: None,
+                tags: Vec::new(),
+            },
         };
 
         let result = setup_state_manager(&cli);
@@ -266,7 +273,14 @@ This is a test document.
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
 
         // When command is not Scan, should perform scan
-        let command = Commands::List { state: None, verbose: false, removed: false, dev: false, component: None, tags: Vec::new() };
+        let command = Commands::List {
+            state: None,
+            verbose: false,
+            removed: false,
+            dev: false,
+            component: None,
+            tags: Vec::new(),
+        };
 
         let result = scan_on_startup(&mut state_mgr, &command);
         assert!(result.is_ok());
@@ -298,7 +312,14 @@ updated: 2024-01-02
         )
         .unwrap();
 
-        let command = Commands::List { state: None, verbose: false, removed: false, dev: false, component: None, tags: Vec::new() };
+        let command = Commands::List {
+            state: None,
+            verbose: false,
+            removed: false,
+            dev: false,
+            component: None,
+            tags: Vec::new(),
+        };
 
         // This should detect the new file
         let result = scan_on_startup(&mut state_mgr, &command);
@@ -335,7 +356,14 @@ updated: 2024-01-02
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
 
-        let command = Commands::List { state: None, verbose: false, removed: false, dev: false, component: None, tags: Vec::new() };
+        let command = Commands::List {
+            state: None,
+            verbose: false,
+            removed: false,
+            dev: false,
+            component: None,
+            tags: Vec::new(),
+        };
 
         let result = execute_command(command, &index, &mut state_mgr);
         assert!(result.is_ok());
@@ -370,7 +398,14 @@ updated: 2024-01-02
         // When using default "docs" and in the oxur repo, should apply smart default
         let mut cli = Cli {
             docs_dir: "docs".to_string(),
-            command: Commands::List { state: None, verbose: false, removed: false, dev: false, component: None, tags: Vec::new() },
+            command: Commands::List {
+                state: None,
+                verbose: false,
+                removed: false,
+                dev: false,
+                component: None,
+                tags: Vec::new(),
+            },
         };
 
         apply_smart_default(&mut cli);
@@ -387,7 +422,14 @@ updated: 2024-01-02
         // When using a custom path, should not change it
         let mut cli = Cli {
             docs_dir: "/custom/path".to_string(),
-            command: Commands::List { state: None, verbose: false, removed: false, dev: false, component: None, tags: Vec::new() },
+            command: Commands::List {
+                state: None,
+                verbose: false,
+                removed: false,
+                dev: false,
+                component: None,
+                tags: Vec::new(),
+            },
         };
 
         apply_smart_default(&mut cli);

@@ -286,7 +286,7 @@ mod tests {
             state: DocState::Active,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
 
         let doc_path = docs_dir.join("05-active/0001-old-doc.md");
@@ -466,7 +466,7 @@ mod tests {
             state: DocState::Active,
             supersedes: Some(10),
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
 
         let new_meta = DocMetadata {
@@ -480,7 +480,7 @@ mod tests {
             state: DocState::Draft,
             supersedes: None,
             superseded_by: Some(50),
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
 
         let merged = merge_metadata(&old_meta, &new_meta, 42);
@@ -505,7 +505,7 @@ mod tests {
             state: DocState::Active,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
 
         let new_meta = DocMetadata {
@@ -519,7 +519,7 @@ mod tests {
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
-        version: "1.0".to_string(),
+            version: "1.0".to_string(),
         };
 
         let merged = merge_metadata(&old_meta, &new_meta, 42);

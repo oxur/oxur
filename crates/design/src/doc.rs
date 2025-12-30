@@ -187,18 +187,20 @@ where
     let parts: Vec<&str> = s.split('.').collect();
 
     if parts.len() != 2 {
-        return Err(serde::de::Error::custom(
-            format!("Version must be in major.minor format (e.g., '1.0'), got: '{}'", s)
-        ));
+        return Err(serde::de::Error::custom(format!(
+            "Version must be in major.minor format (e.g., '1.0'), got: '{}'",
+            s
+        )));
     }
 
     // Validate both parts are numeric
     for (idx, part) in parts.iter().enumerate() {
         if part.parse::<u32>().is_err() {
             let label = if idx == 0 { "major" } else { "minor" };
-            return Err(serde::de::Error::custom(
-                format!("Invalid {} version number: '{}' in '{}'", label, part, s)
-            ));
+            return Err(serde::de::Error::custom(format!(
+                "Invalid {} version number: '{}' in '{}'",
+                label, part, s
+            )));
         }
     }
 
