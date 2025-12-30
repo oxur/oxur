@@ -124,7 +124,6 @@ fn test_simple_crate_build() {
     assert!(!crate_ast.is_placeholder);
 }
 
-
 // Phase 3: Integration tests with syn
 
 #[test]
@@ -231,4 +230,3 @@ const fn compile_time() -> i32 {
     let ast::ItemKind::Fn(fn_item) = &item.kind;
     assert_eq!(fn_item.sig.header.constness, ast::Constness::Const);
 }
-

@@ -481,11 +481,7 @@ fn list_dev_documents(_verbose: bool) -> Result<()> {
     };
 
     if !dev_dir.exists() {
-        eprintln!(
-            "{} Dev directory not found: {}",
-            "ERROR:".red().bold(),
-            dev_dir.display()
-        );
+        eprintln!("{} Dev directory not found: {}", "ERROR:".red().bold(), dev_dir.display());
         return Ok(());
     }
 

@@ -8,11 +8,8 @@ fn main() {
     // Build the AST by hand
     let println_ident = Ident::new("println", Span::new(17, 24));
     let println_segment = PathSegment::from_ident(println_ident);
-    let println_path = Path {
-        span: Span::new(17, 24),
-        segments: vec![println_segment],
-        tokens: None,
-    };
+    let println_path =
+        Path { span: Span::new(17, 24), segments: vec![println_segment], tokens: None };
 
     let mac_args = MacArgs::Delimited {
         dspan: DelSpan::new(Span::new(24, 25), Span::new(42, 43)),
@@ -30,11 +27,7 @@ fn main() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(1),
-        kind: StmtKind::Semi(expr),
-        span: Span::new(17, 44),
-    };
+    let stmt = Stmt { id: NodeId(1), kind: StmtKind::Semi(expr), span: Span::new(17, 44) };
 
     let block = Block::new(vec![stmt], NodeId(3), Span::new(13, 48));
 
@@ -74,16 +67,14 @@ fn main() {
         tokens: None,
     };
 
-    let crate_node =
-        Crate::new(vec![item], ModSpans::new(Span::new(0, 50)), NodeId(0));
+    let crate_node = Crate::new(vec![item], ModSpans::new(Span::new(0, 50)), NodeId(0));
 
     println!("✓ AST built successfully!\n");
 
     // Generate S-expression
     println!("Generating S-expression...\n");
     let gen = Generator::new();
-    let sexp =
-        gen.generate_crate(&crate_node).expect("Failed to generate S-expression");
+    let sexp = gen.generate_crate(&crate_node).expect("Failed to generate S-expression");
 
     println!("✓ S-expression generated!\n");
 

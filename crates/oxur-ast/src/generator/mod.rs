@@ -14,10 +14,8 @@ mod tests {
 
     #[test]
     fn test_helpers() {
-        let node = typed_node(
-            "Test",
-            kwargs(vec![kwarg("name", string("foo")), kwarg("id", num(42))]),
-        );
+        let node =
+            typed_node("Test", kwargs(vec![kwarg("name", string("foo")), kwarg("id", num(42))]));
 
         let output = print_sexp(&node);
         assert!(output.contains("Test"));

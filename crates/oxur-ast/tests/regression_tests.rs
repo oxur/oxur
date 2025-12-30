@@ -17,9 +17,8 @@ fn test_all_fixtures() {
             continue;
         }
 
-        let source = fs::read_to_string(fixture).unwrap_or_else(|_| {
-            panic!("Failed to read {}", fixture)
-        });
+        let source =
+            fs::read_to_string(fixture).unwrap_or_else(|_| panic!("Failed to read {}", fixture));
 
         let result = parse_rust_file(&source);
 

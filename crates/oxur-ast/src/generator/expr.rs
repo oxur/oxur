@@ -19,11 +19,7 @@ impl Generator {
         }
         fields.extend(kwarg(
             "could-be-bare-literal",
-            sym(if block.could_be_bare_literal {
-                "true"
-            } else {
-                "false"
-            }),
+            sym(if block.could_be_bare_literal { "true" } else { "false" }),
         ));
 
         Ok(typed_node("Block", fields))

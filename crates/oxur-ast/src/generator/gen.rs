@@ -17,14 +17,7 @@ impl Generator {
             kwarg("items", self.generate_items(&crate_node.items)?),
             kwarg("spans", self.generate_mod_spans(&crate_node.spans)?),
             kwarg("id", self.generate_node_id(crate_node.id)),
-            kwarg(
-                "is-placeholder",
-                sym(if crate_node.is_placeholder {
-                    "true"
-                } else {
-                    "false"
-                }),
-            ),
+            kwarg("is-placeholder", sym(if crate_node.is_placeholder { "true" } else { "false" })),
         ]);
 
         Ok(typed_node("Crate", fields))
@@ -51,10 +44,7 @@ impl Generator {
     }
 
     pub fn generate_span(&self, span: Span) -> SExp {
-        let fields = kwargs(vec![
-            kwarg("lo", num(span.lo)),
-            kwarg("hi", num(span.hi)),
-        ]);
+        let fields = kwargs(vec![kwarg("lo", num(span.lo)), kwarg("hi", num(span.hi))]);
 
         // Only include ctxt if non-zero
         let fields = if span.ctxt != 0 {

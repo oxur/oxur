@@ -245,17 +245,17 @@ impl SynConverter {
         match stmt {
             syn::Stmt::Expr(expr, semi) => {
                 let expr = self.convert_expr(expr)?;
-                let kind = if semi.is_some() {
-                    StmtKind::Semi(expr)
-                } else {
-                    StmtKind::Expr(expr)
-                };
+                let kind = if semi.is_some() { StmtKind::Semi(expr) } else { StmtKind::Expr(expr) };
 
                 Ok(Stmt { id: self.next_id(), kind, span: Span::DUMMY })
             }
             syn::Stmt::Local(local) => {
                 let local = self.convert_local(local)?;
-                Ok(Stmt { id: self.next_id(), kind: StmtKind::Let(Box::new(local)), span: Span::DUMMY })
+                Ok(Stmt {
+                    id: self.next_id(),
+                    kind: StmtKind::Let(Box::new(local)),
+                    span: Span::DUMMY,
+                })
             }
             syn::Stmt::Item(_) => {
                 // Skip items in blocks for Phase 3
@@ -349,13 +349,12 @@ impl SynConverter {
         let kind = match lit {
             syn::Lit::Str(lit_str) => LitKind::Str(lit_str.value()),
             syn::Lit::Int(lit_int) => {
-                let value = lit_int.base10_digits().parse::<i128>().map_err(|_| {
-                    ParseError::Expected {
+                let value =
+                    lit_int.base10_digits().parse::<i128>().map_err(|_| ParseError::Expected {
                         expected: "valid integer".to_string(),
                         found: lit_int.base10_digits().to_string(),
                         pos: Position::new(0, 1, 1),
-                    }
-                })?;
+                    })?;
                 LitKind::Int(value)
             }
             _ => {

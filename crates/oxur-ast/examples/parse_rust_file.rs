@@ -11,8 +11,7 @@ fn main() {
     }
 
     let filename = &args[1];
-    let source = fs::read_to_string(filename)
-        .expect("Failed to read file");
+    let source = fs::read_to_string(filename).expect("Failed to read file");
 
     println!("Parsing: {}\n", filename);
 

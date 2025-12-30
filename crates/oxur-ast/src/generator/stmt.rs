@@ -54,9 +54,7 @@ impl Generator {
     fn generate_local_kind(&self, kind: &LocalKind) -> Result<SExp> {
         match kind {
             LocalKind::Decl => Ok(sym("Decl")),
-            LocalKind::Init(init) => {
-                Ok(list(vec![sym("Init"), self.generate_local_init(init)?]))
-            }
+            LocalKind::Init(init) => Ok(list(vec![sym("Init"), self.generate_local_init(init)?])),
             LocalKind::InitElse(init, block) => Ok(list(vec![
                 sym("InitElse"),
                 self.generate_local_init(init)?,

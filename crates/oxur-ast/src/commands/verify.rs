@@ -58,11 +58,7 @@ pub fn execute(input: PathBuf, verbose: bool) -> Result<()> {
         println!("5. Verifying equivalence...");
     }
     if crate1.items.len() != crate2.items.len() {
-        anyhow::bail!(
-            "Item count mismatch: {} vs {}",
-            crate1.items.len(),
-            crate2.items.len()
-        );
+        anyhow::bail!("Item count mismatch: {} vs {}", crate1.items.len(), crate2.items.len());
     }
     if verbose {
         println!("   {} Basic verification passed", "✓".green());

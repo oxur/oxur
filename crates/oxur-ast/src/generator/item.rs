@@ -53,9 +53,7 @@ impl Generator {
 
     fn generate_item_kind(&self, kind: &ItemKind) -> Result<SExp> {
         match kind {
-            ItemKind::Fn(func) => {
-                Ok(list(vec![sym("Fn"), self.generate_fn(func)?]))
-            }
+            ItemKind::Fn(func) => Ok(list(vec![sym("Fn"), self.generate_fn(func)?])),
         }
     }
 
@@ -161,10 +159,7 @@ impl Generator {
             kwarg("pat", self.generate_pat(&param.pat)?),
             kwarg("id", self.generate_node_id(param.id)),
             kwarg("span", self.generate_span(param.span)),
-            kwarg(
-                "is-placeholder",
-                sym(if param.is_placeholder { "true" } else { "false" }),
-            ),
+            kwarg("is-placeholder", sym(if param.is_placeholder { "true" } else { "false" })),
         ]);
 
         Ok(typed_node("Param", fields))
@@ -172,9 +167,7 @@ impl Generator {
 
     fn generate_fn_ret_ty(&self, ret_ty: &FnRetTy) -> Result<SExp> {
         match ret_ty {
-            FnRetTy::Default(span) => {
-                Ok(list(vec![sym("Default"), self.generate_span(*span)]))
-            }
+            FnRetTy::Default(span) => Ok(list(vec![sym("Default"), self.generate_span(*span)])),
             FnRetTy::Ty(ty) => Ok(list(vec![sym("Ty"), self.generate_ty(ty)?])),
         }
     }
@@ -196,10 +189,7 @@ impl Generator {
 
     fn generate_where_clause(&self, clause: &WhereClause) -> Result<SExp> {
         let fields = kwargs(vec![
-            kwarg(
-                "has-where-token",
-                sym(if clause.has_where_token { "true" } else { "false" }),
-            ),
+            kwarg("has-where-token", sym(if clause.has_where_token { "true" } else { "false" })),
             kwarg("predicates", self.generate_where_predicates(&clause.predicates)?),
             kwarg("span", self.generate_span(clause.span)),
         ]);
