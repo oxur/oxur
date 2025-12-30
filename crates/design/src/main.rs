@@ -2,7 +2,6 @@
 
 use anyhow::Result;
 use clap::Parser;
-use colored::*;
 use design::index::DocumentIndex;
 use design::state::StateManager;
 
@@ -85,14 +84,14 @@ pub(crate) fn scan_on_startup(state_mgr: &mut StateManager, command: &Commands) 
         if result.has_changes() {
             let total = result.total_changes();
             if total > 0 {
-                eprintln!(
-                    "{} Detected {} change(s) ({} new, {} modified, {} deleted)",
-                    "→".cyan(),
+                let msg = format!(
+                    "Detected {} change(s) ({} new, {} modified, {} deleted)",
                     total,
                     result.new_files.len(),
                     result.changed.len(),
                     result.deleted.len()
                 );
+                oxur_cli::common::output::info(&msg);
             }
         }
     }
@@ -108,7 +107,9 @@ pub(crate) fn create_document_index(
     match DocumentIndex::from_state(state_mgr.state(), docs_dir) {
         Ok(idx) => Ok(idx),
         Err(_) => {
-            eprintln!("{} State loading failed, falling back to filesystem scan", "→".yellow());
+            oxur_cli::common::output::warning(
+                "State loading failed, falling back to filesystem scan",
+            );
             DocumentIndex::new(docs_dir)
         }
     }

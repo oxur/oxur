@@ -34,6 +34,7 @@ glob.workspace = true
 uuid = { version = "1.10", features = ["v4"] }
 tabled.workspace = true
 oxur-table = { path = "../oxur-table" }
+oxur-cli = { path = "../oxur-cli" }
 
 [dev-dependencies]
 assert_cmd.workspace = true

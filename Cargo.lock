@@ -398,6 +398,7 @@ dependencies = [
  "clap",
  "colored",
  "glob",
+ "oxur-cli",
  "oxur-table",
  "predicates",
  "proptest",
