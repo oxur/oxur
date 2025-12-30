@@ -711,7 +711,7 @@ mod tests {
         let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
 
         // List without --removed flag should work
-        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, false);
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, false, false);
         assert!(result.is_ok());
     }
 
@@ -721,7 +721,7 @@ mod tests {
         let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
 
         // List with --removed flag should work
-        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, true);
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, true, false);
         assert!(result.is_ok());
     }
 
@@ -731,7 +731,7 @@ mod tests {
         let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
 
         // List with --removed and --verbose should work
-        let result = list_documents_with_state(&index, Some(&state_mgr), None, true, true);
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, true, true, false);
         assert!(result.is_ok());
     }
 
@@ -740,7 +740,7 @@ mod tests {
         let index = create_test_index();
 
         // List with --removed but no state manager should handle gracefully
-        let result = list_documents_with_state(&index, None, None, false, true);
+        let result = list_documents_with_state(&index, None, None, false, true, false);
         assert!(result.is_ok());
     }
 
