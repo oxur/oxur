@@ -265,12 +265,7 @@ impl RustCodegen {
     }
 
     /// Generate a while loop
-    fn generate_while(
-        &mut self,
-        label: Option<&Label>,
-        cond: &Expr,
-        body: &Block,
-    ) -> Result<()> {
+    fn generate_while(&mut self, label: Option<&Label>, cond: &Expr, body: &Block) -> Result<()> {
         if let Some(lbl) = label {
             self.write("'");
             self.write(&lbl.ident.name);

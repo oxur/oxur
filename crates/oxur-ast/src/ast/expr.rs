@@ -19,31 +19,11 @@ pub enum ExprKind {
     Path(Option<QSelf>, Path),
 
     // Stage 2: Control flow
-    If {
-        cond: Box<Expr>,
-        then_branch: Block,
-        else_branch: Option<Box<Expr>>,
-    },
-    Match {
-        expr: Box<Expr>,
-        arms: Vec<Arm>,
-    },
-    While {
-        label: Option<Label>,
-        cond: Box<Expr>,
-        body: Block,
-    },
-    ForLoop {
-        label: Option<Label>,
-        pat: Pat,
-        iter: Box<Expr>,
-        body: Block,
-    },
-    Loop {
-        label: Option<Label>,
-        body: Block,
-    },
-
+    If { cond: Box<Expr>, then_branch: Block, else_branch: Option<Box<Expr>> },
+    Match { expr: Box<Expr>, arms: Vec<Arm> },
+    While { label: Option<Label>, cond: Box<Expr>, body: Block },
+    ForLoop { label: Option<Label>, pat: Pat, iter: Box<Expr>, body: Block },
+    Loop { label: Option<Label>, body: Block },
     // Future: Array, Call, MethodCall, Binary, etc.
 }
 

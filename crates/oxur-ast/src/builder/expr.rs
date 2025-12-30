@@ -96,8 +96,132 @@ impl AstBuilder {
                 let mac_call = self.build_mac_call_inner(mac_call_list)?;
                 Ok(ExprKind::MacCall(mac_call))
             }
+            "If" => {
+                let kwargs = parse_kwargs(list)?;
+                let cond = Box::new(self.build_expr(kwargs.get("cond").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":cond field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                let then_branch =
+                    self.build_block(kwargs.get("then").ok_or_else(|| ParseError::Expected {
+                        expected: ":then field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    })?)?;
+                let else_branch = if let Some(else_sexp) = kwargs.get("else") {
+                    if !is_nil(else_sexp) {
+                        Some(Box::new(self.build_expr(else_sexp)?))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                Ok(ExprKind::If { cond, then_branch, else_branch })
+            }
+            "Match" => {
+                let kwargs = parse_kwargs(list)?;
+                let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":expr field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                let arms_sexp = kwargs.get("arms").ok_or_else(|| ParseError::Expected {
+                    expected: ":arms field".to_string(),
+                    found: "missing".to_string(),
+                    pos: list.pos,
+                })?;
+                let arms_list = expect_list(arms_sexp)?;
+                let mut arms = Vec::new();
+                for arm_sexp in &arms_list.elements {
+                    arms.push(self.build_arm(arm_sexp)?);
+                }
+                Ok(ExprKind::Match { expr, arms })
+            }
+            "While" => {
+                let kwargs = parse_kwargs(list)?;
+                let label = if let Some(label_sexp) = kwargs.get("label") {
+                    if !is_nil(label_sexp) {
+                        Some(self.build_label(label_sexp)?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let cond = Box::new(self.build_expr(kwargs.get("cond").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":cond field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                let body =
+                    self.build_block(kwargs.get("body").ok_or_else(|| ParseError::Expected {
+                        expected: ":body field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    })?)?;
+                Ok(ExprKind::While { label, cond, body })
+            }
+            "ForLoop" => {
+                let kwargs = parse_kwargs(list)?;
+                let label = if let Some(label_sexp) = kwargs.get("label") {
+                    if !is_nil(label_sexp) {
+                        Some(self.build_label(label_sexp)?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let pat =
+                    self.build_pat(kwargs.get("pat").ok_or_else(|| ParseError::Expected {
+                        expected: ":pat field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    })?)?;
+                let iter = Box::new(self.build_expr(kwargs.get("iter").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":iter field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                let body =
+                    self.build_block(kwargs.get("body").ok_or_else(|| ParseError::Expected {
+                        expected: ":body field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    })?)?;
+                Ok(ExprKind::ForLoop { label, pat, iter, body })
+            }
+            "Loop" => {
+                let kwargs = parse_kwargs(list)?;
+                let label = if let Some(label_sexp) = kwargs.get("label") {
+                    if !is_nil(label_sexp) {
+                        Some(self.build_label(label_sexp)?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let body =
+                    self.build_block(kwargs.get("body").ok_or_else(|| ParseError::Expected {
+                        expected: ":body field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    })?)?;
+                Ok(ExprKind::Loop { label, body })
+            }
             _ => Err(ParseError::Expected {
-                expected: "MacCall (only supported in Phase 1)".to_string(),
+                expected: "Supported ExprKind variant".to_string(),
                 found: node_type.value.clone(),
                 pos: node_type.pos,
             }),
@@ -299,5 +423,149 @@ impl AstBuilder {
                 pos: node_type.pos,
             }),
         }
+    }
+
+    pub fn build_pat(&mut self, sexp: &SExp) -> Result<Pat> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "Pat" {
+            return Err(ParseError::Expected {
+                expected: "Pat".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let kind = if let Some(kind_sexp) = kwargs.get("kind") {
+            self.build_pat_kind(kind_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":kind field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+
+        let id = if let Some(id_sexp) = kwargs.get("id") {
+            NodeId(expect_number(id_sexp)? as u32)
+        } else {
+            self.next_id()
+        };
+
+        Ok(Pat { id, kind, span, tokens: None })
+    }
+
+    fn build_pat_kind(&mut self, sexp: &SExp) -> Result<PatKind> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        match node_type.value.as_str() {
+            "Ident" => {
+                let kwargs = parse_kwargs(list)?;
+                let ident = if let Some(ident_sexp) = kwargs.get("ident") {
+                    self.build_ident(ident_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":ident field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let binding_mode = BindingMode::ByValue(Mutability::Not); // TODO: parse from kwargs
+                let sub = None; // TODO: parse from kwargs
+                Ok(PatKind::Ident { binding_mode, ident, sub })
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Supported PatKind variant".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
+    }
+
+    fn build_arm(&mut self, sexp: &SExp) -> Result<Arm> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "Arm" {
+            return Err(ParseError::Expected {
+                expected: "Arm".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let pat = self.build_pat(kwargs.get("pat").ok_or_else(|| ParseError::Expected {
+            expected: ":pat field".to_string(),
+            found: "missing".to_string(),
+            pos: list.pos,
+        })?)?;
+
+        let body = Box::new(self.build_expr(kwargs.get("body").ok_or_else(|| {
+            ParseError::Expected {
+                expected: ":body field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            }
+        })?)?);
+
+        let guard = if let Some(guard_sexp) = kwargs.get("guard") {
+            if !is_nil(guard_sexp) {
+                Some(Box::new(self.build_expr(guard_sexp)?))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+
+        let id = if let Some(id_sexp) = kwargs.get("id") {
+            NodeId(expect_number(id_sexp)? as u32)
+        } else {
+            self.next_id()
+        };
+
+        Ok(Arm { attrs: Vec::new(), pat, guard, body, span, id })
+    }
+
+    fn build_label(&mut self, sexp: &SExp) -> Result<Label> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "Label" {
+            return Err(ParseError::Expected {
+                expected: "Label".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let ident =
+            self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
+                expected: ":ident field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            })?)?;
+
+        Ok(Label { ident })
     }
 }

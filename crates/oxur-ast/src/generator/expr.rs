@@ -84,41 +84,49 @@ impl Generator {
                 let arms_sexp = list(arms.iter().map(|arm| self.generate_arm(arm)).collect());
                 Ok(list(vec![
                     sym("Match"),
-                    kw("expr"), self.generate_expr(expr)?,
-                    kw("arms"), arms_sexp,
+                    kw("expr"),
+                    self.generate_expr(expr)?,
+                    kw("arms"),
+                    arms_sexp,
                 ]))
             }
             ExprKind::While { label, cond, body } => {
-                let label_sexp = label.as_ref()
-                    .map(|l| self.generate_label(l))
-                    .unwrap_or_else(|| sym("nil"));
+                let label_sexp =
+                    label.as_ref().map(|l| self.generate_label(l)).unwrap_or_else(|| sym("nil"));
                 Ok(list(vec![
                     sym("While"),
-                    kw("label"), label_sexp,
-                    kw("cond"), self.generate_expr(cond)?,
-                    kw("body"), self.generate_block(body)?,
+                    kw("label"),
+                    label_sexp,
+                    kw("cond"),
+                    self.generate_expr(cond)?,
+                    kw("body"),
+                    self.generate_block(body)?,
                 ]))
             }
             ExprKind::ForLoop { label, pat, iter, body } => {
-                let label_sexp = label.as_ref()
-                    .map(|l| self.generate_label(l))
-                    .unwrap_or_else(|| sym("nil"));
+                let label_sexp =
+                    label.as_ref().map(|l| self.generate_label(l)).unwrap_or_else(|| sym("nil"));
                 Ok(list(vec![
                     sym("ForLoop"),
-                    kw("label"), label_sexp,
-                    kw("pat"), self.generate_pat(pat)?,
-                    kw("iter"), self.generate_expr(iter)?,
-                    kw("body"), self.generate_block(body)?,
+                    kw("label"),
+                    label_sexp,
+                    kw("pat"),
+                    self.generate_pat(pat)?,
+                    kw("iter"),
+                    self.generate_expr(iter)?,
+                    kw("body"),
+                    self.generate_block(body)?,
                 ]))
             }
             ExprKind::Loop { label, body } => {
-                let label_sexp = label.as_ref()
-                    .map(|l| self.generate_label(l))
-                    .unwrap_or_else(|| sym("nil"));
+                let label_sexp =
+                    label.as_ref().map(|l| self.generate_label(l)).unwrap_or_else(|| sym("nil"));
                 Ok(list(vec![
                     sym("Loop"),
-                    kw("label"), label_sexp,
-                    kw("body"), self.generate_block(body)?,
+                    kw("label"),
+                    label_sexp,
+                    kw("body"),
+                    self.generate_block(body)?,
                 ]))
             }
         }
@@ -212,7 +220,8 @@ impl Generator {
         ]);
 
         if let Some(guard) = &arm.guard {
-            fields.extend(kwarg("guard", self.generate_expr(guard).unwrap_or_else(|_| sym("ERROR"))));
+            fields
+                .extend(kwarg("guard", self.generate_expr(guard).unwrap_or_else(|_| sym("ERROR"))));
         } else {
             fields.extend(kwarg("guard", sym("nil")));
         }
@@ -226,8 +235,6 @@ impl Generator {
     }
 
     fn generate_label(&self, label: &Label) -> SExp {
-        typed_node("Label", kwargs(vec![
-            kwarg("ident", self.generate_ident(&label.ident)),
-        ]))
+        typed_node("Label", kwargs(vec![kwarg("ident", self.generate_ident(&label.ident))]))
     }
 }
