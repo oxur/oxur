@@ -257,5 +257,9 @@ pub enum Commands {
 
         /// New document file path
         new: String,
+
+        /// Set version explicitly (default: auto-increment minor version)
+        #[arg(short = 'V', long)]
+        version: Option<String>,
     },
 }

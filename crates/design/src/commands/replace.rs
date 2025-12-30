@@ -16,6 +16,7 @@ pub fn execute(
     state_mgr: &mut StateManager,
     old_id_or_path: &str,
     new_file_path: &str,
+    version_override: Option<String>,
 ) -> Result<()> {
     println!("{}", "Replacing document...".cyan().bold());
     println!();
@@ -65,7 +66,8 @@ pub fn execute(
     };
 
     // Step 3: Merge metadata (preserve critical fields from old)
-    let merged_metadata = merge_metadata(&old_doc.metadata, &new_doc.metadata, old_number);
+    let merged_metadata =
+        merge_metadata(&old_doc.metadata, &new_doc.metadata, old_number, version_override)?;
 
     println!();
     println!("{}", "Merged Metadata:".cyan().bold());
@@ -73,6 +75,12 @@ pub fn execute(
     println!("  ✓ Preserved created: {}", merged_metadata.created.to_string().green());
     println!("  ✓ New title: {}", merged_metadata.title.white());
     println!("  ✓ New author: {}", merged_metadata.author.white());
+    println!(
+        "  {} Version: {} -> {}",
+        "→".cyan(),
+        old_doc.metadata.version,
+        merged_metadata.version
+    );
     println!();
 
     // Step 4: Move old document to dustbin as "overwritten"
@@ -189,7 +197,8 @@ fn merge_metadata(
     old_meta: &DocMetadata,
     new_meta: &DocMetadata,
     preserve_number: u32,
-) -> DocMetadata {
+    version_override: Option<String>,
+) -> Result<DocMetadata> {
     // Always preserve from old document
     let number = preserve_number;
     let created = old_meta.created;
@@ -213,7 +222,44 @@ fn merge_metadata(
     let supersedes = new_meta.supersedes.or(old_meta.supersedes);
     let superseded_by = new_meta.superseded_by.or(old_meta.superseded_by);
 
-    DocMetadata {
+    // Determine new version
+    let version = if let Some(override_ver) = version_override {
+        // User provided explicit version - validate it's >= old version
+        if let Ok(is_valid) =
+            design::doc::is_version_valid_upgrade(&old_meta.version, &override_ver)
+        {
+            if !is_valid {
+                return Err(anyhow::anyhow!(
+                    "Version downgrade not allowed: {} -> {}. New version must be >= old version.",
+                    old_meta.version,
+                    override_ver
+                ));
+            }
+            override_ver
+        } else {
+            // Override version is invalid format
+            return Err(anyhow::anyhow!(
+                "Invalid version format: '{}'. Expected 'major.minor' (e.g., '1.0', '2.3')",
+                override_ver
+            ));
+        }
+    } else {
+        // Auto-increment minor version from old document
+        match design::doc::increment_minor_version(&old_meta.version) {
+            Ok(new_ver) => new_ver,
+            Err(_) => {
+                // Old version was invalid, default to 1.1 per user requirements
+                println!(
+                    "{} Old version '{}' is invalid, defaulting to 1.1",
+                    "WARNING:".yellow().bold(),
+                    old_meta.version
+                );
+                "1.1".to_string()
+            }
+        }
+    };
+
+    Ok(DocMetadata {
         number,
         title,
         author,
@@ -224,8 +270,8 @@ fn merge_metadata(
         state: DocState::Draft, // New version always starts as draft
         supersedes,
         superseded_by,
-        version: "1.0".to_string(),
-    }
+        version,
+    })
 }
 
 #[cfg(test)]
@@ -483,13 +529,14 @@ mod tests {
             version: "1.0".to_string(),
         };
 
-        let merged = merge_metadata(&old_meta, &new_meta, 42);
+        let merged = merge_metadata(&old_meta, &new_meta, 42, None).unwrap();
 
         assert_eq!(merged.number, 42);
         assert_eq!(merged.created, old_meta.created);
         assert_eq!(merged.title, "New");
         assert_eq!(merged.author, "New Author");
         assert_eq!(merged.state, DocState::Draft);
+        assert_eq!(merged.version, "1.1"); // Auto-incremented from 1.0
     }
 
     #[test]
@@ -522,9 +569,146 @@ mod tests {
             version: "1.0".to_string(),
         };
 
-        let merged = merge_metadata(&old_meta, &new_meta, 42);
+        let merged = merge_metadata(&old_meta, &new_meta, 42, None).unwrap();
 
         assert_eq!(merged.title, "Old");
         assert_eq!(merged.author, "Old Author");
+    }
+
+    #[test]
+    fn test_replace_auto_increments_minor_version() {
+        let old_meta = DocMetadata {
+            number: 1,
+            title: "Test".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: None,
+            superseded_by: None,
+            version: "1.0".to_string(),
+        };
+
+        let new_meta = DocMetadata {
+            number: 999,
+            title: "Updated".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+            version: "1.0".to_string(),
+        };
+
+        let merged = merge_metadata(&old_meta, &new_meta, 1, None).unwrap();
+        assert_eq!(merged.version, "1.1");
+    }
+
+    #[test]
+    fn test_replace_with_explicit_version() {
+        let old_meta = DocMetadata {
+            number: 1,
+            title: "Test".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: None,
+            superseded_by: None,
+            version: "1.0".to_string(),
+        };
+
+        let new_meta = DocMetadata {
+            number: 999,
+            title: "Updated".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+            version: "1.0".to_string(),
+        };
+
+        let merged = merge_metadata(&old_meta, &new_meta, 1, Some("2.0".to_string())).unwrap();
+        assert_eq!(merged.version, "2.0");
+    }
+
+    #[test]
+    fn test_replace_prevents_version_downgrade() {
+        let old_meta = DocMetadata {
+            number: 1,
+            title: "Test".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: None,
+            superseded_by: None,
+            version: "2.0".to_string(),
+        };
+
+        let new_meta = DocMetadata {
+            number: 999,
+            title: "Updated".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+            version: "1.0".to_string(),
+        };
+
+        let result = merge_metadata(&old_meta, &new_meta, 1, Some("1.0".to_string()));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Version downgrade not allowed"));
+    }
+
+    #[test]
+    fn test_replace_invalid_old_version_defaults_to_1_1() {
+        let old_meta = DocMetadata {
+            number: 1,
+            title: "Test".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            state: DocState::Active,
+            supersedes: None,
+            superseded_by: None,
+            version: "bad-version".to_string(),
+        };
+
+        let new_meta = DocMetadata {
+            number: 999,
+            title: "Updated".to_string(),
+            author: "Author".to_string(),
+            component: None,
+            tags: Vec::new(),
+            created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+            state: DocState::Draft,
+            supersedes: None,
+            superseded_by: None,
+            version: "1.0".to_string(),
+        };
+
+        let merged = merge_metadata(&old_meta, &new_meta, 1, None).unwrap();
+        assert_eq!(merged.version, "1.1");
     }
 }

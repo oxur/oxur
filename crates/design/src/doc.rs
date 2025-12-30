@@ -207,6 +207,36 @@ where
     Ok(s)
 }
 
+/// Parse a version string into (major, minor) components
+pub fn parse_version(version: &str) -> Result<(u32, u32), String> {
+    let parts: Vec<&str> = version.split('.').collect();
+
+    if parts.len() != 2 {
+        return Err(format!("Invalid version format: '{}'. Expected 'major.minor'", version));
+    }
+
+    let major =
+        parts[0].parse::<u32>().map_err(|_| format!("Invalid major version: '{}'", parts[0]))?;
+    let minor =
+        parts[1].parse::<u32>().map_err(|_| format!("Invalid minor version: '{}'", parts[1]))?;
+
+    Ok((major, minor))
+}
+
+/// Increment the minor version of a version string
+pub fn increment_minor_version(version: &str) -> Result<String, String> {
+    let (major, minor) = parse_version(version)?;
+    Ok(format!("{}.{}", major, minor + 1))
+}
+
+/// Compare two versions, returns true if new_version >= old_version
+pub fn is_version_valid_upgrade(old_version: &str, new_version: &str) -> Result<bool, String> {
+    let (old_major, old_minor) = parse_version(old_version)?;
+    let (new_major, new_minor) = parse_version(new_version)?;
+
+    Ok(new_major > old_major || (new_major == old_major && new_minor >= old_minor))
+}
+
 /// Metadata from the YAML frontmatter
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocMetadata {
@@ -1524,6 +1554,44 @@ mod property_tests {
             let yaml = build_yaml_frontmatter(&metadata);
             prop_assert!(yaml.starts_with("---\n"));
             prop_assert!(yaml.ends_with("---\n\n"));
+        }
+    }
+
+    mod version_tests {
+        use super::*;
+
+        #[test]
+        fn test_parse_version_valid() {
+            assert_eq!(parse_version("1.0"), Ok((1, 0)));
+            assert_eq!(parse_version("2.5"), Ok((2, 5)));
+            assert_eq!(parse_version("10.42"), Ok((10, 42)));
+        }
+
+        #[test]
+        fn test_parse_version_invalid() {
+            assert!(parse_version("1").is_err());
+            assert!(parse_version("1.0.0").is_err());
+            assert!(parse_version("1.a").is_err());
+            assert!(parse_version("a.1").is_err());
+        }
+
+        #[test]
+        fn test_increment_minor_version() {
+            assert_eq!(increment_minor_version("1.0"), Ok("1.1".to_string()));
+            assert_eq!(increment_minor_version("2.5"), Ok("2.6".to_string()));
+            assert_eq!(increment_minor_version("1.9"), Ok("1.10".to_string()));
+        }
+
+        #[test]
+        fn test_is_version_valid_upgrade() {
+            // Valid upgrades
+            assert_eq!(is_version_valid_upgrade("1.0", "1.1"), Ok(true));
+            assert_eq!(is_version_valid_upgrade("1.0", "2.0"), Ok(true));
+            assert_eq!(is_version_valid_upgrade("1.5", "1.5"), Ok(true)); // Equal is valid
+
+            // Invalid downgrades
+            assert_eq!(is_version_valid_upgrade("2.0", "1.9"), Ok(false));
+            assert_eq!(is_version_valid_upgrade("1.5", "1.4"), Ok(false));
         }
     }
 }
