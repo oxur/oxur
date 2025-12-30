@@ -563,11 +563,14 @@ mod tests {
                 number: num,
                 title: title.to_string(),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 state: doc_state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
             state.upsert(
                 num,
@@ -678,11 +681,14 @@ mod tests {
                 number: num,
                 title: title.to_string(),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 state: doc_state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
             state_mgr.state_mut().upsert(
                 num,
@@ -709,11 +715,14 @@ mod tests {
                 number: num,
                 title: title.to_string(),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
                 state: doc_state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
             let path = format!(
                 "{}/{:04}-{}.md",
@@ -742,7 +751,7 @@ mod tests {
         let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
 
         // List without --removed flag should work
-        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, false, false);
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, false, false, None, Vec::new());
         assert!(result.is_ok());
     }
 
@@ -752,7 +761,7 @@ mod tests {
         let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
 
         // List with --removed flag should work
-        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, true, false);
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, false, true, false, None, Vec::new());
         assert!(result.is_ok());
     }
 
@@ -762,7 +771,7 @@ mod tests {
         let index = DocumentIndex::from_state(state_mgr.state(), state_mgr.docs_dir()).unwrap();
 
         // List with --removed and --verbose should work
-        let result = list_documents_with_state(&index, Some(&state_mgr), None, true, true, false);
+        let result = list_documents_with_state(&index, Some(&state_mgr), None, true, true, false, None, Vec::new());
         assert!(result.is_ok());
     }
 
@@ -771,7 +780,7 @@ mod tests {
         let index = create_test_index();
 
         // List with --removed but no state manager should handle gracefully
-        let result = list_documents_with_state(&index, None, None, false, true, false);
+        let result = list_documents_with_state(&index, None, None, false, true, false, None, Vec::new());
         assert!(result.is_ok());
     }
 
@@ -805,11 +814,14 @@ mod tests {
             number: 1,
             title: "Removed Doc".to_string(),
             author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             state: DocState::Removed,
             supersedes: None,
             superseded_by: None,
+                version: "1.0".to_string(),
         };
 
         let dustbin_path = docs_dir.join(".dustbin/0001-removed-doc.md");
@@ -847,11 +859,14 @@ mod tests {
             number: 1,
             title: "Deleted Doc".to_string(),
             author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             state: DocState::Removed,
             supersedes: None,
             superseded_by: None,
+                version: "1.0".to_string(),
         };
 
         state_mgr.state_mut().upsert(
@@ -884,11 +899,14 @@ mod tests {
             number: 1,
             title: "Removed Doc".to_string(),
             author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             state: DocState::Removed,
             supersedes: None,
             superseded_by: None,
+                version: "1.0".to_string(),
         };
 
         let dustbin_path = docs_dir.join(".dustbin/0001-removed-doc.md");
@@ -929,11 +947,14 @@ mod tests {
                 number: num,
                 title: title.to_string(),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
                 state: doc_state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
 
             state_mgr.state_mut().upsert(
@@ -974,11 +995,14 @@ mod tests {
             number: 1,
             title: long_title,
             author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             state: DocState::Removed,
             supersedes: None,
             superseded_by: None,
+                version: "1.0".to_string(),
         };
 
         state_mgr.state_mut().upsert(

@@ -123,11 +123,14 @@ mod tests {
             number: 1,
             title: "First Document".to_string(),
             author: "Alice".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+                version: "1.0".to_string(),
         };
         state.upsert(
             1,
@@ -145,11 +148,14 @@ mod tests {
             number: 2,
             title: "Second Document".to_string(),
             author: "Bob".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 2, 15).unwrap(),
             state: DocState::Active,
             supersedes: Some(1),
             superseded_by: None,
+                version: "1.0".to_string(),
         };
         state.upsert(
             2,
@@ -167,11 +173,14 @@ mod tests {
             number: 3,
             title: "Third Document".to_string(),
             author: "Charlie".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 3, 15).unwrap(),
             state: DocState::Superseded,
             supersedes: None,
             superseded_by: Some(4),
+                version: "1.0".to_string(),
         };
         state.upsert(
             3,

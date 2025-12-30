@@ -137,11 +137,14 @@ mod tests {
                 number: num,
                 title: title.to_string(),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, num).unwrap(),
                 state: doc_state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
             state.upsert(
                 num,

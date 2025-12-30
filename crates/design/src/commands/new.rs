@@ -131,11 +131,14 @@ mod tests {
             number: 1,
             title: "Existing Doc".to_string(),
             author: "Test Author".to_string(),
+            component: None,
+            tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+            version: "1.0".to_string(),
         };
         state.upsert(
             1,
@@ -156,7 +159,7 @@ mod tests {
     fn test_new_document_with_provided_author() {
         let (index, _temp) = create_test_index();
 
-        let result = new_document(&index, "Test Document".to_string(), Some("Alice".to_string()));
+        let result = new_document(&index, "Test Document".to_string(), Some("Alice".to_string()), None, Vec::new());
         assert!(result.is_ok());
 
         // Verify file was created in Draft directory
@@ -179,7 +182,7 @@ mod tests {
     fn test_new_document_with_default_author() {
         let (index, _temp) = create_test_index();
 
-        let result = new_document(&index, "Another Doc".to_string(), None);
+        let result = new_document(&index, "Another Doc".to_string(), None, None, Vec::new());
         assert!(result.is_ok());
 
         // Verify file was created
@@ -194,7 +197,7 @@ mod tests {
 
         // Title with spaces and special characters
         let result =
-            new_document(&index, "Test: Document & More!".to_string(), Some("Test".to_string()));
+            new_document(&index, "Test: Document & More!".to_string(), Some("Test".to_string()), None, Vec::new());
         assert!(result.is_ok());
 
         // Verify sanitized filename (special chars removed, spaces become dashes)
@@ -209,7 +212,7 @@ mod tests {
         let (index, _temp) = create_test_index();
 
         // Should get number 2 since we have 1 existing doc
-        let result = new_document(&index, "Doc Title".to_string(), Some("Author".to_string()));
+        let result = new_document(&index, "Doc Title".to_string(), Some("Author".to_string()), None, Vec::new());
         assert!(result.is_ok());
 
         let draft_dir = PathBuf::from(index.docs_dir()).join("01-draft");
@@ -228,7 +231,7 @@ mod tests {
         let draft_dir = PathBuf::from(index.docs_dir()).join("01-draft");
         assert!(!draft_dir.exists());
 
-        let result = new_document(&index, "New Doc".to_string(), Some("Author".to_string()));
+        let result = new_document(&index, "New Doc".to_string(), Some("Author".to_string()), None, Vec::new());
         assert!(result.is_ok());
 
         // Now it should exist
@@ -240,7 +243,7 @@ mod tests {
     fn test_template_structure() {
         let (index, _temp) = create_test_index();
 
-        let result = new_document(&index, "Template Test".to_string(), Some("Alice".to_string()));
+        let result = new_document(&index, "Template Test".to_string(), Some("Alice".to_string()), None, Vec::new());
         assert!(result.is_ok());
 
         let draft_dir = PathBuf::from(index.docs_dir()).join("01-draft");
@@ -263,7 +266,7 @@ mod tests {
         let index = DocumentIndex::new(temp.path()).unwrap();
 
         // First document should be number 1
-        let result = new_document(&index, "First Doc".to_string(), Some("Author".to_string()));
+        let result = new_document(&index, "First Doc".to_string(), Some("Author".to_string()), None, Vec::new());
         assert!(result.is_ok());
 
         let draft_dir = PathBuf::from(index.docs_dir()).join("01-draft");
@@ -279,7 +282,7 @@ mod tests {
         let (index, _temp) = create_test_index();
 
         // Title with unicode characters (is_alphanumeric includes unicode letters)
-        let result = new_document(&index, "Test café".to_string(), Some("Author".to_string()));
+        let result = new_document(&index, "Test café".to_string(), Some("Author".to_string()), None, Vec::new());
         assert!(result.is_ok());
 
         let draft_dir = PathBuf::from(index.docs_dir()).join("01-draft");

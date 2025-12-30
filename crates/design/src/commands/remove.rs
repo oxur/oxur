@@ -186,11 +186,14 @@ mod tests {
             number: 1,
             title: "Test Doc".to_string(),
             author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+                version: "1.0".to_string(),
         };
 
         let doc_path = docs_dir.join("01-draft/0001-test-doc.md");
@@ -372,11 +375,14 @@ mod tests {
             number: 1,
             title: "Missing Doc".to_string(),
             author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
             created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             state: DocState::Draft,
             supersedes: None,
             superseded_by: None,
+                version: "1.0".to_string(),
         };
 
         state_mgr.state_mut().upsert(
@@ -470,11 +476,14 @@ mod tests {
                 number: num,
                 title: format!("Doc {}", num),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 state: DocState::Draft,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
 
             let doc_path = docs_dir.join(format!("01-draft/{:04}-doc-{}.md", num, num));
@@ -552,11 +561,14 @@ mod tests {
                 number: num,
                 title: format!("Doc {}", num),
                 author: "Test Author".to_string(),
+                component: None,
+                tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 state,
                 supersedes: None,
                 superseded_by: None,
+                version: "1.0".to_string(),
             };
 
             let doc_path = docs_dir.join(format!("{}/{:04}-doc-{}.md", dir, num, num));
