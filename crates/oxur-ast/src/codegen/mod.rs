@@ -28,7 +28,10 @@
 //! # }
 //! ```
 
+mod expr;
+mod item;
 mod rust;
+mod types;
 
 pub use rust::RustCodegen;
 
