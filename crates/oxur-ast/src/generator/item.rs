@@ -239,12 +239,39 @@ impl Generator {
                 };
                 Ok(list(vec![sym("Path"), qself_sexp, self.generate_path(path)]))
             }
-            // Stage 6: Advanced types (TODO - implement)
-            TyKind::Ref { .. } => Ok(sym("TODO-Ref")),
-            TyKind::Ptr { .. } => Ok(sym("TODO-Ptr")),
-            TyKind::Array { .. } => Ok(sym("TODO-Array")),
-            TyKind::Slice(..) => Ok(sym("TODO-Slice")),
-            TyKind::Tuple(..) => Ok(sym("TODO-Tuple")),
+            // Stage 6: Advanced types
+            TyKind::Ref { lifetime, mutability, ty } => {
+                let lifetime_sexp =
+                    if let Some(lt) = lifetime { self.generate_lifetime(lt) } else { sym("nil") };
+                Ok(list(vec![
+                    sym("Ref"),
+                    kw("lifetime"),
+                    lifetime_sexp,
+                    kw("mutability"),
+                    self.generate_mutability(*mutability),
+                    kw("ty"),
+                    self.generate_ty(ty)?,
+                ]))
+            }
+            TyKind::Ptr { mutability, ty } => Ok(list(vec![
+                sym("Ptr"),
+                kw("mutability"),
+                self.generate_mutability(*mutability),
+                kw("ty"),
+                self.generate_ty(ty)?,
+            ])),
+            TyKind::Array { ty, len } => Ok(list(vec![
+                sym("Array"),
+                kw("ty"),
+                self.generate_ty(ty)?,
+                kw("len"),
+                self.generate_expr(len)?,
+            ])),
+            TyKind::Slice(ty) => Ok(list(vec![sym("Slice"), self.generate_ty(ty)?])),
+            TyKind::Tuple(tys) => {
+                let ty_sexps = tys.iter().map(|ty| self.generate_ty(ty)).collect::<Result<Vec<_>>>()?;
+                Ok(list(vec![sym("Tuple")].into_iter().chain(ty_sexps).collect()))
+            }
             TyKind::Never => Ok(sym("Never")),
             TyKind::Infer => Ok(sym("Infer")),
         }
@@ -282,16 +309,64 @@ impl Generator {
 
                 Ok(typed_node("Ident", fields))
             }
-            // Stage 6: Advanced patterns (TODO - implement)
+            // Stage 6: Advanced patterns
             PatKind::Wild => Ok(sym("Wild")),
-            PatKind::Struct { .. } => Ok(sym("TODO-Struct")),
-            PatKind::TupleStruct { .. } => Ok(sym("TODO-TupleStruct")),
-            PatKind::Tuple(..) => Ok(sym("TODO-Tuple")),
-            PatKind::Slice(..) => Ok(sym("TODO-Slice")),
-            PatKind::Or(..) => Ok(sym("TODO-Or")),
-            PatKind::Ref { .. } => Ok(sym("TODO-Ref")),
-            PatKind::Lit(..) => Ok(sym("TODO-Lit")),
+            PatKind::Struct { path, fields } => {
+                let fields_sexp =
+                    list(fields.iter().map(|f| self.generate_pat_field(f)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![
+                    sym("Struct"),
+                    kw("path"),
+                    self.generate_path(path),
+                    kw("fields"),
+                    fields_sexp,
+                ]))
+            }
+            PatKind::TupleStruct { path, elems } => {
+                let elems_sexp =
+                    list(elems.iter().map(|e| self.generate_pat(e)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![
+                    sym("TupleStruct"),
+                    kw("path"),
+                    self.generate_path(path),
+                    kw("elems"),
+                    elems_sexp,
+                ]))
+            }
+            PatKind::Tuple(pats) => {
+                let pats_sexp = list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![sym("Tuple"), pats_sexp]))
+            }
+            PatKind::Slice(pats) => {
+                let pats_sexp = list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![sym("Slice"), pats_sexp]))
+            }
+            PatKind::Or(pats) => {
+                let pats_sexp = list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![sym("Or"), pats_sexp]))
+            }
+            PatKind::Ref { pat, mutability } => Ok(list(vec![
+                sym("Ref"),
+                kw("pat"),
+                self.generate_pat(pat)?,
+                kw("mutability"),
+                self.generate_mutability(*mutability),
+            ])),
+            PatKind::Lit(expr) => Ok(list(vec![sym("Lit"), self.generate_expr(expr)?])),
         }
+    }
+
+    fn generate_pat_field(&self, field: &PatField) -> Result<SExp> {
+        Ok(typed_node(
+            "PatField",
+            kwargs(vec![
+                kwarg("attrs", self.generate_attr_vec(&field.attrs)?),
+                kwarg("ident", self.generate_ident(&field.ident)),
+                kwarg("pat", self.generate_pat(&field.pat)?),
+                kwarg("is-shorthand", sym(if field.is_shorthand { "true" } else { "false" })),
+                kwarg("span", self.generate_span(field.span)),
+            ]),
+        ))
     }
 
     fn generate_binding_mode(&self, mode: BindingMode) -> SExp {
@@ -310,6 +385,10 @@ impl Generator {
             Mutability::Mut => sym("Mut"),
             Mutability::Not => sym("Not"),
         }
+    }
+
+    fn generate_lifetime(&self, lifetime: &Lifetime) -> SExp {
+        typed_node("Lifetime", kwargs(vec![kwarg("ident", self.generate_ident(&lifetime.ident))]))
     }
 
     fn generate_vis_restriction_kind(&self, kind: VisRestrictionKind) -> SExp {

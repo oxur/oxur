@@ -28,30 +28,73 @@ impl RustCodegen {
                     self.generate_pat(sub_pat)?;
                 }
             }
-            // Stage 6: Advanced patterns (TODO - implement)
+            // Stage 6: Advanced patterns
             PatKind::Wild => {
                 self.write("_");
             }
-            PatKind::Struct { .. } => {
-                self.write("/* struct pattern */");
+            PatKind::Struct { path, fields } => {
+                self.generate_path(path)?;
+                self.write(" { ");
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&field.ident.name);
+                    if !field.is_shorthand {
+                        self.write(": ");
+                        self.generate_pat(&field.pat)?;
+                    }
+                }
+                self.write(" }");
             }
-            PatKind::TupleStruct { .. } => {
-                self.write("/* tuple struct pattern */");
+            PatKind::TupleStruct { path, elems } => {
+                self.generate_path(path)?;
+                self.write("(");
+                for (i, elem) in elems.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_pat(elem)?;
+                }
+                self.write(")");
             }
-            PatKind::Tuple(..) => {
-                self.write("/* tuple pattern */");
+            PatKind::Tuple(pats) => {
+                self.write("(");
+                for (i, pat) in pats.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_pat(pat)?;
+                }
+                self.write(")");
             }
-            PatKind::Slice(..) => {
-                self.write("/* slice pattern */");
+            PatKind::Slice(pats) => {
+                self.write("[");
+                for (i, pat) in pats.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_pat(pat)?;
+                }
+                self.write("]");
             }
-            PatKind::Or(..) => {
-                self.write("/* or pattern */");
+            PatKind::Or(pats) => {
+                for (i, pat) in pats.iter().enumerate() {
+                    if i > 0 {
+                        self.write(" | ");
+                    }
+                    self.generate_pat(pat)?;
+                }
             }
-            PatKind::Ref { .. } => {
-                self.write("/* ref pattern */");
+            PatKind::Ref { pat, mutability } => {
+                self.write("&");
+                if matches!(mutability, Mutability::Mut) {
+                    self.write("mut ");
+                }
+                self.generate_pat(pat)?;
             }
-            PatKind::Lit(..) => {
-                self.write("/* lit pattern */");
+            PatKind::Lit(expr) => {
+                self.generate_expr(expr)?;
             }
         }
         Ok(())
@@ -67,21 +110,48 @@ impl RustCodegen {
                 }
                 self.generate_path(path)?;
             }
-            // Stage 6: Advanced types (TODO - implement)
-            TyKind::Ref { .. } => {
-                self.write("/* ref type */");
+            // Stage 6: Advanced types
+            TyKind::Ref { lifetime, mutability, ty } => {
+                self.write("&");
+                if let Some(lt) = lifetime {
+                    self.write(&lt.ident.name);
+                    self.write(" ");
+                }
+                if matches!(mutability, Mutability::Mut) {
+                    self.write("mut ");
+                }
+                self.generate_ty(ty)?;
             }
-            TyKind::Ptr { .. } => {
-                self.write("/* ptr type */");
+            TyKind::Ptr { mutability, ty } => {
+                self.write("*");
+                if matches!(mutability, Mutability::Mut) {
+                    self.write("mut ");
+                } else {
+                    self.write("const ");
+                }
+                self.generate_ty(ty)?;
             }
-            TyKind::Array { .. } => {
-                self.write("/* array type */");
+            TyKind::Array { ty, len } => {
+                self.write("[");
+                self.generate_ty(ty)?;
+                self.write("; ");
+                self.generate_expr(len)?;
+                self.write("]");
             }
-            TyKind::Slice(..) => {
-                self.write("/* slice type */");
+            TyKind::Slice(ty) => {
+                self.write("[");
+                self.generate_ty(ty)?;
+                self.write("]");
             }
-            TyKind::Tuple(..) => {
-                self.write("/* tuple type */");
+            TyKind::Tuple(tys) => {
+                self.write("(");
+                for (i, ty) in tys.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_ty(ty)?;
+                }
+                self.write(")");
             }
             TyKind::Never => {
                 self.write("!");
