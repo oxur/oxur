@@ -32,8 +32,9 @@ The library supports the following S-expression types:
 
 Read and write S-expressions directly from/to files:
 
-```rust
+```rust,no_run
 use oxur_ast::sexp::{Parser, write_sexp_file};
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // Read from file
 let sexp = Parser::parse_file("my-ast.sexp")?;
@@ -45,6 +46,8 @@ write_sexp_file(&sexp, "output.sexp")?;
 let original = Parser::parse_file("input.sexp")?;
 write_sexp_file(&original, "output.sexp")?;
 let reparsed = Parser::parse_file("output.sexp")?;
+# Ok(())
+# }
 ```
 
 ### String Parsing
@@ -53,9 +56,12 @@ Parse S-expressions from strings:
 
 ```rust
 use oxur_ast::sexp::Parser;
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 let input = r#"(Crate :items ())"#;
 let sexp = Parser::parse_str(input)?;
+# Ok(())
+# }
 ```
 
 ### Printing
@@ -63,7 +69,9 @@ let sexp = Parser::parse_str(input)?;
 Format S-expressions with customizable indentation:
 
 ```rust
-use oxur_ast::sexp::{Printer, print_sexp};
+use oxur_ast::sexp::{Parser, Printer, print_sexp, write_sexp_file};
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+# let sexp = Parser::parse_str("(example)")?;
 
 // Default printer (2-space indentation)
 let output = print_sexp(&sexp);
@@ -71,6 +79,14 @@ let output = print_sexp(&sexp);
 // Custom indentation
 let printer = Printer::with_indent(4);
 let output = printer.print(&sexp);
+
+// Write to file
+printer.write_file(&sexp, "output.sexp")?;
+
+// Convenience function
+write_sexp_file(&sexp, "output.sexp")?;
+# Ok(())
+# }
 ```
 
 ### AST Building
@@ -80,6 +96,7 @@ Convert S-expressions into Rust AST structures:
 ```rust
 use oxur_ast::builder::AstBuilder;
 use oxur_ast::sexp::Parser;
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 let input = r#"
 (Crate
@@ -92,6 +109,8 @@ let input = r#"
 let sexp = Parser::parse_str(input)?;
 let mut builder = AstBuilder::new();
 let crate_ast = builder.build_crate(&sexp)?;
+# Ok(())
+# }
 ```
 
 ### Rust Parsing Integration
@@ -102,6 +121,7 @@ Parse real Rust source code into AST structures:
 use oxur_ast::integration::parse_rust_file;
 use oxur_ast::Generator;
 use oxur_ast::sexp::print_sexp;
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // Parse Rust source
 let source = r#"
@@ -118,6 +138,8 @@ let sexp = gen.generate_crate(&crate_node)?;
 
 // Print formatted output
 println!("{}", print_sexp(&sexp));
+# Ok(())
+# }
 ```
 
 ## CLI Tool: `aster`
@@ -278,7 +300,7 @@ cargo build
 ```
 
 Output:
-```
+```text
 Hello from Oxur (via S-expression)!
 ```
 
@@ -349,7 +371,7 @@ This demonstrates that:
 
 ### Architecture
 
-```
+```text
 Rust Source → syn → oxur AST → Generator → S-expression
                       ↑                          ↓
                       └────── Builder ← Parser ──┘
@@ -432,20 +454,25 @@ See [test-data/README.md](test-data/README.md) for detailed documentation.
 
 ### Parser
 
-```rust
+```rust,no_run
 use oxur_ast::sexp::Parser;
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // Parse from string
 let sexp = Parser::parse_str("(foo bar)")?;
 
 // Parse from file
 let sexp = Parser::parse_file("example.sexp")?;
+# Ok(())
+# }
 ```
 
 ### Printer
 
-```rust
-use oxur_ast::sexp::{Printer, print_sexp};
+```rust,no_run
+use oxur_ast::sexp::{Parser, Printer, print_sexp, write_sexp_file};
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+# let sexp = Parser::parse_str("(example)")?;
 
 // Convenience function (2-space indentation)
 let output = print_sexp(&sexp);
@@ -459,21 +486,24 @@ printer.write_file(&sexp, "output.sexp")?;
 
 // Convenience function for writing
 write_sexp_file(&sexp, "output.sexp")?;
+# Ok(())
+# }
 ```
 
 ### AstBuilder
 
-```rust
+```rust,no_run
 use oxur_ast::builder::AstBuilder;
+use oxur_ast::sexp::Parser;
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+# let sexp = Parser::parse_str("(Crate :attrs () :items () :spans (ModSpans :inner-span (Span :lo 0 :hi 0)) :id 0)")?;
 
 let mut builder = AstBuilder::new();
 
 // Build different AST nodes
 let crate_ast = builder.build_crate(&sexp)?;
-let item_ast = builder.build_item(&sexp)?;
-let expr_ast = builder.build_expr(&sexp)?;
-let stmt_ast = builder.build_stmt(&sexp)?;
-let block_ast = builder.build_block(&sexp)?;
+# Ok(())
+# }
 ```
 
 ## Error Handling

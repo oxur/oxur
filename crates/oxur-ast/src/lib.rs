@@ -1,3 +1,9 @@
+//! Oxur AST: Rust AST manipulation via S-expressions
+//!
+//! This crate provides bidirectional conversion between Rust source code
+//! and S-expression representations, enabling programmatic AST manipulation.
+#![doc = include_str!("../README.md")]
+
 pub mod ast;
 pub mod builder;
 pub mod codegen;
