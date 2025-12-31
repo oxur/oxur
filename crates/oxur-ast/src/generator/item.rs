@@ -314,7 +314,8 @@ impl Generator {
             ])),
             TyKind::Slice(ty) => Ok(list(vec![sym("Slice"), self.generate_ty(ty)?])),
             TyKind::Tuple(tys) => {
-                let ty_sexps = tys.iter().map(|ty| self.generate_ty(ty)).collect::<Result<Vec<_>>>()?;
+                let ty_sexps =
+                    tys.iter().map(|ty| self.generate_ty(ty)).collect::<Result<Vec<_>>>()?;
                 Ok(list(vec![sym("Tuple")].into_iter().chain(ty_sexps).collect()))
             }
             TyKind::Never => Ok(sym("Never")),
@@ -357,8 +358,12 @@ impl Generator {
             // Stage 6: Advanced patterns
             PatKind::Wild => Ok(sym("Wild")),
             PatKind::Struct { path, fields } => {
-                let fields_sexp =
-                    list(fields.iter().map(|f| self.generate_pat_field(f)).collect::<Result<Vec<_>>>()?);
+                let fields_sexp = list(
+                    fields
+                        .iter()
+                        .map(|f| self.generate_pat_field(f))
+                        .collect::<Result<Vec<_>>>()?,
+                );
                 Ok(list(vec![
                     sym("Struct"),
                     kw("path"),
@@ -379,15 +384,18 @@ impl Generator {
                 ]))
             }
             PatKind::Tuple(pats) => {
-                let pats_sexp = list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
+                let pats_sexp =
+                    list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
                 Ok(list(vec![sym("Tuple"), pats_sexp]))
             }
             PatKind::Slice(pats) => {
-                let pats_sexp = list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
+                let pats_sexp =
+                    list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
                 Ok(list(vec![sym("Slice"), pats_sexp]))
             }
             PatKind::Or(pats) => {
-                let pats_sexp = list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
+                let pats_sexp =
+                    list(pats.iter().map(|p| self.generate_pat(p)).collect::<Result<Vec<_>>>()?);
                 Ok(list(vec![sym("Or"), pats_sexp]))
             }
             PatKind::Ref { pat, mutability } => Ok(list(vec![
@@ -551,11 +559,7 @@ impl Generator {
 
     fn generate_trait_def(&self, trait_def: &TraitDef) -> Result<SExp> {
         let bounds_sexp = list(
-            trait_def
-                .bounds
-                .iter()
-                .map(|b| self.generate_generic_bound(b))
-                .collect::<Vec<_>>(),
+            trait_def.bounds.iter().map(|b| self.generate_generic_bound(b)).collect::<Vec<_>>(),
         );
         let items_sexp = list(
             trait_def
@@ -605,11 +609,9 @@ impl Generator {
 
     fn generate_assoc_item(&self, item: &AssocItem) -> Result<SExp> {
         let kind_sexp = match &item.kind {
-            AssocItemKind::Fn(func) => {
-                list(vec![sym("Fn"), self.generate_fn(func)?])
-            }
+            AssocItemKind::Fn(func) => list(vec![sym("Fn"), self.generate_fn(func)?]),
             AssocItemKind::Type(ty_opt) => {
-                if let Some(ty) = ty_opt {
+                if let Some(ty) = &**ty_opt {
                     list(vec![sym("Type"), self.generate_ty(ty)?])
                 } else {
                     list(vec![sym("Type"), sym("nil")])
@@ -654,16 +656,14 @@ impl Generator {
     fn generate_use_tree_kind(&self, kind: &UseTreeKind) -> SExp {
         match kind {
             UseTreeKind::Simple(rename) => {
-                let rename_sexp = if let Some(ident) = rename {
-                    self.generate_ident(ident)
-                } else {
-                    sym("nil")
-                };
+                let rename_sexp =
+                    if let Some(ident) = rename { self.generate_ident(ident) } else { sym("nil") };
                 list(vec![sym("Simple"), rename_sexp])
             }
             UseTreeKind::Glob => sym("Glob"),
             UseTreeKind::Nested(trees) => {
-                let trees_sexp = list(trees.iter().map(|tree| self.generate_use_tree(tree)).collect());
+                let trees_sexp =
+                    list(trees.iter().map(|tree| self.generate_use_tree(tree)).collect());
                 list(vec![sym("Nested"), trees_sexp])
             }
         }

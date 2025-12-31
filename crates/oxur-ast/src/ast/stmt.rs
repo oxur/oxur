@@ -14,7 +14,7 @@ pub enum StmtKind {
     Expr(Expr),
     Semi(Expr),
     Let(Box<Local>),
-    Item(Item),
+    Item(Box<Item>),
     MacCall(MacCallStmt),
     Empty,
 }

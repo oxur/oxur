@@ -535,7 +535,11 @@ impl AstBuilder {
             "Ref" => {
                 let kwargs = parse_kwargs(list)?;
                 let lifetime = if let Some(lt_sexp) = kwargs.get("lifetime") {
-                    if !is_nil(lt_sexp) { Some(self.build_lifetime(lt_sexp)?) } else { None }
+                    if !is_nil(lt_sexp) {
+                        Some(self.build_lifetime(lt_sexp)?)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 };
@@ -593,7 +597,7 @@ impl AstBuilder {
                         pos: list.pos,
                     });
                 };
-                Ok(TyKind::Array { ty, len })
+                Ok(TyKind::Array { ty, len: Box::new(len) })
             }
             "Slice" => {
                 let ty = Box::new(self.build_ty(&list.elements[1])?);
@@ -876,11 +880,12 @@ impl AstBuilder {
             None
         };
 
-        let self_ty = self.build_ty(kwargs.get("self-ty").ok_or_else(|| ParseError::Expected {
-            expected: ":self-ty field".to_string(),
-            found: "missing".to_string(),
-            pos: list.pos,
-        })?)?;
+        let self_ty =
+            self.build_ty(kwargs.get("self-ty").ok_or_else(|| ParseError::Expected {
+                expected: ":self-ty field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            })?)?;
 
         let items = if let Some(items_sexp) = kwargs.get("items") {
             self.build_assoc_item_list(items_sexp)?
@@ -921,19 +926,20 @@ impl AstBuilder {
         } else {
             Visibility::Inherited
         };
-        let ident = self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
-            expected: ":ident field".to_string(),
-            found: "missing".to_string(),
-            pos: list.pos,
-        })?)?;
+        let ident =
+            self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
+                expected: ":ident field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            })?)?;
 
-        let kind = self.build_assoc_item_kind(
-            kwargs.get("kind").ok_or_else(|| ParseError::Expected {
+        let kind = self.build_assoc_item_kind(kwargs.get("kind").ok_or_else(|| {
+            ParseError::Expected {
                 expected: ":kind field".to_string(),
                 found: "missing".to_string(),
                 pos: list.pos,
-            })?,
-        )?;
+            }
+        })?)?;
 
         Ok(AssocItem { attrs, id, span, vis, ident, kind })
     }
@@ -953,12 +959,12 @@ impl AstBuilder {
                 if list.elements.len() > 1 {
                     let ty_sexp = &list.elements[1];
                     if !is_nil(ty_sexp) {
-                        Ok(AssocItemKind::Type(Some(self.build_ty(ty_sexp)?)))
+                        Ok(AssocItemKind::Type(Box::new(Some(self.build_ty(ty_sexp)?))))
                     } else {
-                        Ok(AssocItemKind::Type(None))
+                        Ok(AssocItemKind::Type(Box::new(None)))
                     }
                 } else {
-                    Ok(AssocItemKind::Type(None))
+                    Ok(AssocItemKind::Type(Box::new(None)))
                 }
             }
             _ => Err(ParseError::Expected {

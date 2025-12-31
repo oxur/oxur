@@ -204,8 +204,12 @@ impl Generator {
                 self.generate_expr(right)?,
             ])),
             ExprKind::Struct { path, fields } => {
-                let fields_sexp =
-                    list(fields.iter().map(|f| self.generate_expr_field(f)).collect::<Result<Vec<_>>>()?);
+                let fields_sexp = list(
+                    fields
+                        .iter()
+                        .map(|f| self.generate_expr_field(f))
+                        .collect::<Result<Vec<_>>>()?,
+                );
                 Ok(list(vec![
                     sym("Struct"),
                     kw("path"),
@@ -215,8 +219,9 @@ impl Generator {
                 ]))
             }
             ExprKind::Closure { params, body } => {
-                let params_sexp =
-                    list(params.iter().map(|p| self.generate_param(p)).collect::<Result<Vec<_>>>()?);
+                let params_sexp = list(
+                    params.iter().map(|p| self.generate_param(p)).collect::<Result<Vec<_>>>()?,
+                );
                 Ok(list(vec![
                     sym("Closure"),
                     kw("params"),
@@ -226,16 +231,9 @@ impl Generator {
                 ]))
             }
             ExprKind::Range { start, end, inclusive } => {
-                let start_sexp = if let Some(s) = start {
-                    self.generate_expr(s)?
-                } else {
-                    sym("nil")
-                };
-                let end_sexp = if let Some(e) = end {
-                    self.generate_expr(e)?
-                } else {
-                    sym("nil")
-                };
+                let start_sexp =
+                    if let Some(s) = start { self.generate_expr(s)? } else { sym("nil") };
+                let end_sexp = if let Some(e) = end { self.generate_expr(e)? } else { sym("nil") };
                 Ok(list(vec![
                     sym("Range"),
                     kw("start"),

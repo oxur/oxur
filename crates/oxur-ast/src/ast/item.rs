@@ -31,18 +31,30 @@ pub enum ItemKind {
     Use(UseTree),
 
     /// Static item: `static X: i32 = 5;`
-    Static { mutability: Mutability, ty: Ty, expr: Option<Expr> },
+    Static {
+        mutability: Mutability,
+        ty: Ty,
+        expr: Option<Expr>,
+    },
 
     /// Const item: `const X: i32 = 5;`
-    Const { ty: Ty, expr: Option<Expr> },
+    Const {
+        ty: Ty,
+        expr: Option<Expr>,
+    },
 
     /// Type alias: `type Foo = Bar;`
-    TyAlias { generics: Generics, ty: Option<Ty> },
+    TyAlias {
+        generics: Generics,
+        ty: Option<Ty>,
+    },
 
     /// Module: `mod foo;` or `mod foo { ... }`
-    Mod { items: Option<Vec<Item>> }, // None for `mod foo;`, Some for `mod foo { ... }`
+    Mod {
+        items: Option<Vec<Item>>,
+    }, // None for `mod foo;`, Some for `mod foo { ... }`
 
-    // Future: ExternCrate, ForeignMod, MacCall, etc.
+       // Future: ExternCrate, ForeignMod, MacCall, etc.
 }
 
 /// Function item
@@ -93,7 +105,7 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FnRetTy {
     Default(Span), // No return type (unit)
-    Ty(Ty),        // Explicit return type
+    Ty(Box<Ty>),   // Explicit return type
 }
 
 /// Generics
@@ -153,13 +165,23 @@ pub enum TyKind {
 
     // Stage 6: Advanced types
     /// Reference type: `&T`, `&mut T`, `&'a T`, `&'a mut T`
-    Ref { lifetime: Option<Lifetime>, mutability: Mutability, ty: Box<Ty> },
+    Ref {
+        lifetime: Option<Lifetime>,
+        mutability: Mutability,
+        ty: Box<Ty>,
+    },
 
     /// Raw pointer type: `*const T`, `*mut T`
-    Ptr { mutability: Mutability, ty: Box<Ty> },
+    Ptr {
+        mutability: Mutability,
+        ty: Box<Ty>,
+    },
 
     /// Array type: `[T; N]`
-    Array { ty: Box<Ty>, len: Expr },
+    Array {
+        ty: Box<Ty>,
+        len: Box<Expr>,
+    },
 
     /// Slice type: `[T]`
     Slice(Box<Ty>),
@@ -199,17 +221,27 @@ pub struct Pat {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatKind {
     // Phase 1: Identifier patterns
-    Ident { binding_mode: BindingMode, ident: Ident, sub: Option<Box<Pat>> },
+    Ident {
+        binding_mode: BindingMode,
+        ident: Ident,
+        sub: Option<Box<Pat>>,
+    },
 
     // Stage 6: Advanced patterns
     /// Wildcard pattern: `_`
     Wild,
 
     /// Struct pattern: `Point { x, y }`
-    Struct { path: Path, fields: Vec<PatField> },
+    Struct {
+        path: Path,
+        fields: Vec<PatField>,
+    },
 
     /// Tuple struct pattern: `Some(x)`
-    TupleStruct { path: Path, elems: Vec<Pat> },
+    TupleStruct {
+        path: Path,
+        elems: Vec<Pat>,
+    },
 
     /// Tuple pattern: `(a, b, c)`
     Tuple(Vec<Pat>),
@@ -221,7 +253,10 @@ pub enum PatKind {
     Or(Vec<Pat>),
 
     /// Reference pattern: `&x`, `&mut x`
-    Ref { pat: Box<Pat>, mutability: Mutability },
+    Ref {
+        pat: Box<Pat>,
+        mutability: Mutability,
+    },
 
     /// Literal pattern: `42`, `"hello"`
     Lit(Box<Expr>),
@@ -365,8 +400,8 @@ pub enum AssocItemKind {
     /// Associated function: `fn foo() { ... }`
     Fn(Box<Fn>),
     /// Associated type: `type Foo = Bar;`
-    Type(Option<Ty>), // None for type declarations without default
-    // Future: Const, MacCall
+    Type(Box<Option<Ty>>), // None for type declarations without default
+                           // Future: Const, MacCall
 }
 
 /// Trait reference (for trait bounds and impl blocks)

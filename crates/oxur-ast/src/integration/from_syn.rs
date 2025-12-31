@@ -217,7 +217,7 @@ impl SynConverter {
     fn convert_return_type(&mut self, ret: &syn::ReturnType) -> Result<FnRetTy> {
         match ret {
             syn::ReturnType::Default => Ok(FnRetTy::Default(Span::DUMMY)),
-            syn::ReturnType::Type(_, ty) => Ok(FnRetTy::Ty(self.convert_type(ty)?)),
+            syn::ReturnType::Type(_, ty) => Ok(FnRetTy::Ty(Box::new(self.convert_type(ty)?))),
         }
     }
 

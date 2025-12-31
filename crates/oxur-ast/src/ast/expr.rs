@@ -19,17 +19,50 @@ pub enum ExprKind {
     Path(Option<QSelf>, Path),
 
     // Stage 2: Control flow
-    If { cond: Box<Expr>, then_branch: Block, else_branch: Option<Box<Expr>> },
-    Match { expr: Box<Expr>, arms: Vec<Arm> },
-    While { label: Option<Label>, cond: Box<Expr>, body: Block },
-    ForLoop { label: Option<Label>, pat: Pat, iter: Box<Expr>, body: Block },
-    Loop { label: Option<Label>, body: Block },
+    If {
+        cond: Box<Expr>,
+        then_branch: Block,
+        else_branch: Option<Box<Expr>>,
+    },
+    Match {
+        expr: Box<Expr>,
+        arms: Vec<Arm>,
+    },
+    While {
+        label: Option<Label>,
+        cond: Box<Expr>,
+        body: Block,
+    },
+    ForLoop {
+        label: Option<Label>,
+        pat: Pat,
+        iter: Box<Expr>,
+        body: Block,
+    },
+    Loop {
+        label: Option<Label>,
+        body: Block,
+    },
 
     // Stage 3: Operations and calls
-    Binary { left: Box<Expr>, op: BinOp, right: Box<Expr> },
-    Unary { op: UnOp, expr: Box<Expr> },
-    Call { func: Box<Expr>, args: Vec<Expr> },
-    MethodCall { receiver: Box<Expr>, method: Ident, args: Vec<Expr> },
+    Binary {
+        left: Box<Expr>,
+        op: BinOp,
+        right: Box<Expr>,
+    },
+    Unary {
+        op: UnOp,
+        expr: Box<Expr>,
+    },
+    Call {
+        func: Box<Expr>,
+        args: Vec<Expr>,
+    },
+    MethodCall {
+        receiver: Box<Expr>,
+        method: Ident,
+        args: Vec<Expr>,
+    },
 
     // Stage 7: Remaining expressions
     /// Array literal: `[1, 2, 3]` or `[0; 10]`
@@ -39,22 +72,41 @@ pub enum ExprKind {
     Tuple(Vec<Expr>),
 
     /// Field access: `obj.field`
-    Field { expr: Box<Expr>, field: Ident },
+    Field {
+        expr: Box<Expr>,
+        field: Ident,
+    },
 
     /// Index: `arr[i]`
-    Index { expr: Box<Expr>, index: Box<Expr> },
+    Index {
+        expr: Box<Expr>,
+        index: Box<Expr>,
+    },
 
     /// Assignment: `x = 5`
-    Assign { left: Box<Expr>, right: Box<Expr> },
+    Assign {
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
 
     /// Struct literal: `Point { x: 1, y: 2 }`
-    Struct { path: Path, fields: Vec<ExprField> },
+    Struct {
+        path: Path,
+        fields: Vec<ExprField>,
+    },
 
     /// Closure: `|x| x + 1`
-    Closure { params: Vec<Param>, body: Box<Expr> },
+    Closure {
+        params: Vec<Param>,
+        body: Box<Expr>,
+    },
 
     /// Range: `0..10`, `..10`, `0..`, `..=10`, etc.
-    Range { start: Option<Box<Expr>>, end: Option<Box<Expr>>, inclusive: bool },
+    Range {
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
+        inclusive: bool,
+    },
 }
 
 /// Macro call

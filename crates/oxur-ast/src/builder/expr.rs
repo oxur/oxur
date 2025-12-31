@@ -422,15 +422,10 @@ impl AstBuilder {
                 } else {
                     None
                 };
-                let inclusive = if let Some(inc_sexp) = kwargs.get("inclusive") {
-                    if let SExp::Symbol(sym) = inc_sexp {
-                        sym.value == "true"
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
+                let inclusive = matches!(
+                    kwargs.get("inclusive"),
+                    Some(SExp::Symbol(sym)) if sym.value == "true"
+                );
                 Ok(ExprKind::Range { start, end, inclusive })
             }
             _ => Err(ParseError::Expected {
@@ -976,15 +971,10 @@ impl AstBuilder {
             });
         };
 
-        let is_shorthand = if let Some(sh_sexp) = kwargs.get("is-shorthand") {
-            if let SExp::Symbol(sym) = sh_sexp {
-                sym.value == "true"
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let is_shorthand = matches!(
+            kwargs.get("is-shorthand"),
+            Some(SExp::Symbol(sym)) if sym.value == "true"
+        );
 
         let span = if let Some(span_sexp) = kwargs.get("span") {
             self.build_span(span_sexp)?
@@ -1077,15 +1067,10 @@ impl AstBuilder {
             });
         };
 
-        let is_shorthand = if let Some(shorthand_sexp) = kwargs.get("is-shorthand") {
-            if let SExp::Symbol(sym) = shorthand_sexp {
-                sym.value == "true"
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let is_shorthand = matches!(
+            kwargs.get("is-shorthand"),
+            Some(SExp::Symbol(sym)) if sym.value == "true"
+        );
 
         let span = if let Some(span_sexp) = kwargs.get("span") {
             self.build_span(span_sexp)?

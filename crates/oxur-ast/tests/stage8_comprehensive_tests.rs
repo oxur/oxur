@@ -20,10 +20,7 @@ fn make_crate(items: Vec<Item>) -> Crate {
     Crate {
         attrs: Vec::new(),
         items,
-        spans: ModSpans {
-            inner_span: Span::DUMMY,
-            inject_use_span: Span::DUMMY,
-        },
+        spans: ModSpans { inner_span: Span::DUMMY, inject_use_span: Span::DUMMY },
         id: NodeId(0),
         is_placeholder: false,
     }
@@ -31,10 +28,7 @@ fn make_crate(items: Vec<Item>) -> Crate {
 
 #[test]
 fn test_codegen_use_simple() {
-    let use_tree = UseTree {
-        prefix: simple_path("std::io"),
-        kind: UseTreeKind::Simple(None),
-    };
+    let use_tree = UseTree { prefix: simple_path("std::io"), kind: UseTreeKind::Simple(None) };
     let item = Item {
         attrs: Vec::new(),
         id: NodeId(0),
@@ -71,10 +65,7 @@ fn test_codegen_use_with_rename() {
 
 #[test]
 fn test_codegen_use_glob() {
-    let use_tree = UseTree {
-        prefix: simple_path("std::io"),
-        kind: UseTreeKind::Glob,
-    };
+    let use_tree = UseTree { prefix: simple_path("std::io"), kind: UseTreeKind::Glob };
     let item = Item {
         attrs: Vec::new(),
         id: NodeId(0),
@@ -99,10 +90,7 @@ fn test_codegen_static_immutable() {
     };
     let expr = Expr {
         id: NodeId(0),
-        kind: ExprKind::Lit(Lit {
-            kind: LitKind::Int(42),
-            span: Span::DUMMY,
-        }),
+        kind: ExprKind::Lit(Lit { kind: LitKind::Int(42), span: Span::DUMMY }),
         span: Span::DUMMY,
         attrs: Vec::new(),
         tokens: None,
@@ -113,11 +101,7 @@ fn test_codegen_static_immutable() {
         span: Span::DUMMY,
         vis: Visibility::Inherited,
         ident: Ident::new("ANSWER", Span::DUMMY),
-        kind: ItemKind::Static {
-            mutability: Mutability::Not,
-            ty,
-            expr: Some(expr),
-        },
+        kind: ItemKind::Static { mutability: Mutability::Not, ty, expr: Some(expr) },
         tokens: None,
     };
     let mut codegen = RustCodegen::new();
@@ -139,11 +123,7 @@ fn test_codegen_static_mutable() {
         span: Span::DUMMY,
         vis: Visibility::Public,
         ident: Ident::new("COUNTER", Span::DUMMY),
-        kind: ItemKind::Static {
-            mutability: Mutability::Mut,
-            ty,
-            expr: None,
-        },
+        kind: ItemKind::Static { mutability: Mutability::Mut, ty, expr: None },
         tokens: None,
     };
     let mut codegen = RustCodegen::new();
@@ -161,10 +141,7 @@ fn test_codegen_const() {
     };
     let expr = Expr {
         id: NodeId(0),
-        kind: ExprKind::Lit(Lit {
-            kind: LitKind::Int(100),
-            span: Span::DUMMY,
-        }),
+        kind: ExprKind::Lit(Lit { kind: LitKind::Int(100), span: Span::DUMMY }),
         span: Span::DUMMY,
         attrs: Vec::new(),
         tokens: None,
@@ -175,10 +152,7 @@ fn test_codegen_const() {
         span: Span::DUMMY,
         vis: Visibility::Public,
         ident: Ident::new("MAX_SIZE", Span::DUMMY),
-        kind: ItemKind::Const {
-            ty,
-            expr: Some(expr),
-        },
+        kind: ItemKind::Const { ty, expr: Some(expr) },
         tokens: None,
     };
     let mut codegen = RustCodegen::new();
@@ -200,10 +174,7 @@ fn test_codegen_type_alias() {
         span: Span::DUMMY,
         vis: Visibility::Public,
         ident: Ident::new("MyString", Span::DUMMY),
-        kind: ItemKind::TyAlias {
-            generics: Generics::empty(),
-            ty: Some(ty),
-        },
+        kind: ItemKind::TyAlias { generics: Generics::empty(), ty: Some(ty) },
         tokens: None,
     };
     let mut codegen = RustCodegen::new();
@@ -246,10 +217,7 @@ fn test_codegen_mod_inline_empty() {
 
 #[test]
 fn test_generator_use_simple() {
-    let use_tree = UseTree {
-        prefix: simple_path("std::io"),
-        kind: UseTreeKind::Simple(None),
-    };
+    let use_tree = UseTree { prefix: simple_path("std::io"), kind: UseTreeKind::Simple(None) };
     let item = Item {
         attrs: Vec::new(),
         id: NodeId(0),
@@ -278,11 +246,7 @@ fn test_generator_static() {
         span: Span::DUMMY,
         vis: Visibility::Inherited,
         ident: Ident::new("X", Span::DUMMY),
-        kind: ItemKind::Static {
-            mutability: Mutability::Not,
-            ty,
-            expr: None,
-        },
+        kind: ItemKind::Static { mutability: Mutability::Not, ty, expr: None },
         tokens: None,
     };
     let generator = Generator::new();
@@ -304,10 +268,7 @@ fn test_generator_const() {
         span: Span::DUMMY,
         vis: Visibility::Inherited,
         ident: Ident::new("Y", Span::DUMMY),
-        kind: ItemKind::Const {
-            ty,
-            expr: None,
-        },
+        kind: ItemKind::Const { ty, expr: None },
         tokens: None,
     };
     let generator = Generator::new();
@@ -329,10 +290,7 @@ fn test_generator_type_alias() {
         span: Span::DUMMY,
         vis: Visibility::Inherited,
         ident: Ident::new("MyType", Span::DUMMY),
-        kind: ItemKind::TyAlias {
-            generics: Generics::empty(),
-            ty: Some(ty),
-        },
+        kind: ItemKind::TyAlias { generics: Generics::empty(), ty: Some(ty) },
         tokens: None,
     };
     let generator = Generator::new();

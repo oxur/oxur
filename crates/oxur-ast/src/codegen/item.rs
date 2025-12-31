@@ -384,7 +384,7 @@ impl RustCodegen {
             AssocItemKind::Type(ty_opt) => {
                 self.write("type ");
                 self.write(&item.ident.name);
-                if let Some(ty) = ty_opt {
+                if let Some(ty) = &**ty_opt {
                     self.write(" = ");
                     self.generate_ty(ty)?;
                 }
