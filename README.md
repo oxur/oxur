@@ -24,10 +24,11 @@ Oxur is a Lisp that treats Rust as its compilation target and runtime. Drawing i
 This is a Cargo workspace containing multiple related crates:
 
 - **design/** - Design documentation and CLI tool for managing docs
-- **oxur-ast/** - Rust AST ↔ S-expression representation
-- **oxur-cli/** - CLI infrastructure and unified command-line tool
-- **oxur-lang/** *(in progress)* - The Oxur Lisp dialect
-- **oxur-repl/** *(in progress)* - REPL server/client
+- **oxur-ast/** - *(in progress)* - Rust AST ↔ S-expression representation and CLI tool for generating S-expressions and Rust code
+- **oxur-cli/** - *(early stages)* - CLI infrastructure and unified command-line tool
+- **oxur-lang/** - *(planning)* - The Oxur Lisp dialect
+- **oxur-repl/** - *(planning)* - REPL server/client
+- **oxur-comp/** - *(planning)* - The Oxur compiler
 
 ## Getting Started
 
@@ -54,7 +55,7 @@ cargo build --release
 
 The build includes several command-line tools:
 
-- **`aster`** - AST manipulation (Rust ↔ S-expression conversion)
+- **`aster`** - AST manipulation (Rust ↔ S-expression conversions)
 - **`oxd`** - Design documentation manager
 
 Which you can also build individually:
