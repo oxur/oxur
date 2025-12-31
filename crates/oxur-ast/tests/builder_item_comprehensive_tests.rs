@@ -434,14 +434,12 @@ fn test_build_trait_item_with_default_type() {
     let item = builder.build_item(&sexp).unwrap();
 
     match item.kind {
-        ItemKind::Trait(trait_def) => {
-            match &trait_def.items[0].kind {
-                AssocItemKind::Type(ty) => {
-                    assert!(ty.is_some());
-                }
-                _ => panic!("Expected Type assoc item"),
+        ItemKind::Trait(trait_def) => match &trait_def.items[0].kind {
+            AssocItemKind::Type(ty) => {
+                assert!(ty.is_some());
             }
-        }
+            _ => panic!("Expected Type assoc item"),
+        },
         _ => panic!("Expected Trait item"),
     }
 }

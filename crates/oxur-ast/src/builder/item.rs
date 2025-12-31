@@ -130,11 +130,7 @@ impl AstBuilder {
         }
     }
 
-    fn build_trait_item(
-        &mut self,
-        node_type: &str,
-        list: &crate::sexp::List,
-    ) -> Result<ItemKind> {
+    fn build_trait_item(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ItemKind> {
         match node_type {
             "Trait" => {
                 // Extract the TraitDef from element 1

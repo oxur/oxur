@@ -5,12 +5,11 @@ use crate::error::{ParseError, Result};
 use crate::sexp::SExp;
 
 // Generate enum parsers using the macro
-crate::build_enum_parser!(parse_binop, BinOp, [
-    Add, Sub, Mul, Div, Rem,
-    And, Or,
-    BitAnd, BitOr, BitXor, Shl, Shr,
-    Eq, Ne, Lt, Le, Gt, Ge
-]);
+crate::build_enum_parser!(
+    parse_binop,
+    BinOp,
+    [Add, Sub, Mul, Div, Rem, And, Or, BitAnd, BitOr, BitXor, Shl, Shr, Eq, Ne, Lt, Le, Gt, Ge]
+);
 
 crate::build_enum_parser!(parse_unop, UnOp, [Not, Neg, Deref]);
 
@@ -89,7 +88,11 @@ impl AstBuilder {
         }
     }
 
-    fn build_control_flow_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+    fn build_control_flow_expr(
+        &mut self,
+        node_type: &str,
+        list: &crate::sexp::List,
+    ) -> Result<ExprKind> {
         match node_type {
             "If" => {
                 let kwargs = parse_kwargs(list)?;
@@ -154,7 +157,11 @@ impl AstBuilder {
         }
     }
 
-    fn build_operator_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+    fn build_operator_expr(
+        &mut self,
+        node_type: &str,
+        list: &crate::sexp::List,
+    ) -> Result<ExprKind> {
         match node_type {
             "Binary" => {
                 let kwargs = parse_kwargs(list)?;
@@ -203,7 +210,11 @@ impl AstBuilder {
         }
     }
 
-    fn build_collection_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+    fn build_collection_expr(
+        &mut self,
+        node_type: &str,
+        list: &crate::sexp::List,
+    ) -> Result<ExprKind> {
         match node_type {
             "Array" => {
                 let elems = self.build_expr_list(&list.elements[1])?;

@@ -161,12 +161,7 @@ fn test_generate_expr_match() {
 
     let arm = Arm {
         attrs: vec![],
-        pat: Pat {
-            id: NodeId(2),
-            kind: PatKind::Wild,
-            span: Span::new(2, 3),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(2), kind: PatKind::Wild, span: Span::new(2, 3), tokens: None },
         guard: None,
         body: Box::new(Expr {
             id: NodeId(3),
@@ -216,12 +211,7 @@ fn test_generate_expr_match_with_guard() {
 
     let arm = Arm {
         attrs: vec![],
-        pat: Pat {
-            id: NodeId(2),
-            kind: PatKind::Wild,
-            span: Span::new(2, 3),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(2), kind: PatKind::Wild, span: Span::new(2, 3), tokens: None },
         guard,
         body: Box::new(Expr {
             id: NodeId(3),
@@ -372,12 +362,7 @@ fn test_generate_expr_for_loop_without_label() {
 fn test_generate_expr_for_loop_with_label() {
     let gen = Generator::new();
     let label = Some(Label { ident: Ident::new("loop1", Span::new(0, 5)) });
-    let pat = Pat {
-        id: NodeId(1),
-        kind: PatKind::Wild,
-        span: Span::new(6, 7),
-        tokens: None,
-    };
+    let pat = Pat { id: NodeId(1), kind: PatKind::Wild, span: Span::new(6, 7), tokens: None };
 
     let iter = Box::new(Expr {
         id: NodeId(2),
@@ -901,12 +886,7 @@ fn test_generate_expr_closure() {
     let gen = Generator::new();
     let params = vec![Param {
         attrs: vec![],
-        ty: Ty {
-            id: NodeId(1),
-            kind: TyKind::Infer,
-            span: Span::new(1, 2),
-            tokens: None,
-        },
+        ty: Ty { id: NodeId(1), kind: TyKind::Infer, span: Span::new(1, 2), tokens: None },
         pat: Pat {
             id: NodeId(2),
             kind: PatKind::Ident {
@@ -1756,11 +1736,7 @@ fn test_generate_stmt_let_without_type() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(2),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 6),
-    };
+    let stmt = Stmt { id: NodeId(2), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 6) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -1792,11 +1768,7 @@ fn test_generate_stmt_let_with_type() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(2),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 11),
-    };
+    let stmt = Stmt { id: NodeId(2), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 11) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -1836,11 +1808,7 @@ fn test_generate_stmt_let_with_init() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(2),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 10),
-    };
+    let stmt = Stmt { id: NodeId(2), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 10) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -1880,12 +1848,7 @@ fn test_generate_stmt_let_with_init_else() {
     };
 
     let local = Local {
-        pat: Pat {
-            id: NodeId(1),
-            kind: PatKind::Wild,
-            span: Span::new(4, 5),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(1), kind: PatKind::Wild, span: Span::new(4, 5), tokens: None },
         ty: None,
         kind: LocalKind::InitElse(init, else_block),
         span: Span::new(0, 23),
@@ -1893,11 +1856,7 @@ fn test_generate_stmt_let_with_init_else() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(2),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 23),
-    };
+    let stmt = Stmt { id: NodeId(2), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 23) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -1953,18 +1912,11 @@ fn test_generate_stmt_mac_call() {
         MacArgs::Empty,
     );
 
-    let mac_call_stmt = MacCallStmt {
-        mac: mac_call,
-        style: MacStmtStyle::Semicolon,
-        attrs: vec![],
-        tokens: None,
-    };
+    let mac_call_stmt =
+        MacCallStmt { mac: mac_call, style: MacStmtStyle::Semicolon, attrs: vec![], tokens: None };
 
-    let stmt = Stmt {
-        id: NodeId(1),
-        kind: StmtKind::MacCall(mac_call_stmt),
-        span: Span::new(0, 7),
-    };
+    let stmt =
+        Stmt { id: NodeId(1), kind: StmtKind::MacCall(mac_call_stmt), span: Span::new(0, 7) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -1993,11 +1945,8 @@ fn test_generate_mac_stmt_style_all() {
 
         let mac_call_stmt = MacCallStmt { mac: mac_call, style, attrs: vec![], tokens: None };
 
-        let stmt = Stmt {
-            id: NodeId(1),
-            kind: StmtKind::MacCall(mac_call_stmt),
-            span: Span::new(0, 3),
-        };
+        let stmt =
+            Stmt { id: NodeId(1), kind: StmtKind::MacCall(mac_call_stmt), span: Span::new(0, 3) };
 
         let sexp = gen.generate_stmt(&stmt).unwrap();
         let output = print_sexp(&sexp);
@@ -2029,12 +1978,7 @@ fn test_generate_ty_ref_immutable_via_param() {
             span: Span::new(0, 4),
             tokens: None,
         },
-        pat: Pat {
-            id: NodeId(3),
-            kind: PatKind::Wild,
-            span: Span::new(5, 6),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(3), kind: PatKind::Wild, span: Span::new(5, 6), tokens: None },
         id: NodeId(4),
         span: Span::new(0, 6),
         is_placeholder: false,
@@ -2091,12 +2035,7 @@ fn test_generate_ty_ptr_via_param() {
             span: Span::new(0, 8),
             tokens: None,
         },
-        pat: Pat {
-            id: NodeId(3),
-            kind: PatKind::Wild,
-            span: Span::new(9, 10),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(3), kind: PatKind::Wild, span: Span::new(9, 10), tokens: None },
         id: NodeId(4),
         span: Span::new(0, 10),
         is_placeholder: false,
@@ -2159,12 +2098,7 @@ fn test_generate_ty_array_slice_tuple_via_param() {
             span: Span::new(0, 9),
             tokens: None,
         },
-        pat: Pat {
-            id: NodeId(4),
-            kind: PatKind::Wild,
-            span: Span::new(10, 11),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(4), kind: PatKind::Wild, span: Span::new(10, 11), tokens: None },
         id: NodeId(5),
         span: Span::new(0, 11),
         is_placeholder: false,
@@ -2208,12 +2142,7 @@ fn test_generate_ty_never_and_infer() {
     let param1 = Param {
         attrs: vec![],
         ty: Ty { id: NodeId(1), kind: TyKind::Never, span: Span::new(0, 1), tokens: None },
-        pat: Pat {
-            id: NodeId(2),
-            kind: PatKind::Wild,
-            span: Span::new(2, 3),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(2), kind: PatKind::Wild, span: Span::new(2, 3), tokens: None },
         id: NodeId(3),
         span: Span::new(0, 3),
         is_placeholder: false,
@@ -2223,12 +2152,7 @@ fn test_generate_ty_never_and_infer() {
     let param2 = Param {
         attrs: vec![],
         ty: Ty { id: NodeId(4), kind: TyKind::Infer, span: Span::new(5, 6), tokens: None },
-        pat: Pat {
-            id: NodeId(5),
-            kind: PatKind::Wild,
-            span: Span::new(7, 8),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(5), kind: PatKind::Wild, span: Span::new(7, 8), tokens: None },
         id: NodeId(6),
         span: Span::new(5, 8),
         is_placeholder: false,
@@ -2274,12 +2198,7 @@ fn test_generate_ty_never_and_infer() {
 #[test]
 fn test_generate_pat_ident_with_sub() {
     let gen = Generator::new();
-    let sub_pat = Pat {
-        id: NodeId(2),
-        kind: PatKind::Wild,
-        span: Span::new(3, 4),
-        tokens: None,
-    };
+    let sub_pat = Pat { id: NodeId(2), kind: PatKind::Wild, span: Span::new(3, 4), tokens: None };
 
     let pat = Pat {
         id: NodeId(1),
@@ -2301,11 +2220,7 @@ fn test_generate_pat_ident_with_sub() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(3),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 5),
-    };
+    let stmt = Stmt { id: NodeId(3), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 5) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -2328,11 +2243,7 @@ fn test_generate_pat_wild() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(2),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 1),
-    };
+    let stmt = Stmt { id: NodeId(2), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 1) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -2345,12 +2256,7 @@ fn test_generate_pat_struct() {
     let field = PatField {
         attrs: vec![],
         ident: Ident::new("x", Span::new(7, 8)),
-        pat: Pat {
-            id: NodeId(2),
-            kind: PatKind::Wild,
-            span: Span::new(10, 11),
-            tokens: None,
-        },
+        pat: Pat { id: NodeId(2), kind: PatKind::Wild, span: Span::new(10, 11), tokens: None },
         is_shorthand: false,
         span: Span::new(7, 11),
     };
@@ -2378,11 +2284,7 @@ fn test_generate_pat_struct() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(3),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 13),
-    };
+    let stmt = Stmt { id: NodeId(3), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 13) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
@@ -2425,11 +2327,7 @@ fn test_generate_pat_field_shorthand() {
         tokens: None,
     };
 
-    let stmt = Stmt {
-        id: NodeId(5),
-        kind: StmtKind::Let(Box::new(local)),
-        span: Span::new(0, 10),
-    };
+    let stmt = Stmt { id: NodeId(5), kind: StmtKind::Let(Box::new(local)), span: Span::new(0, 10) };
 
     let sexp = gen.generate_stmt(&stmt).unwrap();
     let output = print_sexp(&sexp);
