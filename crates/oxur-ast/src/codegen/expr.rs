@@ -143,6 +143,31 @@ impl RustCodegen {
             ExprKind::MethodCall { receiver, method, args } => {
                 self.generate_method_call(receiver, method, args)?;
             }
+            // Stage 7: Remaining expressions (TODO - implement)
+            ExprKind::Array(..) => {
+                self.write("/* array */");
+            }
+            ExprKind::Tuple(..) => {
+                self.write("/* tuple */");
+            }
+            ExprKind::Field { .. } => {
+                self.write("/* field */");
+            }
+            ExprKind::Index { .. } => {
+                self.write("/* index */");
+            }
+            ExprKind::Assign { .. } => {
+                self.write("/* assign */");
+            }
+            ExprKind::Struct { .. } => {
+                self.write("/* struct */");
+            }
+            ExprKind::Closure { .. } => {
+                self.write("/* closure */");
+            }
+            ExprKind::Range { .. } => {
+                self.write("/* range */");
+            }
         }
         Ok(())
     }

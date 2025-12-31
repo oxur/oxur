@@ -30,7 +30,31 @@ pub enum ExprKind {
     Unary { op: UnOp, expr: Box<Expr> },
     Call { func: Box<Expr>, args: Vec<Expr> },
     MethodCall { receiver: Box<Expr>, method: Ident, args: Vec<Expr> },
-    // Future: Array, Field, Index, Assign, Closure, etc.
+
+    // Stage 7: Remaining expressions
+    /// Array literal: `[1, 2, 3]` or `[0; 10]`
+    Array(Vec<Expr>),
+
+    /// Tuple literal: `(a, b, c)`
+    Tuple(Vec<Expr>),
+
+    /// Field access: `obj.field`
+    Field { expr: Box<Expr>, field: Ident },
+
+    /// Index: `arr[i]`
+    Index { expr: Box<Expr>, index: Box<Expr> },
+
+    /// Assignment: `x = 5`
+    Assign { left: Box<Expr>, right: Box<Expr> },
+
+    /// Struct literal: `Point { x: 1, y: 2 }`
+    Struct { path: Path, fields: Vec<ExprField> },
+
+    /// Closure: `|x| x + 1`
+    Closure { params: Vec<Param>, body: Box<Expr> },
+
+    /// Range: `0..10`, `..10`, `0..`, `..=10`, etc.
+    Range { start: Option<Box<Expr>>, end: Option<Box<Expr>>, inclusive: bool },
 }
 
 /// Macro call
@@ -125,4 +149,14 @@ pub enum UnOp {
     Not,   // !
     Neg,   // -
     Deref, // *
+}
+
+/// Expression field (for struct literals)
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExprField {
+    pub attrs: AttrVec,
+    pub ident: Ident,
+    pub expr: Expr,
+    pub is_shorthand: bool, // true for `Point { x, y }` vs `Point { x: x, y: y }`
+    pub span: Span,
 }

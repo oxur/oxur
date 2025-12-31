@@ -171,6 +171,15 @@ impl Generator {
                     args_sexp,
                 ]))
             }
+            // Stage 7: Remaining expressions (TODO - implement)
+            ExprKind::Array(..) => Ok(sym("TODO-Array")),
+            ExprKind::Tuple(..) => Ok(sym("TODO-Tuple")),
+            ExprKind::Field { .. } => Ok(sym("TODO-Field")),
+            ExprKind::Index { .. } => Ok(sym("TODO-Index")),
+            ExprKind::Assign { .. } => Ok(sym("TODO-Assign")),
+            ExprKind::Struct { .. } => Ok(sym("TODO-Struct")),
+            ExprKind::Closure { .. } => Ok(sym("TODO-Closure")),
+            ExprKind::Range { .. } => Ok(sym("TODO-Range")),
         }
     }
 
