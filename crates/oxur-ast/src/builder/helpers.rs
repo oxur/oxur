@@ -113,6 +113,43 @@ pub fn parse_kwargs(list: &List) -> Result<std::collections::HashMap<String, &SE
 
 use crate::sexp::HasPosition;
 
+/// Extract a required field from kwargs map
+///
+/// This helper reduces boilerplate when extracting required fields from S-expression kwargs.
+/// Returns a clear error if the field is missing.
+///
+/// # Example
+/// ```ignore
+/// let cond = Box::new(self.build_expr(require_field(&kwargs, "cond", list.pos)?)?);
+/// ```
+pub fn require_field<'a>(
+    kwargs: &'a std::collections::HashMap<String, &'a SExp>,
+    field_name: &str,
+    pos: crate::Position,
+) -> Result<&'a SExp> {
+    kwargs.get(field_name).copied().ok_or_else(|| ParseError::Expected {
+        expected: format!(":{} field", field_name),
+        found: "missing".to_string(),
+        pos,
+    })
+}
+
+/// Extract an optional field from kwargs map, handling nil values
+///
+/// This helper reduces boilerplate when extracting optional fields.
+/// Returns None if the field is missing or contains nil.
+///
+/// # Example
+/// ```ignore
+/// let label = optional_field(&kwargs, "label");
+/// ```
+pub fn optional_field<'a>(
+    kwargs: &'a std::collections::HashMap<String, &'a SExp>,
+    field_name: &str,
+) -> Option<&'a SExp> {
+    kwargs.get(field_name).copied().filter(|sexp| !is_nil(sexp))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +327,57 @@ mod tests {
 
         let result = parse_kwargs(&list);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_require_field_success() {
+        let mut map = std::collections::HashMap::new();
+        let value = SExp::Number(Number { value: "42".to_string(), pos: dummy_pos() });
+        map.insert("id".to_string(), &value);
+
+        let result = require_field(&map, "id", dummy_pos());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_require_field_missing() {
+        let map = std::collections::HashMap::new();
+        let result = require_field(&map, "id", dummy_pos());
+        assert!(result.is_err());
+
+        if let Err(ParseError::Expected { expected, found, .. }) = result {
+            assert_eq!(expected, ":id field");
+            assert_eq!(found, "missing");
+        } else {
+            panic!("Expected ParseError::Expected");
+        }
+    }
+
+    #[test]
+    fn test_optional_field_present() {
+        let mut map = std::collections::HashMap::new();
+        let value = SExp::Number(Number { value: "42".to_string(), pos: dummy_pos() });
+        map.insert("id".to_string(), &value);
+
+        let result = optional_field(&map, "id");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_optional_field_missing() {
+        let map = std::collections::HashMap::new();
+        let result = optional_field(&map, "id");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_optional_field_nil() {
+        use crate::sexp::Nil;
+        let mut map = std::collections::HashMap::new();
+        let nil_value = SExp::Nil(Nil { pos: dummy_pos() });
+        map.insert("id".to_string(), &nil_value);
+
+        let result = optional_field(&map, "id");
+        assert!(result.is_none(), "Should return None for nil values");
     }
 }
