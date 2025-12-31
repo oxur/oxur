@@ -20,11 +20,15 @@ impl RustCodegen {
             ItemKind::Trait(trait_def) => self.generate_trait_item(&item.ident, trait_def)?,
             ItemKind::Impl(impl_def) => self.generate_impl_item(impl_def)?,
             // Stage 8: Remaining items
-            ItemKind::Use(_use_tree) => todo!("Stage 8: Use items"),
-            ItemKind::Static { .. } => todo!("Stage 8: Static items"),
-            ItemKind::Const { .. } => todo!("Stage 8: Const items"),
-            ItemKind::TyAlias { .. } => todo!("Stage 8: Type alias items"),
-            ItemKind::Mod { .. } => todo!("Stage 8: Module items"),
+            ItemKind::Use(use_tree) => self.generate_use_item(use_tree)?,
+            ItemKind::Static { mutability, ty, expr } => {
+                self.generate_static_item(&item.ident, *mutability, ty, expr)?
+            }
+            ItemKind::Const { ty, expr } => self.generate_const_item(&item.ident, ty, expr)?,
+            ItemKind::TyAlias { generics, ty } => {
+                self.generate_type_alias_item(&item.ident, generics, ty)?
+            }
+            ItemKind::Mod { items } => self.generate_mod_item(&item.ident, items)?,
         }
 
         Ok(())
@@ -405,6 +409,141 @@ impl RustCodegen {
                 self.generate_trait_ref(trait_ref)?;
             }
         }
+        Ok(())
+    }
+
+    /// Stage 8: Generate a use item
+    fn generate_use_item(&mut self, use_tree: &UseTree) -> Result<()> {
+        self.write("use ");
+        self.generate_use_tree(use_tree)?;
+        self.write(";");
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate a use tree
+    fn generate_use_tree(&mut self, use_tree: &UseTree) -> Result<()> {
+        // Generate prefix path
+        self.generate_path(&use_tree.prefix)?;
+
+        // Generate kind
+        match &use_tree.kind {
+            UseTreeKind::Simple(rename) => {
+                if let Some(ident) = rename {
+                    self.write(" as ");
+                    self.write(&ident.name);
+                }
+            }
+            UseTreeKind::Glob => {
+                self.write("::*");
+            }
+            UseTreeKind::Nested(trees) => {
+                self.write("::{");
+                for (i, tree) in trees.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_use_tree(tree)?;
+                }
+                self.write("}");
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Generate a static item
+    fn generate_static_item(
+        &mut self,
+        ident: &Ident,
+        mutability: Mutability,
+        ty: &Ty,
+        expr: &Option<Expr>,
+    ) -> Result<()> {
+        self.write("static ");
+        if matches!(mutability, Mutability::Mut) {
+            self.write("mut ");
+        }
+        self.write(&ident.name);
+        self.write(": ");
+        self.generate_ty(ty)?;
+        if let Some(init_expr) = expr {
+            self.write(" = ");
+            self.generate_expr(init_expr)?;
+        }
+        self.write(";");
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate a const item
+    fn generate_const_item(&mut self, ident: &Ident, ty: &Ty, expr: &Option<Expr>) -> Result<()> {
+        self.write("const ");
+        self.write(&ident.name);
+        self.write(": ");
+        self.generate_ty(ty)?;
+        if let Some(init_expr) = expr {
+            self.write(" = ");
+            self.generate_expr(init_expr)?;
+        }
+        self.write(";");
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate a type alias item
+    fn generate_type_alias_item(
+        &mut self,
+        ident: &Ident,
+        generics: &Generics,
+        ty: &Option<Ty>,
+    ) -> Result<()> {
+        self.write("type ");
+        self.write(&ident.name);
+
+        // Generic parameters (simplified for now)
+        if !generics.params.is_empty() {
+            self.write("</* generics */>");
+        }
+
+        if let Some(alias_ty) = ty {
+            self.write(" = ");
+            self.generate_ty(alias_ty)?;
+        }
+        self.write(";");
+        self.writeln();
+        Ok(())
+    }
+
+    /// Generate a module item
+    fn generate_mod_item(&mut self, ident: &Ident, items: &Option<Vec<Item>>) -> Result<()> {
+        self.write("mod ");
+        self.write(&ident.name);
+
+        match items {
+            None => {
+                // External module: mod foo;
+                self.write(";");
+                self.writeln();
+            }
+            Some(item_list) => {
+                // Inline module: mod foo { ... }
+                self.write(" {");
+                self.writeln();
+                self.indent();
+
+                for item in item_list {
+                    self.write_indent();
+                    self.generate_item(item)?;
+                }
+
+                self.dedent();
+                self.write_indent();
+                self.write("}");
+                self.writeln();
+            }
+        }
+
         Ok(())
     }
 }

@@ -67,11 +67,50 @@ impl Generator {
                 Ok(list(vec![sym("Impl"), self.generate_impl_def(impl_def)?]))
             }
             // Stage 8: Remaining items
-            ItemKind::Use(_use_tree) => todo!("Stage 8: Use items"),
-            ItemKind::Static { .. } => todo!("Stage 8: Static items"),
-            ItemKind::Const { .. } => todo!("Stage 8: Const items"),
-            ItemKind::TyAlias { .. } => todo!("Stage 8: Type alias items"),
-            ItemKind::Mod { .. } => todo!("Stage 8: Module items"),
+            ItemKind::Use(use_tree) => Ok(list(vec![sym("Use"), self.generate_use_tree(use_tree)])),
+            ItemKind::Static { mutability, ty, expr } => {
+                let mut fields = kwargs(vec![
+                    kwarg("mutability", self.generate_mutability(*mutability)),
+                    kwarg("ty", self.generate_ty(ty)?),
+                ]);
+                if let Some(init_expr) = expr {
+                    fields.extend(kwarg("expr", self.generate_expr(init_expr)?));
+                } else {
+                    fields.extend(kwarg("expr", sym("nil")));
+                }
+                Ok(list(vec![sym("Static")].into_iter().chain(fields).collect()))
+            }
+            ItemKind::Const { ty, expr } => {
+                let mut fields = kwargs(vec![kwarg("ty", self.generate_ty(ty)?)]);
+                if let Some(init_expr) = expr {
+                    fields.extend(kwarg("expr", self.generate_expr(init_expr)?));
+                } else {
+                    fields.extend(kwarg("expr", sym("nil")));
+                }
+                Ok(list(vec![sym("Const")].into_iter().chain(fields).collect()))
+            }
+            ItemKind::TyAlias { generics, ty } => {
+                let mut fields = kwargs(vec![kwarg("generics", self.generate_generics(generics)?)]);
+                if let Some(alias_ty) = ty {
+                    fields.extend(kwarg("ty", self.generate_ty(alias_ty)?));
+                } else {
+                    fields.extend(kwarg("ty", sym("nil")));
+                }
+                Ok(list(vec![sym("TyAlias")].into_iter().chain(fields).collect()))
+            }
+            ItemKind::Mod { items } => {
+                let items_sexp = if let Some(item_list) = items {
+                    list(
+                        item_list
+                            .iter()
+                            .map(|item| self.generate_item(item))
+                            .collect::<Result<Vec<_>>>()?,
+                    )
+                } else {
+                    sym("nil")
+                };
+                Ok(list(vec![sym("Mod"), kw("items"), items_sexp]))
+            }
         }
     }
 
@@ -599,6 +638,33 @@ impl Generator {
         match bound {
             GenericBound::Trait(trait_ref) => {
                 list(vec![sym("Trait"), self.generate_trait_ref(trait_ref)])
+            }
+        }
+    }
+
+    /// Stage 8: Generate use tree
+    fn generate_use_tree(&self, use_tree: &UseTree) -> SExp {
+        let fields = kwargs(vec![
+            kwarg("prefix", self.generate_path(&use_tree.prefix)),
+            kwarg("kind", self.generate_use_tree_kind(&use_tree.kind)),
+        ]);
+        typed_node("UseTree", fields)
+    }
+
+    fn generate_use_tree_kind(&self, kind: &UseTreeKind) -> SExp {
+        match kind {
+            UseTreeKind::Simple(rename) => {
+                let rename_sexp = if let Some(ident) = rename {
+                    self.generate_ident(ident)
+                } else {
+                    sym("nil")
+                };
+                list(vec![sym("Simple"), rename_sexp])
+            }
+            UseTreeKind::Glob => sym("Glob"),
+            UseTreeKind::Nested(trees) => {
+                let trees_sexp = list(trees.iter().map(|tree| self.generate_use_tree(tree)).collect());
+                list(vec![sym("Nested"), trees_sexp])
             }
         }
     }
