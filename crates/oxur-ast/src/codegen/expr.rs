@@ -143,30 +143,88 @@ impl RustCodegen {
             ExprKind::MethodCall { receiver, method, args } => {
                 self.generate_method_call(receiver, method, args)?;
             }
-            // Stage 7: Remaining expressions (TODO - implement)
-            ExprKind::Array(..) => {
-                self.write("/* array */");
+            // Stage 7: Remaining expressions
+            ExprKind::Array(elems) => {
+                self.write("[");
+                for (i, elem) in elems.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_expr(elem)?;
+                }
+                self.write("]");
             }
-            ExprKind::Tuple(..) => {
-                self.write("/* tuple */");
+            ExprKind::Tuple(elems) => {
+                self.write("(");
+                for (i, elem) in elems.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_expr(elem)?;
+                }
+                if elems.len() == 1 {
+                    self.write(","); // Trailing comma for 1-tuples
+                }
+                self.write(")");
             }
-            ExprKind::Field { .. } => {
-                self.write("/* field */");
+            ExprKind::Field { expr, field } => {
+                self.generate_expr(expr)?;
+                self.write(".");
+                self.write(&field.name);
             }
-            ExprKind::Index { .. } => {
-                self.write("/* index */");
+            ExprKind::Index { expr, index } => {
+                self.generate_expr(expr)?;
+                self.write("[");
+                self.generate_expr(index)?;
+                self.write("]");
             }
-            ExprKind::Assign { .. } => {
-                self.write("/* assign */");
+            ExprKind::Assign { left, right } => {
+                self.generate_expr(left)?;
+                self.write(" = ");
+                self.generate_expr(right)?;
             }
-            ExprKind::Struct { .. } => {
-                self.write("/* struct */");
+            ExprKind::Struct { path, fields } => {
+                self.generate_path(path)?;
+                self.write(" {");
+                if !fields.is_empty() {
+                    self.write(" ");
+                    for (i, field) in fields.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&field.ident.name);
+                        if !field.is_shorthand {
+                            self.write(": ");
+                            self.generate_expr(&field.expr)?;
+                        }
+                    }
+                    self.write(" ");
+                }
+                self.write("}");
             }
-            ExprKind::Closure { .. } => {
-                self.write("/* closure */");
+            ExprKind::Closure { params, body } => {
+                self.write("|");
+                for (i, param) in params.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.generate_pat(&param.pat)?;
+                }
+                self.write("| ");
+                self.generate_expr(body)?;
             }
-            ExprKind::Range { .. } => {
-                self.write("/* range */");
+            ExprKind::Range { start, end, inclusive } => {
+                if let Some(start_expr) = start {
+                    self.generate_expr(start_expr)?;
+                }
+                if *inclusive {
+                    self.write("..=");
+                } else {
+                    self.write("..");
+                }
+                if let Some(end_expr) = end {
+                    self.generate_expr(end_expr)?;
+                }
             }
         }
         Ok(())

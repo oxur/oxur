@@ -171,15 +171,81 @@ impl Generator {
                     args_sexp,
                 ]))
             }
-            // Stage 7: Remaining expressions (TODO - implement)
-            ExprKind::Array(..) => Ok(sym("TODO-Array")),
-            ExprKind::Tuple(..) => Ok(sym("TODO-Tuple")),
-            ExprKind::Field { .. } => Ok(sym("TODO-Field")),
-            ExprKind::Index { .. } => Ok(sym("TODO-Index")),
-            ExprKind::Assign { .. } => Ok(sym("TODO-Assign")),
-            ExprKind::Struct { .. } => Ok(sym("TODO-Struct")),
-            ExprKind::Closure { .. } => Ok(sym("TODO-Closure")),
-            ExprKind::Range { .. } => Ok(sym("TODO-Range")),
+            // Stage 7: Remaining expressions
+            ExprKind::Array(elems) => {
+                let elems_sexp =
+                    list(elems.iter().map(|e| self.generate_expr(e)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![sym("Array"), elems_sexp]))
+            }
+            ExprKind::Tuple(elems) => {
+                let elems_sexp =
+                    list(elems.iter().map(|e| self.generate_expr(e)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![sym("Tuple"), elems_sexp]))
+            }
+            ExprKind::Field { expr, field } => Ok(list(vec![
+                sym("Field"),
+                kw("expr"),
+                self.generate_expr(expr)?,
+                kw("field"),
+                self.generate_ident(field),
+            ])),
+            ExprKind::Index { expr, index } => Ok(list(vec![
+                sym("Index"),
+                kw("expr"),
+                self.generate_expr(expr)?,
+                kw("index"),
+                self.generate_expr(index)?,
+            ])),
+            ExprKind::Assign { left, right } => Ok(list(vec![
+                sym("Assign"),
+                kw("left"),
+                self.generate_expr(left)?,
+                kw("right"),
+                self.generate_expr(right)?,
+            ])),
+            ExprKind::Struct { path, fields } => {
+                let fields_sexp =
+                    list(fields.iter().map(|f| self.generate_expr_field(f)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![
+                    sym("Struct"),
+                    kw("path"),
+                    self.generate_path(path),
+                    kw("fields"),
+                    fields_sexp,
+                ]))
+            }
+            ExprKind::Closure { params, body } => {
+                let params_sexp =
+                    list(params.iter().map(|p| self.generate_param(p)).collect::<Result<Vec<_>>>()?);
+                Ok(list(vec![
+                    sym("Closure"),
+                    kw("params"),
+                    params_sexp,
+                    kw("body"),
+                    self.generate_expr(body)?,
+                ]))
+            }
+            ExprKind::Range { start, end, inclusive } => {
+                let start_sexp = if let Some(s) = start {
+                    self.generate_expr(s)?
+                } else {
+                    sym("nil")
+                };
+                let end_sexp = if let Some(e) = end {
+                    self.generate_expr(e)?
+                } else {
+                    sym("nil")
+                };
+                Ok(list(vec![
+                    sym("Range"),
+                    kw("start"),
+                    start_sexp,
+                    kw("end"),
+                    end_sexp,
+                    kw("inclusive"),
+                    sym(if *inclusive { "true" } else { "false" }),
+                ]))
+            }
         }
     }
 
@@ -318,5 +384,18 @@ impl Generator {
             UnOp::Neg => "Neg",
             UnOp::Deref => "Deref",
         })
+    }
+
+    fn generate_expr_field(&self, field: &ExprField) -> Result<SExp> {
+        Ok(typed_node(
+            "ExprField",
+            kwargs(vec![
+                kwarg("attrs", sym("nil")), // TODO: generate attrs
+                kwarg("ident", self.generate_ident(&field.ident)),
+                kwarg("expr", self.generate_expr(&field.expr)?),
+                kwarg("is-shorthand", sym(if field.is_shorthand { "true" } else { "false" })),
+                kwarg("span", self.generate_span(field.span)),
+            ]),
+        ))
     }
 }

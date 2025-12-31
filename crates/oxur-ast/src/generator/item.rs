@@ -164,7 +164,7 @@ impl Generator {
         Ok(list(param_sexps?))
     }
 
-    fn generate_param(&self, param: &Param) -> Result<SExp> {
+    pub(crate) fn generate_param(&self, param: &Param) -> Result<SExp> {
         let fields = kwargs(vec![
             kwarg("attrs", self.generate_attr_vec(&param.attrs)?),
             kwarg("ty", self.generate_ty(&param.ty)?),
