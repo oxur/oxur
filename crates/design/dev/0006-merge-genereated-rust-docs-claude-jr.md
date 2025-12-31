@@ -6,7 +6,7 @@ I have multiple versions of Rust guidelines documents in a directory. Each docum
 
 ## Input Location
 
-All input files are in: `./rust-guidelines-sources/`
+All input files are in: `./rust-guides/files0*/*.md`
 
 The files follow naming patterns like:
 
@@ -16,9 +16,11 @@ The files follow naming patterns like:
 
 Files with the same number prefix should be merged together.
 
+Note that not all `./rust-guides/files0*/` dirs have all the files; some of those dirs only have some of the 13 files.
+
 ## Output Location
 
-Write merged files to: `./rust-ai-guidelines/`
+Write merged files to: `./assets/ai/rust-best-practices`
 
 ## Merge Strategy
 
@@ -28,7 +30,7 @@ For each numbered document (01-13):
 
 ```bash
 # Find all files starting with the same number
-ls ./rust-guidelines-sources/01-*.md
+ls ./rust-guides/files0*/*.md
 ```
 
 ### 2. Read and parse all versions
@@ -154,10 +156,12 @@ After merging all documents:
 ## Example Workflow
 
 ```bash
-# 1. List all source files grouped by number
+# 1. List all source files grouped by number (this actually isn't 100%
+#    correct; since the files use zero padding for single digits, but
+#    if gives you an idea)
 for i in $(seq -w 1 13); do
   echo "=== ${i} ==="
-  ls ./rust-guidelines-sources/${i}-*.md 2>/dev/null
+  ls ./rust-guides/files0*/${i}-*.md 2>/dev/null
 done
 
 # 2. For each group, read all files and merge
@@ -179,7 +183,7 @@ Before finalizing each merged document, verify:
 ## Output Files
 
 ```
-./rust-ai-guidelines/
+./assets/ai/rust-best-practices/
 ├── README.md
 ├── 01-core-idioms.md
 ├── 02-api-design.md
