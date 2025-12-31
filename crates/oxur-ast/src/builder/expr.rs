@@ -71,13 +71,26 @@ impl AstBuilder {
         let node_type = expect_symbol(&list.elements[0])?;
 
         match node_type.value.as_str() {
-            "MacCall" => {
-                // Extract the inner MacCall node from element 1
-                let mac_call_sexp = &list.elements[1];
-                let mac_call_list = expect_list(mac_call_sexp)?;
-                let mac_call = self.build_mac_call_inner(mac_call_list)?;
-                Ok(ExprKind::MacCall(mac_call))
+            "If" | "Match" | "While" | "ForLoop" | "Loop" => {
+                self.build_control_flow_expr(&node_type.value, list)
             }
+            "Binary" | "Unary" => self.build_operator_expr(&node_type.value, list),
+            "Call" | "MethodCall" => self.build_call_expr(&node_type.value, list),
+            "Array" | "Tuple" | "Struct" => self.build_collection_expr(&node_type.value, list),
+            "Field" | "Index" => self.build_access_expr(&node_type.value, list),
+            "Assign" | "Closure" | "Range" | "MacCall" => {
+                self.build_other_expr(&node_type.value, list)
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Supported ExprKind variant".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
+    }
+
+    fn build_control_flow_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+        match node_type {
             "If" => {
                 let kwargs = parse_kwargs(list)?;
                 let cond = Box::new(self.build_expr(require_field(&kwargs, "cond", list.pos)?)?);
@@ -133,6 +146,16 @@ impl AstBuilder {
                 let body = self.build_block(require_field(&kwargs, "body", list.pos)?)?;
                 Ok(ExprKind::Loop { label, body })
             }
+            _ => Err(ParseError::Expected {
+                expected: "If, Match, While, ForLoop, or Loop".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_operator_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+        match node_type {
             "Binary" => {
                 let kwargs = parse_kwargs(list)?;
                 let left = Box::new(self.build_expr(require_field(&kwargs, "left", list.pos)?)?);
@@ -146,6 +169,16 @@ impl AstBuilder {
                 let expr = Box::new(self.build_expr(require_field(&kwargs, "expr", list.pos)?)?);
                 Ok(ExprKind::Unary { op, expr })
             }
+            _ => Err(ParseError::Expected {
+                expected: "Binary or Unary".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_call_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+        match node_type {
             "Call" => {
                 let kwargs = parse_kwargs(list)?;
                 let func = Box::new(self.build_expr(require_field(&kwargs, "func", list.pos)?)?);
@@ -162,7 +195,16 @@ impl AstBuilder {
                 let args = self.build_expr_list(args_sexp)?;
                 Ok(ExprKind::MethodCall { receiver, method, args })
             }
-            // Stage 7: Remaining expressions
+            _ => Err(ParseError::Expected {
+                expected: "Call or MethodCall".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_collection_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+        match node_type {
             "Array" => {
                 let elems = self.build_expr_list(&list.elements[1])?;
                 Ok(ExprKind::Array(elems))
@@ -171,6 +213,26 @@ impl AstBuilder {
                 let elems = self.build_expr_list(&list.elements[1])?;
                 Ok(ExprKind::Tuple(elems))
             }
+            "Struct" => {
+                let kwargs = parse_kwargs(list)?;
+                let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
+                let fields = if let Some(fields_sexp) = kwargs.get("fields") {
+                    self.build_expr_field_list(fields_sexp)?
+                } else {
+                    Vec::new()
+                };
+                Ok(ExprKind::Struct { path, fields })
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Array, Tuple, or Struct".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_access_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+        match node_type {
             "Field" => {
                 let kwargs = parse_kwargs(list)?;
                 let expr = Box::new(self.build_expr(require_field(&kwargs, "expr", list.pos)?)?);
@@ -183,21 +245,28 @@ impl AstBuilder {
                 let index = Box::new(self.build_expr(require_field(&kwargs, "index", list.pos)?)?);
                 Ok(ExprKind::Index { expr, index })
             }
+            _ => Err(ParseError::Expected {
+                expected: "Field or Index".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_other_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+        match node_type {
+            "MacCall" => {
+                // Extract the inner MacCall node from element 1
+                let mac_call_sexp = &list.elements[1];
+                let mac_call_list = expect_list(mac_call_sexp)?;
+                let mac_call = self.build_mac_call_inner(mac_call_list)?;
+                Ok(ExprKind::MacCall(mac_call))
+            }
             "Assign" => {
                 let kwargs = parse_kwargs(list)?;
                 let left = Box::new(self.build_expr(require_field(&kwargs, "left", list.pos)?)?);
                 let right = Box::new(self.build_expr(require_field(&kwargs, "right", list.pos)?)?);
                 Ok(ExprKind::Assign { left, right })
-            }
-            "Struct" => {
-                let kwargs = parse_kwargs(list)?;
-                let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
-                let fields = if let Some(fields_sexp) = kwargs.get("fields") {
-                    self.build_expr_field_list(fields_sexp)?
-                } else {
-                    Vec::new()
-                };
-                Ok(ExprKind::Struct { path, fields })
             }
             "Closure" => {
                 let kwargs = parse_kwargs(list)?;
@@ -228,9 +297,9 @@ impl AstBuilder {
                 Ok(ExprKind::Range { start, end, inclusive })
             }
             _ => Err(ParseError::Expected {
-                expected: "Supported ExprKind variant".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
+                expected: "MacCall, Assign, Closure, or Range".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
             }),
         }
     }
