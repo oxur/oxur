@@ -11,16 +11,19 @@ This document provides essential guidance for AI assistants (like Claude Code) w
 ### Document Hierarchy
 
 **For Rust Code Quality:**
+
 1. **`assets/ai/ai-rust/skills/claude/SKILL.md`** - Advanced Rust programming skill (**use this**)
 2. **`assets/ai/ai-rust/guides/*.md`** - Comprehensive Rust guidelines referenced by the skill
 3. **This file (CLAUDE.md)** - Oxur-specific conventions only
 
 **For Oxur-Specific Topics:**
+
 - **This file (CLAUDE.md)** - Project structure, ODDs, workflows, Oxur patterns
 - **`assets/ai/OXUR-SESSION-BOOTSTRAP.md`** - Template for starting new sessions with context
 - **`assets/ai/CLAUDE-CODE-COVERAGE.md`** - Comprehensive test coverage guide
 
 **Important:** If `assets/ai/ai-rust` does not exist on the file system, ask permission to clone it:
+
 ```bash
 git clone https://github.com/oxur/ai-rust assets/ai/ai-rust
 ```
@@ -56,26 +59,26 @@ Oxur is a **Lisp dialect that treats Rust as its compilation target and runtime*
 │                    OXUR COMPILATION PIPELINE                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Oxur Source (Lisp)                                            │
+│  Oxur Source (Lisp)                                             │
 │         ↓                                                       │
-│  ┌──────────────────┐                                          │
-│  │  oxur-lang       │  Stage 1: Parse → Surface Forms          │
-│  │  (Lisp Compiler) │  Stage 2: Expand → Core Forms (IR)       │
-│  └──────────────────┘                                          │
+│  ┌──────────────────┐                                           │
+│  │  oxur-lang       │  Stage 1: Parse → Surface Forms           │
+│  │  (Lisp Compiler) │  Stage 2: Expand → Core Forms (IR)        │
+│  └──────────────────┘                                           │
 │         ↓                                                       │
-│  Core Forms (Canonical S-expressions)                          │
+│  Core Forms (Canonical S-expressions)                           │
 │         ↓                                                       │
-│  ┌──────────────────┐                                          │
-│  │  oxur-comp       │  Stage 3: Lower → Rust AST               │
-│  │  (Backend)       │  Stage 4: Codegen → Rust Source          │
-│  └──────────────────┘  Stage 5: Compile → Binary (via rustc)   │
+│  ┌──────────────────┐                                           │
+│  │  oxur-comp       │  Stage 3: Lower → Rust AST                │
+│  │  (Backend)       │  Stage 4: Codegen → Rust Source           │
+│  └──────────────────┘  Stage 5: Compile → Binary (via rustc)    │
 │         ↓                                                       │
 │  Rust Binary                                                    │
 │                                                                 │
-│  ┌──────────────────┐                                          │
-│  │  oxur-ast        │  Supporting: Bidirectional Rust AST ↔    │
-│  │  (AST Library)   │  S-expression conversion                 │
-│  └──────────────────┘                                          │
+│  ┌──────────────────┐                                           │
+│  │  oxur-ast        │  Supporting: Bidirectional Rust AST ↔     │
+│  │  (AST Library)   │  S-expression conversion                  │
+│  └──────────────────┘                                           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -107,6 +110,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 ### Crate Status & Purpose
 
 #### oxur-ast (In Progress - ~80% Complete)
+
 **Binary:** `aster`
 **Purpose:** Bidirectional conversion between Rust AST and canonical S-expressions
 
@@ -117,6 +121,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Key File:** `crates/oxur-ast/src/lib.rs`
 
 #### design (Active - Feature Complete)
+
 **Binary:** `oxd`
 **Purpose:** Manage Oxur Design Documents (ODDs) with state tracking
 
@@ -127,6 +132,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Key File:** `crates/design/src/lib.rs`
 
 #### oxur-cli (Early Stage)
+
 **Binary:** `oxur` (planned unified CLI)
 **Purpose:** Common CLI infrastructure and utilities
 
@@ -137,6 +143,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Key File:** `crates/oxur-cli/src/lib.rs`
 
 #### oxur-lang, oxur-comp, oxur-repl (Planning)
+
 **Status:** Design phase, not yet implemented
 
 ### Core Design Principles
@@ -156,11 +163,13 @@ The project is organized as a Cargo workspace with 6 main crates:
 ### Required Tools
 
 **Rust:**
+
 - Version: 1.75+ (stable channel)
 - Edition: 2021
 - Toolchain file: `rust-toolchain.toml` in root
 
 **Essential Tools:**
+
 ```bash
 rustup component add rustfmt clippy
 cargo install cargo-llvm-cov
@@ -209,6 +218,7 @@ make coverage
 ### Testing Framework
 
 **Unit Tests:**
+
 ```bash
 cargo test                    # All tests
 cargo test --lib              # Library tests only
@@ -216,6 +226,7 @@ cargo test --package oxur-ast # Specific crate
 ```
 
 **Coverage:**
+
 ```bash
 cargo llvm-cov --html                    # Generate HTML report
 cargo llvm-cov --summary-only            # Quick summary
@@ -223,11 +234,13 @@ open target/llvm-cov/html/index.html     # View report
 ```
 
 **Property Testing:**
+
 - Using `proptest` for property-based tests
 - Define generators for custom types
 - Test invariants across random inputs
 
 **Benchmarking:**
+
 - Using `criterion` for performance benchmarks
 - Located in `benches/` directory
 - Run with `cargo bench`
@@ -235,6 +248,7 @@ open target/llvm-cov/html/index.html     # View report
 ### Formatting Configuration
 
 From `.rustfmt.toml`:
+
 ```toml
 edition = "2021"
 max_width = 100
@@ -252,6 +266,7 @@ This section covers patterns that are **specific to the Oxur project**. For gene
 ### Naming Conventions (Oxur-Specific)
 
 **Crates:**
+
 - Format: `oxur-component` (hyphenated)
 - Examples: `oxur-ast`, `oxur-lang`, `oxur-comp`
 - NOT: `rast`, `oxur_ast`, `oxurAST`
@@ -289,6 +304,7 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 ```
 
 **Usage:**
+
 ```rust
 return Err(ParseError::UnexpectedToken {
     token: token.to_string(),
@@ -318,6 +334,7 @@ test-data/
 ```
 
 **Test helper pattern:**
+
 ```rust
 use std::path::PathBuf;
 
@@ -366,6 +383,7 @@ impl Builder {
 ```
 
 **Method organization strategy:**
+
 - Public API at top
 - Item builders grouped together
 - Expression builders grouped together
@@ -399,6 +417,7 @@ warning("Deprecated API usage");     // Yellow
 ```
 
 **Example - Struct definition:**
+
 ```lisp
 (Item
   :vis Public
@@ -424,6 +443,7 @@ warning("Deprecated API usage");     // Yellow
 ### When to Load the Skill
 
 Load the Rust guidelines skill when:
+
 - Writing new Rust code
 - Refactoring existing Rust code
 - Reviewing Rust code for issues
@@ -434,6 +454,7 @@ Load the Rust guidelines skill when:
 ### Skill Workflow Summary
 
 **For writing new code:**
+
 1. Load `assets/ai/ai-rust/guides/11-anti-patterns.md` (what to avoid)
 2. Load `assets/ai/ai-rust/guides/01-core-idioms.md` (standard patterns)
 3. Load topic-specific guides as needed
@@ -441,12 +462,14 @@ Load the Rust guidelines skill when:
 5. Self-review against anti-patterns
 
 **For refactoring:**
+
 1. Load `11-anti-patterns.md`
 2. Scan code for violations (note pattern IDs like AP-08)
 3. Load relevant guides for fixes
 4. Refactor systematically
 
 **For code review:**
+
 1. Load `11-anti-patterns.md`
 2. Check each pattern (AP-01 through AP-20)
 3. Load topic guides based on code content
@@ -473,6 +496,7 @@ Load the Rust guidelines skill when:
 These rules from the skill should be followed in ALL Rust code:
 
 **Parameters:**
+
 ```rust
 // ❌ AVOID
 fn process(data: &String, items: &Vec<i32>)
@@ -482,6 +506,7 @@ fn process(data: &str, items: &[i32])
 ```
 
 **Derives:**
+
 ```rust
 // ✅ Most types should have:
 #[derive(Debug, Clone, PartialEq)]
@@ -489,6 +514,7 @@ struct MyType { /* ... */ }
 ```
 
 **Error Handling:**
+
 ```rust
 // ❌ AVOID in library code
 let value = something.unwrap();
@@ -506,12 +532,14 @@ let value = something?;
 ### Coverage Targets
 
 **Minimum requirements:**
+
 - **Overall coverage:** ≥ 95%
 - **Module coverage:** ≥ 90% (no stragglers)
 - **Error paths:** 100% tested
 - **Public API:** 100% tested
 
 **For comprehensive testing guidance:**
+
 - See `assets/ai/CLAUDE-CODE-COVERAGE.md` for systematic testing approach
 - See `assets/ai/ai-rust/guides/01-core-idioms.md` for Rust testing patterns
 
@@ -520,6 +548,7 @@ let value = something?;
 **Format:** `test_<function>_<scenario>_<expectation>`
 
 **Examples:**
+
 ```rust
 #[test]
 fn test_build_item_struct_succeeds() { }
@@ -534,6 +563,7 @@ fn test_parse_empty_file_returns_empty_vec() { }
 ### Round-Trip Testing (Critical for oxur-ast)
 
 **Pattern:**
+
 ```rust
 #[test]
 fn test_round_trip_struct() {
@@ -579,6 +609,7 @@ Documents progress through states:
 ### YAML Frontmatter
 
 **Required fields:**
+
 ```yaml
 ---
 number: 1
@@ -609,16 +640,19 @@ state: Active
 ### Using Design Docs
 
 **Before implementing a feature:**
+
 1. Check if design doc exists: `./bin/oxd list`
 2. Read relevant docs: `./bin/oxd show 0003`
 3. If no doc exists and feature is non-trivial, create one
 
 **When making architectural changes:**
+
 1. Update the relevant design doc
 2. Transition to `revised` if significant changes
 3. Reference doc number in commit messages
 
 **In code comments:**
+
 ```rust
 // Implementation of S-expression format spec (ODD-0003)
 pub fn parse_item(sexp: &SExp) -> Result<Item> {
@@ -665,16 +699,19 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 ### Working with AST (aster CLI)
 
 **Convert Rust to S-expression:**
+
 ```bash
 ./bin/aster to-ast -i examples/hello.rs -o examples/hello.sexp
 ```
 
 **Convert S-expression to Rust:**
+
 ```bash
 ./bin/aster to-rust -i examples/hello.sexp -o examples/hello_generated.rs
 ```
 
 **Verify round-trip:**
+
 ```bash
 ./bin/aster verify examples/hello.rs
 ```
@@ -686,6 +723,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 ### Commit Messages
 
 **Format:**
+
 - Free-form descriptive (preferred for Oxur)
 - Subject line: Imperative mood ("Add feature" not "Added feature")
 - Body: Explain WHY, not WHAT (code shows what)
@@ -708,6 +746,7 @@ Avoid:
 ### Pull Request Guidelines
 
 **Before creating PR:**
+
 - [ ] All tests pass (`cargo test --all`)
 - [ ] Coverage ≥ 95% (`make coverage`)
 - [ ] Linting passes (`make lint`)
@@ -723,11 +762,13 @@ Avoid:
 ### General Approach
 
 **For Rust code quality:**
+
 1. **Always load the Rust skill first** (`assets/ai/ai-rust/skills/claude/SKILL.md`)
 2. **Follow the skill workflow** for writing, refactoring, or reviewing
 3. **Reference pattern IDs** in discussions (e.g., "This violates AP-08")
 
 **For Oxur-specific work:**
+
 1. **Read this CLAUDE.md** for project structure and conventions
 2. **Check design docs** for architectural decisions
 3. **Follow Oxur-specific patterns** (Position tracking, test data, etc.)
@@ -766,11 +807,13 @@ Avoid:
 ### When Stuck
 
 **For Rust issues:**
+
 - Check the relevant guide in `assets/ai/ai-rust/guides/`
 - Look for pattern IDs mentioned in error messages
 - Search for similar patterns in the codebase
 
 **For Oxur issues:**
+
 - Check design docs: `./bin/oxd list` and `./bin/oxd show <number>`
 - Look for similar implementations in the codebase
 - Ask clarifying questions
@@ -778,6 +821,7 @@ Avoid:
 ### Code Review Mindset
 
 **Verify:**
+
 1. **Rust guidelines compliance** (using pattern IDs)
 2. **Oxur conventions** (Position tracking, naming, etc.)
 3. **Test coverage** (≥95%)
@@ -792,6 +836,7 @@ Avoid:
 ### Oxur Project Documentation
 
 **Essential reading:**
+
 - **Main README:** `/Users/oubiwann/lab/oxur/oxur/README.md`
 - **Design Docs Index:** `crates/design/docs/index.md`
 - **Crate READMEs:** `crates/*/README.md`
@@ -799,6 +844,7 @@ Avoid:
 ### Rust Guidelines (External)
 
 **AI-Optimized Rust Guidelines:**
+
 - **Skill Definition:** `assets/ai/ai-rust/skills/claude/SKILL.md`
 - **Guides Directory:** `assets/ai/ai-rust/guides/`
   - `01-core-idioms.md` - Essential patterns
@@ -825,11 +871,13 @@ Avoid:
 ### External Resources
 
 **Rust fundamentals:**
+
 - [The Rust Book](https://doc.rust-lang.org/book/)
 - [Rust by Example](https://doc.rust-lang.org/rust-by-example/)
 - [Rust Reference](https://doc.rust-lang.org/reference/)
 
 **Key dependencies:**
+
 - [syn docs](https://docs.rs/syn/) - Rust AST parsing
 - [clap docs](https://docs.rs/clap/) - CLI argument parsing
 - [thiserror docs](https://docs.rs/thiserror/) - Error handling
@@ -837,6 +885,7 @@ Avoid:
 ### Quick Command Reference
 
 **Building:**
+
 ```bash
 cargo build                    # Debug build
 cargo build --release          # Optimized build
@@ -844,6 +893,7 @@ make build                     # Build all binaries
 ```
 
 **Testing:**
+
 ```bash
 cargo test                     # All tests
 cargo test --lib               # Library tests only
@@ -851,18 +901,21 @@ make test                      # Run tests via Makefile
 ```
 
 **Coverage:**
+
 ```bash
 cargo llvm-cov --html          # Generate HTML report
 make coverage                  # Via Makefile
 ```
 
 **Linting & Formatting:**
+
 ```bash
 make lint                      # Check linting and format
 make format                    # Format all code
 ```
 
 **Design Docs:**
+
 ```bash
 ./bin/oxd list                 # List all docs
 ./bin/oxd show 0003            # Show specific doc
@@ -870,6 +923,7 @@ make format                    # Format all code
 ```
 
 **AST Tools:**
+
 ```bash
 ./bin/aster to-ast -i file.rs -o file.sexp    # Rust → S-expr
 ./bin/aster to-rust -i file.sexp -o file.rs   # S-expr → Rust
@@ -954,6 +1008,7 @@ make format                    # Format all code
 📖 **Use the Rust Guidelines Skill:** `assets/ai/ai-rust/skills/claude/SKILL.md`
 
 **Key takeaways:**
+
 1. **Rust code quality** → Use the skill and guides
 2. **Oxur conventions** → Use this document
 3. **Testing** → Use CLAUDE-CODE-COVERAGE.md + Rust guides
