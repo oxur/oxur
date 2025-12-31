@@ -5,8 +5,8 @@ author: "Duncan McGreggor & Claude"
 component: REPL
 tags: [protocols, networking, postcard, messagepack]
 created: 2025-12-28
-updated: 2025-12-28
-state: Under Review
+updated: 2025-12-31
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0

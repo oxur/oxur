@@ -37,9 +37,79 @@ impl SynConverter {
     fn convert_item(&mut self, item: &syn::Item) -> Result<Item> {
         match item {
             syn::Item::Fn(item_fn) => self.convert_item_fn(item_fn),
+            syn::Item::Const(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`const` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Enum(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`enum` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::ExternCrate(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`extern crate` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::ForeignMod(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`extern` block item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Impl(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`impl` block".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Macro(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "macro definition".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Mod(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`mod` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Static(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`static` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Struct(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`struct` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Trait(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`trait` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::TraitAlias(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`trait` alias".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Type(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`type` alias".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Union(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`union` item".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            syn::Item::Use(_) => Err(ParseError::Expected {
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "`use` statement".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
             _ => Err(ParseError::Expected {
-                expected: "supported item type".to_string(),
-                found: "unsupported item".to_string(),
+                expected: "supported item type (currently only: `fn`)".to_string(),
+                found: "unknown item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
         }
