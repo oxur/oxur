@@ -25,25 +25,9 @@ impl AstBuilder {
             Visibility::Inherited
         };
 
-        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
-            self.build_ident(ident_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
 
-        let kind = if let Some(kind_sexp) = kwargs.get("kind") {
-            self.build_item_kind(kind_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":kind field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let kind = self.build_item_kind(require_field(&kwargs, "kind", list.pos)?)?;
 
         let span = if let Some(span_sexp) = kwargs.get("span") {
             self.build_span(span_sexp)?
@@ -89,15 +73,7 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let name = if let Some(name_sexp) = kwargs.get("name") {
-            expect_string(name_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":name field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let name = expect_string(require_field(&kwargs, "name", list.pos)?)?;
 
         let span = if let Some(span_sexp) = kwargs.get("span") {
             self.build_span(span_sexp)?
@@ -193,21 +169,9 @@ impl AstBuilder {
                 } else {
                     Mutability::Not
                 };
-                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
-                    self.build_ty(ty_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":ty field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
-                let expr = if let Some(expr_sexp) = kwargs.get("expr") {
-                    if !is_nil(expr_sexp) {
-                        Some(self.build_expr(expr_sexp)?)
-                    } else {
-                        None
-                    }
+                let ty = self.build_ty(require_field(&kwargs, "ty", list.pos)?)?;
+                let expr = if let Some(expr_sexp) = optional_field(&kwargs, "expr") {
+                    Some(self.build_expr(expr_sexp)?)
                 } else {
                     None
                 };
@@ -215,21 +179,9 @@ impl AstBuilder {
             }
             "Const" => {
                 let kwargs = parse_kwargs(list)?;
-                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
-                    self.build_ty(ty_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":ty field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
-                let expr = if let Some(expr_sexp) = kwargs.get("expr") {
-                    if !is_nil(expr_sexp) {
-                        Some(self.build_expr(expr_sexp)?)
-                    } else {
-                        None
-                    }
+                let ty = self.build_ty(require_field(&kwargs, "ty", list.pos)?)?;
+                let expr = if let Some(expr_sexp) = optional_field(&kwargs, "expr") {
+                    Some(self.build_expr(expr_sexp)?)
                 } else {
                     None
                 };
@@ -242,12 +194,8 @@ impl AstBuilder {
                 } else {
                     Generics::empty()
                 };
-                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
-                    if !is_nil(ty_sexp) {
-                        Some(self.build_ty(ty_sexp)?)
-                    } else {
-                        None
-                    }
+                let ty = if let Some(ty_sexp) = optional_field(&kwargs, "ty") {
+                    Some(self.build_ty(ty_sexp)?)
                 } else {
                     None
                 };
@@ -255,15 +203,11 @@ impl AstBuilder {
             }
             "Mod" => {
                 let kwargs = parse_kwargs(list)?;
-                let items = if let Some(items_sexp) = kwargs.get("items") {
-                    if !is_nil(items_sexp) {
-                        let items_list = expect_list(items_sexp)?;
-                        let item_vec: Result<Vec<Item>> =
-                            items_list.elements.iter().map(|sexp| self.build_item(sexp)).collect();
-                        Some(item_vec?)
-                    } else {
-                        None
-                    }
+                let items = if let Some(items_sexp) = optional_field(&kwargs, "items") {
+                    let items_list = expect_list(items_sexp)?;
+                    let item_vec: Result<Vec<Item>> =
+                        items_list.elements.iter().map(|sexp| self.build_item(sexp)).collect();
+                    Some(item_vec?)
                 } else {
                     None
                 };
@@ -292,15 +236,7 @@ impl AstBuilder {
             Defaultness::Final
         };
 
-        let sig = if let Some(sig_sexp) = kwargs.get("sig") {
-            self.build_fn_sig(sig_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":sig field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let sig = self.build_fn_sig(require_field(&kwargs, "sig", list.pos)?)?;
 
         let generics = if let Some(gen_sexp) = kwargs.get("generics") {
             self.build_generics(gen_sexp)?
@@ -308,12 +244,8 @@ impl AstBuilder {
             Generics::empty()
         };
 
-        let body = if let Some(body_sexp) = kwargs.get("body") {
-            if !is_nil(body_sexp) {
-                Some(self.build_block(body_sexp)?)
-            } else {
-                None
-            }
+        let body = if let Some(body_sexp) = optional_field(&kwargs, "body") {
+            Some(self.build_block(body_sexp)?)
         } else {
             None
         };
@@ -486,12 +418,7 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let kind =
-            self.build_ty_kind(kwargs.get("kind").ok_or_else(|| ParseError::Expected {
-                expected: ":kind field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            })?)?;
+        let kind = self.build_ty_kind(require_field(&kwargs, "kind", list.pos)?)?;
 
         let id = if let Some(id_sexp) = kwargs.get("id") {
             NodeId(expect_number(id_sexp)? as u32)
@@ -534,12 +461,8 @@ impl AstBuilder {
             }
             "Ref" => {
                 let kwargs = parse_kwargs(list)?;
-                let lifetime = if let Some(lt_sexp) = kwargs.get("lifetime") {
-                    if !is_nil(lt_sexp) {
-                        Some(self.build_lifetime(lt_sexp)?)
-                    } else {
-                        None
-                    }
+                let lifetime = if let Some(lt_sexp) = optional_field(&kwargs, "lifetime") {
+                    Some(self.build_lifetime(lt_sexp)?)
                 } else {
                     None
                 };
@@ -548,15 +471,7 @@ impl AstBuilder {
                 } else {
                     Mutability::Not
                 };
-                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
-                    Box::new(self.build_ty(ty_sexp)?)
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":ty field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let ty = Box::new(self.build_ty(require_field(&kwargs, "ty", list.pos)?)?);
                 Ok(TyKind::Ref { lifetime, mutability, ty })
             }
             "Ptr" => {
@@ -566,37 +481,13 @@ impl AstBuilder {
                 } else {
                     Mutability::Not
                 };
-                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
-                    Box::new(self.build_ty(ty_sexp)?)
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":ty field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let ty = Box::new(self.build_ty(require_field(&kwargs, "ty", list.pos)?)?);
                 Ok(TyKind::Ptr { mutability, ty })
             }
             "Array" => {
                 let kwargs = parse_kwargs(list)?;
-                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
-                    Box::new(self.build_ty(ty_sexp)?)
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":ty field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
-                let len = if let Some(len_sexp) = kwargs.get("len") {
-                    self.build_expr(len_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":len field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let ty = Box::new(self.build_ty(require_field(&kwargs, "ty", list.pos)?)?);
+                let len = self.build_expr(require_field(&kwargs, "len", list.pos)?)?;
                 Ok(TyKind::Array { ty, len: Box::new(len) })
             }
             "Slice" => {
@@ -636,12 +527,8 @@ impl AstBuilder {
             match node_type.value.as_str() {
                 "Struct" => {
                     let kwargs = parse_kwargs(list)?;
-                    let fields_sexp = kwargs.get("fields").ok_or_else(|| ParseError::Expected {
-                        expected: ":fields field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?;
-                    let fields = self.build_field_list(fields_sexp)?;
+                    let fields =
+                        self.build_field_list(require_field(&kwargs, "fields", list.pos)?)?;
                     let recovered = if let Some(rec_sexp) = kwargs.get("recovered") {
                         expect_symbol(rec_sexp)?.value == "true"
                     } else {
@@ -677,13 +564,7 @@ impl AstBuilder {
         }
 
         let kwargs = parse_kwargs(list)?;
-        let variants_sexp = kwargs.get("variants").ok_or_else(|| ParseError::Expected {
-            expected: ":variants field".to_string(),
-            found: "missing".to_string(),
-            pos: list.pos,
-        })?;
-
-        let variants = self.build_variant_list(variants_sexp)?;
+        let variants = self.build_variant_list(require_field(&kwargs, "variants", list.pos)?)?;
         Ok(EnumDef { variants })
     }
 
@@ -717,25 +598,11 @@ impl AstBuilder {
         } else {
             Visibility::Inherited
         };
-        let ident =
-            self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            })?)?;
-        let data =
-            self.build_variant_data(kwargs.get("data").ok_or_else(|| ParseError::Expected {
-                expected: ":data field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            })?)?;
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
+        let data = self.build_variant_data(require_field(&kwargs, "data", list.pos)?)?;
 
-        let disr_expr = if let Some(disr_sexp) = kwargs.get("disr-expr") {
-            if !is_nil(disr_sexp) {
-                Some(self.build_expr(disr_sexp)?)
-            } else {
-                None
-            }
+        let disr_expr = if let Some(disr_sexp) = optional_field(&kwargs, "disr-expr") {
+            Some(self.build_expr(disr_sexp)?)
         } else {
             None
         };
@@ -774,21 +641,13 @@ impl AstBuilder {
             Visibility::Inherited
         };
 
-        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
-            if !is_nil(ident_sexp) {
-                Some(self.build_ident(ident_sexp)?)
-            } else {
-                None
-            }
+        let ident = if let Some(ident_sexp) = optional_field(&kwargs, "ident") {
+            Some(self.build_ident(ident_sexp)?)
         } else {
             None
         };
 
-        let ty = self.build_ty(kwargs.get("ty").ok_or_else(|| ParseError::Expected {
-            expected: ":ty field".to_string(),
-            found: "missing".to_string(),
-            pos: list.pos,
-        })?)?;
+        let ty = self.build_ty(require_field(&kwargs, "ty", list.pos)?)?;
 
         Ok(FieldDef { attrs, id, span, vis, ident, ty })
     }
@@ -870,22 +729,13 @@ impl AstBuilder {
             Generics::empty()
         };
 
-        let of_trait = if let Some(trait_sexp) = kwargs.get("of-trait") {
-            if !is_nil(trait_sexp) {
-                Some(self.build_trait_ref(trait_sexp)?)
-            } else {
-                None
-            }
+        let of_trait = if let Some(trait_sexp) = optional_field(&kwargs, "of-trait") {
+            Some(self.build_trait_ref(trait_sexp)?)
         } else {
             None
         };
 
-        let self_ty =
-            self.build_ty(kwargs.get("self-ty").ok_or_else(|| ParseError::Expected {
-                expected: ":self-ty field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            })?)?;
+        let self_ty = self.build_ty(require_field(&kwargs, "self-ty", list.pos)?)?;
 
         let items = if let Some(items_sexp) = kwargs.get("items") {
             self.build_assoc_item_list(items_sexp)?
@@ -926,20 +776,9 @@ impl AstBuilder {
         } else {
             Visibility::Inherited
         };
-        let ident =
-            self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            })?)?;
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
 
-        let kind = self.build_assoc_item_kind(kwargs.get("kind").ok_or_else(|| {
-            ParseError::Expected {
-                expected: ":kind field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            }
-        })?)?;
+        let kind = self.build_assoc_item_kind(require_field(&kwargs, "kind", list.pos)?)?;
 
         Ok(AssocItem { attrs, id, span, vis, ident, kind })
     }
@@ -958,10 +797,10 @@ impl AstBuilder {
             "Type" => {
                 if list.elements.len() > 1 {
                     let ty_sexp = &list.elements[1];
-                    if !is_nil(ty_sexp) {
-                        Ok(AssocItemKind::Type(Box::new(Some(self.build_ty(ty_sexp)?))))
-                    } else {
+                    if is_nil(ty_sexp) {
                         Ok(AssocItemKind::Type(Box::new(None)))
+                    } else {
+                        Ok(AssocItemKind::Type(Box::new(Some(self.build_ty(ty_sexp)?))))
                     }
                 } else {
                     Ok(AssocItemKind::Type(Box::new(None)))
@@ -988,11 +827,7 @@ impl AstBuilder {
         }
 
         let kwargs = parse_kwargs(list)?;
-        let path = self.build_path(kwargs.get("path").ok_or_else(|| ParseError::Expected {
-            expected: ":path field".to_string(),
-            found: "missing".to_string(),
-            pos: list.pos,
-        })?)?;
+        let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
 
         Ok(TraitRef { path })
     }
@@ -1066,15 +901,7 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
-            self.build_ident(ident_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
 
         Ok(Lifetime { ident })
     }
@@ -1094,25 +921,9 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let prefix = if let Some(prefix_sexp) = kwargs.get("prefix") {
-            self.build_path(prefix_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":prefix field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let prefix = self.build_path(require_field(&kwargs, "prefix", list.pos)?)?;
 
-        let kind = if let Some(kind_sexp) = kwargs.get("kind") {
-            self.build_use_tree_kind(kind_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":kind field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let kind = self.build_use_tree_kind(require_field(&kwargs, "kind", list.pos)?)?;
 
         Ok(UseTree { prefix, kind })
     }
@@ -1140,10 +951,10 @@ impl AstBuilder {
         match node_type.value.as_str() {
             "Simple" => {
                 let rename = if list.elements.len() > 1 {
-                    if !is_nil(&list.elements[1]) {
-                        Some(self.build_ident(&list.elements[1])?)
-                    } else {
+                    if is_nil(&list.elements[1]) {
                         None
+                    } else {
+                        Some(self.build_ident(&list.elements[1])?)
                     }
                 } else {
                     None

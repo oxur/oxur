@@ -59,15 +59,7 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let kind = if let Some(kind_sexp) = kwargs.get("kind") {
-            self.build_expr_kind(kind_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":kind field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let kind = self.build_expr_kind(require_field(&kwargs, "kind", list.pos)?)?;
 
         let span = if let Some(span_sexp) = kwargs.get("span") {
             self.build_span(span_sexp)?
@@ -98,25 +90,10 @@ impl AstBuilder {
             }
             "If" => {
                 let kwargs = parse_kwargs(list)?;
-                let cond = Box::new(self.build_expr(kwargs.get("cond").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":cond field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let then_branch =
-                    self.build_block(kwargs.get("then").ok_or_else(|| ParseError::Expected {
-                        expected: ":then field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?)?;
-                let else_branch = if let Some(else_sexp) = kwargs.get("else") {
-                    if !is_nil(else_sexp) {
-                        Some(Box::new(self.build_expr(else_sexp)?))
-                    } else {
-                        None
-                    }
+                let cond = Box::new(self.build_expr(require_field(&kwargs, "cond", list.pos)?)?);
+                let then_branch = self.build_block(require_field(&kwargs, "then", list.pos)?)?;
+                let else_branch = if let Some(else_sexp) = optional_field(&kwargs, "else") {
+                    Some(Box::new(self.build_expr(else_sexp)?))
                 } else {
                     None
                 };
@@ -124,18 +101,8 @@ impl AstBuilder {
             }
             "Match" => {
                 let kwargs = parse_kwargs(list)?;
-                let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":expr field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let arms_sexp = kwargs.get("arms").ok_or_else(|| ParseError::Expected {
-                    expected: ":arms field".to_string(),
-                    found: "missing".to_string(),
-                    pos: list.pos,
-                })?;
+                let expr = Box::new(self.build_expr(require_field(&kwargs, "expr", list.pos)?)?);
+                let arms_sexp = require_field(&kwargs, "arms", list.pos)?;
                 let arms_list = expect_list(arms_sexp)?;
                 let mut arms = Vec::new();
                 for arm_sexp in &arms_list.elements {
@@ -145,161 +112,63 @@ impl AstBuilder {
             }
             "While" => {
                 let kwargs = parse_kwargs(list)?;
-                let label = if let Some(label_sexp) = kwargs.get("label") {
-                    if !is_nil(label_sexp) {
-                        Some(self.build_label(label_sexp)?)
-                    } else {
-                        None
-                    }
+                let label = if let Some(label_sexp) = optional_field(&kwargs, "label") {
+                    Some(self.build_label(label_sexp)?)
                 } else {
                     None
                 };
-                let cond = Box::new(self.build_expr(kwargs.get("cond").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":cond field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let body =
-                    self.build_block(kwargs.get("body").ok_or_else(|| ParseError::Expected {
-                        expected: ":body field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?)?;
+                let cond = Box::new(self.build_expr(require_field(&kwargs, "cond", list.pos)?)?);
+                let body = self.build_block(require_field(&kwargs, "body", list.pos)?)?;
                 Ok(ExprKind::While { label, cond, body })
             }
             "ForLoop" => {
                 let kwargs = parse_kwargs(list)?;
-                let label = if let Some(label_sexp) = kwargs.get("label") {
-                    if !is_nil(label_sexp) {
-                        Some(self.build_label(label_sexp)?)
-                    } else {
-                        None
-                    }
+                let label = if let Some(label_sexp) = optional_field(&kwargs, "label") {
+                    Some(self.build_label(label_sexp)?)
                 } else {
                     None
                 };
-                let pat =
-                    self.build_pat(kwargs.get("pat").ok_or_else(|| ParseError::Expected {
-                        expected: ":pat field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?)?;
-                let iter = Box::new(self.build_expr(kwargs.get("iter").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":iter field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let body =
-                    self.build_block(kwargs.get("body").ok_or_else(|| ParseError::Expected {
-                        expected: ":body field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?)?;
+                let pat = self.build_pat(require_field(&kwargs, "pat", list.pos)?)?;
+                let iter = Box::new(self.build_expr(require_field(&kwargs, "iter", list.pos)?)?);
+                let body = self.build_block(require_field(&kwargs, "body", list.pos)?)?;
                 Ok(ExprKind::ForLoop { label, pat, iter, body })
             }
             "Loop" => {
                 let kwargs = parse_kwargs(list)?;
-                let label = if let Some(label_sexp) = kwargs.get("label") {
-                    if !is_nil(label_sexp) {
-                        Some(self.build_label(label_sexp)?)
-                    } else {
-                        None
-                    }
+                let label = if let Some(label_sexp) = optional_field(&kwargs, "label") {
+                    Some(self.build_label(label_sexp)?)
                 } else {
                     None
                 };
-                let body =
-                    self.build_block(kwargs.get("body").ok_or_else(|| ParseError::Expected {
-                        expected: ":body field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?)?;
+                let body = self.build_block(require_field(&kwargs, "body", list.pos)?)?;
                 Ok(ExprKind::Loop { label, body })
             }
             "Binary" => {
                 let kwargs = parse_kwargs(list)?;
-                let left = Box::new(self.build_expr(kwargs.get("left").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":left field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let op =
-                    self.build_binop(kwargs.get("op").ok_or_else(|| ParseError::Expected {
-                        expected: ":op field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?)?;
-                let right = Box::new(self.build_expr(kwargs.get("right").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":right field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
+                let left = Box::new(self.build_expr(require_field(&kwargs, "left", list.pos)?)?);
+                let op = self.build_binop(require_field(&kwargs, "op", list.pos)?)?;
+                let right = Box::new(self.build_expr(require_field(&kwargs, "right", list.pos)?)?);
                 Ok(ExprKind::Binary { left, op, right })
             }
             "Unary" => {
                 let kwargs = parse_kwargs(list)?;
-                let op =
-                    self.build_unop(kwargs.get("op").ok_or_else(|| ParseError::Expected {
-                        expected: ":op field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    })?)?;
-                let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":expr field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
+                let op = self.build_unop(require_field(&kwargs, "op", list.pos)?)?;
+                let expr = Box::new(self.build_expr(require_field(&kwargs, "expr", list.pos)?)?);
                 Ok(ExprKind::Unary { op, expr })
             }
             "Call" => {
                 let kwargs = parse_kwargs(list)?;
-                let func = Box::new(self.build_expr(kwargs.get("func").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":func field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let args_sexp = kwargs.get("args").ok_or_else(|| ParseError::Expected {
-                    expected: ":args field".to_string(),
-                    found: "missing".to_string(),
-                    pos: list.pos,
-                })?;
+                let func = Box::new(self.build_expr(require_field(&kwargs, "func", list.pos)?)?);
+                let args_sexp = require_field(&kwargs, "args", list.pos)?;
                 let args = self.build_expr_list(args_sexp)?;
                 Ok(ExprKind::Call { func, args })
             }
             "MethodCall" => {
                 let kwargs = parse_kwargs(list)?;
                 let receiver =
-                    Box::new(self.build_expr(kwargs.get("receiver").ok_or_else(|| {
-                        ParseError::Expected {
-                            expected: ":receiver field".to_string(),
-                            found: "missing".to_string(),
-                            pos: list.pos,
-                        }
-                    })?)?);
-                let method = self.build_ident(kwargs.get("method").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":method field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?;
-                let args_sexp = kwargs.get("args").ok_or_else(|| ParseError::Expected {
-                    expected: ":args field".to_string(),
-                    found: "missing".to_string(),
-                    pos: list.pos,
-                })?;
+                    Box::new(self.build_expr(require_field(&kwargs, "receiver", list.pos)?)?);
+                let method = self.build_ident(require_field(&kwargs, "method", list.pos)?)?;
+                let args_sexp = require_field(&kwargs, "args", list.pos)?;
                 let args = self.build_expr_list(args_sexp)?;
                 Ok(ExprKind::MethodCall { receiver, method, args })
             }
@@ -314,71 +183,25 @@ impl AstBuilder {
             }
             "Field" => {
                 let kwargs = parse_kwargs(list)?;
-                let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":expr field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let field = if let Some(field_sexp) = kwargs.get("field") {
-                    self.build_ident(field_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let expr = Box::new(self.build_expr(require_field(&kwargs, "expr", list.pos)?)?);
+                let field = self.build_ident(require_field(&kwargs, "field", list.pos)?)?;
                 Ok(ExprKind::Field { expr, field })
             }
             "Index" => {
                 let kwargs = parse_kwargs(list)?;
-                let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":expr field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let index = Box::new(self.build_expr(kwargs.get("index").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":index field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
+                let expr = Box::new(self.build_expr(require_field(&kwargs, "expr", list.pos)?)?);
+                let index = Box::new(self.build_expr(require_field(&kwargs, "index", list.pos)?)?);
                 Ok(ExprKind::Index { expr, index })
             }
             "Assign" => {
                 let kwargs = parse_kwargs(list)?;
-                let left = Box::new(self.build_expr(kwargs.get("left").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":left field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
-                let right = Box::new(self.build_expr(kwargs.get("right").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":right field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
+                let left = Box::new(self.build_expr(require_field(&kwargs, "left", list.pos)?)?);
+                let right = Box::new(self.build_expr(require_field(&kwargs, "right", list.pos)?)?);
                 Ok(ExprKind::Assign { left, right })
             }
             "Struct" => {
                 let kwargs = parse_kwargs(list)?;
-                let path = if let Some(path_sexp) = kwargs.get("path") {
-                    self.build_path(path_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":path field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
                 let fields = if let Some(fields_sexp) = kwargs.get("fields") {
                     self.build_expr_field_list(fields_sexp)?
                 } else {
@@ -393,32 +216,18 @@ impl AstBuilder {
                 } else {
                     Vec::new()
                 };
-                let body = Box::new(self.build_expr(kwargs.get("body").ok_or_else(|| {
-                    ParseError::Expected {
-                        expected: ":body field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    }
-                })?)?);
+                let body = Box::new(self.build_expr(require_field(&kwargs, "body", list.pos)?)?);
                 Ok(ExprKind::Closure { params, body })
             }
             "Range" => {
                 let kwargs = parse_kwargs(list)?;
-                let start = if let Some(start_sexp) = kwargs.get("start") {
-                    if !is_nil(start_sexp) {
-                        Some(Box::new(self.build_expr(start_sexp)?))
-                    } else {
-                        None
-                    }
+                let start = if let Some(start_sexp) = optional_field(&kwargs, "start") {
+                    Some(Box::new(self.build_expr(start_sexp)?))
                 } else {
                     None
                 };
-                let end = if let Some(end_sexp) = kwargs.get("end") {
-                    if !is_nil(end_sexp) {
-                        Some(Box::new(self.build_expr(end_sexp)?))
-                    } else {
-                        None
-                    }
+                let end = if let Some(end_sexp) = optional_field(&kwargs, "end") {
+                    Some(Box::new(self.build_expr(end_sexp)?))
                 } else {
                     None
                 };
@@ -439,15 +248,7 @@ impl AstBuilder {
     pub(super) fn build_mac_call_inner(&mut self, list: &crate::sexp::List) -> Result<MacCall> {
         let kwargs = parse_kwargs(list)?;
 
-        let path = if let Some(path_sexp) = kwargs.get("path") {
-            self.build_path(path_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":path field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
 
         let args = if let Some(args_sexp) = kwargs.get("args") {
             self.build_mac_args(args_sexp)?
@@ -506,15 +307,7 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
-            self.build_ident(ident_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
 
         let id = if let Some(id_sexp) = kwargs.get("id") {
             NodeId(expect_number(id_sexp)? as u32)
@@ -691,26 +484,14 @@ impl AstBuilder {
         match node_type.value.as_str() {
             "Ident" => {
                 let kwargs = parse_kwargs(list)?;
-                let ident = if let Some(ident_sexp) = kwargs.get("ident") {
-                    self.build_ident(ident_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":ident field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
                 let binding_mode = if let Some(bm_sexp) = kwargs.get("binding-mode") {
                     self.build_binding_mode(bm_sexp)?
                 } else {
                     BindingMode::ByValue(Mutability::Not)
                 };
-                let sub = if let Some(sub_sexp) = kwargs.get("sub") {
-                    if !is_nil(sub_sexp) {
-                        Some(Box::new(self.build_pat(sub_sexp)?))
-                    } else {
-                        None
-                    }
+                let sub = if let Some(sub_sexp) = optional_field(&kwargs, "sub") {
+                    Some(Box::new(self.build_pat(sub_sexp)?))
                 } else {
                     None
                 };
@@ -718,15 +499,7 @@ impl AstBuilder {
             }
             "Struct" => {
                 let kwargs = parse_kwargs(list)?;
-                let path = if let Some(path_sexp) = kwargs.get("path") {
-                    self.build_path(path_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":path field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
                 let fields = if let Some(fields_sexp) = kwargs.get("fields") {
                     self.build_pat_field_list(fields_sexp)?
                 } else {
@@ -736,15 +509,7 @@ impl AstBuilder {
             }
             "TupleStruct" => {
                 let kwargs = parse_kwargs(list)?;
-                let path = if let Some(path_sexp) = kwargs.get("path") {
-                    self.build_path(path_sexp)?
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":path field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
                 let elems = if let Some(elems_sexp) = kwargs.get("elems") {
                     self.build_pat_list(elems_sexp)?
                 } else {
@@ -766,15 +531,7 @@ impl AstBuilder {
             }
             "Ref" => {
                 let kwargs = parse_kwargs(list)?;
-                let pat = if let Some(pat_sexp) = kwargs.get("pat") {
-                    Box::new(self.build_pat(pat_sexp)?)
-                } else {
-                    return Err(ParseError::Expected {
-                        expected: ":pat field".to_string(),
-                        found: "missing".to_string(),
-                        pos: list.pos,
-                    });
-                };
+                let pat = Box::new(self.build_pat(require_field(&kwargs, "pat", list.pos)?)?);
                 let mutability = if let Some(mut_sexp) = kwargs.get("mutability") {
                     let sym = expect_symbol(mut_sexp)?;
                     match sym.value.as_str() {
@@ -813,26 +570,12 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let pat = self.build_pat(kwargs.get("pat").ok_or_else(|| ParseError::Expected {
-            expected: ":pat field".to_string(),
-            found: "missing".to_string(),
-            pos: list.pos,
-        })?)?;
+        let pat = self.build_pat(require_field(&kwargs, "pat", list.pos)?)?;
 
-        let body = Box::new(self.build_expr(kwargs.get("body").ok_or_else(|| {
-            ParseError::Expected {
-                expected: ":body field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            }
-        })?)?);
+        let body = Box::new(self.build_expr(require_field(&kwargs, "body", list.pos)?)?);
 
-        let guard = if let Some(guard_sexp) = kwargs.get("guard") {
-            if !is_nil(guard_sexp) {
-                Some(Box::new(self.build_expr(guard_sexp)?))
-            } else {
-                None
-            }
+        let guard = if let Some(guard_sexp) = optional_field(&kwargs, "guard") {
+            Some(Box::new(self.build_expr(guard_sexp)?))
         } else {
             None
         };
@@ -866,12 +609,7 @@ impl AstBuilder {
 
         let kwargs = parse_kwargs(list)?;
 
-        let ident =
-            self.build_ident(kwargs.get("ident").ok_or_else(|| ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            })?)?;
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
 
         Ok(Label { ident })
     }
@@ -951,25 +689,9 @@ impl AstBuilder {
         // TODO: Implement build_attr_vec
         let attrs = Vec::new();
 
-        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
-            self.build_ident(ident_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
 
-        let pat = if let Some(pat_sexp) = kwargs.get("pat") {
-            self.build_pat(pat_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":pat field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let pat = self.build_pat(require_field(&kwargs, "pat", list.pos)?)?;
 
         let is_shorthand = matches!(
             kwargs.get("is-shorthand"),
@@ -1047,25 +769,9 @@ impl AstBuilder {
         // TODO: Implement build_attr_vec
         let attrs = Vec::new();
 
-        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
-            self.build_ident(ident_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":ident field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
 
-        let expr = if let Some(expr_sexp) = kwargs.get("expr") {
-            self.build_expr(expr_sexp)?
-        } else {
-            return Err(ParseError::Expected {
-                expected: ":expr field".to_string(),
-                found: "missing".to_string(),
-                pos: list.pos,
-            });
-        };
+        let expr = self.build_expr(require_field(&kwargs, "expr", list.pos)?)?;
 
         let is_shorthand = matches!(
             kwargs.get("is-shorthand"),
