@@ -26,7 +26,23 @@ pub enum ItemKind {
     Trait(Box<TraitDef>),
     Impl(Box<ImplDef>),
 
-    // Future: ExternCrate, Use, Static, Const, Mod, etc.
+    // Stage 8: Remaining items
+    /// Use declaration: `use std::io;`, `use foo::bar as baz;`
+    Use(UseTree),
+
+    /// Static item: `static X: i32 = 5;`
+    Static { mutability: Mutability, ty: Ty, expr: Option<Expr> },
+
+    /// Const item: `const X: i32 = 5;`
+    Const { ty: Ty, expr: Option<Expr> },
+
+    /// Type alias: `type Foo = Bar;`
+    TyAlias { generics: Generics, ty: Option<Ty> },
+
+    /// Module: `mod foo;` or `mod foo { ... }`
+    Mod { items: Option<Vec<Item>> }, // None for `mod foo;`, Some for `mod foo { ... }`
+
+    // Future: ExternCrate, ForeignMod, MacCall, etc.
 }
 
 /// Function item
@@ -364,4 +380,25 @@ pub struct TraitRef {
 pub enum GenericBound {
     Trait(TraitRef),
     // Future: Lifetime bounds
+}
+
+/// Stage 8: Use tree types
+/// Use tree: represents the structure of a use declaration
+#[derive(Debug, Clone, PartialEq)]
+pub struct UseTree {
+    pub prefix: Path,
+    pub kind: UseTreeKind,
+}
+
+/// Use tree kind
+#[derive(Debug, Clone, PartialEq)]
+pub enum UseTreeKind {
+    /// Simple: `use foo::bar;`
+    Simple(Option<Ident>), // None for no rename, Some(ident) for `as ident`
+
+    /// Glob: `use foo::*;`
+    Glob,
+
+    /// Nested: `use foo::{bar, baz};`
+    Nested(Vec<UseTree>),
 }

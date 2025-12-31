@@ -66,6 +66,12 @@ impl Generator {
             ItemKind::Impl(impl_def) => {
                 Ok(list(vec![sym("Impl"), self.generate_impl_def(impl_def)?]))
             }
+            // Stage 8: Remaining items
+            ItemKind::Use(_use_tree) => todo!("Stage 8: Use items"),
+            ItemKind::Static { .. } => todo!("Stage 8: Static items"),
+            ItemKind::Const { .. } => todo!("Stage 8: Const items"),
+            ItemKind::TyAlias { .. } => todo!("Stage 8: Type alias items"),
+            ItemKind::Mod { .. } => todo!("Stage 8: Module items"),
         }
     }
 

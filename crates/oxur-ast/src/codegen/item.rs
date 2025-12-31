@@ -19,6 +19,12 @@ impl RustCodegen {
             ItemKind::Enum(enum_def) => self.generate_enum_item(&item.ident, enum_def)?,
             ItemKind::Trait(trait_def) => self.generate_trait_item(&item.ident, trait_def)?,
             ItemKind::Impl(impl_def) => self.generate_impl_item(impl_def)?,
+            // Stage 8: Remaining items
+            ItemKind::Use(_use_tree) => todo!("Stage 8: Use items"),
+            ItemKind::Static { .. } => todo!("Stage 8: Static items"),
+            ItemKind::Const { .. } => todo!("Stage 8: Const items"),
+            ItemKind::TyAlias { .. } => todo!("Stage 8: Type alias items"),
+            ItemKind::Mod { .. } => todo!("Stage 8: Module items"),
         }
 
         Ok(())
