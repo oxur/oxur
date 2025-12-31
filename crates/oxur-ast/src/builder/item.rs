@@ -172,8 +172,106 @@ impl AstBuilder {
                 let impl_def = self.build_impl_def(impl_sexp)?;
                 Ok(ItemKind::Impl(Box::new(impl_def)))
             }
+            // Stage 8: Remaining items
+            "Use" => {
+                // Extract the UseTree from element 1
+                if list.elements.len() < 2 {
+                    return Err(ParseError::Expected {
+                        expected: "UseTree after Use".to_string(),
+                        found: "nothing".to_string(),
+                        pos: list.pos,
+                    });
+                }
+                let use_tree_sexp = &list.elements[1];
+                let use_tree = self.build_use_tree(use_tree_sexp)?;
+                Ok(ItemKind::Use(use_tree))
+            }
+            "Static" => {
+                let kwargs = parse_kwargs(list)?;
+                let mutability = if let Some(mut_sexp) = kwargs.get("mutability") {
+                    self.build_mutability(mut_sexp)?
+                } else {
+                    Mutability::Not
+                };
+                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
+                    self.build_ty(ty_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":ty field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let expr = if let Some(expr_sexp) = kwargs.get("expr") {
+                    if !is_nil(expr_sexp) {
+                        Some(self.build_expr(expr_sexp)?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                Ok(ItemKind::Static { mutability, ty, expr })
+            }
+            "Const" => {
+                let kwargs = parse_kwargs(list)?;
+                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
+                    self.build_ty(ty_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":ty field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let expr = if let Some(expr_sexp) = kwargs.get("expr") {
+                    if !is_nil(expr_sexp) {
+                        Some(self.build_expr(expr_sexp)?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                Ok(ItemKind::Const { ty, expr })
+            }
+            "TyAlias" => {
+                let kwargs = parse_kwargs(list)?;
+                let generics = if let Some(gen_sexp) = kwargs.get("generics") {
+                    self.build_generics(gen_sexp)?
+                } else {
+                    Generics::empty()
+                };
+                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
+                    if !is_nil(ty_sexp) {
+                        Some(self.build_ty(ty_sexp)?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                Ok(ItemKind::TyAlias { generics, ty })
+            }
+            "Mod" => {
+                let kwargs = parse_kwargs(list)?;
+                let items = if let Some(items_sexp) = kwargs.get("items") {
+                    if !is_nil(items_sexp) {
+                        let items_list = expect_list(items_sexp)?;
+                        let item_vec: Result<Vec<Item>> =
+                            items_list.elements.iter().map(|sexp| self.build_item(sexp)).collect();
+                        Some(item_vec?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                Ok(ItemKind::Mod { items })
+            }
             _ => Err(ParseError::Expected {
-                expected: "Fn, Struct, Enum, Trait, or Impl".to_string(),
+                expected: "Fn, Struct, Enum, Trait, Impl, Use, Static, Const, TyAlias, or Mod"
+                    .to_string(),
                 found: node_type.value.clone(),
                 pos: node_type.pos,
             }),
@@ -973,5 +1071,97 @@ impl AstBuilder {
         };
 
         Ok(Lifetime { ident })
+    }
+
+    /// Stage 8: Build use tree
+    fn build_use_tree(&mut self, sexp: &SExp) -> Result<UseTree> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "UseTree" {
+            return Err(ParseError::Expected {
+                expected: "UseTree".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let prefix = if let Some(prefix_sexp) = kwargs.get("prefix") {
+            self.build_path(prefix_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":prefix field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        let kind = if let Some(kind_sexp) = kwargs.get("kind") {
+            self.build_use_tree_kind(kind_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":kind field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        Ok(UseTree { prefix, kind })
+    }
+
+    fn build_use_tree_kind(&mut self, sexp: &SExp) -> Result<UseTreeKind> {
+        // Check if it's the symbol "Glob"
+        if let SExp::Symbol(sym) = sexp {
+            if sym.value == "Glob" {
+                return Ok(UseTreeKind::Glob);
+            }
+        }
+
+        // Otherwise it should be a list
+        let list = expect_list(sexp)?;
+        if list.elements.is_empty() {
+            return Err(ParseError::Expected {
+                expected: "UseTreeKind variant".to_string(),
+                found: "empty list".to_string(),
+                pos: list.pos,
+            });
+        }
+
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        match node_type.value.as_str() {
+            "Simple" => {
+                let rename = if list.elements.len() > 1 {
+                    if !is_nil(&list.elements[1]) {
+                        Some(self.build_ident(&list.elements[1])?)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                Ok(UseTreeKind::Simple(rename))
+            }
+            "Nested" => {
+                let trees = if list.elements.len() > 1 {
+                    let trees_list = expect_list(&list.elements[1])?;
+                    trees_list
+                        .elements
+                        .iter()
+                        .map(|sexp| self.build_use_tree(sexp))
+                        .collect::<Result<Vec<_>>>()?
+                } else {
+                    Vec::new()
+                };
+                Ok(UseTreeKind::Nested(trees))
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Simple, Glob, or Nested".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
     }
 }
