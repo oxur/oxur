@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "crates/design",
     "crates/oxur-ast",
-    "crates/oxur-table",
     "crates/oxur-lang",
     "crates/oxur-comp",
     "crates/oxur-repl",

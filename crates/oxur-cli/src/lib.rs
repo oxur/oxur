@@ -66,6 +66,7 @@
 //! ```
 
 pub mod common;
+pub mod table;
 
 // Re-export commonly used items for convenience
 pub use common::progress::ProgressTracker;

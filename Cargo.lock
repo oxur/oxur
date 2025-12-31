@@ -399,7 +399,6 @@ dependencies = [
  "colored",
  "glob",
  "oxur-cli",
- "oxur-table",
  "predicates",
  "proptest",
  "regex",
@@ -867,7 +866,10 @@ dependencies = [
  "oxur-comp",
  "oxur-lang",
  "oxur-repl",
+ "serde",
+ "tabled",
  "tempfile",
+ "toml 0.8.23",
 ]
 
 [[package]]
@@ -905,17 +907,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "oxur-table"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "colored",
- "serde",
- "tabled",
- "toml 0.8.23",
 ]
 
 [[package]]

@@ -5,7 +5,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use oxur_table::{OxurTable, Tabled};
+//! use oxur_cli::table::{OxurTable, Tabled};
 //!
 //! #[derive(Tabled)]
 //! struct Employee {
@@ -55,7 +55,7 @@ impl<T: Tabled> OxurTable<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use oxur_table::{OxurTable, Tabled};
+    /// use oxur_cli::table::{OxurTable, Tabled};
     ///
     /// #[derive(Tabled)]
     /// struct Row {
@@ -81,7 +81,7 @@ impl<T: Tabled> OxurTable<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use oxur_table::{OxurTable, Tabled};
+    /// use oxur_cli::table::{OxurTable, Tabled};
     ///
     /// #[derive(Tabled)]
     /// struct Row {

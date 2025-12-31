@@ -1,6 +1,6 @@
 //! Embedded default themes
 
-use crate::config::TableStyleConfig;
+use super::config::TableStyleConfig;
 
 /// The default Oxur theme with warm orange sunset colors
 pub const OXUR_DEFAULT: &str = r##"[table]

@@ -7,7 +7,7 @@ use design::doc::DocState;
 use design::index::DocumentIndex;
 use design::state::StateManager;
 use design::theme;
-use oxur_table::TableStyleConfig;
+use oxur_cli::table::TableStyleConfig;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -57,15 +57,15 @@ fn apply_state_cell_colors(
     docs: &[&design::doc::DesignDoc],
     config: &TableStyleConfig,
 ) {
-    let row_bg_colors = oxur_table::helpers::parse_row_bg_colors(config);
+    let row_bg_colors = oxur_cli::table::helpers::parse_row_bg_colors(config);
 
     for (i, doc) in docs.iter().enumerate() {
         let row_idx = 2 + i; // Data rows start at index 2 (after title and header)
 
-        if let Some(fg_color) = oxur_table::helpers::state_to_fg_color(doc.metadata.state.as_str())
+        if let Some(fg_color) = oxur_cli::table::helpers::state_to_fg_color(doc.metadata.state.as_str())
         {
-            let bg_color = oxur_table::helpers::get_data_row_bg_color(i, &row_bg_colors);
-            oxur_table::helpers::apply_cell_color(table, row_idx, 2, fg_color, bg_color);
+            let bg_color = oxur_cli::table::helpers::get_data_row_bg_color(i, &row_bg_colors);
+            oxur_cli::table::helpers::apply_cell_color(table, row_idx, 2, fg_color, bg_color);
         }
     }
 }

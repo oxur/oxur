@@ -543,7 +543,7 @@ fn show_tags(state_mgr: &StateManager) -> Result<()> {
 
     // Build and style
     let mut table = builder.build();
-    let config = oxur_table::TableStyleConfig::default();
+    let config = oxur_cli::table::TableStyleConfig::default();
     config.apply_to_table::<TagRow>(&mut table);
 
     println!();
@@ -599,7 +599,7 @@ fn show_components(state_mgr: &StateManager) -> Result<()> {
 
     // Build and style
     let mut table = builder.build();
-    let config = oxur_table::TableStyleConfig::default();
+    let config = oxur_cli::table::TableStyleConfig::default();
     config.apply_to_table::<ComponentRow>(&mut table);
 
     println!();

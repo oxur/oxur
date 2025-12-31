@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Result};
 use design::index::DocumentIndex;
-use oxur_table::TableStyleConfig;
+use oxur_cli::table::TableStyleConfig;
 use std::env;
 use tabled::{builder::Builder, Tabled};
 
