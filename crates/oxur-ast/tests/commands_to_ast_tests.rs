@@ -11,7 +11,7 @@ fn test_execute_file_to_stdout() {
     fs::write(&input_file, "fn main() {}").unwrap();
 
     // Execute with no output specified (should print to stdout)
-    let result = to_ast::execute(input_file, None, false);
+    let result = to_ast::execute(input_file, None, false, false);
 
     assert!(result.is_ok());
 }
@@ -25,7 +25,7 @@ fn test_execute_file_to_file() {
     fs::write(&input_file, "fn main() {}").unwrap();
 
     // Execute with file output
-    let result = to_ast::execute(input_file, Some(output_file.clone()), false);
+    let result = to_ast::execute(input_file, Some(output_file.clone()), false, false);
 
     assert!(result.is_ok());
     assert!(output_file.exists());
@@ -42,7 +42,7 @@ fn test_execute_file_to_stdout_dash() {
     fs::write(&input_file, "fn main() {}").unwrap();
 
     // Execute with "-" as output (should print to stdout)
-    let result = to_ast::execute(input_file, Some(PathBuf::from("-")), false);
+    let result = to_ast::execute(input_file, Some(PathBuf::from("-")), false, false);
 
     assert!(result.is_ok());
 }
@@ -56,7 +56,7 @@ fn test_execute_compact_mode() {
     fs::write(&input_file, "fn main() {}").unwrap();
 
     // Execute with compact mode (currently same as normal)
-    let result = to_ast::execute(input_file, Some(output_file.clone()), true);
+    let result = to_ast::execute(input_file, Some(output_file.clone()), true, false);
 
     assert!(result.is_ok());
     assert!(output_file.exists());
@@ -70,7 +70,7 @@ fn test_execute_invalid_rust() {
     fs::write(&input_file, "fn main() { invalid rust code").unwrap();
 
     // Execute with invalid Rust code should fail
-    let result = to_ast::execute(input_file, None, false);
+    let result = to_ast::execute(input_file, None, false, false);
 
     assert!(result.is_err());
 }
@@ -80,7 +80,7 @@ fn test_execute_missing_file() {
     let input_file = PathBuf::from("/nonexistent/file.rs");
 
     // Execute with nonexistent file should fail
-    let result = to_ast::execute(input_file, None, false);
+    let result = to_ast::execute(input_file, None, false, false);
 
     assert!(result.is_err());
 }
@@ -102,7 +102,7 @@ fn main() {}
 
     fs::write(&input_file, rust_code).unwrap();
 
-    let result = to_ast::execute(input_file, Some(output_file.clone()), false);
+    let result = to_ast::execute(input_file, Some(output_file.clone()), false, false);
 
     if let Err(e) = &result {
         eprintln!("Error: {:?}", e);
@@ -123,7 +123,7 @@ fn test_execute_output_to_dash_explicitly() {
     fs::write(&input_file, "fn main() {}").unwrap();
 
     // Execute with explicit "-" output (stdout)
-    let result = to_ast::execute(input_file, Some(PathBuf::from("-")), false);
+    let result = to_ast::execute(input_file, Some(PathBuf::from("-")), false, false);
 
     assert!(result.is_ok());
 }
@@ -137,7 +137,7 @@ fn test_execute_nonexistent_parent_directory() {
     fs::write(&input_file, "fn main() {}").unwrap();
 
     // Execute with output path in nonexistent directory
-    let result = to_ast::execute(input_file, Some(output_file), false);
+    let result = to_ast::execute(input_file, Some(output_file), false, false);
 
     // Should fail due to directory not existing
     assert!(result.is_err());

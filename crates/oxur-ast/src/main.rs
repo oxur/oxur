@@ -21,7 +21,9 @@ fn main() -> Result<()> {
 
 fn execute_command(command: Commands) -> Result<()> {
     match command {
-        Commands::ToAst { input, output, compact } => commands::to_ast(input, output, compact),
+        Commands::ToAst { input, output, compact, continue_after_error } => {
+            commands::to_ast(input, output, compact, continue_after_error)
+        }
         Commands::ToRust { input, output } => commands::to_rust(input, output),
         Commands::Verify { input, verbose } => commands::verify(input, verbose),
     }

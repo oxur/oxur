@@ -1,10 +1,76 @@
 use crate::ast::*;
 use crate::error::{ParseError, Position, Result};
 
+/// An error comment to be inserted in output
+#[derive(Debug, Clone)]
+pub struct ErrorComment {
+    pub error_message: String,
+    pub rust_code: String,
+}
+
 /// Convert syn::File to our Crate
 pub fn from_syn_file(file: &syn::File) -> Result<Crate> {
     let mut converter = SynConverter::new();
     converter.convert_file(file)
+}
+
+/// Convert syn::File to AST, collecting errors instead of failing
+pub fn from_syn_file_partial(file: &syn::File) -> (Crate, Vec<ErrorComment>) {
+    let mut converter = SynConverter::new();
+    let mut successful_items = Vec::new();
+    let mut error_comments = Vec::new();
+
+    for item in &file.items {
+        match converter.convert_item(item) {
+            Ok(ast_item) => {
+                successful_items.push(ast_item);
+            }
+            Err(e) => {
+                // Generate pretty Rust code for the failed item
+                let rust_code = prettyprint_item(item);
+
+                error_comments.push(ErrorComment {
+                    error_message: e.to_string(),
+                    rust_code,
+                });
+            }
+        }
+    }
+
+    // Create Crate with successful items
+    let inner_span = Span::new(0, 0);
+    let spans = ModSpans::new(inner_span);
+    let crate_ast = Crate::new(successful_items, spans, converter.next_id());
+
+    (crate_ast, error_comments)
+}
+
+/// Pretty-print a syn::Item back to Rust code
+fn prettyprint_item(item: &syn::Item) -> String {
+    // prettyplease requires a File, so wrap the item
+    let file = syn::File {
+        shebang: None,
+        attrs: vec![],
+        items: vec![item.clone()],
+    };
+
+    prettyplease::unparse(&file)
+}
+
+/// Generate S-expression comment block for an error
+pub fn generate_error_comment(error: &ErrorComment) -> String {
+    let mut lines = vec![
+        ";; Oxur AST does not support the following Rust code".to_string(),
+        format!(";; Error: {}", error.error_message),
+        ";;".to_string(),
+    ];
+
+    // Comment out each line of Rust code
+    for line in error.rust_code.lines() {
+        lines.push(format!(";; {}", line));
+    }
+
+    lines.join("\n")
 }
 
 struct SynConverter {

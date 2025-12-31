@@ -850,6 +850,7 @@ dependencies = [
  "colored",
  "criterion",
  "oxur-cli",
+ "prettyplease",
  "quote",
  "syn 2.0.111",
  "tempfile",

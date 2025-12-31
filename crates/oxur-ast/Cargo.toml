@@ -17,6 +17,7 @@ thiserror.workspace = true
 # Phase 3: Integration with Rust's parser
 syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
 quote = "1.0"
+prettyplease = "0.2"
 # Phase 3: CLI dependencies
 clap.workspace = true
 anyhow.workspace = true

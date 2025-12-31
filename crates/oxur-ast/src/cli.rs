@@ -28,6 +28,10 @@ pub enum Commands {
         /// Use compact formatting
         #[arg(short, long)]
         compact: bool,
+
+        /// Continue processing after errors, generating comments for unsupported items
+        #[arg(long)]
+        continue_after_error: bool,
     },
 
     /// Convert S-expression to Rust source

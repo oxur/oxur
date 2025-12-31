@@ -17,3 +17,14 @@ pub fn parse_rust_file(source: &str) -> Result<Crate> {
 
     from_syn_file(&syn_file)
 }
+
+/// Parse Rust source code into our AST, collecting errors instead of failing
+pub fn parse_rust_file_partial(source: &str) -> Result<(Crate, Vec<ErrorComment>)> {
+    let syn_file = syn::parse_file(source).map_err(|e| crate::error::ParseError::Expected {
+        expected: "valid Rust code".to_string(),
+        found: format!("parse error: {}", e),
+        pos: crate::error::Position::new(0, 1, 1),
+    })?;
+
+    Ok(from_syn_file_partial(&syn_file))
+}
