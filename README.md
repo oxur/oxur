@@ -67,9 +67,15 @@ cargo build --release --bin oxd
 
 ## Oxur Syntax
 
-Currently in the "actively researching, exploring, and experimenting" and  stage.
+The Oxur syntax is currently in the "actively researching, exploring, and experimenting" and  stage. As part of that, we are examining the following:
+* [Coalton](https://github.com/coalton-lang/coalton) - Hindley-Milner type inference for Common Lisp
+* [LFE](https://lfe.io) - LFE's syntax for Erlang type specs (these are type specifications that can by used by Erlang's static analyser `dialyzer`; they are not static types)
+* [Typed Racket](https://docs.racket-lang.org/ts-guide/)
+* [Shen](https://shen-language.github.io/)
 
-## Oxur's AST
+Given the Zetalisp inspiration for Oxur, we are leaning heavily toward a Coalton-influenced syntax for types in a Rust Lisp.
+
+## The Oxur AST
 
 The Oxur AST is really just the Rust AST in S-expression format. Here's a simple example taken from `crates/oxur-ast/test-data/examples/intermediate/`:
 
