@@ -73,6 +73,22 @@ impl AstBuilder {
         let node_type = expect_symbol(&list.elements[0])?;
 
         match node_type.value.as_str() {
+            "Fn" | "Struct" | "Enum" => self.build_type_item(&node_type.value, list),
+            "Trait" | "Impl" => self.build_trait_item(&node_type.value, list),
+            "Use" | "Static" | "Const" | "TyAlias" | "Mod" => {
+                self.build_declaration_item(&node_type.value, list)
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Fn, Struct, Enum, Trait, Impl, Use, Static, Const, TyAlias, or Mod"
+                    .to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
+    }
+
+    fn build_type_item(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ItemKind> {
+        match node_type {
             "Fn" => {
                 // Extract the inner Fn node from element 1
                 let fn_sexp = &list.elements[1];
@@ -106,6 +122,20 @@ impl AstBuilder {
                 let enum_def = self.build_enum_def(enum_sexp)?;
                 Ok(ItemKind::Enum(enum_def))
             }
+            _ => Err(ParseError::Expected {
+                expected: "Fn, Struct, or Enum".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_trait_item(
+        &mut self,
+        node_type: &str,
+        list: &crate::sexp::List,
+    ) -> Result<ItemKind> {
+        match node_type {
             "Trait" => {
                 // Extract the TraitDef from element 1
                 if list.elements.len() < 2 {
@@ -132,7 +162,20 @@ impl AstBuilder {
                 let impl_def = self.build_impl_def(impl_sexp)?;
                 Ok(ItemKind::Impl(Box::new(impl_def)))
             }
-            // Stage 8: Remaining items
+            _ => Err(ParseError::Expected {
+                expected: "Trait or Impl".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_declaration_item(
+        &mut self,
+        node_type: &str,
+        list: &crate::sexp::List,
+    ) -> Result<ItemKind> {
+        match node_type {
             "Use" => {
                 // Extract the UseTree from element 1
                 if list.elements.len() < 2 {
@@ -198,10 +241,9 @@ impl AstBuilder {
                 Ok(ItemKind::Mod { items })
             }
             _ => Err(ParseError::Expected {
-                expected: "Fn, Struct, Enum, Trait, Impl, Use, Static, Const, TyAlias, or Mod"
-                    .to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
+                expected: "Use, Static, Const, TyAlias, or Mod".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
             }),
         }
     }
