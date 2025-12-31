@@ -4,6 +4,16 @@ use crate::ast::*;
 use crate::error::{ParseError, Result};
 use crate::sexp::SExp;
 
+// Generate enum parsers using the macro
+crate::build_enum_parser!(parse_binop, BinOp, [
+    Add, Sub, Mul, Div, Rem,
+    And, Or,
+    BitAnd, BitOr, BitXor, Shl, Shr,
+    Eq, Ne, Lt, Le, Gt, Ge
+]);
+
+crate::build_enum_parser!(parse_unop, UnOp, [Not, Neg, Deref]);
+
 impl AstBuilder {
     pub fn build_block(&mut self, sexp: &SExp) -> Result<Block> {
         let list = expect_list(sexp)?;
@@ -615,46 +625,11 @@ impl AstBuilder {
     }
 
     fn build_binop(&mut self, sexp: &SExp) -> Result<BinOp> {
-        let sym = expect_symbol(sexp)?;
-        match sym.value.as_str() {
-            "Add" => Ok(BinOp::Add),
-            "Sub" => Ok(BinOp::Sub),
-            "Mul" => Ok(BinOp::Mul),
-            "Div" => Ok(BinOp::Div),
-            "Rem" => Ok(BinOp::Rem),
-            "And" => Ok(BinOp::And),
-            "Or" => Ok(BinOp::Or),
-            "BitAnd" => Ok(BinOp::BitAnd),
-            "BitOr" => Ok(BinOp::BitOr),
-            "BitXor" => Ok(BinOp::BitXor),
-            "Shl" => Ok(BinOp::Shl),
-            "Shr" => Ok(BinOp::Shr),
-            "Eq" => Ok(BinOp::Eq),
-            "Ne" => Ok(BinOp::Ne),
-            "Lt" => Ok(BinOp::Lt),
-            "Le" => Ok(BinOp::Le),
-            "Gt" => Ok(BinOp::Gt),
-            "Ge" => Ok(BinOp::Ge),
-            _ => Err(ParseError::Expected {
-                expected: "BinOp variant".to_string(),
-                found: sym.value.clone(),
-                pos: sym.pos,
-            }),
-        }
+        parse_binop(sexp)
     }
 
     fn build_unop(&mut self, sexp: &SExp) -> Result<UnOp> {
-        let sym = expect_symbol(sexp)?;
-        match sym.value.as_str() {
-            "Not" => Ok(UnOp::Not),
-            "Neg" => Ok(UnOp::Neg),
-            "Deref" => Ok(UnOp::Deref),
-            _ => Err(ParseError::Expected {
-                expected: "UnOp variant".to_string(),
-                found: sym.value.clone(),
-                pos: sym.pos,
-            }),
-        }
+        parse_unop(sexp)
     }
 
     fn build_expr_list(&mut self, sexp: &SExp) -> Result<Vec<Expr>> {

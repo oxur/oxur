@@ -150,6 +150,34 @@ pub fn optional_field<'a>(
     kwargs.get(field_name).copied().filter(|sexp| !is_nil(sexp))
 }
 
+/// Macro to generate simple enum parsers from S-expressions
+///
+/// This macro eliminates the boilerplate of parsing enums where each variant
+/// is represented by a symbol with the same name as the variant.
+///
+/// # Example
+/// ```ignore
+/// build_enum_parser!(build_binop, BinOp, [Add, Sub, Mul, Div]);
+/// ```
+///
+/// Generates a function that parses "Add" → BinOp::Add, etc.
+#[macro_export]
+macro_rules! build_enum_parser {
+    ($fn_name:ident, $enum_type:ty, [$($variant:ident),+ $(,)?]) => {
+        pub fn $fn_name(sexp: &$crate::sexp::SExp) -> $crate::error::Result<$enum_type> {
+            let sym = $crate::builder::helpers::expect_symbol(sexp)?;
+            match sym.value.as_str() {
+                $(stringify!($variant) => Ok(<$enum_type>::$variant),)+
+                _ => Err($crate::error::ParseError::Expected {
+                    expected: format!("{} variant", stringify!($enum_type)),
+                    found: sym.value.clone(),
+                    pos: sym.pos,
+                }),
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -4,6 +4,10 @@ use crate::ast::*;
 use crate::error::{ParseError, Result};
 use crate::sexp::SExp;
 
+// Generate enum parsers using the macro
+crate::build_enum_parser!(parse_safety, Safety, [Safe, Unsafe, Default]);
+crate::build_enum_parser!(parse_mutability, Mutability, [Mut, Not]);
+
 impl AstBuilder {
     pub fn build_item(&mut self, sexp: &SExp) -> Result<Item> {
         let list = expect_list(sexp)?;
@@ -861,30 +865,11 @@ impl AstBuilder {
     }
 
     fn build_safety(&mut self, sexp: &SExp) -> Result<Safety> {
-        let sym = expect_symbol(sexp)?;
-        match sym.value.as_str() {
-            "Safe" => Ok(Safety::Safe),
-            "Unsafe" => Ok(Safety::Unsafe),
-            "Default" => Ok(Safety::Default),
-            _ => Err(ParseError::Expected {
-                expected: "Safe, Unsafe, or Default".to_string(),
-                found: sym.value.clone(),
-                pos: sym.pos,
-            }),
-        }
+        parse_safety(sexp)
     }
 
     fn build_mutability(&mut self, sexp: &SExp) -> Result<Mutability> {
-        let sym = expect_symbol(sexp)?;
-        match sym.value.as_str() {
-            "Mut" => Ok(Mutability::Mut),
-            "Not" => Ok(Mutability::Not),
-            _ => Err(ParseError::Expected {
-                expected: "Mut or Not".to_string(),
-                found: sym.value.clone(),
-                pos: sym.pos,
-            }),
-        }
+        parse_mutability(sexp)
     }
 
     fn build_lifetime(&mut self, sexp: &SExp) -> Result<Lifetime> {
