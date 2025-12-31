@@ -13,6 +13,10 @@ This document provides essential guidance for AI assistants (like Claude Code) w
 - **This file (CLAUDE.md)**: Primary reference for general Rust development in Oxur
 - **assets/ai/OXUR-SESSION-BOOTSTRAP.md**: Template for starting new Claude sessions with project context
 - **assets/ai/CLAUDE-CODE-COVERAGE.md**: Comprehensive guide specifically for test coverage work
+- **assets/ai/ai-rust/skills/claude/SKILL.md**: An advanced Rust programming skill
+- **assets/ai/ai-rust/guides/NN-*.md**: Supporting subject-specific documents for the above advanced Rust programming skill
+
+Note: if `assets/ai/ai-rust` does not exist on the file system, ask permission to `git clone https://github.com/oxur/ai-rust` to that localtion.
 
 ### Quick Navigation
 
@@ -45,26 +49,26 @@ Oxur is a **Lisp dialect that treats Rust as its compilation target and runtime*
 │                    OXUR COMPILATION PIPELINE                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Oxur Source (Lisp)                                            │
+│  Oxur Source (Lisp)                                             │
 │         ↓                                                       │
-│  ┌──────────────────┐                                          │
-│  │  oxur-lang       │  Stage 1: Parse → Surface Forms          │
-│  │  (Lisp Compiler) │  Stage 2: Expand → Core Forms (IR)       │
-│  └──────────────────┘                                          │
+│  ┌──────────────────┐                                           │
+│  │  oxur-lang       │  Stage 1: Parse → Surface Forms           │
+│  │  (Lisp Compiler) │  Stage 2: Expand → Core Forms (IR)        │
+│  └──────────────────┘                                           │
 │         ↓                                                       │
-│  Core Forms (Canonical S-expressions)                          │
+│  Core Forms (Canonical S-expressions)                           │
 │         ↓                                                       │
-│  ┌──────────────────┐                                          │
-│  │  oxur-comp       │  Stage 3: Lower → Rust AST               │
-│  │  (Backend)       │  Stage 4: Codegen → Rust Source          │
-│  └──────────────────┘  Stage 5: Compile → Binary (via rustc)   │
+│  ┌──────────────────┐                                           │
+│  │  oxur-comp       │  Stage 3: Lower → Rust AST                │
+│  │  (Backend)       │  Stage 4: Codegen → Rust Source           │
+│  └──────────────────┘  Stage 5: Compile → Binary (via rustc)    │
 │         ↓                                                       │
 │  Rust Binary                                                    │
 │                                                                 │
-│  ┌──────────────────┐                                          │
-│  │  oxur-ast        │  Supporting: Bidirectional Rust AST ↔    │
-│  │  (AST Library)   │  S-expression conversion                 │
-│  └──────────────────┘                                          │
+│  ┌──────────────────┐                                           │
+│  │  oxur-ast        │  Supporting: Bidirectional Rust AST ↔     │
+│  │  (AST Library)   │  S-expression conversion                  │
+│  └──────────────────┘                                           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -93,6 +97,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 ### Crate Status & Purpose
 
 #### oxur-ast (In Progress - ~80% Complete)
+
 **Binary:** `aster`
 **Purpose:** Bidirectional conversion between Rust AST and canonical S-expressions
 
@@ -103,6 +108,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Key File:** `crates/oxur-ast/src/lib.rs`
 
 #### design (Active - Feature Complete)
+
 **Binary:** `oxd`
 **Purpose:** Manage Oxur Design Documents (ODDs) with state tracking
 
@@ -113,6 +119,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Key File:** `crates/design/src/lib.rs`
 
 #### oxur-cli (Early Stage)
+
 **Binary:** `oxur` (planned unified CLI)
 **Purpose:** Common CLI infrastructure and utilities
 
@@ -123,6 +130,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Key File:** `crates/oxur-cli/src/lib.rs`
 
 #### oxur-lang (Planning)
+
 **Purpose:** The Oxur Lisp dialect compiler (frontend)
 
 - Stage 1: Parse Oxur source → Surface Forms
@@ -131,6 +139,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Status:** Design phase, not yet implemented
 
 #### oxur-comp (Planning)
+
 **Purpose:** Backend compiler
 
 - Stage 3: Lower Core Forms → Rust AST
@@ -139,6 +148,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 - **Status:** Design phase, not yet implemented
 
 #### oxur-repl (Planning)
+
 **Purpose:** REPL with three-tier execution strategy
 
 - Tier 1: Interpreter (direct interpretation, <1ms)
@@ -163,11 +173,13 @@ The project is organized as a Cargo workspace with 6 main crates:
 ### Required Tools
 
 **Rust:**
+
 - Version: 1.75+ (stable channel)
 - Edition: 2021
 - Toolchain file: `rust-toolchain.toml` in root
 
 **Essential Tools:**
+
 ```bash
 rustup component add rustfmt clippy
 cargo install cargo-llvm-cov
@@ -216,6 +228,7 @@ make coverage
 ### Testing Framework
 
 **Unit Tests:**
+
 ```bash
 cargo test                    # All tests
 cargo test --lib              # Library tests only
@@ -223,6 +236,7 @@ cargo test --package oxur-ast # Specific crate
 ```
 
 **Coverage:**
+
 ```bash
 cargo llvm-cov --html                    # Generate HTML report
 cargo llvm-cov --summary-only            # Quick summary
@@ -230,11 +244,13 @@ open target/llvm-cov/html/index.html     # View report
 ```
 
 **Property Testing:**
+
 - Using `proptest` for property-based tests
 - Define generators for custom types
 - Test invariants across random inputs
 
 **Benchmarking:**
+
 - Using `criterion` for performance benchmarks
 - Located in `benches/` directory
 - Run with `cargo bench`
@@ -242,6 +258,7 @@ open target/llvm-cov/html/index.html     # View report
 ### Formatting Configuration
 
 From `.rustfmt.toml`:
+
 ```toml
 edition = "2021"
 max_width = 100
@@ -261,6 +278,7 @@ use_small_heuristics = "Max"
 **Crate naming:** Hyphenated (e.g., `oxur-ast`, `oxur-lang`, NOT `rast` or `oxur_ast`)
 
 **Module structure:**
+
 ```rust
 // lib.rs - Crate root
 pub mod builder;
@@ -273,12 +291,14 @@ pub use builder::Builder;
 ```
 
 **Visibility guidelines:**
+
 - `pub` - Public API, stable across versions
 - `pub(crate)` - Internal to crate, can change freely
 - `pub(super)` - Visible to parent module only
 - (no modifier) - Private to module
 
 **Re-export strategy:**
+
 ```rust
 // Expose commonly-used types at crate root
 pub use builder::Builder;
@@ -322,6 +342,7 @@ crates/example/
 #### Using thiserror
 
 **Pattern:**
+
 ```rust
 use thiserror::Error;
 
@@ -344,6 +365,7 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 ```
 
 **Key points:**
+
 - One error enum per module (e.g., `ParseError`, `BuildError`, `GenerateError`)
 - Use `#[from]` for automatic conversion from other error types
 - Include context in error variants (positions, values)
@@ -353,6 +375,7 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 #### Position Tracking
 
 **Pattern from oxur-ast:**
+
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
@@ -369,6 +392,7 @@ impl std::fmt::Display for Position {
 ```
 
 **Usage:**
+
 ```rust
 return Err(ParseError::UnexpectedToken {
     token: token.to_string(),
@@ -381,6 +405,7 @@ return Err(ParseError::UnexpectedToken {
 #### Error Message Conventions
 
 **Good error messages:**
+
 ```rust
 ❌ "Invalid input"
 ✅ "Unexpected token 'fn' at line 42, column 15. Expected 'struct', 'enum', or 'trait'"
@@ -393,6 +418,7 @@ return Err(ParseError::UnexpectedToken {
 ```
 
 **Guidelines:**
+
 - Be specific about what went wrong
 - Include location information (line, column)
 - Suggest what was expected vs. what was found
@@ -403,6 +429,7 @@ return Err(ParseError::UnexpectedToken {
 #### Unit Test Location
 
 **Colocated in modules:**
+
 ```rust
 // src/builder.rs
 
@@ -427,6 +454,7 @@ mod tests {
 ```
 
 **Benefits:**
+
 - Tests live next to code they test
 - Easy to keep in sync
 - Access to private items for testing
@@ -445,6 +473,7 @@ tests/
 #### File-Based Test Data
 
 **From oxur-ast pattern:**
+
 ```
 test-data/
 ├── examples/
@@ -461,6 +490,7 @@ test-data/
 ```
 
 **Test helper pattern:**
+
 ```rust
 use std::path::PathBuf;
 
@@ -484,6 +514,7 @@ fn test_hello_world() {
 **Pattern:** `test_<function>_<scenario>_<expectation>`
 
 **Examples:**
+
 ```rust
 #[test]
 fn test_build_item_struct_success() { }
@@ -499,6 +530,7 @@ fn test_generate_expr_if_with_else_block() { }
 ```
 
 **Benefits:**
+
 - Clear what's being tested
 - Easy to find related tests
 - Self-documenting test purpose
@@ -508,12 +540,14 @@ fn test_generate_expr_if_with_else_block() { }
 #### When to Use Builders
 
 Use builders when:
+
 - Constructing complex types with many fields
 - Step-by-step validation is needed
 - Multiple construction paths exist
 - Default values make sense for some fields
 
 **Example from oxur-ast:**
+
 ```rust
 pub struct Builder {
     // internal state
@@ -569,6 +603,7 @@ impl Builder {
 ```
 
 **Benefits:**
+
 - Clear public API surface
 - Internal methods grouped by purpose
 - Easy to navigate and maintain
@@ -576,6 +611,7 @@ impl Builder {
 #### Validation Strategies
 
 **Validate early:**
+
 ```rust
 pub fn build_item(&self, sexp: &SExp) -> Result<Item> {
     // Validate structure upfront
@@ -591,6 +627,7 @@ pub fn build_item(&self, sexp: &SExp) -> Result<Item> {
 ```
 
 **Return specific errors:**
+
 ```rust
 fn validate_has_head(&self, sexp: &SExp, expected: &str) -> Result<()> {
     match sexp.head() {
@@ -609,6 +646,7 @@ fn validate_has_head(&self, sexp: &SExp, expected: &str) -> Result<()> {
 #### Using clap with Derive
 
 **Pattern:**
+
 ```rust
 use clap::{Parser, Subcommand};
 
@@ -671,6 +709,7 @@ fn execute_command(command: Commands) -> anyhow::Result<()> {
 #### Colored Output Standards
 
 **Using the colored crate:**
+
 ```rust
 use colored::*;
 
@@ -688,6 +727,7 @@ println!("{}", "⚠ Warning: deprecated syntax".yellow());
 ```
 
 **oxur-cli wrapper functions:**
+
 ```rust
 use oxur_cli::common::output::{success, error, info, warning};
 
@@ -704,30 +744,36 @@ warning("Deprecated API usage");
 ### Naming Conventions
 
 **Crates:**
+
 - Format: `oxur-component` (hyphenated)
 - Examples: `oxur-ast`, `oxur-lang`, `oxur-comp`
 - NOT: `rast`, `oxur_ast`, `oxurAST`
 
 **Modules:**
+
 - Format: `snake_case`
 - Examples: `builder`, `ast_types`, `error_handling`
 
 **Types:**
+
 - Format: `PascalCase`
 - Examples: `Item`, `ExprKind`, `ParseError`
 - Traits: `Builder`, `Generator`, `Visitor`
 - Enums: `ItemKind`, `Visibility`, `Mutability`
 
 **Functions:**
+
 - Format: `snake_case`
 - Examples: `build_item`, `parse_file`, `generate_code`
 - Constructors: `new`, `with_capacity`, `from_parts`
 
 **Constants:**
+
 - Format: `SCREAMING_SNAKE_CASE`
 - Examples: `MAX_DEPTH`, `DEFAULT_CAPACITY`
 
 **Type Parameters:**
+
 - Single letter for generic: `T`, `E`, `K`, `V`
 - Descriptive for specific: `Item`, `Expr` (when constrained)
 
@@ -752,6 +798,7 @@ pub fn complex_function_with_many_parameters(
 #### Import Organization
 
 **Groups (separated by blank lines):**
+
 1. Standard library
 2. External crates
 3. Internal crate modules
@@ -779,6 +826,7 @@ use super::helpers;
 #### Documentation Comments
 
 **Module-level:**
+
 ```rust
 //! Builder module for constructing Rust AST from S-expressions.
 //!
@@ -798,6 +846,7 @@ use super::helpers;
 ```
 
 **Function-level:**
+
 ```rust
 /// Builds a Rust AST `Item` from an S-expression node.
 ///
@@ -825,25 +874,30 @@ pub fn build_item(&self, sexp: &SExp) -> Result<Item> {
 #### Visibility Guidelines
 
 **pub (public API):**
+
 - Use for types/functions meant to be used by external crates
 - Consider stability - harder to change later
 - Document thoroughly
 
 **pub(crate) (internal to crate):**
+
 - Use for cross-module helpers
 - Can change freely without breaking external users
 - Good default for "might be useful elsewhere"
 
 **pub(super) (parent module only):**
+
 - Use for tightly coupled parent-child modules
 - Rare in practice
 
 **(no modifier) - private:**
+
 - Default - use unless there's a reason for visibility
 - Implementation details
 - Helper functions
 
 **Example:**
+
 ```rust
 // Public API
 pub struct Builder { }
@@ -860,6 +914,7 @@ fn parse_field(sexp: &SExp, name: &str) -> Option<SExp> { }
 #### Specific vs Generic Types
 
 **Prefer specific types for clarity:**
+
 ```rust
 // Good - clear what each parameter is
 pub fn build_item(item_sexp: &SExp, context: &Context) -> Result<Item> {
@@ -869,6 +924,7 @@ pub fn build<T, C>(data: &T, ctx: &C) -> Result<Output> {
 ```
 
 **Use generics when genuinely reusable:**
+
 ```rust
 // Good - truly generic collection operation
 pub fn map_nodes<F, T>(sexps: &[SExp], f: F) -> Vec<T>
@@ -882,6 +938,7 @@ where
 #### Newtypes for Domain Concepts
 
 **Pattern:**
+
 ```rust
 // Wrap primitive types for type safety
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -904,6 +961,7 @@ fn get_document(num: DocNumber) -> Result<Document> {
 ```
 
 **Benefits:**
+
 - Type safety (can't pass wrong kind of number)
 - Self-documenting code
 - Can add domain-specific methods
@@ -911,6 +969,7 @@ fn get_document(num: DocNumber) -> Result<Document> {
 #### enum vs struct
 
 **Use enum when:**
+
 - Represents mutually exclusive variants
 - Needs match exhaustiveness checking
 - Each variant may have different data
@@ -925,6 +984,7 @@ pub enum ItemKind {
 ```
 
 **Use struct when:**
+
 - Represents a single concept with multiple aspects
 - All fields always present (or Option if sometimes absent)
 
@@ -940,6 +1000,7 @@ pub struct Item {
 #### Trait Design
 
 **Keep traits focused:**
+
 ```rust
 // Good - single responsibility
 pub trait Builder {
@@ -956,6 +1017,7 @@ pub trait BuilderGeneratorValidator {
 ```
 
 **Use associated types for related types:**
+
 ```rust
 pub trait Parser {
     type Output;
@@ -970,11 +1032,13 @@ pub trait Parser {
 #### &str vs String
 
 **&str for:**
+
 - Function parameters (borrowed)
 - Literals
 - Slices of strings
 
 **String for:**
+
 - Owned data
 - Building strings
 - Return values (when ownership needed)
@@ -994,6 +1058,7 @@ pub fn process_name(name: String) -> String {
 #### Vec vs Slice
 
 **&[T] for parameters:**
+
 ```rust
 // Good - accepts Vec, array, or slice
 pub fn process_items(items: &[Item]) -> usize {
@@ -1007,6 +1072,7 @@ pub fn process_items(items: &Vec<Item>) -> usize {
 ```
 
 **Vec\<T\> for:**
+
 - Owned collections
 - Growable data
 - Return values
@@ -1014,6 +1080,7 @@ pub fn process_items(items: &Vec<Item>) -> usize {
 #### Clone vs Reference
 
 **Prefer borrowing:**
+
 ```rust
 // Good - no allocation
 pub fn build_item(&self, sexp: &SExp) -> Result<Item> {
@@ -1023,6 +1090,7 @@ pub fn build_item(&self, sexp: SExp) -> Result<Item> {
 ```
 
 **Clone when needed:**
+
 ```rust
 // OK - need owned copy for thread
 let data = data.clone();
@@ -1036,6 +1104,7 @@ modified.update();
 #### Allocation Patterns
 
 **Pre-allocate when size known:**
+
 ```rust
 // Good
 let mut items = Vec::with_capacity(expected_count);
@@ -1045,6 +1114,7 @@ let mut items = Vec::new();
 ```
 
 **Avoid unnecessary allocations:**
+
 ```rust
 // Good - reuse string
 let mut result = String::new();
@@ -1066,6 +1136,7 @@ let result = items.iter()
 ### Coverage Targets
 
 **Minimum requirements:**
+
 - **Overall coverage:** ≥ 95%
 - **Module coverage:** ≥ 90% (no stragglers)
 - **Error paths:** 100% tested
@@ -1080,6 +1151,7 @@ let result = items.iter()
 **Format:** `test_<function>_<scenario>_<expectation>`
 
 **Examples:**
+
 ```rust
 #[test]
 fn test_build_item_struct_succeeds() {
@@ -1100,6 +1172,7 @@ fn test_parse_empty_file_returns_empty_vec() {
 #### Assertion Quality
 
 **Be specific:**
+
 ```rust
 // Good
 assert_eq!(result.len(), 3);
@@ -1112,6 +1185,7 @@ assert!(x);  // What does x represent?
 ```
 
 **Test behavior, not implementation:**
+
 ```rust
 // Good - tests behavior
 #[test]
@@ -1148,6 +1222,7 @@ test-data/
 ```
 
 **Usage pattern:**
+
 ```rust
 #[test]
 fn test_parse_hello_world() {
@@ -1166,6 +1241,7 @@ fn test_parse_invalid_returns_error() {
 #### Round-Trip Testing
 
 **Critical for AST conversions:**
+
 ```rust
 #[test]
 fn test_round_trip_struct_definition() {
@@ -1194,6 +1270,7 @@ fn test_round_trip_struct_definition() {
 #### Unit Tests
 
 **Characteristics:**
+
 - Fast (< 1s for all unit tests)
 - Isolated (no I/O, no network)
 - Colocated with code (#[cfg(test)] mod tests)
@@ -1214,6 +1291,7 @@ mod tests {
 #### Integration Tests
 
 **Characteristics:**
+
 - Test multiple modules together
 - Located in `tests/` directory
 - Test public API only
@@ -1235,6 +1313,7 @@ fn test_build_complete_crate() {
 #### Property Tests
 
 **Using proptest:**
+
 ```rust
 use proptest::prelude::*;
 
@@ -1260,6 +1339,7 @@ proptest! {
 #### Benchmarks
 
 **Using criterion:**
+
 ```rust
 // benches/builder_bench.rs
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -1310,6 +1390,7 @@ Documents progress through states:
 ### YAML Frontmatter
 
 **Required fields:**
+
 ```yaml
 ---
 number: 1
@@ -1322,6 +1403,7 @@ state: Active
 ```
 
 **Optional fields:**
+
 ```yaml
 tags: [Phase-0, Architecture]
 component: oxur-ast
@@ -1361,12 +1443,14 @@ superseded_by: null
 ### Document Lifecycle
 
 **Creating a new design doc:**
+
 ```bash
 ./bin/oxd new "My Design Title"
 # Creates draft in 01-draft/ with next available number
 ```
 
 **Transitioning states:**
+
 ```bash
 ./bin/oxd transition 0042 under-review
 ./bin/oxd transition 0042 accepted
@@ -1377,17 +1461,20 @@ superseded_by: null
 ### Using Design Docs
 
 **Before implementing a feature:**
+
 1. Check if design doc exists: `./bin/oxd list`
 2. Read relevant docs: `./bin/oxd show 0003`
 3. If no doc exists and feature is non-trivial, create one
 4. Discuss design before writing code
 
 **When making architectural changes:**
+
 1. Update the relevant design doc
 2. Transition to `revised` if significant changes
 3. Reference doc number in commit messages
 
 **In code comments:**
+
 ```rust
 // Implementation of S-expression format spec (ODD-0003)
 pub fn parse_item(sexp: &SExp) -> Result<Item> {
@@ -1404,16 +1491,19 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 **Step-by-step:**
 
 1. **Check for design doc:**
+
    ```bash
    ./bin/oxd list | grep -i "feature name"
    ```
 
 2. **Read relevant docs:**
+
    ```bash
    ./bin/oxd show <number>
    ```
 
 3. **Create design doc if needed:**
+
    ```bash
    ./bin/oxd new "Feature: My New Feature"
    # Edit the created file
@@ -1421,6 +1511,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    ```
 
 4. **Write tests first (TDD):**
+
    ```rust
    #[test]
    fn test_new_feature_basic_case() {
@@ -1431,6 +1522,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    ```
 
 5. **Implement feature:**
+
    ```rust
    pub fn new_feature(input: &Input) -> Result<Output> {
        // Implementation
@@ -1438,17 +1530,20 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    ```
 
 6. **Run tests:**
+
    ```bash
    cargo test
    ```
 
 7. **Check coverage:**
+
    ```bash
    make coverage
    # Ensure feature is 95%+ covered
    ```
 
 8. **Run linting:**
+
    ```bash
    make lint
    make format
@@ -1464,6 +1559,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 **Step-by-step:**
 
 1. **Ensure comprehensive test coverage:**
+
    ```bash
    cargo llvm-cov --html
    # Open report, verify area to refactor is well-tested
@@ -1474,6 +1570,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    - Keep changes focused and reviewable
 
 3. **Run tests after each change:**
+
    ```bash
    cargo test --lib  # Fast feedback
    ```
@@ -1483,12 +1580,14 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    - Coverage should not decrease
 
 5. **Update design docs if architecture changed:**
+
    ```bash
    # Edit relevant design doc
    ./bin/oxd transition <number> revised
    ```
 
 6. **Final verification:**
+
    ```bash
    make check-all
    ```
@@ -1498,6 +1597,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 **Step-by-step:**
 
 1. **Write test that reproduces bug:**
+
    ```rust
    #[test]
    fn test_bug_xyz_reproduction() {
@@ -1513,6 +1613,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    - Avoid band-aid solutions
 
 3. **Ensure test passes:**
+
    ```bash
    cargo test test_bug_xyz_reproduction
    ```
@@ -1526,6 +1627,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    - Add tests for related cases
 
 6. **Verify coverage:**
+
    ```bash
    make coverage
    ```
@@ -1535,6 +1637,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 **Systematic approach:**
 
 1. **Run coverage report:**
+
    ```bash
    cargo llvm-cov --html
    open target/llvm-cov/html/index.html
@@ -1550,6 +1653,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    - Dead code that should be removed?
 
 4. **Write tests for missing paths:**
+
    ```rust
    #[test]
    fn test_error_path_invalid_input() {
@@ -1559,6 +1663,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
    ```
 
 5. **Verify coverage improved:**
+
    ```bash
    cargo llvm-cov --summary-only
    # Should show increased percentage
@@ -1572,22 +1677,26 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 #### Using the aster CLI
 
 **Convert Rust to S-expression:**
+
 ```bash
 ./bin/aster to-ast -i examples/hello.rs -o examples/hello.sexp
 ```
 
 **Convert S-expression to Rust:**
+
 ```bash
 ./bin/aster to-rust -i examples/hello.sexp -o examples/hello_generated.rs
 ```
 
 **Verify round-trip:**
+
 ```bash
 ./bin/aster verify examples/hello.rs
 # Checks: Rust → S-expr → Rust produces equivalent code
 ```
 
 **Format S-expression:**
+
 ```bash
 ./bin/aster format -i input.sexp -o formatted.sexp
 ```
@@ -1595,6 +1704,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 #### S-Expression Format
 
 **Basic structure (from ODD-0003):**
+
 ```lisp
 (NodeType
   :field1 value1
@@ -1604,6 +1714,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 ```
 
 **Example - Struct definition:**
+
 ```lisp
 (Item
   :vis Public
@@ -1625,6 +1736,7 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 #### Round-Trip Testing
 
 **Pattern:**
+
 ```rust
 #[test]
 fn test_round_trip_struct() {
@@ -1655,6 +1767,7 @@ fn test_round_trip_struct() {
 #### Test Data Organization
 
 **File naming:**
+
 ```
 test-data/
   examples/
@@ -1667,6 +1780,7 @@ test-data/
 ```
 
 **Loading test data:**
+
 ```rust
 fn load_test_pair(name: &str) -> (String, SExp) {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1688,6 +1802,7 @@ fn load_test_pair(name: &str) -> (String, SExp) {
 **Format options:**
 
 1. **Free-form descriptive** (preferred for Oxur):
+
    ```
    Add comprehensive builder tests for Item types
 
@@ -1698,6 +1813,7 @@ fn load_test_pair(name: &str) -> (String, SExp) {
    ```
 
 2. **Conventional commits** (optional):
+
    ```
    feat: add S-expression file I/O capabilities
    fix: correct position tracking in parser
@@ -1707,6 +1823,7 @@ fn load_test_pair(name: &str) -> (String, SExp) {
    ```
 
 **Guidelines:**
+
 - **Subject line**: Imperative mood ("Add feature" not "Added feature" or "Adds feature")
 - **Body**: Explain WHY, not WHAT (code shows what)
 - **References**: Link to design docs when relevant (e.g., "Implements ODD-0003")
@@ -1729,18 +1846,22 @@ Avoid:
 ### Branch Strategy
 
 **Main branch:**
+
 - Always stable and passing tests
 - Protected (requires reviews for direct pushes)
 
 **Feature branches:**
+
 - Format: `feature/descriptive-name` or `descriptive-name`
 - Examples: `feature/round-trip-tests`, `builder-refactor`
 
 **Bug fix branches:**
+
 - Format: `fix/bug-description`
 - Examples: `fix/position-tracking`, `fix/parse-error-handling`
 
 **Workflow:**
+
 ```bash
 # Create branch
 git checkout -b feature/my-feature
@@ -1760,6 +1881,7 @@ git push -u origin feature/my-feature
 ### Pull Request Guidelines
 
 **Before creating PR:**
+
 - [ ] All tests pass (`cargo test --all`)
 - [ ] Coverage ≥ 95% (`make coverage`)
 - [ ] Linting passes (`make lint`)
@@ -1769,6 +1891,7 @@ git push -u origin feature/my-feature
 - [ ] README/docs updated (if public API changed)
 
 **PR Description should include:**
+
 - Summary of changes
 - Motivation (why this change)
 - Testing performed
@@ -1776,6 +1899,7 @@ git push -u origin feature/my-feature
 - Breaking changes (if any)
 
 **Example PR description:**
+
 ```markdown
 ## Summary
 Refactors the Builder implementation to split methods by AST node type,
@@ -1807,17 +1931,20 @@ None - purely internal refactoring
 ### Commit Etiquette
 
 **Commit frequently:**
+
 - Small, focused commits are better than large ones
 - Each commit should be a logical unit
 - Should compile and pass tests (when practical)
 
 **Avoid:**
+
 - Committing commented-out code
 - Committing debug print statements
 - Committing TODO comments without tracking
 - Committing merge artifacts
 
 **Amending commits:**
+
 ```bash
 # Fix something in last commit
 git add .
@@ -1828,6 +1955,7 @@ git commit --amend
 ```
 
 **Interactive rebase for cleanup:**
+
 ```bash
 # Clean up last 3 commits before pushing
 git rebase -i HEAD~3
@@ -1844,6 +1972,7 @@ git rebase -i HEAD~3
 #### Always Read Existing Code First
 
 **Before modifying any file:**
+
 ```
 1. Read the file completely
 2. Understand existing patterns
@@ -1852,6 +1981,7 @@ git rebase -i HEAD~3
 ```
 
 **Example:**
+
 ```
 User: "Add a build_trait_item method"
 
@@ -1865,6 +1995,7 @@ Steps:
 #### Follow Established Patterns
 
 **Don't introduce new patterns without reason:**
+
 ```rust
 // Project uses this pattern for builders:
 fn build_item(&self, sexp: &SExp) -> Result<Item> {
@@ -1884,6 +2015,7 @@ fn build_trait_item(&self, sexp: &SExp) -> Result<ItemTrait> {
 #### Don't Over-Engineer
 
 **Keep it simple:**
+
 ```rust
 // User asks: "Add validation for empty identifier"
 
@@ -1906,6 +2038,7 @@ struct IdentValidator {
 #### Reference Similar Code
 
 **Look for examples in the codebase:**
+
 ```
 User: "Add tests for the new feature"
 
@@ -1921,6 +2054,7 @@ Steps:
 #### Target 95%+ Coverage Systematically
 
 **Process:**
+
 ```
 1. Run: cargo llvm-cov --html
 2. Open: target/llvm-cov/html/index.html
@@ -1949,6 +2083,7 @@ fn test_name_returns_correct_value() {
 ```
 
 **Why:**
+
 - Ensures behavior is documented
 - Catches future changes that break assumptions
 - Coverage tools count every line
@@ -2005,6 +2140,7 @@ fn test_new_feature() {
 #### Preserve Existing Behavior
 
 **Unless explicitly asked to change:**
+
 ```
 User: "Refactor the builder module"
 
@@ -2081,6 +2217,7 @@ Unless:
 #### Look for Similar Patterns
 
 **Search codebase:**
+
 ```bash
 # Find similar function names
 rg "build_.*_item" --type rust
@@ -2092,6 +2229,7 @@ rg "validate_node" --type rust -A 3
 #### Ask Clarifying Questions
 
 **Good questions:**
+
 ```
 - "Should this error case return a specific error variant, or can I use a generic one?"
 - "I see two patterns for this in the codebase. Which one should I follow?"
@@ -2099,6 +2237,7 @@ rg "validate_node" --type rust -A 3
 ```
 
 **Avoid:**
+
 - Making assumptions about requirements
 - Guessing at error handling strategy
 - Inventing new patterns without asking
@@ -2139,6 +2278,7 @@ rg "validate_node" --type rust -A 3
 ### Project Documentation
 
 **Essential reading:**
+
 - **Main README:** `/Users/oubiwann/lab/oxur/oxur/README.md`
   - Project overview and getting started
   - Architecture summary
@@ -2159,11 +2299,13 @@ rg "validate_node" --type rust -A 3
 ### External Resources
 
 **Rust fundamentals:**
+
 - [The Rust Book](https://doc.rust-lang.org/book/) - Complete Rust guide
 - [Rust by Example](https://doc.rust-lang.org/rust-by-example/) - Learn by examples
 - [Rust Reference](https://doc.rust-lang.org/reference/) - Language reference
 
 **Key dependencies:**
+
 - [syn docs](https://docs.rs/syn/) - Rust AST parsing
 - [quote docs](https://docs.rs/quote/) - Rust AST generation
 - [clap docs](https://docs.rs/clap/) - CLI argument parsing
@@ -2172,17 +2314,20 @@ rg "validate_node" --type rust -A 3
 - [criterion docs](https://docs.rs/criterion/) - Benchmarking
 
 **Testing:**
+
 - [Rust testing guide](https://doc.rust-lang.org/book/ch11-00-testing.html)
 - [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov) - Coverage tool
 
 ### Project-Specific Resources
 
 **AI Assistant Documentation:**
+
 - **This file:** `CLAUDE.md` - General development guide
 - **Session bootstrap:** `assets/ai/OXUR-SESSION-BOOTSTRAP.md` - New session template
 - **Coverage guide:** `assets/ai/CLAUDE-CODE-COVERAGE.md` - Comprehensive testing guide
 
 **Key Design Documents:**
+
 - **ODD-0001:** Letter of Intent (vision and philosophy)
 - **ODD-0003:** Canonical S-Expression Format specification
 - **ODD-0013:** Compilation Chain Architecture
@@ -2190,6 +2335,7 @@ rg "validate_node" --type rust -A 3
 - **ODD-0020:** Pattern & Type System Coverage
 
 **Find design docs:**
+
 ```bash
 ./bin/oxd list              # All docs
 ./bin/oxd show 0003         # Read specific doc
@@ -2199,6 +2345,7 @@ rg "validate_node" --type rust -A 3
 ### Quick Command Reference
 
 **Building:**
+
 ```bash
 cargo build                    # Debug build
 cargo build --release          # Optimized build
@@ -2206,6 +2353,7 @@ make build                     # Build all binaries
 ```
 
 **Testing:**
+
 ```bash
 cargo test                     # All tests
 cargo test --lib               # Library tests only
@@ -2214,6 +2362,7 @@ make test                      # Run tests via Makefile
 ```
 
 **Coverage:**
+
 ```bash
 cargo llvm-cov --html                    # Generate HTML report
 cargo llvm-cov --summary-only            # Quick summary
@@ -2222,6 +2371,7 @@ open target/llvm-cov/html/index.html     # View report
 ```
 
 **Linting & Formatting:**
+
 ```bash
 cargo clippy                   # Run clippy
 cargo fmt                      # Format code
@@ -2230,6 +2380,7 @@ make format                    # Format all code
 ```
 
 **Design Docs:**
+
 ```bash
 ./bin/oxd list                 # List all docs
 ./bin/oxd show 0003            # Show specific doc
@@ -2238,6 +2389,7 @@ make format                    # Format all code
 ```
 
 **AST Tools:**
+
 ```bash
 ./bin/aster to-ast -i file.rs -o file.sexp   # Rust → S-expr
 ./bin/aster to-rust -i file.sexp -o file.rs  # S-expr → Rust

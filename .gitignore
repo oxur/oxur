@@ -35,6 +35,7 @@ images/logo/cave-painting-*.jpg
 
 # AI
 .claude
+/assets/ai/ai-rust
 
 # Misc
 /workbench
