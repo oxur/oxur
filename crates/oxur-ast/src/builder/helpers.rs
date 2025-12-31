@@ -150,6 +150,27 @@ pub fn optional_field<'a>(
     kwargs.get(field_name).copied().filter(|sexp| !is_nil(sexp))
 }
 
+/// Validate that a list has the expected node type
+///
+/// This helper reduces boilerplate for node type validation at the start of build methods.
+/// Returns the list if valid, otherwise returns an error.
+///
+/// # Example
+/// ```ignore
+/// let list = expect_node_type(expect_list(sexp)?, "Expr")?;
+/// ```
+pub fn expect_node_type<'a>(list: &'a List, expected: &str) -> Result<&'a List> {
+    let node_type = expect_symbol(&list.elements[0])?;
+    if node_type.value != expected {
+        return Err(ParseError::Expected {
+            expected: expected.to_string(),
+            found: node_type.value.clone(),
+            pos: node_type.pos,
+        });
+    }
+    Ok(list)
+}
+
 /// Macro to generate simple enum parsers from S-expressions
 ///
 /// This macro eliminates the boilerplate of parsing enums where each variant

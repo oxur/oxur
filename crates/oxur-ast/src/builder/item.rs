@@ -10,17 +10,7 @@ crate::build_enum_parser!(parse_mutability, Mutability, [Mut, Not]);
 
 impl AstBuilder {
     pub fn build_item(&mut self, sexp: &SExp) -> Result<Item> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "Item" {
-            return Err(ParseError::Expected {
-                expected: "Item".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "Item")?;
         let kwargs = parse_kwargs(list)?;
 
         let vis = if let Some(vis_sexp) = kwargs.get("vis") {
@@ -64,17 +54,7 @@ impl AstBuilder {
     }
 
     pub fn build_ident(&mut self, sexp: &SExp) -> Result<Ident> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "Ident" {
-            return Err(ParseError::Expected {
-                expected: "Ident".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "Ident")?;
         let kwargs = parse_kwargs(list)?;
 
         let name = expect_string(require_field(&kwargs, "name", list.pos)?)?;
@@ -258,17 +238,7 @@ impl AstBuilder {
     }
 
     fn build_fn_sig(&mut self, sexp: &SExp) -> Result<FnSig> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "FnSig" {
-            return Err(ParseError::Expected {
-                expected: "FnSig".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "FnSig")?;
         let kwargs = parse_kwargs(list)?;
 
         let header = if let Some(header_sexp) = kwargs.get("header") {
@@ -409,17 +379,7 @@ impl AstBuilder {
     }
 
     fn build_ty(&mut self, sexp: &SExp) -> Result<Ty> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "Ty" {
-            return Err(ParseError::Expected {
-                expected: "Ty".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "Ty")?;
         let kwargs = parse_kwargs(list)?;
 
         let kind = self.build_ty_kind(require_field(&kwargs, "kind", list.pos)?)?;
@@ -556,34 +516,14 @@ impl AstBuilder {
     }
 
     fn build_enum_def(&mut self, sexp: &SExp) -> Result<EnumDef> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "EnumDef" {
-            return Err(ParseError::Expected {
-                expected: "EnumDef".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "EnumDef")?;
         let kwargs = parse_kwargs(list)?;
         let variants = self.build_variant_list(require_field(&kwargs, "variants", list.pos)?)?;
         Ok(EnumDef { variants })
     }
 
     fn build_variant(&mut self, sexp: &SExp) -> Result<Variant> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "Variant" {
-            return Err(ParseError::Expected {
-                expected: "Variant".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "Variant")?;
         let kwargs = parse_kwargs(list)?;
 
         let attrs = Vec::new(); // Simplified for now
@@ -615,17 +555,7 @@ impl AstBuilder {
     }
 
     fn build_field_def(&mut self, sexp: &SExp) -> Result<FieldDef> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "FieldDef" {
-            return Err(ParseError::Expected {
-                expected: "FieldDef".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "FieldDef")?;
         let kwargs = parse_kwargs(list)?;
 
         let attrs = Vec::new(); // Simplified for now
@@ -667,17 +597,7 @@ impl AstBuilder {
     }
 
     fn build_trait_def(&mut self, sexp: &SExp) -> Result<TraitDef> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "TraitDef" {
-            return Err(ParseError::Expected {
-                expected: "TraitDef".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "TraitDef")?;
         let kwargs = parse_kwargs(list)?;
 
         let safety = if let Some(safety_sexp) = kwargs.get("safety") {
@@ -708,17 +628,7 @@ impl AstBuilder {
     }
 
     fn build_impl_def(&mut self, sexp: &SExp) -> Result<ImplDef> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "ImplDef" {
-            return Err(ParseError::Expected {
-                expected: "ImplDef".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "ImplDef")?;
         let kwargs = parse_kwargs(list)?;
 
         let safety = if let Some(safety_sexp) = kwargs.get("safety") {
@@ -751,17 +661,7 @@ impl AstBuilder {
     }
 
     fn build_assoc_item(&mut self, sexp: &SExp) -> Result<AssocItem> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "AssocItem" {
-            return Err(ParseError::Expected {
-                expected: "AssocItem".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "AssocItem")?;
         let kwargs = parse_kwargs(list)?;
 
         let attrs = Vec::new(); // Simplified for now
@@ -819,17 +719,7 @@ impl AstBuilder {
     }
 
     fn build_trait_ref(&mut self, sexp: &SExp) -> Result<TraitRef> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "TraitRef" {
-            return Err(ParseError::Expected {
-                expected: "TraitRef".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "TraitRef")?;
         let kwargs = parse_kwargs(list)?;
         let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
 
@@ -873,17 +763,7 @@ impl AstBuilder {
     }
 
     fn build_lifetime(&mut self, sexp: &SExp) -> Result<Lifetime> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "Lifetime" {
-            return Err(ParseError::Expected {
-                expected: "Lifetime".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "Lifetime")?;
         let kwargs = parse_kwargs(list)?;
 
         let ident = self.build_ident(require_field(&kwargs, "ident", list.pos)?)?;
@@ -893,17 +773,7 @@ impl AstBuilder {
 
     /// Stage 8: Build use tree
     fn build_use_tree(&mut self, sexp: &SExp) -> Result<UseTree> {
-        let list = expect_list(sexp)?;
-        let node_type = expect_symbol(&list.elements[0])?;
-
-        if node_type.value != "UseTree" {
-            return Err(ParseError::Expected {
-                expected: "UseTree".to_string(),
-                found: node_type.value.clone(),
-                pos: node_type.pos,
-            });
-        }
-
+        let list = expect_node_type(expect_list(sexp)?, "UseTree")?;
         let kwargs = parse_kwargs(list)?;
 
         let prefix = self.build_path(require_field(&kwargs, "prefix", list.pos)?)?;
