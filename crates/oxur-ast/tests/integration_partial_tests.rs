@@ -248,11 +248,7 @@ fn area() {
     }
 
     // Const should fail (produces an error)
-    assert!(
-        errors.len() >= 1,
-        "Const should fail, got {} errors",
-        errors.len()
-    );
+    assert!(errors.len() >= 1, "Const should fail, got {} errors", errors.len());
     assert!(errors[0].error_message.contains("`const`"));
     assert!(errors[0].rust_code.contains("const PI"));
 }
@@ -394,15 +390,9 @@ fn test_error_comment_format_consistency() {
         lines[0] == ";; Oxur AST does not support the following Rust code",
         "Line 0 should be header"
     );
-    assert!(
-        lines[1].starts_with(";; Error:"),
-        "Line 1 should be error message"
-    );
+    assert!(lines[1].starts_with(";; Error:"), "Line 1 should be error message");
     assert!(lines[2] == ";;", "Line 2 should be separator");
-    assert!(
-        lines[3].starts_with(";;"),
-        "Line 3+ should be commented Rust code"
-    );
+    assert!(lines[3].starts_with(";;"), "Line 3+ should be commented Rust code");
 }
 
 #[test]
@@ -466,24 +456,9 @@ trait Processable {
         error_types.iter().filter(|e| e.contains("`use`")).count() == 2,
         "Should have 2 use statement errors"
     );
-    assert!(
-        error_types.iter().any(|e| e.contains("`struct`")),
-        "Should have struct error"
-    );
-    assert!(
-        error_types.iter().any(|e| e.contains("`impl`")),
-        "Should have impl error"
-    );
-    assert!(
-        error_types.iter().any(|e| e.contains("`const`")),
-        "Should have const error"
-    );
-    assert!(
-        error_types.iter().any(|e| e.contains("`static`")),
-        "Should have static error"
-    );
-    assert!(
-        error_types.iter().any(|e| e.contains("`trait`")),
-        "Should have trait error"
-    );
+    assert!(error_types.iter().any(|e| e.contains("`struct`")), "Should have struct error");
+    assert!(error_types.iter().any(|e| e.contains("`impl`")), "Should have impl error");
+    assert!(error_types.iter().any(|e| e.contains("`const`")), "Should have const error");
+    assert!(error_types.iter().any(|e| e.contains("`static`")), "Should have static error");
+    assert!(error_types.iter().any(|e| e.contains("`trait`")), "Should have trait error");
 }

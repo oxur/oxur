@@ -29,10 +29,7 @@ pub fn from_syn_file_partial(file: &syn::File) -> (Crate, Vec<ErrorComment>) {
                 // Generate pretty Rust code for the failed item
                 let rust_code = prettyprint_item(item);
 
-                error_comments.push(ErrorComment {
-                    error_message: e.to_string(),
-                    rust_code,
-                });
+                error_comments.push(ErrorComment { error_message: e.to_string(), rust_code });
             }
         }
     }
@@ -48,11 +45,7 @@ pub fn from_syn_file_partial(file: &syn::File) -> (Crate, Vec<ErrorComment>) {
 /// Pretty-print a syn::Item back to Rust code
 fn prettyprint_item(item: &syn::Item) -> String {
     // prettyplease requires a File, so wrap the item
-    let file = syn::File {
-        shebang: None,
-        attrs: vec![],
-        items: vec![item.clone()],
-    };
+    let file = syn::File { shebang: None, attrs: vec![], items: vec![item.clone()] };
 
     prettyplease::unparse(&file)
 }
