@@ -1,7 +1,6 @@
 //! Comprehensive tests for Stage 2-7: Control Flow, Operations, and Advanced Expressions
 
 use oxur_ast::ast::*;
-use oxur_ast::builder::AstBuilder;
 use oxur_ast::codegen::RustCodegen;
 use oxur_ast::generator::Generator;
 
