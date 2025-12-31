@@ -19,8 +19,12 @@ path = "src/lib.rs"
 
 [dependencies]
 # For library utilities
-anyhow.workspace = true
-colored.workspace = true
+tabled = "0.17"
+serde = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }
+
 
 # For binary (when building the oxur command)
 oxur-lang = { path = "../oxur-lang", optional = true }

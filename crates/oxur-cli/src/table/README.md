@@ -1,10 +1,10 @@
-# oxur-table
+# table
 
-Styled table rendering for Oxur tools with the warm orange "Oxur" theme.
+Styled table rendering for Oxur tools with the warm orange "Oxur" theme. In late 2025 this module was in its own crate but as oxur-cli started to take shape, oxur-table was moved to the oxur-cli/src/trable.
 
 ## Overview
 
-`oxur-table` provides a simple, ergonomic API for creating beautifully styled terminal tables. It uses the [tabled](https://crates.io/crates/tabled) crate for core table rendering and includes an embedded default theme with warm orange sunset colors that match the Oxur brand.
+`table` provides a simple, ergonomic API for creating beautifully styled terminal tables. It uses the [tabled](https://crates.io/crates/tabled) crate for core table rendering and includes an embedded default theme with warm orange sunset colors that match the Oxur brand.
 
 ## Features
 
@@ -18,7 +18,7 @@ Styled table rendering for Oxur tools with the warm orange "Oxur" theme.
 ## Quick Start
 
 ```rust
-use oxur_table::{OxurTable, Tabled};
+use oxur_cli::table::{OxurTable, Tabled};
 use colored::*;
 
 #[derive(Tabled)]
