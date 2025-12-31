@@ -317,7 +317,7 @@ impl AstBuilder {
         Ok(FnDecl { inputs, output })
     }
 
-    fn build_param(&mut self, sexp: &SExp) -> Result<Param> {
+    pub(crate) fn build_param(&mut self, sexp: &SExp) -> Result<Param> {
         let list = expect_list(sexp)?;
         let _kwargs = parse_kwargs(list)?; // For future use
 

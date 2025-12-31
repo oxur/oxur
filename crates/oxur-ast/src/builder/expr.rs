@@ -303,6 +303,136 @@ impl AstBuilder {
                 let args = self.build_expr_list(args_sexp)?;
                 Ok(ExprKind::MethodCall { receiver, method, args })
             }
+            // Stage 7: Remaining expressions
+            "Array" => {
+                let elems = self.build_expr_list(&list.elements[1])?;
+                Ok(ExprKind::Array(elems))
+            }
+            "Tuple" => {
+                let elems = self.build_expr_list(&list.elements[1])?;
+                Ok(ExprKind::Tuple(elems))
+            }
+            "Field" => {
+                let kwargs = parse_kwargs(list)?;
+                let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":expr field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                let field = if let Some(field_sexp) = kwargs.get("field") {
+                    self.build_ident(field_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                Ok(ExprKind::Field { expr, field })
+            }
+            "Index" => {
+                let kwargs = parse_kwargs(list)?;
+                let expr = Box::new(self.build_expr(kwargs.get("expr").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":expr field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                let index = Box::new(self.build_expr(kwargs.get("index").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":index field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                Ok(ExprKind::Index { expr, index })
+            }
+            "Assign" => {
+                let kwargs = parse_kwargs(list)?;
+                let left = Box::new(self.build_expr(kwargs.get("left").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":left field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                let right = Box::new(self.build_expr(kwargs.get("right").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":right field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                Ok(ExprKind::Assign { left, right })
+            }
+            "Struct" => {
+                let kwargs = parse_kwargs(list)?;
+                let path = if let Some(path_sexp) = kwargs.get("path") {
+                    self.build_path(path_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":path field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let fields = if let Some(fields_sexp) = kwargs.get("fields") {
+                    self.build_expr_field_list(fields_sexp)?
+                } else {
+                    Vec::new()
+                };
+                Ok(ExprKind::Struct { path, fields })
+            }
+            "Closure" => {
+                let kwargs = parse_kwargs(list)?;
+                let params = if let Some(params_sexp) = kwargs.get("params") {
+                    self.build_param_list(params_sexp)?
+                } else {
+                    Vec::new()
+                };
+                let body = Box::new(self.build_expr(kwargs.get("body").ok_or_else(|| {
+                    ParseError::Expected {
+                        expected: ":body field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    }
+                })?)?);
+                Ok(ExprKind::Closure { params, body })
+            }
+            "Range" => {
+                let kwargs = parse_kwargs(list)?;
+                let start = if let Some(start_sexp) = kwargs.get("start") {
+                    if !is_nil(start_sexp) {
+                        Some(Box::new(self.build_expr(start_sexp)?))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let end = if let Some(end_sexp) = kwargs.get("end") {
+                    if !is_nil(end_sexp) {
+                        Some(Box::new(self.build_expr(end_sexp)?))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let inclusive = if let Some(inc_sexp) = kwargs.get("inclusive") {
+                    if let SExp::Symbol(sym) = inc_sexp {
+                        sym.value == "true"
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                Ok(ExprKind::Range { start, end, inclusive })
+            }
             _ => Err(ParseError::Expected {
                 expected: "Supported ExprKind variant".to_string(),
                 found: node_type.value.clone(),
@@ -903,5 +1033,71 @@ impl AstBuilder {
                 pos: node_type.pos,
             }),
         }
+    }
+
+    fn build_expr_field_list(&mut self, sexp: &SExp) -> Result<Vec<ExprField>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_expr_field(elem)).collect()
+    }
+
+    fn build_expr_field(&mut self, sexp: &SExp) -> Result<ExprField> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "ExprField" {
+            return Err(ParseError::Expected {
+                expected: "ExprField".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        // TODO: Implement build_attr_vec
+        let attrs = Vec::new();
+
+        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
+            self.build_ident(ident_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":ident field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        let expr = if let Some(expr_sexp) = kwargs.get("expr") {
+            self.build_expr(expr_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":expr field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        let is_shorthand = if let Some(shorthand_sexp) = kwargs.get("is-shorthand") {
+            if let SExp::Symbol(sym) = shorthand_sexp {
+                sym.value == "true"
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+
+        Ok(ExprField { attrs, ident, expr, is_shorthand, span })
+    }
+
+    fn build_param_list(&mut self, sexp: &SExp) -> Result<Vec<Param>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_param(elem)).collect()
     }
 }
