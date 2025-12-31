@@ -411,6 +411,19 @@ impl AstBuilder {
     }
 
     fn build_ty_kind(&mut self, sexp: &SExp) -> Result<TyKind> {
+        // Handle symbol types (Never, Infer)
+        if let SExp::Symbol(sym) = sexp {
+            return match sym.value.as_str() {
+                "Never" => Ok(TyKind::Never),
+                "Infer" => Ok(TyKind::Infer),
+                _ => Err(ParseError::Expected {
+                    expected: "Never or Infer".to_string(),
+                    found: sym.value.clone(),
+                    pos: sym.pos,
+                }),
+            };
+        }
+
         let list = expect_list(sexp)?;
         let node_type = expect_symbol(&list.elements[0])?;
 
@@ -421,8 +434,82 @@ impl AstBuilder {
                 let path = self.build_path(path_sexp)?;
                 Ok(TyKind::Path(None, path))
             }
+            "Ref" => {
+                let kwargs = parse_kwargs(list)?;
+                let lifetime = if let Some(lt_sexp) = kwargs.get("lifetime") {
+                    if !is_nil(lt_sexp) { Some(self.build_lifetime(lt_sexp)?) } else { None }
+                } else {
+                    None
+                };
+                let mutability = if let Some(mut_sexp) = kwargs.get("mutability") {
+                    self.build_mutability(mut_sexp)?
+                } else {
+                    Mutability::Not
+                };
+                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
+                    Box::new(self.build_ty(ty_sexp)?)
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":ty field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                Ok(TyKind::Ref { lifetime, mutability, ty })
+            }
+            "Ptr" => {
+                let kwargs = parse_kwargs(list)?;
+                let mutability = if let Some(mut_sexp) = kwargs.get("mutability") {
+                    self.build_mutability(mut_sexp)?
+                } else {
+                    Mutability::Not
+                };
+                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
+                    Box::new(self.build_ty(ty_sexp)?)
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":ty field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                Ok(TyKind::Ptr { mutability, ty })
+            }
+            "Array" => {
+                let kwargs = parse_kwargs(list)?;
+                let ty = if let Some(ty_sexp) = kwargs.get("ty") {
+                    Box::new(self.build_ty(ty_sexp)?)
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":ty field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let len = if let Some(len_sexp) = kwargs.get("len") {
+                    self.build_expr(len_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":len field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                Ok(TyKind::Array { ty, len })
+            }
+            "Slice" => {
+                let ty = Box::new(self.build_ty(&list.elements[1])?);
+                Ok(TyKind::Slice(ty))
+            }
+            "Tuple" => {
+                let tys = list.elements[1..]
+                    .iter()
+                    .map(|ty_sexp| self.build_ty(ty_sexp))
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(TyKind::Tuple(tys))
+            }
             _ => Err(ParseError::Expected {
-                expected: "Path (other types not yet supported)".to_string(),
+                expected: "Path, Ref, Ptr, Array, Slice, Tuple, Never, or Infer".to_string(),
                 found: node_type.value.clone(),
                 pos: node_type.pos,
             }),
@@ -846,5 +933,45 @@ impl AstBuilder {
                 pos: sym.pos,
             }),
         }
+    }
+
+    fn build_mutability(&mut self, sexp: &SExp) -> Result<Mutability> {
+        let sym = expect_symbol(sexp)?;
+        match sym.value.as_str() {
+            "Mut" => Ok(Mutability::Mut),
+            "Not" => Ok(Mutability::Not),
+            _ => Err(ParseError::Expected {
+                expected: "Mut or Not".to_string(),
+                found: sym.value.clone(),
+                pos: sym.pos,
+            }),
+        }
+    }
+
+    fn build_lifetime(&mut self, sexp: &SExp) -> Result<Lifetime> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "Lifetime" {
+            return Err(ParseError::Expected {
+                expected: "Lifetime".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
+            self.build_ident(ident_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":ident field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        Ok(Lifetime { ident })
     }
 }

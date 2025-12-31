@@ -548,6 +548,18 @@ impl AstBuilder {
     }
 
     fn build_pat_kind(&mut self, sexp: &SExp) -> Result<PatKind> {
+        // Handle symbol patterns (Wild)
+        if let SExp::Symbol(sym) = sexp {
+            return match sym.value.as_str() {
+                "Wild" => Ok(PatKind::Wild),
+                _ => Err(ParseError::Expected {
+                    expected: "Wild or pattern list".to_string(),
+                    found: sym.value.clone(),
+                    pos: sym.pos,
+                }),
+            };
+        }
+
         let list = expect_list(sexp)?;
         let node_type = expect_symbol(&list.elements[0])?;
 
@@ -563,9 +575,96 @@ impl AstBuilder {
                         pos: list.pos,
                     });
                 };
-                let binding_mode = BindingMode::ByValue(Mutability::Not); // TODO: parse from kwargs
-                let sub = None; // TODO: parse from kwargs
+                let binding_mode = if let Some(bm_sexp) = kwargs.get("binding-mode") {
+                    self.build_binding_mode(bm_sexp)?
+                } else {
+                    BindingMode::ByValue(Mutability::Not)
+                };
+                let sub = if let Some(sub_sexp) = kwargs.get("sub") {
+                    if !is_nil(sub_sexp) {
+                        Some(Box::new(self.build_pat(sub_sexp)?))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
                 Ok(PatKind::Ident { binding_mode, ident, sub })
+            }
+            "Struct" => {
+                let kwargs = parse_kwargs(list)?;
+                let path = if let Some(path_sexp) = kwargs.get("path") {
+                    self.build_path(path_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":path field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let fields = if let Some(fields_sexp) = kwargs.get("fields") {
+                    self.build_pat_field_list(fields_sexp)?
+                } else {
+                    Vec::new()
+                };
+                Ok(PatKind::Struct { path, fields })
+            }
+            "TupleStruct" => {
+                let kwargs = parse_kwargs(list)?;
+                let path = if let Some(path_sexp) = kwargs.get("path") {
+                    self.build_path(path_sexp)?
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":path field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let elems = if let Some(elems_sexp) = kwargs.get("elems") {
+                    self.build_pat_list(elems_sexp)?
+                } else {
+                    Vec::new()
+                };
+                Ok(PatKind::TupleStruct { path, elems })
+            }
+            "Tuple" => {
+                let pats = self.build_pat_list(&list.elements[1])?;
+                Ok(PatKind::Tuple(pats))
+            }
+            "Slice" => {
+                let pats = self.build_pat_list(&list.elements[1])?;
+                Ok(PatKind::Slice(pats))
+            }
+            "Or" => {
+                let pats = self.build_pat_list(&list.elements[1])?;
+                Ok(PatKind::Or(pats))
+            }
+            "Ref" => {
+                let kwargs = parse_kwargs(list)?;
+                let pat = if let Some(pat_sexp) = kwargs.get("pat") {
+                    Box::new(self.build_pat(pat_sexp)?)
+                } else {
+                    return Err(ParseError::Expected {
+                        expected: ":pat field".to_string(),
+                        found: "missing".to_string(),
+                        pos: list.pos,
+                    });
+                };
+                let mutability = if let Some(mut_sexp) = kwargs.get("mutability") {
+                    let sym = expect_symbol(mut_sexp)?;
+                    match sym.value.as_str() {
+                        "Mut" => Mutability::Mut,
+                        "Not" => Mutability::Not,
+                        _ => Mutability::Not,
+                    }
+                } else {
+                    Mutability::Not
+                };
+                Ok(PatKind::Ref { pat, mutability })
+            }
+            "Lit" => {
+                let expr = Box::new(self.build_expr(&list.elements[1])?);
+                Ok(PatKind::Lit(expr))
             }
             _ => Err(ParseError::Expected {
                 expected: "Supported PatKind variant".to_string(),
@@ -698,5 +797,111 @@ impl AstBuilder {
     fn build_expr_list(&mut self, sexp: &SExp) -> Result<Vec<Expr>> {
         let list = expect_list(sexp)?;
         list.elements.iter().map(|elem| self.build_expr(elem)).collect()
+    }
+
+    fn build_pat_list(&mut self, sexp: &SExp) -> Result<Vec<Pat>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_pat(elem)).collect()
+    }
+
+    fn build_pat_field_list(&mut self, sexp: &SExp) -> Result<Vec<PatField>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_pat_field(elem)).collect()
+    }
+
+    fn build_pat_field(&mut self, sexp: &SExp) -> Result<PatField> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        if node_type.value != "PatField" {
+            return Err(ParseError::Expected {
+                expected: "PatField".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            });
+        }
+
+        let kwargs = parse_kwargs(list)?;
+
+        // TODO: Implement build_attr_vec
+        let attrs = Vec::new();
+
+        let ident = if let Some(ident_sexp) = kwargs.get("ident") {
+            self.build_ident(ident_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":ident field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        let pat = if let Some(pat_sexp) = kwargs.get("pat") {
+            self.build_pat(pat_sexp)?
+        } else {
+            return Err(ParseError::Expected {
+                expected: ":pat field".to_string(),
+                found: "missing".to_string(),
+                pos: list.pos,
+            });
+        };
+
+        let is_shorthand = if let Some(sh_sexp) = kwargs.get("is-shorthand") {
+            if let SExp::Symbol(sym) = sh_sexp {
+                sym.value == "true"
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+
+        Ok(PatField { attrs, ident, pat, is_shorthand, span })
+    }
+
+    fn build_binding_mode(&mut self, sexp: &SExp) -> Result<BindingMode> {
+        let list = expect_list(sexp)?;
+        let node_type = expect_symbol(&list.elements[0])?;
+
+        match node_type.value.as_str() {
+            "ByRef" => {
+                // For now, simplified - just get the mutability from element 1
+                let mutability = if list.elements.len() > 1 {
+                    let sym = expect_symbol(&list.elements[1])?;
+                    match sym.value.as_str() {
+                        "Mut" => Mutability::Mut,
+                        "Not" => Mutability::Not,
+                        _ => Mutability::Not,
+                    }
+                } else {
+                    Mutability::Not
+                };
+                Ok(BindingMode::ByRef(mutability))
+            }
+            "ByValue" => {
+                let mutability = if list.elements.len() > 1 {
+                    let sym = expect_symbol(&list.elements[1])?;
+                    match sym.value.as_str() {
+                        "Mut" => Mutability::Mut,
+                        "Not" => Mutability::Not,
+                        _ => Mutability::Not,
+                    }
+                } else {
+                    Mutability::Not
+                };
+                Ok(BindingMode::ByValue(mutability))
+            }
+            _ => Err(ParseError::Expected {
+                expected: "ByRef or ByValue".to_string(),
+                found: node_type.value.clone(),
+                pos: node_type.pos,
+            }),
+        }
     }
 }
