@@ -65,6 +65,10 @@ cargo build --release --bin aster
 cargo build --release --bin oxd
 ```
 
+## Oxur Syntax
+
+Currently in the "actively researching, exploring, and experimenting" and  stage.
+
 ## Oxur's AST
 
 The Oxur AST is really just the Rust AST in S-expression format. Here's a simple example taken from `crates/oxur-ast/test-data/examples/intermediate/`:
@@ -104,6 +108,22 @@ Use 'aster <command> --help' for more information.
 ```
 
 A full round-trip example that you can run yourself is provided in [the crate README](./crates/oxur-ast/README.md#end-to-end-examples).
+
+## The Oxur Compiler
+
+Parts of the compile change have been explored in the AST work above (particularly with the `aster` tool). Other parts will be explored in early REPL work. For the latest thinking on our approach, see:
+
+* [Oxur Compilation Chain Architecture](crates/design/docs/05-active/0013-oxur-compilation-chain-architecture.md).
+
+## The Oxur REPL
+
+The following design docs show our current thinking with regard to separation of concerns, extensibility (protocol, clients, servers, etc.):
+
+* [Research: Building a transport-agnostic REPL protocol in Rust](crates/design/docs/06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)
+* [Oxur Remote REPL Protocol Design](crates/design/docs/02-under-review/0018-oxur-remote-repl-protocol-design.md)
+* [Recommendations for Future-proofing Multiple REPL Protocols](crates/design/docs/02-under-review/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
+
+Exact mechanics have yet to be ironed out.
 
 ## Design Documents
 
