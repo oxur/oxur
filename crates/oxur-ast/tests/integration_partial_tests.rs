@@ -312,14 +312,13 @@ fn main() {}
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Main function should succeed
-    assert_eq!(crate_node.items.len(), 1);
-    assert_eq!(crate_node.items[0].ident.name, "main");
+    // Both mod and main function should succeed
+    assert_eq!(crate_node.items.len(), 2);
+    assert_eq!(crate_node.items[0].ident.name, "utils");
+    assert_eq!(crate_node.items[1].ident.name, "main");
 
-    // Mod should fail
-    assert_eq!(errors.len(), 1);
-    assert!(errors[0].error_message.contains("`mod`"));
-    assert!(errors[0].rust_code.contains("mod utils"));
+    // No errors (mod now works!)
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
