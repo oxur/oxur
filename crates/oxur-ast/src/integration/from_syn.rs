@@ -100,58 +100,54 @@ impl SynConverter {
             syn::Item::Enum(item_enum) => self.convert_item_enum(item_enum),
             syn::Item::Trait(item_trait) => self.convert_item_trait(item_trait),
             syn::Item::Impl(item_impl) => self.convert_item_impl(item_impl),
+            syn::Item::Use(item_use) => self.convert_item_use(item_use),
             syn::Item::Const(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`const` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::ExternCrate(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`extern crate` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::ForeignMod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`extern` block item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Macro(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "macro definition".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Mod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`mod` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Static(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`static` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::TraitAlias(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`trait` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Type(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`type` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Union(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "`union` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
-            syn::Item::Use(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
-                found: "`use` statement".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
             _ => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
                 found: "unknown item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
@@ -691,6 +687,118 @@ impl SynConverter {
                 found: "unsupported impl item (const, macro)".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
+        }
+    }
+
+    fn convert_item_use(&mut self, item_use: &syn::ItemUse) -> Result<Item> {
+        // Use declarations don't have a meaningful ident, so we create a dummy one
+        let ident = Ident::new("use".to_string(), Span::DUMMY);
+        let vis = self.convert_visibility(&item_use.vis);
+
+        // Convert the use tree
+        let use_tree = self.convert_use_tree(&item_use.tree)?;
+
+        Ok(Item {
+            attrs: vec![],
+            id: self.next_id(),
+            span: Span::DUMMY,
+            vis,
+            ident,
+            kind: ItemKind::Use(use_tree),
+            tokens: None,
+        })
+    }
+
+    fn convert_use_tree(&mut self, tree: &syn::UseTree) -> Result<UseTree> {
+        match tree {
+            syn::UseTree::Path(use_path) => {
+                // Recursive case: `foo::bar::...`
+                let segment = PathSegment {
+                    ident: self.convert_ident(&use_path.ident),
+                    id: NodeId::DUMMY,
+                    args: None,
+                };
+
+                // Recursively convert the rest of the tree
+                let rest = self.convert_use_tree(&use_path.tree)?;
+
+                // Combine the current segment with the rest
+                let mut segments = vec![segment];
+                segments.extend(rest.prefix.segments);
+
+                Ok(UseTree {
+                    prefix: Path {
+                        span: Span::DUMMY,
+                        segments,
+                        tokens: None,
+                    },
+                    kind: rest.kind,
+                })
+            }
+            syn::UseTree::Name(use_name) => {
+                // Simple name: `use foo::bar;`
+                let segment = PathSegment {
+                    ident: self.convert_ident(&use_name.ident),
+                    id: NodeId::DUMMY,
+                    args: None,
+                };
+
+                Ok(UseTree {
+                    prefix: Path {
+                        span: Span::DUMMY,
+                        segments: vec![segment],
+                        tokens: None,
+                    },
+                    kind: UseTreeKind::Simple(None), // No renaming
+                })
+            }
+            syn::UseTree::Rename(use_rename) => {
+                // Rename: `use foo::bar as baz;`
+                let segment = PathSegment {
+                    ident: self.convert_ident(&use_rename.ident),
+                    id: NodeId::DUMMY,
+                    args: None,
+                };
+
+                let rename = self.convert_ident(&use_rename.rename);
+
+                Ok(UseTree {
+                    prefix: Path {
+                        span: Span::DUMMY,
+                        segments: vec![segment],
+                        tokens: None,
+                    },
+                    kind: UseTreeKind::Simple(Some(rename)),
+                })
+            }
+            syn::UseTree::Glob(_) => {
+                // Glob: `use foo::*;`
+                Ok(UseTree {
+                    prefix: Path {
+                        span: Span::DUMMY,
+                        segments: vec![],
+                        tokens: None,
+                    },
+                    kind: UseTreeKind::Glob,
+                })
+            }
+            syn::UseTree::Group(use_group) => {
+                // Nested: `use foo::{bar, baz};`
+                let items = use_group
+                    .items
+                    .iter()
+                    .map(|item| self.convert_use_tree(item))
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(UseTree {
+                    prefix: Path {
+                        span: Span::DUMMY,
+                        segments: vec![],
+                        tokens: None,
+                    },
+                    kind: UseTreeKind::Nested(items),
+                })
+            }
         }
     }
 
