@@ -62,12 +62,13 @@ enum Color {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Should have 1 successful item (struct now works!)
-    assert_eq!(crate_node.items.len(), 1, "Should have 1 successful item (struct)");
+    // Should have 2 successful items (struct and enum now work!)
+    assert_eq!(crate_node.items.len(), 2, "Should have 2 successful items (struct + enum)");
     assert_eq!(crate_node.items[0].ident.name, "Point");
+    assert_eq!(crate_node.items[1].ident.name, "Color");
 
-    // Should have 3 errors (2 use statements, 1 enum)
-    assert_eq!(errors.len(), 3, "Should have 3 error comments");
+    // Should have 2 errors (2 use statements only)
+    assert_eq!(errors.len(), 2, "Should have 2 error comments");
 }
 
 #[test]
@@ -177,17 +178,17 @@ fn third() {}
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Items should be in order: first, Point (struct), second, third
-    assert_eq!(crate_node.items.len(), 4);
+    // Items should be in order: first, Point (struct), second, Color (enum), third
+    assert_eq!(crate_node.items.len(), 5);
     assert_eq!(crate_node.items[0].ident.name, "first");
     assert_eq!(crate_node.items[1].ident.name, "Point");
     assert_eq!(crate_node.items[2].ident.name, "second");
-    assert_eq!(crate_node.items[3].ident.name, "third");
+    assert_eq!(crate_node.items[3].ident.name, "Color");
+    assert_eq!(crate_node.items[4].ident.name, "third");
 
-    // Errors should be in order: use, enum (struct now works!)
-    assert_eq!(errors.len(), 2);
+    // Only use statement should error (struct and enum now work!)
+    assert_eq!(errors.len(), 1);
     assert!(errors[0].error_message.contains("`use`"));
-    assert!(errors[1].error_message.contains("`enum`"));
 }
 
 #[test]
