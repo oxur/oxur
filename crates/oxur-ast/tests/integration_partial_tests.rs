@@ -334,14 +334,13 @@ fn use_int(x: i32) -> i32 {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Function should succeed
-    assert_eq!(crate_node.items.len(), 1);
-    assert_eq!(crate_node.items[0].ident.name, "use_int");
+    // Both type alias and function should succeed
+    assert_eq!(crate_node.items.len(), 2);
+    assert_eq!(crate_node.items[0].ident.name, "MyInt");
+    assert_eq!(crate_node.items[1].ident.name, "use_int");
 
-    // Type alias should fail
-    assert_eq!(errors.len(), 1);
-    assert!(errors[0].error_message.contains("`type`"));
-    assert!(errors[0].rust_code.contains("type MyInt"));
+    // No errors (type alias now works!)
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
