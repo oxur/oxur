@@ -503,14 +503,7 @@ impl SynConverter {
         let ty = self.convert_type(&field.ty)?;
         let vis = self.convert_visibility(&field.vis);
 
-        Ok(FieldDef {
-            attrs: vec![],
-            id: self.next_id(),
-            span: Span::DUMMY,
-            vis,
-            ident,
-            ty,
-        })
+        Ok(FieldDef { attrs: vec![], id: self.next_id(), span: Span::DUMMY, vis, ident, ty })
     }
 
     fn convert_item_enum(&mut self, item_enum: &syn::ItemEnum) -> Result<Item> {
@@ -518,8 +511,11 @@ impl SynConverter {
         let vis = self.convert_visibility(&item_enum.vis);
 
         // Convert all variants
-        let variants =
-            item_enum.variants.iter().map(|v| self.convert_variant(v)).collect::<Result<Vec<_>>>()?;
+        let variants = item_enum
+            .variants
+            .iter()
+            .map(|v| self.convert_variant(v))
+            .collect::<Result<Vec<_>>>()?;
 
         let enum_def = EnumDef { variants };
 
@@ -634,12 +630,7 @@ impl SynConverter {
                 // Impl methods always have a body
                 let body = Some(self.convert_block(&method.block)?);
 
-                let fn_def = Fn {
-                    defaultness: Defaultness::Final,
-                    sig,
-                    generics,
-                    body,
-                };
+                let fn_def = Fn { defaultness: Defaultness::Final, sig, generics, body };
 
                 Ok(AssocItem {
                     attrs: vec![],
@@ -711,11 +702,7 @@ impl SynConverter {
                 segments.extend(rest.prefix.segments);
 
                 Ok(UseTree {
-                    prefix: Path {
-                        span: Span::DUMMY,
-                        segments,
-                        tokens: None,
-                    },
+                    prefix: Path { span: Span::DUMMY, segments, tokens: None },
                     kind: rest.kind,
                 })
             }
@@ -728,11 +715,7 @@ impl SynConverter {
                 };
 
                 Ok(UseTree {
-                    prefix: Path {
-                        span: Span::DUMMY,
-                        segments: vec![segment],
-                        tokens: None,
-                    },
+                    prefix: Path { span: Span::DUMMY, segments: vec![segment], tokens: None },
                     kind: UseTreeKind::Simple(None), // No renaming
                 })
             }
@@ -747,22 +730,14 @@ impl SynConverter {
                 let rename = self.convert_ident(&use_rename.rename);
 
                 Ok(UseTree {
-                    prefix: Path {
-                        span: Span::DUMMY,
-                        segments: vec![segment],
-                        tokens: None,
-                    },
+                    prefix: Path { span: Span::DUMMY, segments: vec![segment], tokens: None },
                     kind: UseTreeKind::Simple(Some(rename)),
                 })
             }
             syn::UseTree::Glob(_) => {
                 // Glob: `use foo::*;`
                 Ok(UseTree {
-                    prefix: Path {
-                        span: Span::DUMMY,
-                        segments: vec![],
-                        tokens: None,
-                    },
+                    prefix: Path { span: Span::DUMMY, segments: vec![], tokens: None },
                     kind: UseTreeKind::Glob,
                 })
             }
@@ -775,11 +750,7 @@ impl SynConverter {
                     .collect::<Result<Vec<_>>>()?;
 
                 Ok(UseTree {
-                    prefix: Path {
-                        span: Span::DUMMY,
-                        segments: vec![],
-                        tokens: None,
-                    },
+                    prefix: Path { span: Span::DUMMY, segments: vec![], tokens: None },
                     kind: UseTreeKind::Nested(items),
                 })
             }
@@ -960,12 +931,7 @@ impl SynConverter {
                     None
                 };
 
-                let fn_def = Fn {
-                    defaultness: Defaultness::Final,
-                    sig,
-                    generics,
-                    body,
-                };
+                let fn_def = Fn { defaultness: Defaultness::Final, sig, generics, body };
 
                 Ok(AssocItem {
                     attrs: vec![],

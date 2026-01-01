@@ -424,5 +424,8 @@ trait Processable {
     assert_eq!(errors.len(), 1, "Should have 1 error for impl");
 
     // Verify impl/expression error
-    assert!(errors[0].error_message.contains("complex expression"), "Should have impl/expression error");
+    assert!(
+        errors[0].error_message.contains("complex expression"),
+        "Should have impl/expression error"
+    );
 }
