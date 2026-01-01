@@ -279,14 +279,13 @@ fn helper() {}
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Function should succeed
-    assert_eq!(crate_node.items.len(), 1);
-    assert_eq!(crate_node.items[0].ident.name, "helper");
+    // Both trait and function should succeed
+    assert_eq!(crate_node.items.len(), 2);
+    assert_eq!(crate_node.items[0].ident.name, "Drawable");
+    assert_eq!(crate_node.items[1].ident.name, "helper");
 
-    // Trait should fail
-    assert_eq!(errors.len(), 1);
-    assert!(errors[0].error_message.contains("`trait`"));
-    assert!(errors[0].rust_code.contains("trait Drawable"));
+    // No errors (trait now works!)
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
@@ -427,19 +426,19 @@ trait Processable {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Should have 3 successful items (struct + 2 functions)
-    assert_eq!(crate_node.items.len(), 3);
+    // Should have 4 successful items (struct + 2 functions + trait)
+    assert_eq!(crate_node.items.len(), 4);
     assert_eq!(crate_node.items[0].ident.name, "Cache");
     assert_eq!(crate_node.items[1].ident.name, "get_from_cache");
     assert_eq!(crate_node.items[2].ident.name, "process");
+    assert_eq!(crate_node.items[3].ident.name, "Processable");
 
-    // Should have 6 errors (struct now works!):
+    // Should have 5 errors (struct and trait now work!):
     // - 2 use statements
     // - 1 impl
     // - 1 const
     // - 1 static
-    // - 1 trait
-    assert_eq!(errors.len(), 6, "Should have 6 errors for unsupported items");
+    assert_eq!(errors.len(), 5, "Should have 5 errors for unsupported items");
 
     // Verify we have errors for each type
     let error_types: Vec<String> = errors.iter().map(|e| e.error_message.clone()).collect();
@@ -451,5 +450,4 @@ trait Processable {
     assert!(error_types.iter().any(|e| e.contains("`impl`")), "Should have impl error");
     assert!(error_types.iter().any(|e| e.contains("`const`")), "Should have const error");
     assert!(error_types.iter().any(|e| e.contains("`static`")), "Should have static error");
-    assert!(error_types.iter().any(|e| e.contains("`trait`")), "Should have trait error");
 }

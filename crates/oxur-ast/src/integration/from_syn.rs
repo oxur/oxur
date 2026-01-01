@@ -98,68 +98,64 @@ impl SynConverter {
             syn::Item::Fn(item_fn) => self.convert_item_fn(item_fn),
             syn::Item::Struct(item_struct) => self.convert_item_struct(item_struct),
             syn::Item::Enum(item_enum) => self.convert_item_enum(item_enum),
+            syn::Item::Trait(item_trait) => self.convert_item_trait(item_trait),
             syn::Item::Const(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`const` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::ExternCrate(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`extern crate` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::ForeignMod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`extern` block item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Impl(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`impl` block".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Macro(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "macro definition".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Mod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`mod` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Static(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`static` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
-            syn::Item::Trait(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
-                found: "`trait` item".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
             syn::Item::TraitAlias(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`trait` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Type(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`type` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Union(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`union` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Use(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "`use` statement".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             _ => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`)".to_string(),
                 found: "unknown item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
@@ -603,5 +599,125 @@ impl SynConverter {
             data,
             disr_expr,
         })
+    }
+
+    fn convert_type_param_bound(&mut self, bound: &syn::TypeParamBound) -> Result<GenericBound> {
+        match bound {
+            syn::TypeParamBound::Trait(trait_bound) => {
+                let path = self.convert_path(&trait_bound.path)?;
+                Ok(GenericBound::Trait(TraitRef { path }))
+            }
+            syn::TypeParamBound::Lifetime(_) => Err(ParseError::Expected {
+                expected: "trait bound".to_string(),
+                found: "lifetime bound (not yet supported)".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+            _ => Err(ParseError::Expected {
+                expected: "trait bound".to_string(),
+                found: "unknown bound type".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+        }
+    }
+
+    fn convert_item_trait(&mut self, item_trait: &syn::ItemTrait) -> Result<Item> {
+        let ident = self.convert_ident(&item_trait.ident);
+        let vis = self.convert_visibility(&item_trait.vis);
+
+        // Convert safety (unsafe trait or not)
+        let safety = match item_trait.unsafety {
+            Some(_) => Safety::Unsafe,
+            None => Safety::Safe,
+        };
+
+        // Convert generics
+        let generics = self.convert_generics(&item_trait.generics)?;
+
+        // Convert supertraits (bounds like `: Clone + Send`)
+        let bounds = item_trait
+            .supertraits
+            .iter()
+            .map(|b| self.convert_type_param_bound(b))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Convert trait items (methods, types, etc.)
+        let items = item_trait
+            .items
+            .iter()
+            .map(|item| self.convert_trait_item(item))
+            .collect::<Result<Vec<_>>>()?;
+
+        let trait_def = TraitDef { safety, generics, bounds, items };
+
+        Ok(Item {
+            attrs: vec![],
+            id: self.next_id(),
+            span: Span::DUMMY,
+            vis,
+            ident,
+            kind: ItemKind::Trait(Box::new(trait_def)),
+            tokens: None,
+        })
+    }
+
+    fn convert_trait_item(&mut self, item: &syn::TraitItem) -> Result<AssocItem> {
+        match item {
+            syn::TraitItem::Fn(method) => {
+                let ident = self.convert_ident(&method.sig.ident);
+                let vis = Visibility::Inherited; // Trait items are public by default
+
+                // Convert the function signature
+                let sig = self.convert_fn_sig(&method.sig)?;
+                let generics = self.convert_generics(&method.sig.generics)?;
+
+                // Trait methods may or may not have a body
+                let body = if let Some(block) = &method.default {
+                    Some(self.convert_block(block)?)
+                } else {
+                    None
+                };
+
+                let fn_def = Fn {
+                    defaultness: Defaultness::Final,
+                    sig,
+                    generics,
+                    body,
+                };
+
+                Ok(AssocItem {
+                    attrs: vec![],
+                    id: self.next_id(),
+                    span: Span::DUMMY,
+                    vis,
+                    ident,
+                    kind: AssocItemKind::Fn(Box::new(fn_def)),
+                })
+            }
+            syn::TraitItem::Type(ty) => {
+                let ident = self.convert_ident(&ty.ident);
+                let vis = Visibility::Inherited;
+
+                // Associated type may have a default
+                let default_ty = if let Some((_eq, ty)) = &ty.default {
+                    Some(self.convert_type(ty)?)
+                } else {
+                    None
+                };
+
+                Ok(AssocItem {
+                    attrs: vec![],
+                    id: self.next_id(),
+                    span: Span::DUMMY,
+                    vis,
+                    ident,
+                    kind: AssocItemKind::Type(Box::new(default_ty)),
+                })
+            }
+            _ => Err(ParseError::Expected {
+                expected: "trait method or associated type".to_string(),
+                found: "unsupported trait item (const, macro)".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+        }
     }
 }
