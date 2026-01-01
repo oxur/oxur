@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0021 | Oxur Syntax Design Proposal | Draft | 2025-12-31 |
 | 0020 | oxur-ast Phase 5: Complete Pattern & Type System Coverage | Accepted | 2025-12-31 |
 | 0019 | oxur-ast Implementation Status Report | Final | 2025-12-31 |
 | 0018 | Oxur Remote REPL Protocol Design | Under Review | 2025-12-28 |
@@ -28,6 +29,10 @@ This index is automatically generated. Do not edit manually.
 | 0001 | Oxur: A Letter of Intent | Active | 2025-12-30 |
 
 ## Documents by State
+
+### Draft
+
+- [0021 - Oxur Syntax Design Proposal](01-draft/0021-oxur-syntax-design-proposal.md)
 
 ### Under Review
 
