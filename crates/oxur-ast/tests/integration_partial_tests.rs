@@ -307,13 +307,14 @@ fn standalone() {}
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
     // Struct and standalone function should succeed
+    // Impl fails due to struct expression `Point { x }` in method body (expression limitation)
     assert_eq!(crate_node.items.len(), 2);
     assert_eq!(crate_node.items[0].ident.name, "Point");
     assert_eq!(crate_node.items[1].ident.name, "standalone");
 
-    // Only impl should fail
+    // Impl fails due to unsupported struct expression in method body
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].error_message.contains("`impl`"));
+    assert!(errors[0].error_message.contains("complex expression"));
 }
 
 #[test]
