@@ -107,6 +107,35 @@ pub enum ExprKind {
         end: Option<Box<Expr>>,
         inclusive: bool,
     },
+
+    // Phase 5: Priority 3 - Expression gap filling
+    /// Parenthesized expression: `(expr)`
+    Paren(Box<Expr>),
+
+    /// Try operator: `expr?`
+    Try(Box<Expr>),
+
+    /// Type cast: `expr as Type`
+    Cast {
+        expr: Box<Expr>,
+        ty: Box<Ty>,
+    },
+
+    /// Break with optional label and value: `break`, `break 'label`, `break value`
+    Break {
+        label: Option<Label>,
+        value: Option<Box<Expr>>,
+    },
+
+    /// Continue with optional label: `continue`, `continue 'label`
+    Continue {
+        label: Option<Label>,
+    },
+
+    /// Return with optional value: `return`, `return expr`
+    Return {
+        value: Option<Box<Expr>>,
+    },
 }
 
 /// Macro call

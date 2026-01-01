@@ -320,7 +320,58 @@ impl Generator {
             }
             TyKind::Never => Ok(sym("Never")),
             TyKind::Infer => Ok(sym("Infer")),
+            // Phase 5: Complete type coverage
+            TyKind::BareFn { safety, abi, inputs, output } => {
+                let mut fields =
+                    vec![sym("BareFn"), kw("safety"), self.generate_safety(*safety), kw("abi")];
+                fields.push(if let Some(abi_str) = abi { string(abi_str) } else { sym("nil") });
+                fields.push(kw("inputs"));
+                let inputs_sexps: Vec<SExp> = inputs
+                    .iter()
+                    .map(|param| self.generate_bare_fn_param(param))
+                    .collect::<Result<Vec<_>>>()?;
+                fields.push(list(inputs_sexps));
+                fields.push(kw("output"));
+                fields.push(self.generate_fn_ret_ty(output)?);
+                Ok(list(fields))
+            }
+            TyKind::ImplTrait(bounds) => {
+                let bounds_sexps: Vec<SExp> =
+                    bounds.iter().map(|b| self.generate_generic_bound(b)).collect();
+                Ok(list(vec![sym("ImplTrait"), list(bounds_sexps)]))
+            }
+            TyKind::TraitObject { bounds, syntax } => Ok(list(vec![
+                sym("TraitObject"),
+                kw("bounds"),
+                list(bounds.iter().map(|b| self.generate_generic_bound(b)).collect()),
+                kw("syntax"),
+                match syntax {
+                    TraitObjectSyntax::Dyn => sym("Dyn"),
+                    TraitObjectSyntax::None => sym("None"),
+                },
+            ])),
+            TyKind::MacCall(mac) => {
+                Ok(list(vec![sym("MacCall"), kw("mac"), self.generate_mac_call(mac)?]))
+            }
+            TyKind::Paren(ty) => Ok(list(vec![sym("Paren"), self.generate_ty(ty)?])),
         }
+    }
+
+    fn generate_bare_fn_param(&self, param: &BareFnParam) -> Result<SExp> {
+        Ok(typed_node(
+            "BareFnParam",
+            kwargs(vec![
+                kwarg(
+                    "name",
+                    if let Some(name) = &param.name {
+                        self.generate_ident(name)
+                    } else {
+                        sym("nil")
+                    },
+                ),
+                kwarg("ty", self.generate_ty(&param.ty)?),
+            ]),
+        ))
     }
 
     pub(crate) fn generate_pat(&self, pat: &Pat) -> Result<SExp> {
@@ -406,6 +457,57 @@ impl Generator {
                 self.generate_mutability(*mutability),
             ])),
             PatKind::Lit(expr) => Ok(list(vec![sym("Lit"), self.generate_expr(expr)?])),
+            // Phase 5: Complete pattern coverage
+            PatKind::Box(pat) => Ok(list(vec![sym("Box"), kw("pat"), self.generate_pat(pat)?])),
+            PatKind::Path { qself, path } => Ok(list(vec![
+                sym("Path"),
+                kw("qself"),
+                match qself {
+                    Some(q) => self.generate_qself(q),
+                    None => sym("nil"),
+                },
+                kw("path"),
+                self.generate_path(path),
+            ])),
+            PatKind::Range { start, end, limits } => {
+                let mut fields = vec![sym("Range")];
+                fields.push(kw("start"));
+                fields.push(match start {
+                    Some(e) => self.generate_expr(e)?,
+                    None => sym("nil"),
+                });
+                fields.push(kw("end"));
+                fields.push(match end {
+                    Some(e) => self.generate_expr(e)?,
+                    None => sym("nil"),
+                });
+                fields.push(kw("limits"));
+                fields.push(match limits {
+                    RangeEnd::Included => sym("Included"),
+                    RangeEnd::Excluded => sym("Excluded"),
+                });
+                Ok(list(fields))
+            }
+            PatKind::Rest => Ok(sym("Rest")),
+            PatKind::Paren(pat) => Ok(list(vec![sym("Paren"), kw("pat"), self.generate_pat(pat)?])),
+            PatKind::Type { pat, ty } => Ok(list(vec![
+                sym("Type"),
+                kw("pat"),
+                self.generate_pat(pat)?,
+                kw("ty"),
+                self.generate_ty(ty)?,
+            ])),
+            PatKind::Const(const_block) => Ok(list(vec![
+                sym("Const"),
+                kw("id"),
+                num(const_block.id.0),
+                kw("value"),
+                self.generate_expr(&const_block.value)?,
+            ])),
+            PatKind::MacCall(mac) => {
+                Ok(list(vec![sym("MacCall"), kw("mac"), self.generate_mac_call(mac)?]))
+            }
+            PatKind::Err => Ok(sym("Err")),
         }
     }
 
@@ -464,6 +566,12 @@ impl Generator {
         }
 
         typed_node("Path", fields)
+    }
+
+    fn generate_qself(&self, _qself: &QSelf) -> SExp {
+        // TODO: Phase 5+ will expand QSelf with actual fields
+        // For now, QSelf is a placeholder struct with no fields
+        typed_node("QSelf", kwargs(vec![]))
     }
 
     fn generate_path_segments(&self, segments: &[PathSegment]) -> SExp {

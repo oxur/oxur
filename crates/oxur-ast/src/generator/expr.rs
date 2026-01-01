@@ -244,6 +244,33 @@ impl Generator {
                     sym(if *inclusive { "true" } else { "false" }),
                 ]))
             }
+            // Phase 5: Priority 3 - Expression gap filling
+            ExprKind::Paren(expr) => Ok(list(vec![sym("Paren"), self.generate_expr(expr)?])),
+            ExprKind::Try(expr) => Ok(list(vec![sym("Try"), self.generate_expr(expr)?])),
+            ExprKind::Cast { expr, ty } => Ok(list(vec![
+                sym("Cast"),
+                kw("expr"),
+                self.generate_expr(expr)?,
+                kw("ty"),
+                self.generate_ty(ty)?,
+            ])),
+            ExprKind::Break { label, value } => {
+                let label_sexp =
+                    if let Some(l) = label { self.generate_label(l) } else { sym("nil") };
+                let value_sexp =
+                    if let Some(v) = value { self.generate_expr(v)? } else { sym("nil") };
+                Ok(list(vec![sym("Break"), kw("label"), label_sexp, kw("value"), value_sexp]))
+            }
+            ExprKind::Continue { label } => {
+                let label_sexp =
+                    if let Some(l) = label { self.generate_label(l) } else { sym("nil") };
+                Ok(list(vec![sym("Continue"), kw("label"), label_sexp]))
+            }
+            ExprKind::Return { value } => {
+                let value_sexp =
+                    if let Some(v) = value { self.generate_expr(v)? } else { sym("nil") };
+                Ok(list(vec![sym("Return"), kw("value"), value_sexp]))
+            }
         }
     }
 

@@ -96,6 +96,54 @@ impl RustCodegen {
             PatKind::Lit(expr) => {
                 self.generate_expr(expr)?;
             }
+            // Phase 5: Complete pattern coverage
+            PatKind::Box(pat) => {
+                self.write("box ");
+                self.generate_pat(pat)?;
+            }
+            PatKind::Path { qself, path } => {
+                if let Some(_qself) = qself {
+                    // TODO: Phase 5+ will generate full qualified paths
+                    self.write("/* <qualified> */ ");
+                }
+                self.generate_path(path)?;
+            }
+            PatKind::Range { start, end, limits } => {
+                if let Some(start_expr) = start {
+                    self.generate_expr(start_expr)?;
+                }
+                match limits {
+                    RangeEnd::Included => self.write("..="),
+                    RangeEnd::Excluded => self.write(".."),
+                }
+                if let Some(end_expr) = end {
+                    self.generate_expr(end_expr)?;
+                }
+            }
+            PatKind::Rest => {
+                self.write("..");
+            }
+            PatKind::Paren(pat) => {
+                self.write("(");
+                self.generate_pat(pat)?;
+                self.write(")");
+            }
+            PatKind::Type { pat, ty } => {
+                self.generate_pat(pat)?;
+                self.write(": ");
+                self.generate_ty(ty)?;
+            }
+            PatKind::Const(const_block) => {
+                self.write("const { ");
+                self.generate_expr(&const_block.value)?;
+                self.write(" }");
+            }
+            PatKind::MacCall(mac) => {
+                self.generate_mac_call(mac)?;
+            }
+            PatKind::Err => {
+                self.write("/* error */");
+            }
         }
         Ok(())
     }
@@ -158,6 +206,71 @@ impl RustCodegen {
             }
             TyKind::Infer => {
                 self.write("_");
+            }
+            // Phase 5: Complete type coverage
+            TyKind::BareFn { safety, abi, inputs, output } => {
+                // Safety keyword
+                if safety == &Safety::Unsafe {
+                    self.write("unsafe ");
+                }
+
+                // ABI
+                if let Some(abi_str) = abi {
+                    self.write("extern ");
+                    self.write("\"");
+                    self.write(abi_str);
+                    self.write("\" ");
+                }
+
+                self.write("fn(");
+                for (i, param) in inputs.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    if let Some(name) = &param.name {
+                        self.write(&name.name);
+                        self.write(": ");
+                    }
+                    self.generate_ty(&param.ty)?;
+                }
+                self.write(")");
+
+                // Return type
+                match output {
+                    FnRetTy::Default(_) => {}
+                    FnRetTy::Ty(ty) => {
+                        self.write(" -> ");
+                        self.generate_ty(ty)?;
+                    }
+                }
+            }
+            TyKind::ImplTrait(bounds) => {
+                self.write("impl ");
+                for (i, bound) in bounds.iter().enumerate() {
+                    if i > 0 {
+                        self.write(" + ");
+                    }
+                    self.generate_generic_bound(bound)?;
+                }
+            }
+            TyKind::TraitObject { bounds, syntax } => {
+                if matches!(syntax, TraitObjectSyntax::Dyn) {
+                    self.write("dyn ");
+                }
+                for (i, bound) in bounds.iter().enumerate() {
+                    if i > 0 {
+                        self.write(" + ");
+                    }
+                    self.generate_generic_bound(bound)?;
+                }
+            }
+            TyKind::MacCall(mac) => {
+                self.generate_mac_call(mac)?;
+            }
+            TyKind::Paren(ty) => {
+                self.write("(");
+                self.generate_ty(ty)?;
+                self.write(")");
             }
         }
         Ok(())

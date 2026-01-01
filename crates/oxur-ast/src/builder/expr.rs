@@ -77,9 +77,9 @@ impl AstBuilder {
             "Call" | "MethodCall" => self.build_call_expr(&node_type.value, list),
             "Array" | "Tuple" | "Struct" => self.build_collection_expr(&node_type.value, list),
             "Field" | "Index" => self.build_access_expr(&node_type.value, list),
-            "Assign" | "Closure" | "Range" | "MacCall" => {
-                self.build_other_expr(&node_type.value, list)
-            }
+            "Assign" | "Closure" | "Range" | "MacCall" | "Paren" | "Try" | "Cast" | "Break"
+            | "Continue" | "Return" => self.build_other_expr(&node_type.value, list),
+            "Path" | "Lit" => self.build_basic_expr(&node_type.value, list),
             _ => Err(ParseError::Expected {
                 expected: "Supported ExprKind variant".to_string(),
                 found: node_type.value.clone(),
@@ -307,10 +307,128 @@ impl AstBuilder {
                 );
                 Ok(ExprKind::Range { start, end, inclusive })
             }
+            // Phase 5: Priority 3 - Expression gap filling
+            "Paren" => {
+                let expr = Box::new(self.build_expr(&list.elements[1])?);
+                Ok(ExprKind::Paren(expr))
+            }
+            "Try" => {
+                let expr = Box::new(self.build_expr(&list.elements[1])?);
+                Ok(ExprKind::Try(expr))
+            }
+            "Cast" => {
+                let kwargs = parse_kwargs(list)?;
+                let expr = Box::new(self.build_expr(require_field(&kwargs, "expr", list.pos)?)?);
+                let ty = Box::new(self.build_ty(require_field(&kwargs, "ty", list.pos)?)?);
+                Ok(ExprKind::Cast { expr, ty })
+            }
+            "Break" => {
+                let kwargs = parse_kwargs(list)?;
+                let label = if let Some(label_sexp) = optional_field(&kwargs, "label") {
+                    Some(self.build_label(label_sexp)?)
+                } else {
+                    None
+                };
+                let value = if let Some(value_sexp) = optional_field(&kwargs, "value") {
+                    Some(Box::new(self.build_expr(value_sexp)?))
+                } else {
+                    None
+                };
+                Ok(ExprKind::Break { label, value })
+            }
+            "Continue" => {
+                let kwargs = parse_kwargs(list)?;
+                let label = if let Some(label_sexp) = optional_field(&kwargs, "label") {
+                    Some(self.build_label(label_sexp)?)
+                } else {
+                    None
+                };
+                Ok(ExprKind::Continue { label })
+            }
+            "Return" => {
+                let kwargs = parse_kwargs(list)?;
+                let value = if let Some(value_sexp) = optional_field(&kwargs, "value") {
+                    Some(Box::new(self.build_expr(value_sexp)?))
+                } else {
+                    None
+                };
+                Ok(ExprKind::Return { value })
+            }
             _ => Err(ParseError::Expected {
-                expected: "MacCall, Assign, Closure, or Range".to_string(),
+                expected:
+                    "MacCall, Assign, Closure, Range, Paren, Try, Cast, Break, Continue, or Return"
+                        .to_string(),
                 found: node_type.to_string(),
                 pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_basic_expr(&mut self, node_type: &str, list: &crate::sexp::List) -> Result<ExprKind> {
+        match node_type {
+            "Path" => {
+                // Path expression: (Path nil (Path ...)) or (Path TODO (Path ...))
+                // Positional args: 1=qself, 2=path
+                let qself = if list.elements.len() > 1 {
+                    let qself_sexp = &list.elements[1];
+                    if matches!(qself_sexp, SExp::Symbol(sym) if sym.value == "nil") {
+                        None
+                    } else {
+                        // TODO: implement QSelf parsing
+                        None
+                    }
+                } else {
+                    None
+                };
+                let path = self.build_path(&list.elements[2])?;
+                Ok(ExprKind::Path(qself, path))
+            }
+            "Lit" => {
+                // Lit expression: (Lit (Lit :kind ...))
+                let lit_sexp = &list.elements[1];
+                let lit = self.build_lit(lit_sexp)?;
+                Ok(ExprKind::Lit(lit))
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Path or Lit".to_string(),
+                found: node_type.to_string(),
+                pos: list.pos,
+            }),
+        }
+    }
+
+    fn build_lit(&mut self, sexp: &SExp) -> Result<Lit> {
+        let list = expect_node_type(expect_list(sexp)?, "Lit")?;
+        let kwargs = parse_kwargs(list)?;
+
+        let kind = self.build_lit_kind(require_field(&kwargs, "kind", list.pos)?)?;
+
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
+
+        Ok(Lit { kind, span })
+    }
+
+    fn build_lit_kind(&mut self, sexp: &SExp) -> Result<LitKind> {
+        let list = expect_list(sexp)?;
+        let variant = expect_symbol(&list.elements[0])?;
+
+        match variant.value.as_str() {
+            "Int" => {
+                let value = expect_number(&list.elements[1])?;
+                Ok(LitKind::Int(value))
+            }
+            "Str" => {
+                let value = expect_string(&list.elements[1])?;
+                Ok(LitKind::Str(value.to_string()))
+            }
+            _ => Err(ParseError::Expected {
+                expected: "Int or Str".to_string(),
+                found: variant.value.clone(),
+                pos: variant.pos,
             }),
         }
     }
@@ -588,6 +706,69 @@ impl AstBuilder {
                 let expr = Box::new(self.build_expr(&list.elements[1])?);
                 Ok(PatKind::Lit(expr))
             }
+            // Phase 5: Complete pattern coverage
+            "Box" => {
+                let pat = Box::new(self.build_pat(&list.elements[1])?);
+                Ok(PatKind::Box(pat))
+            }
+            "Path" => {
+                let kwargs = parse_kwargs(list)?;
+                let qself = if let Some(qself_sexp) = optional_field(&kwargs, "qself") {
+                    Some(self.build_qself(qself_sexp)?)
+                } else {
+                    None
+                };
+                let path = self.build_path(require_field(&kwargs, "path", list.pos)?)?;
+                Ok(PatKind::Path { qself, path })
+            }
+            "Range" => {
+                let kwargs = parse_kwargs(list)?;
+                let start = if let Some(start_sexp) = optional_field(&kwargs, "start") {
+                    Some(Box::new(self.build_expr(start_sexp)?))
+                } else {
+                    None
+                };
+                let end = if let Some(end_sexp) = optional_field(&kwargs, "end") {
+                    Some(Box::new(self.build_expr(end_sexp)?))
+                } else {
+                    None
+                };
+                let limits = if let Some(limits_sexp) = kwargs.get("limits") {
+                    self.build_range_end(limits_sexp)?
+                } else {
+                    RangeEnd::Excluded
+                };
+                Ok(PatKind::Range { start, end, limits })
+            }
+            "Rest" => Ok(PatKind::Rest),
+            "Paren" => {
+                let pat = Box::new(self.build_pat(&list.elements[1])?);
+                Ok(PatKind::Paren(pat))
+            }
+            "Type" => {
+                let kwargs = parse_kwargs(list)?;
+                let pat = Box::new(self.build_pat(require_field(&kwargs, "pat", list.pos)?)?);
+                let ty = Box::new(self.build_ty(require_field(&kwargs, "ty", list.pos)?)?);
+                Ok(PatKind::Type { pat, ty })
+            }
+            "Const" => {
+                let kwargs = parse_kwargs(list)?;
+                let id = if let Some(id_sexp) = kwargs.get("id") {
+                    NodeId(expect_number(id_sexp)? as u32)
+                } else {
+                    self.next_id()
+                };
+                let value = Box::new(self.build_expr(require_field(&kwargs, "value", list.pos)?)?);
+                Ok(PatKind::Const(ConstBlock { id, value }))
+            }
+            "MacCall" => {
+                let kwargs = parse_kwargs(list)?;
+                let mac_sexp = require_field(&kwargs, "mac", list.pos)?;
+                let mac_list = expect_list(mac_sexp)?;
+                let mac = self.build_mac_call_inner(mac_list)?;
+                Ok(PatKind::MacCall(mac))
+            }
+            "Err" => Ok(PatKind::Err),
             _ => Err(ParseError::Expected {
                 expected: "Supported PatKind variant".to_string(),
                 found: node_type.value.clone(),
@@ -755,5 +936,25 @@ impl AstBuilder {
     fn build_param_list(&mut self, sexp: &SExp) -> Result<Vec<Param>> {
         let list = expect_list(sexp)?;
         list.elements.iter().map(|elem| self.build_param(elem)).collect()
+    }
+
+    // Phase 5: Pattern helper methods
+    fn build_qself(&mut self, _sexp: &SExp) -> Result<QSelf> {
+        // TODO: Phase 5+ will expand QSelf with actual fields
+        // For now, QSelf is a placeholder struct with no fields
+        Ok(QSelf {})
+    }
+
+    fn build_range_end(&mut self, sexp: &SExp) -> Result<RangeEnd> {
+        let sym = expect_symbol(sexp)?;
+        match sym.value.as_str() {
+            "Included" => Ok(RangeEnd::Included),
+            "Excluded" => Ok(RangeEnd::Excluded),
+            _ => Err(ParseError::Expected {
+                expected: "Included or Excluded".to_string(),
+                found: sym.value.clone(),
+                pos: sym.pos,
+            }),
+        }
     }
 }

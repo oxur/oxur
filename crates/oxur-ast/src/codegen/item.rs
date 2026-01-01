@@ -403,7 +403,7 @@ impl RustCodegen {
     }
 
     /// Generate a generic bound
-    fn generate_generic_bound(&mut self, bound: &GenericBound) -> Result<()> {
+    pub(crate) fn generate_generic_bound(&mut self, bound: &GenericBound) -> Result<()> {
         match bound {
             GenericBound::Trait(trait_ref) => {
                 self.generate_trait_ref(trait_ref)?;

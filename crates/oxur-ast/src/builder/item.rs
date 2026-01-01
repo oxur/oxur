@@ -416,7 +416,7 @@ impl AstBuilder {
         Ok(Generics::empty())
     }
 
-    fn build_ty(&mut self, sexp: &SExp) -> Result<Ty> {
+    pub(crate) fn build_ty(&mut self, sexp: &SExp) -> Result<Ty> {
         let list = expect_node_type(expect_list(sexp)?, "Ty")?;
         let kwargs = parse_kwargs(list)?;
 
@@ -503,10 +503,104 @@ impl AstBuilder {
                     .collect::<Result<Vec<_>>>()?;
                 Ok(TyKind::Tuple(tys))
             }
+            // Phase 5: Complete type coverage
+            "BareFn" => {
+                let kwargs = parse_kwargs(list)?;
+                let safety = if let Some(safety_sexp) = kwargs.get("safety") {
+                    self.build_safety(safety_sexp)?
+                } else {
+                    Safety::Default
+                };
+                let abi = if let Some(abi_sexp) = optional_field(&kwargs, "abi") {
+                    Some(expect_string(abi_sexp)?.to_string())
+                } else {
+                    None
+                };
+                let inputs = if let Some(inputs_sexp) = kwargs.get("inputs") {
+                    self.build_bare_fn_param_list(inputs_sexp)?
+                } else {
+                    Vec::new()
+                };
+                let output = if let Some(output_sexp) = kwargs.get("output") {
+                    self.build_fn_ret_ty(output_sexp)?
+                } else {
+                    FnRetTy::Default(Span::DUMMY)
+                };
+                Ok(TyKind::BareFn { safety, abi, inputs, output })
+            }
+            "ImplTrait" => {
+                let bounds_list = expect_list(&list.elements[1])?;
+                let bounds = bounds_list
+                    .elements
+                    .iter()
+                    .map(|b| self.build_generic_bound(b))
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(TyKind::ImplTrait(bounds))
+            }
+            "TraitObject" => {
+                let kwargs = parse_kwargs(list)?;
+                let bounds_list = expect_list(require_field(&kwargs, "bounds", list.pos)?)?;
+                let bounds = bounds_list
+                    .elements
+                    .iter()
+                    .map(|b| self.build_generic_bound(b))
+                    .collect::<Result<Vec<_>>>()?;
+                let syntax = if let Some(syntax_sexp) = kwargs.get("syntax") {
+                    self.build_trait_object_syntax(syntax_sexp)?
+                } else {
+                    TraitObjectSyntax::Dyn
+                };
+                Ok(TyKind::TraitObject { bounds, syntax })
+            }
+            "MacCall" => {
+                let kwargs = parse_kwargs(list)?;
+                let mac_sexp = require_field(&kwargs, "mac", list.pos)?;
+                let mac_list = expect_list(mac_sexp)?;
+                let mac = self.build_mac_call_inner(mac_list)?;
+                Ok(TyKind::MacCall(mac))
+            }
+            "Paren" => {
+                let ty = Box::new(self.build_ty(&list.elements[1])?);
+                Ok(TyKind::Paren(ty))
+            }
             _ => Err(ParseError::Expected {
-                expected: "Path, Ref, Ptr, Array, Slice, Tuple, Never, or Infer".to_string(),
+                expected:
+                    "Path, Ref, Ptr, Array, Slice, Tuple, BareFn, ImplTrait, TraitObject, MacCall, Paren, Never, or Infer"
+                        .to_string(),
                 found: node_type.value.clone(),
                 pos: node_type.pos,
+            }),
+        }
+    }
+
+    fn build_bare_fn_param_list(&mut self, sexp: &SExp) -> Result<Vec<BareFnParam>> {
+        let list = expect_list(sexp)?;
+        list.elements.iter().map(|elem| self.build_bare_fn_param(elem)).collect()
+    }
+
+    fn build_bare_fn_param(&mut self, sexp: &SExp) -> Result<BareFnParam> {
+        let list = expect_node_type(expect_list(sexp)?, "BareFnParam")?;
+        let kwargs = parse_kwargs(list)?;
+
+        let name = if let Some(name_sexp) = optional_field(&kwargs, "name") {
+            Some(self.build_ident(name_sexp)?)
+        } else {
+            None
+        };
+        let ty = self.build_ty(require_field(&kwargs, "ty", list.pos)?)?;
+
+        Ok(BareFnParam { attrs: Vec::new(), name, ty })
+    }
+
+    fn build_trait_object_syntax(&mut self, sexp: &SExp) -> Result<TraitObjectSyntax> {
+        let sym = expect_symbol(sexp)?;
+        match sym.value.as_str() {
+            "Dyn" => Ok(TraitObjectSyntax::Dyn),
+            "None" => Ok(TraitObjectSyntax::None),
+            _ => Err(ParseError::Expected {
+                expected: "Dyn or None".to_string(),
+                found: sym.value.clone(),
+                pos: sym.pos,
             }),
         }
     }

@@ -95,7 +95,7 @@ fn third(x: i32) {
 }
     "#;
 
-    let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
+    let (crate_node, _errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
     // At least 2 functions should succeed (third might fail due to pattern complexity)
     assert!(

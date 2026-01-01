@@ -194,6 +194,30 @@ pub enum TyKind {
 
     /// Infer type: `_`
     Infer,
+
+    // Phase 5: Complete type coverage
+    /// Bare function type: `fn(i32) -> String`, `unsafe fn() -> !`
+    BareFn {
+        safety: Safety,
+        abi: Option<String>,
+        inputs: Vec<BareFnParam>,
+        output: FnRetTy,
+    },
+
+    /// Impl trait type: `impl Iterator<Item = u8>`
+    ImplTrait(Vec<GenericBound>),
+
+    /// Trait object type: `dyn Display + Send`
+    TraitObject {
+        bounds: Vec<GenericBound>,
+        syntax: TraitObjectSyntax,
+    },
+
+    /// Macro invocation in type position: `vec![T]`
+    MacCall(MacCall),
+
+    /// Parenthesized type: `(T)`
+    Paren(Box<Ty>),
 }
 
 /// Lifetime (e.g., `'a`, `'static`)
@@ -260,6 +284,44 @@ pub enum PatKind {
 
     /// Literal pattern: `42`, `"hello"`
     Lit(Box<Expr>),
+
+    // Phase 5: Complete pattern coverage
+    /// Box pattern: `box pat`
+    Box(Box<Pat>),
+
+    /// Path pattern: `None`, `Some`, `std::option::Option::None`
+    Path {
+        qself: Option<QSelf>,
+        path: Path,
+    },
+
+    /// Range pattern: `1..=5`, `..=10`, `5..`
+    Range {
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
+        limits: RangeEnd,
+    },
+
+    /// Rest pattern: `..` in a tuple or slice
+    Rest,
+
+    /// Parenthesized pattern: `(pat)`
+    Paren(Box<Pat>),
+
+    /// Type ascription: `x: i32`
+    Type {
+        pat: Box<Pat>,
+        ty: Box<Ty>,
+    },
+
+    /// Const block: `const { expr }`
+    Const(ConstBlock),
+
+    /// Macro invocation
+    MacCall(MacCall),
+
+    /// Error recovery
+    Err,
 }
 
 /// Pattern field (for struct patterns)
@@ -284,6 +346,22 @@ pub enum BindingMode {
 pub enum Mutability {
     Mut,
     Not,
+}
+
+/// Range end style
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RangeEnd {
+    /// `..=` (inclusive)
+    Included,
+    /// `..` (exclusive)
+    Excluded,
+}
+
+/// Const block in pattern position
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConstBlock {
+    pub id: NodeId,
+    pub value: Box<Expr>,
 }
 
 /// Block (forward declaration - defined in expr.rs)
@@ -415,6 +493,24 @@ pub struct TraitRef {
 pub enum GenericBound {
     Trait(TraitRef),
     // Future: Lifetime bounds
+}
+
+// Phase 5: Type system supporting types
+/// Bare function parameter: `x: i32` in `fn(x: i32) -> bool`
+#[derive(Debug, Clone, PartialEq)]
+pub struct BareFnParam {
+    pub attrs: AttrVec,
+    pub name: Option<Ident>,
+    pub ty: Ty,
+}
+
+/// Trait object syntax style
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TraitObjectSyntax {
+    /// `dyn Trait`
+    Dyn,
+    /// No `dyn` keyword (deprecated but still valid)
+    None,
 }
 
 /// Stage 8: Use tree types

@@ -68,12 +68,31 @@ cargo build --release --bin oxd
 ## Oxur Syntax
 
 The Oxur syntax is currently in the "actively researching, exploring, and experimenting" and  stage. As part of that, we are examining the following:
-* [Coalton](https://github.com/coalton-lang/coalton) - Hindley-Milner type inference for Common Lisp
-* [LFE](https://lfe.io) - LFE's syntax for Erlang type specs (these are type specifications that can by used by Erlang's static analyser `dialyzer`; they are not static types)
-* [Typed Racket](https://docs.racket-lang.org/ts-guide/)
-* [Shen](https://shen-language.github.io/)
+- [Coalton](https://github.com/coalton-lang/coalton) - Hindley-Milner type inference for Common Lisp
+- [LFE](https://lfe.io) - LFE's syntax for Erlang type specs (these are type specifications that can by used by Erlang's static analyser `dialyzer`; they are not static types)
+- [Typed Racket](https://docs.racket-lang.org/ts-guide/)
+- [Shen](https://shen-language.github.io/)
 
 Given the Zetalisp inspiration for Oxur, we are leaning heavily toward a Coalton-influenced syntax for types in a Rust Lisp.
+
+Now, that being said, we're going to go out on a limb and show some of what we're thinking, even though we can't make any promise that any of this will survive the process of experimentation :-D Here's an example of the sort of sytnax we're exploring:
+
+```clj
+(use std::collections::hashmap)
+(use std::io::error)
+
+(deffn greet-user
+  (name:string count:(option u32)) -> (result string error)
+  "Greets a user with optional repetition"
+  (let (base (string::from "Hello, ")            ; static String::from
+        greeting (string:push-str base name)     ; instance method
+        final (match count
+                ((some n) (string:repeat greeting n))
+                (none) greeting))
+    (ok final)))
+```
+
+If you're curious about the development of Oxur's syntax, you're going to want to keep your eye on [this doc]() as it moves through the design process.
 
 ## The Oxur AST
 
@@ -119,15 +138,15 @@ A full round-trip example that you can run yourself is provided in [the crate RE
 
 Parts of the compile change have been explored in the AST work above (particularly with the `aster` tool). Other parts will be explored in early REPL work. For the latest thinking on our approach, see:
 
-* [Oxur Compilation Chain Architecture](crates/design/docs/05-active/0013-oxur-compilation-chain-architecture.md).
+- [Oxur Compilation Chain Architecture](crates/design/docs/05-active/0013-oxur-compilation-chain-architecture.md).
 
 ## The Oxur REPL
 
 The following design docs show our current thinking with regard to separation of concerns, extensibility (protocol, clients, servers, etc.):
 
-* [Research: Building a transport-agnostic REPL protocol in Rust](crates/design/docs/06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)
-* [Oxur Remote REPL Protocol Design](crates/design/docs/02-under-review/0018-oxur-remote-repl-protocol-design.md)
-* [Recommendations for Future-proofing Multiple REPL Protocols](crates/design/docs/02-under-review/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
+- [Research: Building a transport-agnostic REPL protocol in Rust](crates/design/docs/06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)
+- [Oxur Remote REPL Protocol Design](crates/design/docs/02-under-review/0018-oxur-remote-repl-protocol-design.md)
+- [Recommendations for Future-proofing Multiple REPL Protocols](crates/design/docs/02-under-review/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
 
 Exact mechanics have yet to be ironed out.
 

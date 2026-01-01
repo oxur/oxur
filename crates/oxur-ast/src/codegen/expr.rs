@@ -226,6 +226,46 @@ impl RustCodegen {
                     self.generate_expr(end_expr)?;
                 }
             }
+            // Phase 5: Priority 3 - Expression gap filling
+            ExprKind::Paren(expr) => {
+                self.write("(");
+                self.generate_expr(expr)?;
+                self.write(")");
+            }
+            ExprKind::Try(expr) => {
+                self.generate_expr(expr)?;
+                self.write("?");
+            }
+            ExprKind::Cast { expr, ty } => {
+                self.generate_expr(expr)?;
+                self.write(" as ");
+                self.generate_ty(ty)?;
+            }
+            ExprKind::Break { label, value } => {
+                self.write("break");
+                if let Some(label) = label {
+                    self.write(" '");
+                    self.write(&label.ident.name);
+                }
+                if let Some(value) = value {
+                    self.write(" ");
+                    self.generate_expr(value)?;
+                }
+            }
+            ExprKind::Continue { label } => {
+                self.write("continue");
+                if let Some(label) = label {
+                    self.write(" '");
+                    self.write(&label.ident.name);
+                }
+            }
+            ExprKind::Return { value } => {
+                self.write("return");
+                if let Some(value) = value {
+                    self.write(" ");
+                    self.generate_expr(value)?;
+                }
+            }
         }
         Ok(())
     }
