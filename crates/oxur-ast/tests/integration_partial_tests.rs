@@ -21,34 +21,24 @@ fn world() {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Should have 2 successful items (the two functions)
-    assert_eq!(crate_node.items.len(), 2, "Should have 2 successful items");
+    // Should have 3 successful items (two functions + struct)
+    assert_eq!(crate_node.items.len(), 3, "Should have 3 successful items");
     assert_eq!(crate_node.items[0].ident.name, "hello");
-    assert_eq!(crate_node.items[1].ident.name, "world");
+    assert_eq!(crate_node.items[1].ident.name, "Point");
+    assert_eq!(crate_node.items[2].ident.name, "world");
 
-    // Should have 2 errors (use statement and struct)
-    assert_eq!(errors.len(), 2, "Should have 2 error comments");
+    // Should have 1 error (use statement only)
+    assert_eq!(errors.len(), 1, "Should have 1 error comment");
 
-    // First error should be for 'use' statement
+    // Error should be for 'use' statement
     assert!(
         errors[0].error_message.contains("`use` statement"),
-        "First error should be for use statement, got: {}",
+        "Error should be for use statement, got: {}",
         errors[0].error_message
     );
     assert!(
         errors[0].rust_code.contains("use std::io;"),
         "Error comment should contain the use statement"
-    );
-
-    // Second error should be for 'struct'
-    assert!(
-        errors[1].error_message.contains("`struct` item"),
-        "Second error should be for struct, got: {}",
-        errors[1].error_message
-    );
-    assert!(
-        errors[1].rust_code.contains("struct Point"),
-        "Error comment should contain the struct definition"
     );
 }
 
@@ -72,11 +62,12 @@ enum Color {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Should have 0 successful items
-    assert_eq!(crate_node.items.len(), 0, "Should have no successful items");
+    // Should have 1 successful item (struct now works!)
+    assert_eq!(crate_node.items.len(), 1, "Should have 1 successful item (struct)");
+    assert_eq!(crate_node.items[0].ident.name, "Point");
 
-    // Should have 4 errors (2 use statements, 1 struct, 1 enum)
-    assert_eq!(errors.len(), 4, "Should have 4 error comments");
+    // Should have 3 errors (2 use statements, 1 enum)
+    assert_eq!(errors.len(), 3, "Should have 3 error comments");
 }
 
 #[test]
@@ -186,17 +177,17 @@ fn third() {}
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Functions should be in order: first, second, third
-    assert_eq!(crate_node.items.len(), 3);
+    // Items should be in order: first, Point (struct), second, third
+    assert_eq!(crate_node.items.len(), 4);
     assert_eq!(crate_node.items[0].ident.name, "first");
-    assert_eq!(crate_node.items[1].ident.name, "second");
-    assert_eq!(crate_node.items[2].ident.name, "third");
+    assert_eq!(crate_node.items[1].ident.name, "Point");
+    assert_eq!(crate_node.items[2].ident.name, "second");
+    assert_eq!(crate_node.items[3].ident.name, "third");
 
-    // Errors should be in order: use, struct, enum
-    assert_eq!(errors.len(), 3);
+    // Errors should be in order: use, enum (struct now works!)
+    assert_eq!(errors.len(), 2);
     assert!(errors[0].error_message.contains("`use`"));
-    assert!(errors[1].error_message.contains("`struct`"));
-    assert!(errors[2].error_message.contains("`enum`"));
+    assert!(errors[1].error_message.contains("`enum`"));
 }
 
 #[test]
@@ -315,14 +306,14 @@ fn standalone() {}
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Only standalone function should succeed
-    assert_eq!(crate_node.items.len(), 1);
-    assert_eq!(crate_node.items[0].ident.name, "standalone");
+    // Struct and standalone function should succeed
+    assert_eq!(crate_node.items.len(), 2);
+    assert_eq!(crate_node.items[0].ident.name, "Point");
+    assert_eq!(crate_node.items[1].ident.name, "standalone");
 
-    // Struct and impl should fail
-    assert_eq!(errors.len(), 2);
-    assert!(errors[0].error_message.contains("`struct`"));
-    assert!(errors[1].error_message.contains("`impl`"));
+    // Only impl should fail
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].error_message.contains("`impl`"));
 }
 
 #[test]
@@ -435,19 +426,19 @@ trait Processable {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Should have 2 successful functions
-    assert_eq!(crate_node.items.len(), 2);
-    assert_eq!(crate_node.items[0].ident.name, "get_from_cache");
-    assert_eq!(crate_node.items[1].ident.name, "process");
+    // Should have 3 successful items (struct + 2 functions)
+    assert_eq!(crate_node.items.len(), 3);
+    assert_eq!(crate_node.items[0].ident.name, "Cache");
+    assert_eq!(crate_node.items[1].ident.name, "get_from_cache");
+    assert_eq!(crate_node.items[2].ident.name, "process");
 
-    // Should have 7 errors:
+    // Should have 6 errors (struct now works!):
     // - 2 use statements
-    // - 1 struct
     // - 1 impl
     // - 1 const
     // - 1 static
     // - 1 trait
-    assert_eq!(errors.len(), 7, "Should have 7 errors for unsupported items");
+    assert_eq!(errors.len(), 6, "Should have 6 errors for unsupported items");
 
     // Verify we have errors for each type
     let error_types: Vec<String> = errors.iter().map(|e| e.error_message.clone()).collect();
@@ -456,7 +447,6 @@ trait Processable {
         error_types.iter().filter(|e| e.contains("`use`")).count() == 2,
         "Should have 2 use statement errors"
     );
-    assert!(error_types.iter().any(|e| e.contains("`struct`")), "Should have struct error");
     assert!(error_types.iter().any(|e| e.contains("`impl`")), "Should have impl error");
     assert!(error_types.iter().any(|e| e.contains("`const`")), "Should have const error");
     assert!(error_types.iter().any(|e| e.contains("`static`")), "Should have static error");

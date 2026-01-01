@@ -96,78 +96,74 @@ impl SynConverter {
     fn convert_item(&mut self, item: &syn::Item) -> Result<Item> {
         match item {
             syn::Item::Fn(item_fn) => self.convert_item_fn(item_fn),
+            syn::Item::Struct(item_struct) => self.convert_item_struct(item_struct),
             syn::Item::Const(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`const` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Enum(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`enum` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::ExternCrate(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`extern crate` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::ForeignMod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`extern` block item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Impl(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`impl` block".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Macro(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "macro definition".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Mod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`mod` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Static(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`static` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
-            syn::Item::Struct(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
-                found: "`struct` item".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
             syn::Item::Trait(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`trait` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::TraitAlias(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`trait` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Type(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`type` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Union(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`union` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Use(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "`use` statement".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             _ => Err(ParseError::Expected {
-                expected: "supported item type (currently only: `fn`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`)".to_string(),
                 found: "unknown item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
@@ -496,5 +492,56 @@ impl SynConverter {
         };
 
         Ok(Lit { kind, span: Span::DUMMY })
+    }
+
+    fn convert_item_struct(&mut self, item_struct: &syn::ItemStruct) -> Result<Item> {
+        let ident = self.convert_ident(&item_struct.ident);
+        let vis = self.convert_visibility(&item_struct.vis);
+
+        // Convert fields based on struct type
+        let variant_data = match &item_struct.fields {
+            syn::Fields::Named(fields_named) => {
+                let fields = fields_named
+                    .named
+                    .iter()
+                    .map(|f| self.convert_field(f))
+                    .collect::<Result<Vec<_>>>()?;
+                VariantData::Struct { fields, recovered: false }
+            }
+            syn::Fields::Unnamed(fields_unnamed) => {
+                let fields = fields_unnamed
+                    .unnamed
+                    .iter()
+                    .map(|f| self.convert_field(f))
+                    .collect::<Result<Vec<_>>>()?;
+                VariantData::Tuple(fields)
+            }
+            syn::Fields::Unit => VariantData::Unit,
+        };
+
+        Ok(Item {
+            attrs: vec![],
+            id: self.next_id(),
+            span: Span::DUMMY,
+            vis,
+            ident,
+            kind: ItemKind::Struct(variant_data),
+            tokens: None,
+        })
+    }
+
+    fn convert_field(&mut self, field: &syn::Field) -> Result<FieldDef> {
+        let ident = field.ident.as_ref().map(|i| self.convert_ident(i));
+        let ty = self.convert_type(&field.ty)?;
+        let vis = self.convert_visibility(&field.vis);
+
+        Ok(FieldDef {
+            attrs: vec![],
+            id: self.next_id(),
+            span: Span::DUMMY,
+            vis,
+            ident,
+            ty,
+        })
     }
 }
