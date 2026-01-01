@@ -101,53 +101,45 @@ impl SynConverter {
             syn::Item::Trait(item_trait) => self.convert_item_trait(item_trait),
             syn::Item::Impl(item_impl) => self.convert_item_impl(item_impl),
             syn::Item::Use(item_use) => self.convert_item_use(item_use),
-            syn::Item::Const(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
-                found: "`const` item".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
+            syn::Item::Static(item_static) => self.convert_item_static(item_static),
+            syn::Item::Const(item_const) => self.convert_item_const(item_const),
             syn::Item::ExternCrate(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "`extern crate` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::ForeignMod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "`extern` block item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Macro(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "macro definition".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Mod(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "`mod` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
-            syn::Item::Static(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
-                found: "`static` item".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
             syn::Item::TraitAlias(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "`trait` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Type(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "`type` alias".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             syn::Item::Union(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "`union` item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
             _ => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`)".to_string(),
+                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`)".to_string(),
                 found: "unknown item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
@@ -800,6 +792,55 @@ impl SynConverter {
                 })
             }
         }
+    }
+
+    fn convert_item_static(&mut self, item_static: &syn::ItemStatic) -> Result<Item> {
+        let ident = self.convert_ident(&item_static.ident);
+        let vis = self.convert_visibility(&item_static.vis);
+
+        // Convert mutability
+        let mutability = match item_static.mutability {
+            syn::StaticMutability::Mut(_) => Mutability::Mut,
+            syn::StaticMutability::None => Mutability::Not,
+            _ => Mutability::Not, // Future-proof for new variants
+        };
+
+        // Convert type
+        let ty = self.convert_type(&item_static.ty)?;
+
+        // Convert initializer expression
+        let expr = Some(self.convert_expr(&item_static.expr)?);
+
+        Ok(Item {
+            attrs: vec![],
+            id: self.next_id(),
+            span: Span::DUMMY,
+            vis,
+            ident,
+            kind: ItemKind::Static { mutability, ty, expr },
+            tokens: None,
+        })
+    }
+
+    fn convert_item_const(&mut self, item_const: &syn::ItemConst) -> Result<Item> {
+        let ident = self.convert_ident(&item_const.ident);
+        let vis = self.convert_visibility(&item_const.vis);
+
+        // Convert type
+        let ty = self.convert_type(&item_const.ty)?;
+
+        // Convert initializer expression
+        let expr = Some(self.convert_expr(&item_const.expr)?);
+
+        Ok(Item {
+            attrs: vec![],
+            id: self.next_id(),
+            span: Span::DUMMY,
+            vis,
+            ident,
+            kind: ItemKind::Const { ty, expr },
+            tokens: None,
+        })
     }
 
     fn convert_type_param_bound(&mut self, bound: &syn::TypeParamBound) -> Result<GenericBound> {

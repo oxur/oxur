@@ -211,7 +211,7 @@ fn test_partial_conversion_only_comments() {
 #[test]
 fn test_partial_conversion_const_item() {
     let source = r#"
-const PI: f64 = 3.14159;
+const MAX: i32 = 100;
 
 fn area() {
     println!("Area");
@@ -220,21 +220,13 @@ fn area() {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Function should succeed
-    assert!(
-        crate_node.items.len() >= 1,
-        "Function should succeed, got {} items",
-        crate_node.items.len()
-    );
+    // Both const and function should succeed (using int literal)
+    assert_eq!(crate_node.items.len(), 2);
+    assert_eq!(crate_node.items[0].ident.name, "MAX");
+    assert_eq!(crate_node.items[1].ident.name, "area");
 
-    if crate_node.items.len() > 0 {
-        assert_eq!(crate_node.items[0].ident.name, "area");
-    }
-
-    // Const should fail (produces an error)
-    assert!(errors.len() >= 1, "Const should fail, got {} errors", errors.len());
-    assert!(errors[0].error_message.contains("`const`"));
-    assert!(errors[0].rust_code.contains("const PI"));
+    // No errors (const now works!)
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
@@ -249,14 +241,13 @@ fn get_global() -> i32 {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Function should succeed
-    assert_eq!(crate_node.items.len(), 1);
-    assert_eq!(crate_node.items[0].ident.name, "get_global");
+    // Both static and function should succeed
+    assert_eq!(crate_node.items.len(), 2);
+    assert_eq!(crate_node.items[0].ident.name, "GLOBAL");
+    assert_eq!(crate_node.items[1].ident.name, "get_global");
 
-    // Static should fail
-    assert_eq!(errors.len(), 1);
-    assert!(errors[0].error_message.contains("`static`"));
-    assert!(errors[0].rust_code.contains("static GLOBAL"));
+    // No errors (static now works!)
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
@@ -419,25 +410,21 @@ trait Processable {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Should have 6 successful items (2 use + struct + 2 functions + trait)
-    assert_eq!(crate_node.items.len(), 6);
+    // Should have 8 successful items (2 use + struct + 2 functions + const + trait + static)
+    assert_eq!(crate_node.items.len(), 8);
     assert_eq!(crate_node.items[0].ident.name, "use");
     assert_eq!(crate_node.items[1].ident.name, "use");
     assert_eq!(crate_node.items[2].ident.name, "Cache");
     assert_eq!(crate_node.items[3].ident.name, "get_from_cache");
-    assert_eq!(crate_node.items[4].ident.name, "process");
-    assert_eq!(crate_node.items[5].ident.name, "Processable");
+    assert_eq!(crate_node.items[4].ident.name, "MAX_SIZE");
+    assert_eq!(crate_node.items[5].ident.name, "process");
+    assert_eq!(crate_node.items[6].ident.name, "COUNTER");
+    assert_eq!(crate_node.items[7].ident.name, "Processable");
 
-    // Should have 3 errors (use, struct, and trait now work!):
+    // Should have 1 error (use, struct, trait, const, and static all work!):
     // - 1 impl (fails due to struct expression in method body)
-    // - 1 const
-    // - 1 static
-    assert_eq!(errors.len(), 3, "Should have 3 errors for unsupported items");
+    assert_eq!(errors.len(), 1, "Should have 1 error for impl");
 
-    // Verify we have errors for each type
-    let error_types: Vec<String> = errors.iter().map(|e| e.error_message.clone()).collect();
-
-    assert!(error_types.iter().any(|e| e.contains("complex expression")), "Should have impl/expression error");
-    assert!(error_types.iter().any(|e| e.contains("`const`")), "Should have const error");
-    assert!(error_types.iter().any(|e| e.contains("`static`")), "Should have static error");
+    // Verify impl/expression error
+    assert!(errors[0].error_message.contains("complex expression"), "Should have impl/expression error");
 }
