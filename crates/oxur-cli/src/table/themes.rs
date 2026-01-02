@@ -19,6 +19,10 @@ vertical_fg_color = "#F97316"
 [header]
 bg_color = "#D45500"
 fg_color = "#451A03"
+# Ligher shades of the dark brown, useful for web, etc.:
+# #6c2905
+# #8a3507
+# #a94109
 justification_char = " "
 vertical_char = "│"
 vertical_bg_color = "#D45500"
