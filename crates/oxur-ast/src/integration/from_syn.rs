@@ -859,13 +859,22 @@ impl SynConverter {
         match bound {
             syn::TypeParamBound::Trait(trait_bound) => {
                 let path = self.convert_path(&trait_bound.path)?;
-                Ok(GenericBound::Trait(TraitRef { path }))
+                let trait_ref = TraitRef { path };
+                let poly_trait_ref = PolyTraitRef {
+                    trait_ref,
+                    bound_lifetimes: vec![], // TODO: implement bound lifetimes
+                };
+                // Determine modifier from trait_bound.modifier
+                let modifier = match trait_bound.modifier {
+                    syn::TraitBoundModifier::None => TraitBoundModifier::None,
+                    syn::TraitBoundModifier::Maybe(_) => TraitBoundModifier::Maybe,
+                };
+                Ok(GenericBound::Trait(poly_trait_ref, modifier))
             }
-            syn::TypeParamBound::Lifetime(_) => Err(ParseError::Expected {
-                expected: "trait bound".to_string(),
-                found: "lifetime bound (not yet supported)".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
+            syn::TypeParamBound::Lifetime(lifetime) => {
+                let ident = self.convert_ident(&lifetime.ident);
+                Ok(GenericBound::Outlives(Lifetime { ident }))
+            }
             _ => Err(ParseError::Expected {
                 expected: "trait bound".to_string(),
                 found: "unknown bound type".to_string(),

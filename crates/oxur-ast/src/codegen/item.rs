@@ -405,10 +405,26 @@ impl RustCodegen {
     /// Generate a generic bound
     pub(crate) fn generate_generic_bound(&mut self, bound: &GenericBound) -> Result<()> {
         match bound {
-            GenericBound::Trait(trait_ref) => {
-                self.generate_trait_ref(trait_ref)?;
+            GenericBound::Trait(poly_trait_ref, modifier) => {
+                // Generate modifier prefix
+                match modifier {
+                    TraitBoundModifier::Maybe => self.write("?"),
+                    TraitBoundModifier::Negative => self.write("!"),
+                    TraitBoundModifier::None => {},
+                }
+                // Generate the trait reference
+                self.generate_trait_ref(&poly_trait_ref.trait_ref)?;
+                // TODO: Handle bound_lifetimes (HRTB) when we implement full lifetime support
+            }
+            GenericBound::Outlives(lifetime) => {
+                self.generate_lifetime(lifetime)?;
             }
         }
+        Ok(())
+    }
+
+    fn generate_lifetime(&mut self, lifetime: &Lifetime) -> Result<()> {
+        self.write(&lifetime.ident.name);
         Ok(())
     }
 

@@ -866,10 +866,21 @@ impl AstBuilder {
             "Trait" => {
                 let trait_ref_sexp = &list.elements[1];
                 let trait_ref = self.build_trait_ref(trait_ref_sexp)?;
-                Ok(GenericBound::Trait(trait_ref))
+                // Wrap TraitRef in PolyTraitRef with no bound lifetimes
+                let poly_trait_ref = PolyTraitRef {
+                    trait_ref,
+                    bound_lifetimes: vec![],
+                };
+                // Default to no modifier for now
+                Ok(GenericBound::Trait(poly_trait_ref, TraitBoundModifier::None))
+            }
+            "Outlives" => {
+                let lifetime_sexp = &list.elements[1];
+                let lifetime = self.build_lifetime(lifetime_sexp)?;
+                Ok(GenericBound::Outlives(lifetime))
             }
             _ => Err(ParseError::Expected {
-                expected: "Trait".to_string(),
+                expected: "Trait or Outlives".to_string(),
                 found: node_type.value.clone(),
                 pos: node_type.pos,
             }),

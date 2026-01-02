@@ -336,9 +336,10 @@ fn test_build_trait_item_with_bounds() {
         ItemKind::Trait(trait_def) => {
             assert_eq!(trait_def.bounds.len(), 1);
             match &trait_def.bounds[0] {
-                GenericBound::Trait(trait_ref) => {
-                    assert_eq!(trait_ref.path.segments[0].ident.name, "Send");
+                GenericBound::Trait(poly_trait_ref, _modifier) => {
+                    assert_eq!(poly_trait_ref.trait_ref.path.segments[0].ident.name, "Send");
                 }
+                _ => panic!("Expected Trait bound"),
             }
         }
         _ => panic!("Expected Trait item"),

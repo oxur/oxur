@@ -122,10 +122,52 @@ impl Generics {
     }
 }
 
-/// Generic parameter (placeholder for Phase 1)
+/// Generic parameter
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericParam {
-    // Simplified for Phase 1
+    pub attrs: AttrVec,
+    pub id: NodeId,
+    pub span: Span,
+    pub kind: GenericParamKind,
+}
+
+/// Generic parameter kind
+#[derive(Debug, Clone, PartialEq)]
+pub enum GenericParamKind {
+    /// Lifetime parameter: `'a`, `'a: 'b`
+    Lifetime(LifetimeParam),
+    /// Type parameter: `T`, `T: Clone`, `T = i32`
+    Type(TypeParam),
+    /// Const parameter: `const N: usize`, `const N: usize = 5`
+    Const(ConstParam),
+}
+
+/// Lifetime parameter
+#[derive(Debug, Clone, PartialEq)]
+pub struct LifetimeParam {
+    pub ident: Ident,
+    /// Lifetime bounds: `'a: 'b + 'c`
+    pub bounds: Vec<Lifetime>,
+    pub colon_span: Option<Span>,
+}
+
+/// Type parameter
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeParam {
+    pub ident: Ident,
+    /// Trait bounds: `T: Clone + Debug`
+    pub bounds: Vec<GenericBound>,
+    /// Default type: `T = i32`
+    pub default: Option<Ty>,
+}
+
+/// Const parameter
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConstParam {
+    pub ident: Ident,
+    pub ty: Ty,
+    /// Default value: `const N: usize = 5`
+    pub default: Option<Expr>,
 }
 
 /// Where clause
@@ -142,10 +184,47 @@ impl WhereClause {
     }
 }
 
-/// Where predicate (placeholder for Phase 1)
+/// Where predicate
 #[derive(Debug, Clone, PartialEq)]
-pub struct WherePredicate {
-    // Simplified for Phase 1
+pub enum WherePredicate {
+    /// Bound predicate: `T: Clone + Debug`, `C::Item: Display`
+    BoundPredicate(WhereBoundPredicate),
+    /// Region (lifetime) predicate: `'a: 'b + 'c`
+    RegionPredicate(WhereRegionPredicate),
+    /// Equality predicate: `T = int` (associated type equality)
+    EqPredicate(WhereEqPredicate),
+}
+
+/// Bound predicate: `T: Clone`
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhereBoundPredicate {
+    pub span: Span,
+    /// The type being bounded: `T`, `C::Item`
+    pub bounded_ty: Ty,
+    /// Trait bounds: `Clone + Debug`
+    pub bounds: Vec<GenericBound>,
+    /// Higher-ranked trait bounds: `for<'a>`
+    pub bound_lifetimes: Vec<LifetimeParam>,
+}
+
+/// Region (lifetime) predicate: `'a: 'b + 'c`
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhereRegionPredicate {
+    pub span: Span,
+    /// The lifetime being bounded: `'a`
+    pub lifetime: Lifetime,
+    /// Lifetime bounds: `'b`, `'c`
+    pub bounds: Vec<Lifetime>,
+}
+
+/// Equality predicate: `T = int` (associated type equality)
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhereEqPredicate {
+    pub span: Span,
+    /// Left side: `T`
+    pub lhs_ty: Ty,
+    /// Right side: `int`
+    pub rhs_ty: Ty,
 }
 
 /// Type
@@ -491,8 +570,30 @@ pub struct TraitRef {
 /// Generic bound (for trait bounds)
 #[derive(Debug, Clone, PartialEq)]
 pub enum GenericBound {
-    Trait(TraitRef),
-    // Future: Lifetime bounds
+    /// Trait bound: `Clone`, `?Sized`, `!Send`
+    Trait(PolyTraitRef, TraitBoundModifier),
+    /// Lifetime bound: `'a`
+    Outlives(Lifetime),
+}
+
+/// Polymorphic trait reference (with higher-ranked trait bounds)
+#[derive(Debug, Clone, PartialEq)]
+pub struct PolyTraitRef {
+    /// Trait reference: `Clone`, `Iterator<Item = i32>`
+    pub trait_ref: TraitRef,
+    /// Higher-ranked lifetimes: `for<'a>`
+    pub bound_lifetimes: Vec<LifetimeParam>,
+}
+
+/// Trait bound modifier
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TraitBoundModifier {
+    /// No modifier
+    None,
+    /// Maybe bound: `?Sized`
+    Maybe,
+    /// Negative bound: `!Send` (unstable)
+    Negative,
 }
 
 // Phase 5: Type system supporting types

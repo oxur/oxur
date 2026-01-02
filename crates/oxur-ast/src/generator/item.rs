@@ -746,9 +746,28 @@ impl Generator {
 
     fn generate_generic_bound(&self, bound: &GenericBound) -> SExp {
         match bound {
-            GenericBound::Trait(trait_ref) => {
-                list(vec![sym("Trait"), self.generate_trait_ref(trait_ref)])
+            GenericBound::Trait(poly_trait_ref, modifier) => {
+                list(vec![sym("Trait"), self.generate_poly_trait_ref(poly_trait_ref), self.generate_trait_bound_modifier(modifier)])
             }
+            GenericBound::Outlives(lifetime) => {
+                list(vec![sym("Outlives"), self.generate_lifetime(lifetime)])
+            }
+        }
+    }
+
+    fn generate_poly_trait_ref(&self, poly_trait_ref: &PolyTraitRef) -> SExp {
+        typed_node("PolyTraitRef", kwargs(vec![
+            kwarg("trait-ref", self.generate_trait_ref(&poly_trait_ref.trait_ref)),
+            // TODO: implement full lifetime param generation
+            kwarg("bound-lifetimes", empty_list()),
+        ]))
+    }
+
+    fn generate_trait_bound_modifier(&self, modifier: &TraitBoundModifier) -> SExp {
+        match modifier {
+            TraitBoundModifier::None => sym("None"),
+            TraitBoundModifier::Maybe => sym("Maybe"),
+            TraitBoundModifier::Negative => sym("Negative"),
         }
     }
 
