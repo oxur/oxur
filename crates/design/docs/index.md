@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0025 | Oxur Syntax Addendum: Function Head Pattern Matching | Draft | 2026-01-01 |
 | 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Accepted | 2025-12-31 |
 | 0023 | oxur-ast Phase 7: Generics & Lifetimes | Accepted | 2025-12-31 |
 | 0022 | oxur-ast Phase 6: Integration Layer Expansion | Active | 2025-12-31 |
@@ -35,6 +36,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Draft
 
+- [0025 - Oxur Syntax Addendum: Function Head Pattern Matching](01-draft/0025-oxur-syntax-addendum-function-head-pattern-matching.md)
 - [0021 - Oxur Syntax Design Proposal](01-draft/0021-oxur-syntax-design-proposal.md)
 
 ### Under Review
