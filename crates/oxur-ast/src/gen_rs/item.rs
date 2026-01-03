@@ -9,6 +9,12 @@ use anyhow::Result;
 impl RustCodegen {
     /// Generate code for a top-level item
     pub(crate) fn generate_item(&mut self, item: &Item) -> Result<()> {
+        // Generate attributes first
+        for attr in &item.attrs {
+            self.generate_attribute(attr)?;
+            self.writeln();
+        }
+
         // Generate visibility
         self.generate_visibility(&item.vis)?;
 
@@ -409,7 +415,7 @@ impl RustCodegen {
                 match modifier {
                     TraitBoundModifier::Maybe => self.write("?"),
                     TraitBoundModifier::Negative => self.write("!"),
-                    TraitBoundModifier::None => {},
+                    TraitBoundModifier::None => {}
                 }
                 // Generate the trait reference
                 self.generate_trait_ref(&poly_trait_ref.trait_ref)?;
@@ -561,6 +567,57 @@ impl RustCodegen {
         }
 
         Ok(())
+    }
+
+    /// Generate an attribute
+    fn generate_attribute(&mut self, attr: &Attribute) -> Result<()> {
+        let prefix = match attr.style {
+            AttrStyle::Outer => "#",
+            AttrStyle::Inner => "#!",
+        };
+
+        let content = match &attr.kind {
+            AttrKind::Normal(normal) => {
+                let path = self.generate_path_to_string(&normal.item.path)?;
+                let args = match &normal.item.args {
+                    MacArgs::Empty => String::new(),
+                    MacArgs::Delimited { delim, tokens, .. } => {
+                        let (open, close) = match delim {
+                            Delimiter::Paren => ("(", ")"),
+                            Delimiter::Brace => ("{", "}"),
+                            Delimiter::Bracket => ("[", "]"),
+                            Delimiter::Invisible => ("", ""),
+                        };
+                        let tok_str = match tokens {
+                            TokenStream::Source(s) => s.clone(),
+                            TokenStream::Empty => String::new(),
+                        };
+                        format!("{}{}{}", open, tok_str, close)
+                    }
+                    MacArgs::Eq { tokens, .. } => {
+                        let tok_str = match tokens {
+                            TokenStream::Source(s) => s.clone(),
+                            TokenStream::Empty => String::new(),
+                        };
+                        format!(" = {}", tok_str)
+                    }
+                };
+                format!("{}{}", path, args)
+            }
+
+            AttrKind::DocComment(_kind, text) => {
+                format!("doc = \"{}\"", text)
+            }
+        };
+
+        self.write(&format!("{}[{}]", prefix, content));
+        Ok(())
+    }
+
+    /// Helper to generate a path as a string
+    fn generate_path_to_string(&self, path: &Path) -> Result<String> {
+        let segments: Vec<String> = path.segments.iter().map(|s| s.ident.name.clone()).collect();
+        Ok(segments.join("::"))
     }
 }
 

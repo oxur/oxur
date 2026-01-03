@@ -139,6 +139,7 @@ impl SynConverter {
     }
 
     fn convert_item_fn(&mut self, item_fn: &syn::ItemFn) -> Result<Item> {
+        let attrs = self.convert_attributes(&item_fn.attrs)?;
         let ident = self.convert_ident(&item_fn.sig.ident);
         let vis = self.convert_visibility(&item_fn.vis);
 
@@ -149,7 +150,7 @@ impl SynConverter {
         let fn_item = Fn { defaultness: Defaultness::Final, sig: fn_sig, generics, body };
 
         Ok(Item {
-            attrs: vec![], // Phase 3: simplified
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY, // Will improve with proc-macro2::Span
             vis,
@@ -916,6 +917,7 @@ impl SynConverter {
     }
 
     fn convert_item_enum(&mut self, item_enum: &syn::ItemEnum) -> Result<Item> {
+        let attrs = self.convert_attributes(&item_enum.attrs)?;
         let ident = self.convert_ident(&item_enum.ident);
         let vis = self.convert_visibility(&item_enum.vis);
 
@@ -929,7 +931,7 @@ impl SynConverter {
         let enum_def = EnumDef { variants };
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
@@ -983,6 +985,7 @@ impl SynConverter {
     }
 
     fn convert_item_impl(&mut self, item_impl: &syn::ItemImpl) -> Result<Item> {
+        let attrs = self.convert_attributes(&item_impl.attrs)?;
         // Impl blocks don't have an ident like other items, so we create a dummy one
         let ident = Ident::new("impl".to_string(), Span::DUMMY);
         let vis = Visibility::Inherited; // Impl blocks don't have visibility
@@ -1016,7 +1019,7 @@ impl SynConverter {
         let impl_def = ImplDef { safety, generics, of_trait, self_ty, items };
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
@@ -1293,6 +1296,7 @@ impl SynConverter {
     }
 
     fn convert_item_trait(&mut self, item_trait: &syn::ItemTrait) -> Result<Item> {
+        let attrs = self.convert_attributes(&item_trait.attrs)?;
         let ident = self.convert_ident(&item_trait.ident);
         let vis = self.convert_visibility(&item_trait.vis);
 
@@ -1322,7 +1326,7 @@ impl SynConverter {
         let trait_def = TraitDef { safety, generics, bounds, items };
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
