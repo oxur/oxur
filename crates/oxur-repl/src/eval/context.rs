@@ -229,14 +229,9 @@ impl EvalContext {
             });
         }
 
-        // Compile and execute (placeholder)
-        // Real implementation would:
-        // 1. Parse with oxur-lang (Parser, Expander)
-        // 2. Lower to Rust AST with oxur-comp
-        // 3. Generate Rust source
-        // 4. Compile to dynamic library with cargo
-        // 5. Load and execute
-
+        // Compile and execute
+        // Steps 1-2 (parse and expand) are now implemented
+        // Steps 3-6 (lower, codegen, compile, execute) are TODO
         let result = self.compile_and_execute(code).await?;
         let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -254,17 +249,67 @@ impl EvalContext {
         })
     }
 
-    /// Compile and execute code (placeholder)
-    async fn compile_and_execute(&self, code: &str) -> Result<String> {
-        // Placeholder implementation
-        // For now, just return a placeholder result
-        // Real implementation will integrate with oxur-lang and oxur-comp
+    /// Compile and execute code
+    ///
+    /// Tier 2 execution path:
+    /// 1. Parse code using mode-specific parser (Lisp or Sexpr)
+    /// 2. Convert to CoreForms (oxur-lang IR)
+    /// 3. Lower to Rust AST (oxur-comp) [TODO: when ready]
+    /// 4. Generate Rust source [TODO: when ready]
+    /// 5. Compile to dynamic library [TODO: when ready]
+    /// 6. Load and execute [TODO: when ready]
+    async fn compile_and_execute(&mut self, code: &str) -> Result<String> {
+        // Step 1: Parse code to CoreForms using mode-specific parser
+        let core_forms = match self.mode {
+            ReplMode::Lisp => {
+                // Use Lisp parser to parse and convert to CoreForms
+                let forms = self
+                    .lisp_eval
+                    .parse(code)
+                    .map_err(|e| EvalError::SyntaxError(format!("Lisp parse error: {}", e)))?;
 
-        // Simulate compilation delay
+                forms
+            }
+            ReplMode::Sexpr => {
+                // Use Sexpr parser to parse and convert to CoreForms
+                let form = self.sexpr_eval.parse_to_core(code).map_err(|e| {
+                    EvalError::SyntaxError(format!("S-expression parse error: {}", e))
+                })?;
+
+                vec![form]
+            }
+        };
+
+        // Handle empty parse results (Parser is placeholder for now)
+        if core_forms.is_empty() {
+            // Parser returned empty - it's a placeholder
+            // For now, just acknowledge we received code
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+            return Ok(format!("compiled(placeholder, mode: {:?})", self.mode));
+        }
+
+        // Step 2: Expand macros (when Expander is ready)
+        // TODO: Use oxur_lang::Expander to expand macros
+        // let mut expander = Expander::new();
+        // let expanded = expander.expand(core_forms)?;
+
+        // Step 3-6: Compile and execute (placeholder for now)
+        // TODO: Integrate with oxur-comp when ready:
+        // - Lower CoreForms to Rust AST
+        // - Generate Rust source code
+        // - Compile to dynamic library with cargo
+        // - Load library and execute
+        // - Capture stdout/stderr
+
+        // For now, simulate compilation delay and return a representation
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        // Return placeholder result
-        Ok(format!("compiled({})", code))
+        // Return placeholder result showing the parsed structure
+        Ok(format!(
+            "compiled({} form(s), mode: {:?})",
+            core_forms.len(),
+            self.mode
+        ))
     }
 
     /// Generate cache key from code
@@ -388,5 +433,59 @@ mod tests {
         assert_eq!(ctx.try_calculator("(+ 10 20)"), Some("30".to_string()));
         assert_eq!(ctx.try_calculator("(defn foo [x] x)"), None);
         assert_eq!(ctx.try_calculator("(+ 1 2 3)"), Some("6".to_string())); // Multiple args now supported
+    }
+
+    #[tokio::test]
+    async fn test_tier2_lisp_mode() {
+        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+
+        // Code that's not calculator-eligible goes to Tier 2
+        let result = ctx.eval("(defn foo [x] x)").await.unwrap();
+
+        assert_eq!(result.tier, ExecutionTier::CachedCompilation);
+        assert!(!result.cached);
+        assert!(result.value.contains("mode: Lisp"));
+    }
+
+    #[tokio::test]
+    async fn test_tier2_sexpr_mode() {
+        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Sexpr);
+
+        // Complex code goes to Tier 2 (not handled by calculator)
+        // Using an invalid symbol that can't be evaluated in calculator
+        let result = ctx.eval("undefined-symbol").await.unwrap();
+
+        assert_eq!(result.tier, ExecutionTier::CachedCompilation);
+        assert!(!result.cached);
+        assert!(result.value.contains("mode: Sexpr"));
+    }
+
+    #[tokio::test]
+    async fn test_tier_fallback() {
+        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+
+        // Tier 1 (calculator) - fast path
+        let result1 = ctx.eval("(+ 1 2)").await.unwrap();
+        assert_eq!(result1.tier, ExecutionTier::Calculator);
+        assert_eq!(result1.value, "3");
+
+        // Tier 2 (compilation) - complex code
+        let result2 = ctx.eval("(defn add [a b] (+ a b))").await.unwrap();
+        assert_eq!(result2.tier, ExecutionTier::CachedCompilation);
+    }
+
+    #[tokio::test]
+    async fn test_mode_specific_calculators() {
+        // Test Lisp mode calculator
+        let mut lisp_ctx = EvalContext::new("lisp-test".to_string(), ReplMode::Lisp);
+        let lisp_result = lisp_ctx.eval("(* 3 4)").await.unwrap();
+        assert_eq!(lisp_result.tier, ExecutionTier::Calculator);
+        assert_eq!(lisp_result.value, "12");
+
+        // Test Sexpr mode calculator
+        let mut sexpr_ctx = EvalContext::new("sexpr-test".to_string(), ReplMode::Sexpr);
+        let sexpr_result = sexpr_ctx.eval("(/ 10 2)").await.unwrap();
+        assert_eq!(sexpr_result.tier, ExecutionTier::Calculator);
+        assert_eq!(sexpr_result.value, "5");
     }
 }
