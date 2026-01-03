@@ -325,7 +325,11 @@ fn test_build_trait_item_with_bounds() {
           :kind (Trait (TraitDef
                          :safety Default
                          :generics (Generics)
-                         :bounds ((Trait (TraitRef :path (Path :segments ((PathSegment :ident (Ident :name "Send")))))))
+                         :bounds ((Trait
+                                   (PolyTraitRef
+                                     :trait-ref (TraitRef :path (Path :segments ((PathSegment :ident (Ident :name "Send")))))
+                                     :bound-lifetimes ())
+                                   None))
                          :items ())))
     "#;
     let sexp = Parser::parse_str(input).unwrap();

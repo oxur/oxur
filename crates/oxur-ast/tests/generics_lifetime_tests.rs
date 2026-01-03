@@ -212,3 +212,355 @@ fn test_where_clause_with_region_predicate() {
 // through integration tests and the to-rust command.
 // Individual lifetime codegen is indirectly tested through function/struct
 // generation with lifetime parameters.
+
+// ============================================================================
+// PRIORITY 2: TYPE PARAMETERS
+// ============================================================================
+
+#[test]
+fn test_generate_generics_with_type_param() {
+    let gen = Generator::new();
+    let generics = Generics {
+        params: vec![
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(1),
+                span: Span::new(0, 1),
+                kind: GenericParamKind::Type(TypeParam {
+                    ident: Ident::new("T", Span::new(0, 1)),
+                    bounds: vec![],
+                    default: None,
+                }),
+            },
+        ],
+        where_clause: WhereClause::empty(),
+        span: Span::new(0, 3),
+    };
+
+    let sexp = gen.generate_generics(&generics).unwrap();
+    let output = print_sexp(&sexp);
+
+    assert!(output.contains("Generics"));
+    assert!(output.contains("GenericParam"));
+    assert!(output.contains("Type"));
+    assert!(output.contains("TypeParam"));
+    assert!(output.contains("\"T\""));
+}
+
+#[test]
+fn test_round_trip_generics_with_type_param() {
+    let generics = Generics {
+        params: vec![
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(1),
+                span: Span::new(0, 1),
+                kind: GenericParamKind::Type(TypeParam {
+                    ident: Ident::new("T", Span::new(0, 1)),
+                    bounds: vec![],
+                    default: None,
+                }),
+            },
+        ],
+        where_clause: WhereClause::empty(),
+        span: Span::new(0, 3),
+    };
+
+    let gen = Generator::new();
+    let sexp1 = gen.generate_generics(&generics).unwrap();
+
+    let printed = print_sexp(&sexp1);
+    let sexp2 = Parser::parse_str(&printed).unwrap();
+
+    let mut builder = AstBuilder::new();
+    let generics2 = builder.build_generics(&sexp2).unwrap();
+
+    let sexp3 = gen.generate_generics(&generics2).unwrap();
+
+    assert_eq!(sexp1, sexp3);
+    assert_eq!(generics.params.len(), generics2.params.len());
+
+    // Verify the type param details
+    match (&generics.params[0].kind, &generics2.params[0].kind) {
+        (GenericParamKind::Type(tp1), GenericParamKind::Type(tp2)) => {
+            assert_eq!(tp1.ident.name, tp2.ident.name);
+            assert_eq!(tp1.bounds.len(), tp2.bounds.len());
+        }
+        _ => panic!("Expected Type GenericParamKind"),
+    }
+}
+
+#[test]
+fn test_round_trip_generics_with_type_param_with_trait_bound() {
+    let generics = Generics {
+        params: vec![
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(1),
+                span: Span::new(0, 1),
+                kind: GenericParamKind::Type(TypeParam {
+                    ident: Ident::new("T", Span::new(0, 1)),
+                    bounds: vec![
+                        GenericBound::Trait(
+                            PolyTraitRef {
+                                trait_ref: TraitRef {
+                                    path: Path {
+                                        span: Span::new(3, 8),
+                                        segments: vec![PathSegment::from_ident(
+                                            Ident::new("Clone", Span::new(3, 8))
+                                        )],
+                                        tokens: None,
+                                    },
+                                },
+                                bound_lifetimes: vec![],
+                            },
+                            TraitBoundModifier::None,
+                        ),
+                    ],
+                    default: None,
+                }),
+            },
+        ],
+        where_clause: WhereClause::empty(),
+        span: Span::new(0, 10),
+    };
+
+    let gen = Generator::new();
+    let sexp1 = gen.generate_generics(&generics).unwrap();
+
+    let printed = print_sexp(&sexp1);
+    let sexp2 = Parser::parse_str(&printed).unwrap();
+
+    let mut builder = AstBuilder::new();
+    let generics2 = builder.build_generics(&sexp2).unwrap();
+
+    let sexp3 = gen.generate_generics(&generics2).unwrap();
+
+    assert_eq!(sexp1, sexp3);
+
+    // Verify the type param with bound
+    match (&generics.params[0].kind, &generics2.params[0].kind) {
+        (GenericParamKind::Type(tp1), GenericParamKind::Type(tp2)) => {
+            assert_eq!(tp1.ident.name, tp2.ident.name);
+            assert_eq!(tp1.bounds.len(), 1);
+            assert_eq!(tp2.bounds.len(), 1);
+        }
+        _ => panic!("Expected Type GenericParamKind"),
+    }
+}
+
+#[test]
+fn test_round_trip_generics_mixed_lifetime_and_type() {
+    let generics = Generics {
+        params: vec![
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(1),
+                span: Span::new(0, 2),
+                kind: GenericParamKind::Lifetime(LifetimeParam {
+                    ident: Ident::new("a", Span::new(0, 2)),
+                    bounds: vec![],
+                    colon_span: None,
+                }),
+            },
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(2),
+                span: Span::new(4, 5),
+                kind: GenericParamKind::Type(TypeParam {
+                    ident: Ident::new("T", Span::new(4, 5)),
+                    bounds: vec![],
+                    default: None,
+                }),
+            },
+        ],
+        where_clause: WhereClause::empty(),
+        span: Span::new(0, 6),
+    };
+
+    let gen = Generator::new();
+    let sexp1 = gen.generate_generics(&generics).unwrap();
+
+    let printed = print_sexp(&sexp1);
+    let sexp2 = Parser::parse_str(&printed).unwrap();
+
+    let mut builder = AstBuilder::new();
+    let generics2 = builder.build_generics(&sexp2).unwrap();
+
+    let sexp3 = gen.generate_generics(&generics2).unwrap();
+
+    assert_eq!(sexp1, sexp3);
+    assert_eq!(generics.params.len(), 2);
+    assert_eq!(generics2.params.len(), 2);
+}
+
+// ============================================================================
+// PRIORITY 2: CONST PARAMETERS
+// ============================================================================
+
+#[test]
+fn test_generate_generics_with_const_param() {
+    let gen = Generator::new();
+    let generics = Generics {
+        params: vec![
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(1),
+                span: Span::new(0, 1),
+                kind: GenericParamKind::Const(ConstParam {
+                    ident: Ident::new("N", Span::new(6, 7)),
+                    ty: Ty {
+                        id: NodeId(2),
+                        kind: TyKind::Path(None, Path {
+                            span: Span::new(9, 14),
+                            segments: vec![PathSegment::from_ident(
+                                Ident::new("usize", Span::new(9, 14))
+                            )],
+                            tokens: None,
+                        }),
+                        span: Span::new(9, 14),
+                        tokens: None,
+                    },
+                    default: None,
+                }),
+            },
+        ],
+        where_clause: WhereClause::empty(),
+        span: Span::new(0, 15),
+    };
+
+    let sexp = gen.generate_generics(&generics).unwrap();
+    let output = print_sexp(&sexp);
+
+    assert!(output.contains("Generics"));
+    assert!(output.contains("GenericParam"));
+    assert!(output.contains("Const"));
+    assert!(output.contains("ConstParam"));
+    assert!(output.contains("\"N\""));
+    assert!(output.contains("\"usize\""));
+}
+
+#[test]
+fn test_round_trip_generics_with_const_param() {
+    let generics = Generics {
+        params: vec![
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(1),
+                span: Span::new(0, 1),
+                kind: GenericParamKind::Const(ConstParam {
+                    ident: Ident::new("N", Span::new(6, 7)),
+                    ty: Ty {
+                        id: NodeId(2),
+                        kind: TyKind::Path(None, Path {
+                            span: Span::new(9, 14),
+                            segments: vec![PathSegment::from_ident(
+                                Ident::new("usize", Span::new(9, 14))
+                            )],
+                            tokens: None,
+                        }),
+                        span: Span::new(9, 14),
+                        tokens: None,
+                    },
+                    default: None,
+                }),
+            },
+        ],
+        where_clause: WhereClause::empty(),
+        span: Span::new(0, 15),
+    };
+
+    let gen = Generator::new();
+    let sexp1 = gen.generate_generics(&generics).unwrap();
+
+    let printed = print_sexp(&sexp1);
+    let sexp2 = Parser::parse_str(&printed).unwrap();
+
+    let mut builder = AstBuilder::new();
+    let generics2 = builder.build_generics(&sexp2).unwrap();
+
+    let sexp3 = gen.generate_generics(&generics2).unwrap();
+
+    assert_eq!(sexp1, sexp3);
+    assert_eq!(generics.params.len(), generics2.params.len());
+
+    // Verify the const param details
+    match (&generics.params[0].kind, &generics2.params[0].kind) {
+        (GenericParamKind::Const(cp1), GenericParamKind::Const(cp2)) => {
+            assert_eq!(cp1.ident.name, cp2.ident.name);
+        }
+        _ => panic!("Expected Const GenericParamKind"),
+    }
+}
+
+#[test]
+fn test_round_trip_generics_all_param_types() {
+    // Test with lifetime, type, and const parameters all together
+    let generics = Generics {
+        params: vec![
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(1),
+                span: Span::new(0, 2),
+                kind: GenericParamKind::Lifetime(LifetimeParam {
+                    ident: Ident::new("a", Span::new(0, 2)),
+                    bounds: vec![],
+                    colon_span: None,
+                }),
+            },
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(2),
+                span: Span::new(4, 5),
+                kind: GenericParamKind::Type(TypeParam {
+                    ident: Ident::new("T", Span::new(4, 5)),
+                    bounds: vec![],
+                    default: None,
+                }),
+            },
+            GenericParam {
+                attrs: vec![],
+                id: NodeId(3),
+                span: Span::new(7, 8),
+                kind: GenericParamKind::Const(ConstParam {
+                    ident: Ident::new("N", Span::new(13, 14)),
+                    ty: Ty {
+                        id: NodeId(4),
+                        kind: TyKind::Path(None, Path {
+                            span: Span::new(16, 21),
+                            segments: vec![PathSegment::from_ident(
+                                Ident::new("usize", Span::new(16, 21))
+                            )],
+                            tokens: None,
+                        }),
+                        span: Span::new(16, 21),
+                        tokens: None,
+                    },
+                    default: None,
+                }),
+            },
+        ],
+        where_clause: WhereClause::empty(),
+        span: Span::new(0, 22),
+    };
+
+    let gen = Generator::new();
+    let sexp1 = gen.generate_generics(&generics).unwrap();
+
+    let printed = print_sexp(&sexp1);
+    let sexp2 = Parser::parse_str(&printed).unwrap();
+
+    let mut builder = AstBuilder::new();
+    let generics2 = builder.build_generics(&sexp2).unwrap();
+
+    let sexp3 = gen.generate_generics(&generics2).unwrap();
+
+    assert_eq!(sexp1, sexp3);
+    assert_eq!(generics.params.len(), 3);
+    assert_eq!(generics2.params.len(), 3);
+
+    // Verify all three param types
+    assert!(matches!(generics2.params[0].kind, GenericParamKind::Lifetime(_)));
+    assert!(matches!(generics2.params[1].kind, GenericParamKind::Type(_)));
+    assert!(matches!(generics2.params[2].kind, GenericParamKind::Const(_)));
+}

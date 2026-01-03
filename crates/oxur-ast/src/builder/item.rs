@@ -852,21 +852,47 @@ impl AstBuilder {
         Ok(TraitRef { path })
     }
 
+    fn build_poly_trait_ref(&mut self, sexp: &SExp) -> Result<PolyTraitRef> {
+        let list = expect_node_type(expect_list(sexp)?, "PolyTraitRef")?;
+        let kwargs = parse_kwargs(list)?;
+
+        let trait_ref_sexp = require_field(&kwargs, "trait-ref", list.pos)?;
+        let trait_ref = self.build_trait_ref(trait_ref_sexp)?;
+
+        // bound-lifetimes field (optional for now, defaults to empty)
+        let bound_lifetimes = vec![]; // TODO: implement when needed
+
+        Ok(PolyTraitRef {
+            trait_ref,
+            bound_lifetimes,
+        })
+    }
+
+    fn build_trait_bound_modifier(&mut self, sexp: &SExp) -> Result<TraitBoundModifier> {
+        let sym = expect_symbol(sexp)?;
+        match sym.value.as_str() {
+            "None" => Ok(TraitBoundModifier::None),
+            "Maybe" => Ok(TraitBoundModifier::Maybe),
+            "Negative" => Ok(TraitBoundModifier::Negative),
+            _ => Err(ParseError::Expected {
+                expected: "None, Maybe, or Negative".to_string(),
+                found: sym.value.clone(),
+                pos: sym.pos,
+            }),
+        }
+    }
+
     fn build_generic_bound(&mut self, sexp: &SExp) -> Result<GenericBound> {
         let list = expect_list(sexp)?;
         let node_type = expect_symbol(&list.elements[0])?;
 
         match node_type.value.as_str() {
             "Trait" => {
-                let trait_ref_sexp = &list.elements[1];
-                let trait_ref = self.build_trait_ref(trait_ref_sexp)?;
-                // Wrap TraitRef in PolyTraitRef with no bound lifetimes
-                let poly_trait_ref = PolyTraitRef {
-                    trait_ref,
-                    bound_lifetimes: vec![],
-                };
-                // Default to no modifier for now
-                Ok(GenericBound::Trait(poly_trait_ref, TraitBoundModifier::None))
+                let poly_trait_ref_sexp = &list.elements[1];
+                let poly_trait_ref = self.build_poly_trait_ref(poly_trait_ref_sexp)?;
+                let modifier_sexp = &list.elements[2];
+                let modifier = self.build_trait_bound_modifier(modifier_sexp)?;
+                Ok(GenericBound::Trait(poly_trait_ref, modifier))
             }
             "Outlives" => {
                 let lifetime_sexp = &list.elements[1];
