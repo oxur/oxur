@@ -7,36 +7,27 @@ use oxur_repl::protocol::{
     Status,
 };
 use oxur_repl::transport::{
-    SplitTransport, TcpTransport, TcpTransportListener, Transport, TransportReader,
-    TransportWriter,
+    SplitTransport, TcpTransport, TcpTransportListener, Transport, TransportReader, TransportWriter,
 };
 
 /// Test basic request/response cycle over TCP
 #[tokio::test]
 async fn test_basic_request_response() {
-    let listener = TcpTransportListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind listener");
+    let listener =
+        TcpTransportListener::bind("127.0.0.1:0").await.expect("Failed to bind listener");
     let addr = listener.local_addr().expect("Failed to get address");
 
     let request = Request {
         id: 1,
         session_id: "test-session-1".to_string(),
-        operation: Operation::Eval {
-            code: "(+ 1 2)".to_string(),
-            mode: ReplMode::Lisp,
-        },
+        operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
     };
 
     let response = Response {
         request_id: 1,
         session_id: "test-session-1".to_string(),
         result: OperationResult::Success {
-            status: Status {
-                tier: 1,
-                cached: false,
-                duration_ms: 5,
-            },
+            status: Status { tier: 1, cached: false, duration_ms: 5 },
             value: Some("3".to_string()),
             stdout: None,
             stderr: None,
@@ -48,21 +39,14 @@ async fn test_basic_request_response() {
 
     // Client task
     let client_task = tokio::spawn(async move {
-        let mut client = TcpTransport::connect(addr.to_string())
-            .await
-            .expect("Client failed to connect");
+        let mut client =
+            TcpTransport::connect(addr.to_string()).await.expect("Client failed to connect");
 
         // Send request
-        client
-            .send_request(&request_clone)
-            .await
-            .expect("Failed to send request");
+        client.send_request(&request_clone).await.expect("Failed to send request");
 
         // Receive response
-        let recv_response = client
-            .recv_response()
-            .await
-            .expect("Failed to receive response");
+        let recv_response = client.recv_response().await.expect("Failed to receive response");
 
         assert_eq!(recv_response.request_id, 1);
         assert_eq!(recv_response.session_id, "test-session-1");
@@ -79,19 +63,13 @@ async fn test_basic_request_response() {
         let mut server = listener.accept().await.expect("Failed to accept");
 
         // Receive request
-        let recv_request = server
-            .recv_request()
-            .await
-            .expect("Failed to receive request");
+        let recv_request = server.recv_request().await.expect("Failed to receive request");
 
         assert_eq!(recv_request.id, 1);
         assert_eq!(recv_request.session_id, "test-session-1");
 
         // Send response
-        server
-            .send_response(&response_clone)
-            .await
-            .expect("Failed to send response");
+        server.send_response(&response_clone).await.expect("Failed to send response");
     });
 
     tokio::try_join!(client_task, server_task).expect("Tasks failed");
@@ -100,16 +78,12 @@ async fn test_basic_request_response() {
 /// Test multiple sequential requests over the same connection
 #[tokio::test]
 async fn test_multiple_requests() {
-    let listener = TcpTransportListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind");
+    let listener = TcpTransportListener::bind("127.0.0.1:0").await.expect("Failed to bind");
     let addr = listener.local_addr().expect("Failed to get address");
 
     // Client task - send 3 requests
     let client_task = tokio::spawn(async move {
-        let mut client = TcpTransport::connect(addr.to_string())
-            .await
-            .expect("Failed to connect");
+        let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         for i in 1..=3 {
             let request = Request {
@@ -121,15 +95,9 @@ async fn test_multiple_requests() {
                 },
             };
 
-            client
-                .send_request(&request)
-                .await
-                .expect("Failed to send request");
+            client.send_request(&request).await.expect("Failed to send request");
 
-            let response = client
-                .recv_response()
-                .await
-                .expect("Failed to receive response");
+            let response = client.recv_response().await.expect("Failed to receive response");
 
             assert_eq!(response.request_id, i);
         }
@@ -140,10 +108,7 @@ async fn test_multiple_requests() {
         let mut server = listener.accept().await.expect("Failed to accept");
 
         for i in 1..=3 {
-            let request = server
-                .recv_request()
-                .await
-                .expect("Failed to receive request");
+            let request = server.recv_request().await.expect("Failed to receive request");
 
             assert_eq!(request.id, i);
 
@@ -151,21 +116,14 @@ async fn test_multiple_requests() {
                 request_id: i,
                 session_id: "multi-test".to_string(),
                 result: OperationResult::Success {
-                    status: Status {
-                        tier: 1,
-                        cached: false,
-                        duration_ms: 5,
-                    },
+                    status: Status { tier: 1, cached: false, duration_ms: 5 },
                     value: Some((i * 2).to_string()),
                     stdout: None,
                     stderr: None,
                 },
             };
 
-            server
-                .send_response(&response)
-                .await
-                .expect("Failed to send response");
+            server.send_response(&response).await.expect("Failed to send response");
         }
     });
 
@@ -175,9 +133,7 @@ async fn test_multiple_requests() {
 /// Test error response propagation
 #[tokio::test]
 async fn test_error_response() {
-    let listener = TcpTransportListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind");
+    let listener = TcpTransportListener::bind("127.0.0.1:0").await.expect("Failed to bind");
     let addr = listener.local_addr().expect("Failed to get address");
 
     let error_response = Response {
@@ -187,11 +143,7 @@ async fn test_error_response() {
             error: ErrorInfo {
                 kind: ErrorKind::RuntimeError,
                 message: "Division by zero".to_string(),
-                location: Some(SourceLocation {
-                    offset: 10,
-                    line: 2,
-                    column: 5,
-                }),
+                location: Some(SourceLocation { offset: 10, line: 2, column: 5 }),
                 details: Some("Stack trace: ...".to_string()),
             },
             stdout: Some("Processing...".to_string()),
@@ -202,35 +154,19 @@ async fn test_error_response() {
     let error_clone = error_response.clone();
 
     let client_task = tokio::spawn(async move {
-        let mut client = TcpTransport::connect(addr.to_string())
-            .await
-            .expect("Failed to connect");
+        let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         let request = Request {
             id: 1,
             session_id: "error-test".to_string(),
-            operation: Operation::Eval {
-                code: "(/ 1 0)".to_string(),
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: "(/ 1 0)".to_string(), mode: ReplMode::Lisp },
         };
 
-        client
-            .send_request(&request)
-            .await
-            .expect("Failed to send request");
+        client.send_request(&request).await.expect("Failed to send request");
 
-        let response = client
-            .recv_response()
-            .await
-            .expect("Failed to receive response");
+        let response = client.recv_response().await.expect("Failed to receive response");
 
-        if let OperationResult::Error {
-            error,
-            stdout,
-            stderr,
-        } = response.result
-        {
+        if let OperationResult::Error { error, stdout, stderr } = response.result {
             assert_eq!(error.kind, ErrorKind::RuntimeError);
             assert_eq!(error.message, "Division by zero");
             assert!(error.location.is_some());
@@ -244,10 +180,7 @@ async fn test_error_response() {
     let server_task = tokio::spawn(async move {
         let mut server = listener.accept().await.expect("Failed to accept");
         let _request = server.recv_request().await.expect("Failed to receive");
-        server
-            .send_response(&error_clone)
-            .await
-            .expect("Failed to send error response");
+        server.send_response(&error_clone).await.expect("Failed to send error response");
     });
 
     tokio::try_join!(client_task, server_task).expect("Tasks failed");
@@ -256,29 +189,17 @@ async fn test_error_response() {
 /// Test all operation types
 #[tokio::test]
 async fn test_all_operations() {
-    let listener = TcpTransportListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind");
+    let listener = TcpTransportListener::bind("127.0.0.1:0").await.expect("Failed to bind");
     let addr = listener.local_addr().expect("Failed to get address");
 
     let operations = vec![
-        Operation::Eval {
-            code: "(+ 1 2)".to_string(),
-            mode: ReplMode::Lisp,
-        },
-        Operation::LoadFile {
-            path: "test.ox".to_string(),
-            mode: ReplMode::Sexpr,
-        },
-        Operation::Clone {
-            source_session_id: "source-session".to_string(),
-        },
+        Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
+        Operation::LoadFile { path: "test.ox".to_string(), mode: ReplMode::Sexpr },
+        Operation::Clone { source_session_id: "source-session".to_string() },
         Operation::Interrupt,
         Operation::Close,
         Operation::LsSessions,
-        Operation::Describe {
-            symbol: "map".to_string(),
-        },
+        Operation::Describe { symbol: "map".to_string() },
         Operation::History { limit: Some(10) },
         Operation::ClearOutput,
     ];
@@ -286,26 +207,15 @@ async fn test_all_operations() {
     let ops_clone = operations.clone();
 
     let client_task = tokio::spawn(async move {
-        let mut client = TcpTransport::connect(addr.to_string())
-            .await
-            .expect("Failed to connect");
+        let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         for (i, op) in ops_clone.into_iter().enumerate() {
-            let request = Request {
-                id: i as u64,
-                session_id: "ops-test".to_string(),
-                operation: op,
-            };
+            let request =
+                Request { id: i as u64, session_id: "ops-test".to_string(), operation: op };
 
-            client
-                .send_request(&request)
-                .await
-                .expect("Failed to send request");
+            client.send_request(&request).await.expect("Failed to send request");
 
-            let response = client
-                .recv_response()
-                .await
-                .expect("Failed to receive response");
+            let response = client.recv_response().await.expect("Failed to receive response");
 
             assert_eq!(response.request_id, i as u64);
         }
@@ -315,10 +225,7 @@ async fn test_all_operations() {
         let mut server = listener.accept().await.expect("Failed to accept");
 
         for i in 0..operations.len() {
-            let request = server
-                .recv_request()
-                .await
-                .expect("Failed to receive request");
+            let request = server.recv_request().await.expect("Failed to receive request");
 
             assert_eq!(request.id, i as u64);
 
@@ -326,21 +233,14 @@ async fn test_all_operations() {
                 request_id: i as u64,
                 session_id: "ops-test".to_string(),
                 result: OperationResult::Success {
-                    status: Status {
-                        tier: 1,
-                        cached: false,
-                        duration_ms: 1,
-                    },
+                    status: Status { tier: 1, cached: false, duration_ms: 1 },
                     value: Some("ok".to_string()),
                     stdout: None,
                     stderr: None,
                 },
             };
 
-            server
-                .send_response(&response)
-                .await
-                .expect("Failed to send response");
+            server.send_response(&response).await.expect("Failed to send response");
         }
     });
 
@@ -350,16 +250,12 @@ async fn test_all_operations() {
 /// Test concurrent operations using split transport
 #[tokio::test]
 async fn test_concurrent_split_transport() {
-    let listener = TcpTransportListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind");
+    let listener = TcpTransportListener::bind("127.0.0.1:0").await.expect("Failed to bind");
     let addr = listener.local_addr().expect("Failed to get address");
 
     // Client with split transport
     let client_task = tokio::spawn(async move {
-        let client = TcpTransport::connect(addr.to_string())
-            .await
-            .expect("Failed to connect");
+        let client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         let (mut reader, mut writer) = client.split();
 
@@ -375,10 +271,7 @@ async fn test_concurrent_split_transport() {
                     },
                 };
 
-                writer
-                    .send_request(&request)
-                    .await
-                    .expect("Failed to send");
+                writer.send_request(&request).await.expect("Failed to send");
                 writer.flush().await.expect("Failed to flush");
                 tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             }
@@ -387,10 +280,7 @@ async fn test_concurrent_split_transport() {
         // Receive responses in main task
         let recv_task = tokio::spawn(async move {
             for i in 1..=5 {
-                let response = reader
-                    .recv_response()
-                    .await
-                    .expect("Failed to receive response");
+                let response = reader.recv_response().await.expect("Failed to receive response");
                 assert_eq!(response.request_id, i);
             }
         });
@@ -406,10 +296,7 @@ async fn test_concurrent_split_transport() {
         // Spawn receiver task
         let recv_task = tokio::spawn(async move {
             for i in 1..=5 {
-                let request = reader
-                    .recv_request()
-                    .await
-                    .expect("Failed to receive request");
+                let request = reader.recv_request().await.expect("Failed to receive request");
                 assert_eq!(request.id, i);
             }
         });
@@ -421,21 +308,14 @@ async fn test_concurrent_split_transport() {
                     request_id: i,
                     session_id: "concurrent".to_string(),
                     result: OperationResult::Success {
-                        status: Status {
-                            tier: 1,
-                            cached: false,
-                            duration_ms: 1,
-                        },
+                        status: Status { tier: 1, cached: false, duration_ms: 1 },
                         value: Some(format!("response-{}", i)),
                         stdout: None,
                         stderr: None,
                     },
                 };
 
-                writer
-                    .send_response(&response)
-                    .await
-                    .expect("Failed to send response");
+                writer.send_response(&response).await.expect("Failed to send response");
                 writer.flush().await.expect("Failed to flush");
                 tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
             }
@@ -450,37 +330,24 @@ async fn test_concurrent_split_transport() {
 /// Test large messages (close to size limit)
 #[tokio::test]
 async fn test_large_message() {
-    let listener = TcpTransportListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind");
+    let listener = TcpTransportListener::bind("127.0.0.1:0").await.expect("Failed to bind");
     let addr = listener.local_addr().expect("Failed to get address");
 
     // Create a large code string (1MB)
     let large_code = "x".repeat(1024 * 1024);
 
     let client_task = tokio::spawn(async move {
-        let mut client = TcpTransport::connect(addr.to_string())
-            .await
-            .expect("Failed to connect");
+        let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         let request = Request {
             id: 1,
             session_id: "large-msg".to_string(),
-            operation: Operation::Eval {
-                code: large_code,
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: large_code, mode: ReplMode::Lisp },
         };
 
-        client
-            .send_request(&request)
-            .await
-            .expect("Failed to send large request");
+        client.send_request(&request).await.expect("Failed to send large request");
 
-        let response = client
-            .recv_response()
-            .await
-            .expect("Failed to receive response");
+        let response = client.recv_response().await.expect("Failed to receive response");
 
         assert_eq!(response.request_id, 1);
     });
@@ -488,10 +355,7 @@ async fn test_large_message() {
     let server_task = tokio::spawn(async move {
         let mut server = listener.accept().await.expect("Failed to accept");
 
-        let request = server
-            .recv_request()
-            .await
-            .expect("Failed to receive large request");
+        let request = server.recv_request().await.expect("Failed to receive large request");
 
         assert_eq!(request.id, 1);
 
@@ -504,21 +368,14 @@ async fn test_large_message() {
             request_id: 1,
             session_id: "large-msg".to_string(),
             result: OperationResult::Success {
-                status: Status {
-                    tier: 2,
-                    cached: false,
-                    duration_ms: 100,
-                },
+                status: Status { tier: 2, cached: false, duration_ms: 100 },
                 value: Some("processed".to_string()),
                 stdout: None,
                 stderr: None,
             },
         };
 
-        server
-            .send_response(&response)
-            .await
-            .expect("Failed to send response");
+        server.send_response(&response).await.expect("Failed to send response");
     });
 
     tokio::try_join!(client_task, server_task).expect("Tasks failed");
@@ -527,26 +384,16 @@ async fn test_large_message() {
 /// Test connection cleanup and graceful shutdown
 #[tokio::test]
 async fn test_graceful_shutdown() {
-    let listener = TcpTransportListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind");
+    let listener = TcpTransportListener::bind("127.0.0.1:0").await.expect("Failed to bind");
     let addr = listener.local_addr().expect("Failed to get address");
 
     let client_task = tokio::spawn(async move {
-        let mut client = TcpTransport::connect(addr.to_string())
-            .await
-            .expect("Failed to connect");
+        let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
-        let request = Request {
-            id: 1,
-            session_id: "shutdown-test".to_string(),
-            operation: Operation::Close,
-        };
+        let request =
+            Request { id: 1, session_id: "shutdown-test".to_string(), operation: Operation::Close };
 
-        client
-            .send_request(&request)
-            .await
-            .expect("Failed to send");
+        client.send_request(&request).await.expect("Failed to send");
 
         let _response = client.recv_response().await.expect("Failed to receive");
 
@@ -563,21 +410,14 @@ async fn test_graceful_shutdown() {
             request_id: 1,
             session_id: "shutdown-test".to_string(),
             result: OperationResult::Success {
-                status: Status {
-                    tier: 1,
-                    cached: false,
-                    duration_ms: 0,
-                },
+                status: Status { tier: 1, cached: false, duration_ms: 0 },
                 value: None,
                 stdout: None,
                 stderr: None,
             },
         };
 
-        server
-            .send_response(&response)
-            .await
-            .expect("Failed to send");
+        server.send_response(&response).await.expect("Failed to send");
 
         // Server closes connection
         server.close().await.expect("Failed to close");

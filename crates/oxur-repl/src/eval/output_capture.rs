@@ -89,17 +89,9 @@ impl OutputCapturer {
 
     /// Get the captured output
     pub fn get_output(&self) -> CapturedOutput {
-        let stdout = self
-            .stdout
-            .lock()
-            .map(|s| s.clone())
-            .unwrap_or_default();
+        let stdout = self.stdout.lock().map(|s| s.clone()).unwrap_or_default();
 
-        let stderr = self
-            .stderr
-            .lock()
-            .map(|s| s.clone())
-            .unwrap_or_default();
+        let stderr = self.stderr.lock().map(|s| s.clone()).unwrap_or_default();
 
         CapturedOutput { stdout, stderr }
     }
@@ -180,11 +172,7 @@ pub fn simulate_execution(code: &str, capturer: &OutputCapturer) -> String {
     // Also check for println! (use more specific match to avoid matching eprintln)
     if let Some(start) = code.find("println!(\"") {
         // Make sure this isn't part of "eprintln"
-        let is_println = if start > 0 {
-            !code[..start].ends_with('e')
-        } else {
-            true
-        };
+        let is_println = if start > 0 { !code[..start].ends_with('e') } else { true };
 
         if is_println {
             if let Some(end) = code[start..].find("\")") {
@@ -225,10 +213,7 @@ mod tests {
 
     #[test]
     fn test_captured_output_options() {
-        let output = CapturedOutput {
-            stdout: "output".to_string(),
-            stderr: "".to_string(),
-        };
+        let output = CapturedOutput { stdout: "output".to_string(), stderr: "".to_string() };
 
         assert_eq!(output.stdout_option(), Some("output".to_string()));
         assert_eq!(output.stderr_option(), None);

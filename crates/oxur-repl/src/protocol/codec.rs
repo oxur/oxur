@@ -186,10 +186,7 @@ mod tests {
         let request = Request {
             id: 1,
             session_id: "test-session".to_string(),
-            operation: Operation::Eval {
-                code: "(+ 1 2)".to_string(),
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
         let encoded = PostcardCodec::encode_request(&request).unwrap();
@@ -203,11 +200,7 @@ mod tests {
             request_id: 1,
             session_id: "test-session".to_string(),
             result: OperationResult::Success {
-                status: Status {
-                    tier: 1,
-                    cached: false,
-                    duration_ms: 5,
-                },
+                status: Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
                 stdout: None,
                 stderr: None,
@@ -273,10 +266,7 @@ mod tests {
         let request = Request {
             id: 1,
             session_id: "test".to_string(),
-            operation: Operation::Eval {
-                code: huge_code,
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: huge_code, mode: ReplMode::Lisp },
         };
 
         let result = PostcardCodec::encode_request(&request);
@@ -294,11 +284,8 @@ mod tests {
 
     #[test]
     fn test_framing_format() {
-        let request = Request {
-            id: 1,
-            session_id: "test".to_string(),
-            operation: Operation::Interrupt,
-        };
+        let request =
+            Request { id: 1, session_id: "test".to_string(), operation: Operation::Interrupt };
 
         let encoded = PostcardCodec::encode_request(&request).unwrap();
 

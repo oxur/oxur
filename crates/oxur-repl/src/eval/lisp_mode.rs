@@ -143,9 +143,7 @@ impl LispEvaluator {
         }
 
         if depth != 0 {
-            return Err(EvalError::SyntaxError(
-                "Mismatched parentheses".to_string(),
-            ));
+            return Err(EvalError::SyntaxError("Mismatched parentheses".to_string()));
         }
 
         Ok(tokens)
@@ -156,12 +154,10 @@ impl LispEvaluator {
         match expr {
             Expr::Number(n) => Ok(n.to_string()),
 
-            Expr::Symbol(s) => {
-                Err(EvalError::UnsupportedOperation(format!(
-                    "Variables not supported in calculator mode: {}",
-                    s
-                )))
-            }
+            Expr::Symbol(s) => Err(EvalError::UnsupportedOperation(format!(
+                "Variables not supported in calculator mode: {}",
+                s
+            ))),
 
             Expr::List(elements) => {
                 if elements.is_empty() {
@@ -254,9 +250,8 @@ impl LispEvaluator {
     pub fn parse(&mut self, code: &str) -> Result<Vec<CoreForm>> {
         // Use oxur-lang Parser
         let mut parser = Parser::new(code.to_string());
-        let surface_forms = parser
-            .parse()
-            .map_err(|e| EvalError::SyntaxError(format!("Parse error: {}", e)))?;
+        let surface_forms =
+            parser.parse().map_err(|e| EvalError::SyntaxError(format!("Parse error: {}", e)))?;
 
         // For now, convert to CoreForm manually
         // When Expander is ready, we'll use: expander.expand(surface_forms)
@@ -284,14 +279,9 @@ impl LispEvaluator {
             SurfaceForm::Number(value) => Ok(CoreForm::Number { id, value }),
             SurfaceForm::String(value) => Ok(CoreForm::String { id, value }),
             SurfaceForm::List(elements) => {
-                let elements: Result<Vec<_>> = elements
-                    .into_iter()
-                    .map(|e| self.convert_form(e))
-                    .collect();
-                Ok(CoreForm::List {
-                    id,
-                    elements: elements?,
-                })
+                let elements: Result<Vec<_>> =
+                    elements.into_iter().map(|e| self.convert_form(e)).collect();
+                Ok(CoreForm::List { id, elements: elements? })
             }
         }
     }
@@ -350,23 +340,14 @@ mod tests {
     fn test_calculator_multiple_args() {
         let mut eval = LispEvaluator::new();
         assert_eq!(eval.try_eval_calculator("(+ 1 2 3 4)"), Some("10".to_string()));
-        assert_eq!(
-            eval.try_eval_calculator("(* 2 3 4)"),
-            Some("24".to_string())
-        );
+        assert_eq!(eval.try_eval_calculator("(* 2 3 4)"), Some("24".to_string()));
     }
 
     #[test]
     fn test_calculator_nested_expressions() {
         let mut eval = LispEvaluator::new();
-        assert_eq!(
-            eval.try_eval_calculator("(+ (* 2 3) 4)"),
-            Some("10".to_string())
-        );
-        assert_eq!(
-            eval.try_eval_calculator("(* (+ 1 2) (- 10 5))"),
-            Some("15".to_string())
-        );
+        assert_eq!(eval.try_eval_calculator("(+ (* 2 3) 4)"), Some("10".to_string()));
+        assert_eq!(eval.try_eval_calculator("(* (+ 1 2) (- 10 5))"), Some("15".to_string()));
     }
 
     #[test]
@@ -419,11 +400,7 @@ mod tests {
         let expr = eval.parse_simple("(+ 1 2)").unwrap();
         assert_eq!(
             expr,
-            Expr::List(vec![
-                Expr::Symbol("+".to_string()),
-                Expr::Number(1),
-                Expr::Number(2),
-            ])
+            Expr::List(vec![Expr::Symbol("+".to_string()), Expr::Number(1), Expr::Number(2),])
         );
     }
 
@@ -435,11 +412,7 @@ mod tests {
             expr,
             Expr::List(vec![
                 Expr::Symbol("+".to_string()),
-                Expr::List(vec![
-                    Expr::Symbol("*".to_string()),
-                    Expr::Number(2),
-                    Expr::Number(3),
-                ]),
+                Expr::List(vec![Expr::Symbol("*".to_string()), Expr::Number(2), Expr::Number(3),]),
                 Expr::Number(4),
             ])
         );
@@ -449,20 +422,14 @@ mod tests {
     fn test_tokenize_simple() {
         let eval = LispEvaluator::new();
         let tokens = eval.tokenize("+ 1 2").unwrap();
-        assert_eq!(
-            tokens,
-            vec!["+".to_string(), "1".to_string(), "2".to_string()]
-        );
+        assert_eq!(tokens, vec!["+".to_string(), "1".to_string(), "2".to_string()]);
     }
 
     #[test]
     fn test_tokenize_nested() {
         let eval = LispEvaluator::new();
         let tokens = eval.tokenize("+ (* 2 3) 4").unwrap();
-        assert_eq!(
-            tokens,
-            vec!["+".to_string(), "(* 2 3)".to_string(), "4".to_string()]
-        );
+        assert_eq!(tokens, vec!["+".to_string(), "(* 2 3)".to_string(), "4".to_string()]);
     }
 
     #[test]

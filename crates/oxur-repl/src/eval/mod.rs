@@ -4,8 +4,8 @@
 
 mod context;
 mod lisp_mode;
-mod sexpr_mode;
 pub mod output_capture;
+mod sexpr_mode;
 
 // Re-export public types
 pub use context::{EvalContext, EvalError, EvalResult, ExecutionTier, Result};

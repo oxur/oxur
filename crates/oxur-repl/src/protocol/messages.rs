@@ -284,11 +284,7 @@ mod tests {
 
     #[test]
     fn test_source_location_display() {
-        let loc = SourceLocation {
-            offset: 42,
-            line: 3,
-            column: 15,
-        };
+        let loc = SourceLocation { offset: 42, line: 3, column: 15 };
         assert_eq!(loc.to_string(), "line 3, column 15");
     }
 
@@ -309,17 +305,10 @@ mod tests {
         let error = ErrorInfo {
             kind: ErrorKind::SyntaxError,
             message: "Unexpected token".to_string(),
-            location: Some(SourceLocation {
-                offset: 10,
-                line: 2,
-                column: 5,
-            }),
+            location: Some(SourceLocation { offset: 10, line: 2, column: 5 }),
             details: None,
         };
-        assert_eq!(
-            error.to_string(),
-            "Syntax Error: Unexpected token at line 2, column 5"
-        );
+        assert_eq!(error.to_string(), "Syntax Error: Unexpected token at line 2, column 5");
     }
 
     #[test]
@@ -327,10 +316,7 @@ mod tests {
         let request = Request {
             id: 1,
             session_id: "test-session".to_string(),
-            operation: Operation::Eval {
-                code: "(+ 1 2)".to_string(),
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
         // Serialize to JSON for debugging
@@ -345,11 +331,7 @@ mod tests {
             request_id: 1,
             session_id: "test-session".to_string(),
             result: OperationResult::Success {
-                status: Status {
-                    tier: 1,
-                    cached: false,
-                    duration_ms: 5,
-                },
+                status: Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
                 stdout: None,
                 stderr: None,

@@ -7,6 +7,4 @@ mod traits;
 
 // Re-export public types
 pub use tcp::{TcpTransport, TcpTransportListener, TcpTransportReader, TcpTransportWriter};
-pub use traits::{
-    SplitTransport, Transport, TransportError, TransportReader, TransportWriter,
-};
+pub use traits::{SplitTransport, Transport, TransportError, TransportReader, TransportWriter};

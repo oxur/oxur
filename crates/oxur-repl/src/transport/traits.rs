@@ -127,33 +127,25 @@ pub(crate) mod helpers {
     pub async fn read_framed<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Vec<u8>> {
         // Read 4-byte length prefix
         let mut len_bytes = [0u8; 4];
-        reader
-            .read_exact(&mut len_bytes)
-            .await
-            .map_err(|e| match e.kind() {
-                io::ErrorKind::UnexpectedEof => TransportError::ConnectionClosed,
-                _ => TransportError::Io(e),
-            })?;
+        reader.read_exact(&mut len_bytes).await.map_err(|e| match e.kind() {
+            io::ErrorKind::UnexpectedEof => TransportError::ConnectionClosed,
+            _ => TransportError::Io(e),
+        })?;
 
         let len = u32::from_le_bytes(len_bytes);
 
         // Validate length
         const MAX_MESSAGE_SIZE: u32 = 10 * 1024 * 1024; // 10 MB
         if len > MAX_MESSAGE_SIZE {
-            return Err(TransportError::Codec(
-                crate::protocol::CodecError::MessageTooLarge(len),
-            ));
+            return Err(TransportError::Codec(crate::protocol::CodecError::MessageTooLarge(len)));
         }
 
         // Read payload
         let mut payload = vec![0u8; len as usize];
-        reader
-            .read_exact(&mut payload)
-            .await
-            .map_err(|e| match e.kind() {
-                io::ErrorKind::UnexpectedEof => TransportError::ConnectionClosed,
-                _ => TransportError::Io(e),
-            })?;
+        reader.read_exact(&mut payload).await.map_err(|e| match e.kind() {
+            io::ErrorKind::UnexpectedEof => TransportError::ConnectionClosed,
+            _ => TransportError::Io(e),
+        })?;
 
         Ok(payload)
     }
@@ -161,10 +153,7 @@ pub(crate) mod helpers {
     /// Write a framed message to an async writer
     ///
     /// Writes length prefix (4 bytes) then payload, then flushes.
-    pub async fn write_framed<W: AsyncWrite + Unpin>(
-        writer: &mut W,
-        payload: &[u8],
-    ) -> Result<()> {
+    pub async fn write_framed<W: AsyncWrite + Unpin>(writer: &mut W, payload: &[u8]) -> Result<()> {
         let len = payload.len() as u32;
 
         // Write length prefix
@@ -222,10 +211,7 @@ mod tests {
         let request = Request {
             id: 1,
             session_id: "test-session".to_string(),
-            operation: Operation::Eval {
-                code: "(+ 1 2)".to_string(),
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
         // Send in one task, receive in another
@@ -251,11 +237,7 @@ mod tests {
             request_id: 42,
             session_id: "test-session".to_string(),
             result: crate::protocol::OperationResult::Success {
-                status: crate::protocol::Status {
-                    tier: 1,
-                    cached: false,
-                    duration_ms: 5,
-                },
+                status: crate::protocol::Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
                 stdout: None,
                 stderr: None,
@@ -263,9 +245,7 @@ mod tests {
         };
 
         let send_handle = tokio::spawn(async move {
-            helpers::send_response(&mut server, &response)
-                .await
-                .unwrap();
+            helpers::send_response(&mut server, &response).await.unwrap();
         });
 
         let recv_handle = tokio::spawn(async move {
@@ -296,10 +276,7 @@ mod tests {
         let request = Request {
             id: 1,
             session_id: "test".to_string(),
-            operation: Operation::Eval {
-                code: huge_code,
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: huge_code, mode: ReplMode::Lisp },
         };
 
         // Encoding should fail

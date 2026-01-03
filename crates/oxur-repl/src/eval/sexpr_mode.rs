@@ -25,10 +25,7 @@ pub struct SexprEvaluator {
 impl SexprEvaluator {
     /// Create a new s-expression evaluator
     pub fn new() -> Self {
-        Self {
-            next_id: 0,
-            symbols: HashMap::new(),
-        }
+        Self { next_id: 0, symbols: HashMap::new() }
     }
 
     /// Try to evaluate code in calculator mode (Tier 1)
@@ -161,9 +158,7 @@ impl SexprEvaluator {
         }
 
         if depth != 0 {
-            return Err(EvalError::SyntaxError(
-                "Mismatched parentheses".to_string(),
-            ));
+            return Err(EvalError::SyntaxError("Mismatched parentheses".to_string()));
         }
 
         if in_string {
@@ -217,9 +212,7 @@ impl SexprEvaluator {
             // Define a variable
             "define" => {
                 if args.len() != 2 {
-                    return Err(EvalError::SyntaxError(
-                        "define requires 2 arguments".to_string(),
-                    ));
+                    return Err(EvalError::SyntaxError("define requires 2 arguments".to_string()));
                 }
 
                 let name = match &args[0] {
@@ -263,10 +256,7 @@ impl SexprEvaluator {
                     }
                 }
 
-                Ok(SexprValue::Node {
-                    type_name: name.to_string(),
-                    fields,
-                })
+                Ok(SexprValue::Node { type_name: name.to_string(), fields })
             }
 
             // Unknown form - treat as list
@@ -299,10 +289,7 @@ impl SexprEvaluator {
                 let val = self.eval_expr(e)?;
                 match val {
                     SexprValue::Number(n) => Ok(n),
-                    _ => Err(EvalError::TypeError(format!(
-                        "Expected number, got {:?}",
-                        val
-                    ))),
+                    _ => Err(EvalError::TypeError(format!("Expected number, got {:?}", val))),
                 }
             })
             .collect();
@@ -373,24 +360,15 @@ impl SexprEvaluator {
 
         match expr {
             SexprExpr::Number(n) => Ok(CoreForm::Number { id, value: *n }),
-            SexprExpr::String(s) => Ok(CoreForm::String {
-                id,
-                value: s.clone(),
-            }),
-            SexprExpr::Symbol(s) => Ok(CoreForm::Symbol {
-                id,
-                name: s.clone(),
-            }),
+            SexprExpr::String(s) => Ok(CoreForm::String { id, value: s.clone() }),
+            SexprExpr::Symbol(s) => Ok(CoreForm::Symbol { id, name: s.clone() }),
             SexprExpr::Keyword(_) => Err(EvalError::SyntaxError(
                 "Keywords not supported in CoreForm conversion".to_string(),
             )),
             SexprExpr::List(elements) => {
                 let elements: Result<Vec<_>> =
                     elements.iter().map(|e| self.expr_to_core(e)).collect();
-                Ok(CoreForm::List {
-                    id,
-                    elements: elements?,
-                })
+                Ok(CoreForm::List { id, elements: elements? })
             }
         }
     }
@@ -422,10 +400,7 @@ enum SexprValue {
     Keyword(String),
     Symbol(String),
     List(Vec<SexprValue>),
-    Node {
-        type_name: String,
-        fields: HashMap<String, SexprValue>,
-    },
+    Node { type_name: String, fields: HashMap<String, SexprValue> },
 }
 
 /// S-expression AST
@@ -572,10 +547,7 @@ mod tests {
             SexprValue::Node { type_name, fields } => {
                 assert_eq!(type_name, "Node");
                 assert_eq!(fields.len(), 2);
-                assert_eq!(
-                    fields.get("name"),
-                    Some(&SexprValue::String("test".to_string()))
-                );
+                assert_eq!(fields.get("name"), Some(&SexprValue::String("test".to_string())));
                 assert_eq!(fields.get("value"), Some(&SexprValue::Number(42)));
             }
             _ => panic!("Expected Node value"),
@@ -586,10 +558,7 @@ mod tests {
     fn test_calculator_mode() {
         let mut eval = SexprEvaluator::new();
         assert_eq!(eval.try_eval_calculator("(+ 1 2)"), Some("3".to_string()));
-        assert_eq!(
-            eval.try_eval_calculator("(* 3 4)"),
-            Some("12".to_string())
-        );
+        assert_eq!(eval.try_eval_calculator("(* 3 4)"), Some("12".to_string()));
     }
 
     #[test]
@@ -598,11 +567,7 @@ mod tests {
         let tokens = eval.tokenize("name \"hello world\" 42").unwrap();
         assert_eq!(
             tokens,
-            vec![
-                "name".to_string(),
-                "\"hello world\"".to_string(),
-                "42".to_string()
-            ]
+            vec!["name".to_string(), "\"hello world\"".to_string(), "42".to_string()]
         );
     }
 
@@ -610,10 +575,7 @@ mod tests {
     fn test_tokenize_nested() {
         let eval = SexprEvaluator::new();
         let tokens = eval.tokenize("+ (- 5 2) 3").unwrap();
-        assert_eq!(
-            tokens,
-            vec!["+".to_string(), "(- 5 2)".to_string(), "3".to_string()]
-        );
+        assert_eq!(tokens, vec!["+".to_string(), "(- 5 2)".to_string(), "3".to_string()]);
     }
 
     #[test]

@@ -55,9 +55,7 @@ pub struct SessionManager {
 impl SessionManager {
     /// Create a new session manager
     pub fn new() -> Self {
-        Self {
-            sessions: Arc::new(RwLock::new(HashMap::new())),
-        }
+        Self { sessions: Arc::new(RwLock::new(HashMap::new())) }
     }
 
     /// Create a new session
@@ -77,10 +75,7 @@ impl SessionManager {
     /// assert_eq!(session_id, "session-1");
     /// ```
     pub fn create(&self, session_id: SessionId, mode: ReplMode) -> Result<SessionId> {
-        let mut sessions = self
-            .sessions
-            .write()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
 
         if sessions.contains_key(&session_id) {
             return Err(SessionError::AlreadyExists(session_id));
@@ -103,10 +98,7 @@ impl SessionManager {
     ) -> Result<crate::eval::EvalResult> {
         // First, get a clone of the context to evaluate with
         let mut context = {
-            let sessions = self
-                .sessions
-                .read()
-                .map_err(|_| SessionError::LockPoisoned)?;
+            let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
             sessions
                 .get(session_id)
@@ -115,17 +107,12 @@ impl SessionManager {
         };
 
         // Evaluate the code
-        let result = context
-            .eval(code)
-            .await
-            .map_err(|_| SessionError::NotFound(session_id.clone()))?;
+        let result =
+            context.eval(code).await.map_err(|_| SessionError::NotFound(session_id.clone()))?;
 
         // Update the session with the new state
         {
-            let mut sessions = self
-                .sessions
-                .write()
-                .map_err(|_| SessionError::LockPoisoned)?;
+            let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
 
             sessions.insert(session_id.clone(), context.clone());
         }
@@ -143,14 +130,10 @@ impl SessionManager {
     /// Returns `SessionError::NotFound` if the source session doesn't exist.
     /// Returns `SessionError::AlreadyExists` if the target session ID is already in use.
     pub fn clone_session(&self, source_id: &SessionId, target_id: SessionId) -> Result<SessionId> {
-        let mut sessions = self
-            .sessions
-            .write()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
 
-        let source_context = sessions
-            .get(source_id)
-            .ok_or_else(|| SessionError::NotFound(source_id.clone()))?;
+        let source_context =
+            sessions.get(source_id).ok_or_else(|| SessionError::NotFound(source_id.clone()))?;
 
         if sessions.contains_key(&target_id) {
             return Err(SessionError::AlreadyExists(target_id));
@@ -170,14 +153,9 @@ impl SessionManager {
     ///
     /// Returns `SessionError::NotFound` if the session doesn't exist.
     pub fn close(&self, session_id: &SessionId) -> Result<()> {
-        let mut sessions = self
-            .sessions
-            .write()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
 
-        sessions
-            .remove(session_id)
-            .ok_or_else(|| SessionError::NotFound(session_id.clone()))?;
+        sessions.remove(session_id).ok_or_else(|| SessionError::NotFound(session_id.clone()))?;
 
         Ok(())
     }
@@ -186,10 +164,7 @@ impl SessionManager {
     ///
     /// Returns information about all currently active sessions.
     pub fn list(&self) -> Result<Vec<SessionInfo>> {
-        let sessions = self
-            .sessions
-            .read()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
         let mut infos: Vec<SessionInfo> = sessions
             .iter()
@@ -216,14 +191,10 @@ impl SessionManager {
     ///
     /// Returns `SessionError::NotFound` if the session doesn't exist.
     pub fn get_info(&self, session_id: &SessionId) -> Result<SessionInfo> {
-        let sessions = self
-            .sessions
-            .read()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
-        let ctx = sessions
-            .get(session_id)
-            .ok_or_else(|| SessionError::NotFound(session_id.clone()))?;
+        let ctx =
+            sessions.get(session_id).ok_or_else(|| SessionError::NotFound(session_id.clone()))?;
 
         let (tier1, tier2, _) = ctx.stats();
 
@@ -237,20 +208,14 @@ impl SessionManager {
 
     /// Get the number of active sessions
     pub fn count(&self) -> Result<usize> {
-        let sessions = self
-            .sessions
-            .read()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
         Ok(sessions.len())
     }
 
     /// Check if a session exists
     pub fn exists(&self, session_id: &SessionId) -> Result<bool> {
-        let sessions = self
-            .sessions
-            .read()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
         Ok(sessions.contains_key(session_id))
     }
@@ -259,10 +224,7 @@ impl SessionManager {
     ///
     /// Useful for server shutdown.
     pub fn close_all(&self) -> Result<usize> {
-        let mut sessions = self
-            .sessions
-            .write()
-            .map_err(|_| SessionError::LockPoisoned)?;
+        let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
 
         let count = sessions.len();
         sessions.clear();
@@ -284,9 +246,7 @@ mod tests {
     #[test]
     fn test_create_session() {
         let manager = SessionManager::new();
-        let id = manager
-            .create("test-1".to_string(), ReplMode::Lisp)
-            .unwrap();
+        let id = manager.create("test-1".to_string(), ReplMode::Lisp).unwrap();
 
         assert_eq!(id, "test-1");
         assert!(manager.exists(&id).unwrap());
@@ -295,9 +255,7 @@ mod tests {
     #[test]
     fn test_create_duplicate_session() {
         let manager = SessionManager::new();
-        manager
-            .create("test-1".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("test-1".to_string(), ReplMode::Lisp).unwrap();
 
         let result = manager.create("test-1".to_string(), ReplMode::Lisp);
         assert!(matches!(result, Err(SessionError::AlreadyExists(_))));
@@ -306,9 +264,7 @@ mod tests {
     #[tokio::test]
     async fn test_eval() {
         let manager = SessionManager::new();
-        manager
-            .create("test".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("test".to_string(), ReplMode::Lisp).unwrap();
 
         let result = manager.eval(&"test".to_string(), "(+ 1 2)").await.unwrap();
 
@@ -327,13 +283,9 @@ mod tests {
     #[test]
     fn test_clone_session() {
         let manager = SessionManager::new();
-        manager
-            .create("source".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("source".to_string(), ReplMode::Lisp).unwrap();
 
-        let cloned_id = manager
-            .clone_session(&"source".to_string(), "target".to_string())
-            .unwrap();
+        let cloned_id = manager.clone_session(&"source".to_string(), "target".to_string()).unwrap();
 
         assert_eq!(cloned_id, "target");
         assert!(manager.exists(&"target".to_string()).unwrap());
@@ -351,12 +303,8 @@ mod tests {
     #[test]
     fn test_clone_to_existing_session() {
         let manager = SessionManager::new();
-        manager
-            .create("source".to_string(), ReplMode::Lisp)
-            .unwrap();
-        manager
-            .create("target".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("source".to_string(), ReplMode::Lisp).unwrap();
+        manager.create("target".to_string(), ReplMode::Lisp).unwrap();
 
         let result = manager.clone_session(&"source".to_string(), "target".to_string());
 
@@ -366,9 +314,7 @@ mod tests {
     #[test]
     fn test_close_session() {
         let manager = SessionManager::new();
-        manager
-            .create("test".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("test".to_string(), ReplMode::Lisp).unwrap();
 
         assert!(manager.exists(&"test".to_string()).unwrap());
 
@@ -389,12 +335,8 @@ mod tests {
     #[test]
     fn test_list_sessions() {
         let manager = SessionManager::new();
-        manager
-            .create("session-1".to_string(), ReplMode::Lisp)
-            .unwrap();
-        manager
-            .create("session-2".to_string(), ReplMode::Sexpr)
-            .unwrap();
+        manager.create("session-1".to_string(), ReplMode::Lisp).unwrap();
+        manager.create("session-2".to_string(), ReplMode::Sexpr).unwrap();
 
         let sessions = manager.list().unwrap();
 
@@ -416,9 +358,7 @@ mod tests {
     #[test]
     fn test_get_info() {
         let manager = SessionManager::new();
-        manager
-            .create("test".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("test".to_string(), ReplMode::Lisp).unwrap();
 
         let info = manager.get_info(&"test".to_string()).unwrap();
 
@@ -439,20 +379,12 @@ mod tests {
     #[tokio::test]
     async fn test_eval_count_tracking() {
         let manager = SessionManager::new();
-        manager
-            .create("test".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("test".to_string(), ReplMode::Lisp).unwrap();
 
         // Perform some evaluations
-        manager
-            .eval(&"test".to_string(), "(+ 1 2)")
-            .await
-            .unwrap();
+        manager.eval(&"test".to_string(), "(+ 1 2)").await.unwrap();
 
-        manager
-            .eval(&"test".to_string(), "(* 3 4)")
-            .await
-            .unwrap();
+        manager.eval(&"test".to_string(), "(* 3 4)").await.unwrap();
 
         let info = manager.get_info(&"test".to_string()).unwrap();
         assert_eq!(info.eval_count, 2);
@@ -464,14 +396,10 @@ mod tests {
 
         assert_eq!(manager.count().unwrap(), 0);
 
-        manager
-            .create("session-1".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("session-1".to_string(), ReplMode::Lisp).unwrap();
         assert_eq!(manager.count().unwrap(), 1);
 
-        manager
-            .create("session-2".to_string(), ReplMode::Sexpr)
-            .unwrap();
+        manager.create("session-2".to_string(), ReplMode::Sexpr).unwrap();
         assert_eq!(manager.count().unwrap(), 2);
 
         manager.close(&"session-1".to_string()).unwrap();
@@ -481,15 +409,9 @@ mod tests {
     #[test]
     fn test_close_all() {
         let manager = SessionManager::new();
-        manager
-            .create("session-1".to_string(), ReplMode::Lisp)
-            .unwrap();
-        manager
-            .create("session-2".to_string(), ReplMode::Sexpr)
-            .unwrap();
-        manager
-            .create("session-3".to_string(), ReplMode::Lisp)
-            .unwrap();
+        manager.create("session-1".to_string(), ReplMode::Lisp).unwrap();
+        manager.create("session-2".to_string(), ReplMode::Sexpr).unwrap();
+        manager.create("session-3".to_string(), ReplMode::Lisp).unwrap();
 
         assert_eq!(manager.count().unwrap(), 3);
 
@@ -511,9 +433,7 @@ mod tests {
         for i in 0..10 {
             let manager_clone = Arc::clone(&manager);
             let handle = thread::spawn(move || {
-                manager_clone
-                    .create(format!("session-{}", i), ReplMode::Lisp)
-                    .unwrap();
+                manager_clone.create(format!("session-{}", i), ReplMode::Lisp).unwrap();
             });
             handles.push(handle);
         }

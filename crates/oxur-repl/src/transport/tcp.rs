@@ -90,12 +90,7 @@ impl SplitTransport for TcpTransport {
 
     fn split(self) -> (Self::Reader, Self::Writer) {
         let (read_half, write_half) = tokio::io::split(self.stream);
-        (
-            TcpTransportReader { reader: read_half },
-            TcpTransportWriter {
-                writer: write_half,
-            },
-        )
+        (TcpTransportReader { reader: read_half }, TcpTransportWriter { writer: write_half })
     }
 }
 
@@ -196,15 +191,12 @@ mod tests {
     #[tokio::test]
     async fn test_tcp_connect_accept() {
         // Start a listener on localhost
-        let listener = TcpTransportListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         // Connect to it
-        let client_handle = tokio::spawn(async move {
-            TcpTransport::connect(addr.to_string()).await.unwrap()
-        });
+        let client_handle =
+            tokio::spawn(async move { TcpTransport::connect(addr.to_string()).await.unwrap() });
 
         // Accept the connection
         let server_transport = listener.accept().await.unwrap();
@@ -218,18 +210,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_tcp_send_recv_request() {
-        let listener = TcpTransportListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let request = Request {
             id: 1,
             session_id: "test-session".to_string(),
-            operation: Operation::Eval {
-                code: "(+ 1 2)".to_string(),
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
         let request_clone = request.clone();
@@ -254,20 +241,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_tcp_send_recv_response() {
-        let listener = TcpTransportListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let response = Response {
             request_id: 42,
             session_id: "test-session".to_string(),
             result: OperationResult::Success {
-                status: Status {
-                    tier: 1,
-                    cached: false,
-                    duration_ms: 5,
-                },
+                status: Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
                 stdout: None,
                 stderr: None,
@@ -294,29 +275,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_tcp_bidirectional() {
-        let listener = TcpTransportListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let request = Request {
             id: 1,
             session_id: "session-1".to_string(),
-            operation: Operation::Eval {
-                code: "(+ 2 3)".to_string(),
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: "(+ 2 3)".to_string(), mode: ReplMode::Lisp },
         };
 
         let response = Response {
             request_id: 1,
             session_id: "session-1".to_string(),
             result: OperationResult::Success {
-                status: Status {
-                    tier: 1,
-                    cached: false,
-                    duration_ms: 2,
-                },
+                status: Status { tier: 1, cached: false, duration_ms: 2 },
                 value: Some("5".to_string()),
                 stdout: None,
                 stderr: None,
@@ -348,9 +320,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tcp_split_transport() {
-        let listener = TcpTransportListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let request = Request {
@@ -383,9 +353,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tcp_close() {
-        let listener = TcpTransportListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let client_handle = tokio::spawn(async move {

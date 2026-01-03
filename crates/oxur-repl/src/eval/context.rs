@@ -140,11 +140,7 @@ impl EvalContext {
 
     /// Get execution statistics
     pub fn stats(&self) -> (u64, u64, u64) {
-        (
-            self.stats.tier1_count,
-            self.stats.tier2_count,
-            self.stats.cache_hits,
-        )
+        (self.stats.tier1_count, self.stats.tier2_count, self.stats.cache_hits)
     }
 
     /// Clone this context into a new session
@@ -261,7 +257,10 @@ impl EvalContext {
     /// 6. Load and execute with output capture [TODO: when ready]
     ///
     /// Returns (result_value, stdout, stderr)
-    async fn compile_and_execute(&mut self, code: &str) -> Result<(String, Option<String>, Option<String>)> {
+    async fn compile_and_execute(
+        &mut self,
+        code: &str,
+    ) -> Result<(String, Option<String>, Option<String>)> {
         // Step 1: Parse code to CoreForms using mode-specific parser
         let core_forms = match self.mode {
             ReplMode::Lisp => {

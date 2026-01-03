@@ -54,9 +54,9 @@ impl MessageHandler {
                 self.handle_create_session(&request.session_id, *mode)
             }
 
-            Operation::Clone {
-                source_session_id,
-            } => self.handle_clone_session(source_session_id, &request.session_id),
+            Operation::Clone { source_session_id } => {
+                self.handle_clone_session(source_session_id, &request.session_id)
+            }
 
             Operation::Eval { code, mode } => {
                 self.handle_eval(&request.session_id, code, *mode).await
@@ -83,11 +83,7 @@ impl MessageHandler {
             },
         };
 
-        Response {
-            request_id: request.id,
-            session_id: request.session_id,
-            result,
-        }
+        Response { request_id: request.id, session_id: request.session_id, result }
     }
 
     /// Handle CreateSession operation
@@ -96,16 +92,9 @@ impl MessageHandler {
         session_id: &str,
         mode: crate::protocol::ReplMode,
     ) -> OperationResult {
-        match self
-            .session_manager
-            .create(session_id.to_string(), mode)
-        {
+        match self.session_manager.create(session_id.to_string(), mode) {
             Ok(_) => OperationResult::Success {
-                status: Status {
-                    tier: 0,
-                    cached: false,
-                    duration_ms: 0,
-                },
+                status: Status { tier: 0, cached: false, duration_ms: 0 },
                 value: Some(format!("Session {} created", session_id)),
                 stdout: None,
                 stderr: None,
@@ -116,16 +105,9 @@ impl MessageHandler {
 
     /// Handle Clone operation
     fn handle_clone_session(&self, source_id: &str, target_id: &str) -> OperationResult {
-        match self
-            .session_manager
-            .clone_session(&source_id.to_string(), target_id.to_string())
-        {
+        match self.session_manager.clone_session(&source_id.to_string(), target_id.to_string()) {
             Ok(_) => OperationResult::Success {
-                status: Status {
-                    tier: 0,
-                    cached: false,
-                    duration_ms: 0,
-                },
+                status: Status { tier: 0, cached: false, duration_ms: 0 },
                 value: Some(format!("Session {} cloned to {}", source_id, target_id)),
                 stdout: None,
                 stderr: None,
@@ -142,11 +124,7 @@ impl MessageHandler {
         _mode: crate::protocol::ReplMode,
     ) -> OperationResult {
         // Note: mode is ignored because session already has a mode set during creation
-        match self
-            .session_manager
-            .eval(&session_id.to_string(), code)
-            .await
-        {
+        match self.session_manager.eval(&session_id.to_string(), code).await {
             Ok(result) => {
                 // Convert ExecutionTier to u8
                 let tier_num = match result.tier {
@@ -173,11 +151,7 @@ impl MessageHandler {
     fn handle_close(&self, session_id: &str) -> OperationResult {
         match self.session_manager.close(&session_id.to_string()) {
             Ok(_) => OperationResult::Success {
-                status: Status {
-                    tier: 0,
-                    cached: false,
-                    duration_ms: 0,
-                },
+                status: Status { tier: 0, cached: false, duration_ms: 0 },
                 value: Some(format!("Session {} closed", session_id)),
                 stdout: None,
                 stderr: None,
@@ -201,9 +175,7 @@ impl MessageHandler {
                     })
                     .collect();
 
-                OperationResult::Sessions {
-                    sessions: session_infos,
-                }
+                OperationResult::Sessions { sessions: session_infos }
             }
             Err(e) => self.error_result(e),
         }
@@ -215,22 +187,14 @@ impl MessageHandler {
             SessionError::NotFound(id) => {
                 (ErrorKind::SessionNotFound, format!("Session not found: {}", id))
             }
-            SessionError::AlreadyExists(id) => (
-                ErrorKind::SessionAlreadyExists,
-                format!("Session already exists: {}", id),
-            ),
-            SessionError::LockPoisoned => {
-                (ErrorKind::InternalError, "Lock poisoned".to_string())
+            SessionError::AlreadyExists(id) => {
+                (ErrorKind::SessionAlreadyExists, format!("Session already exists: {}", id))
             }
+            SessionError::LockPoisoned => (ErrorKind::InternalError, "Lock poisoned".to_string()),
         };
 
         OperationResult::Error {
-            error: ErrorInfo {
-                kind,
-                message,
-                location: None,
-                details: None,
-            },
+            error: ErrorInfo { kind, message, location: None, details: None },
             stdout: None,
             stderr: None,
         }
@@ -250,9 +214,7 @@ mod tests {
         let request = Request {
             id: 1,
             session_id: "test-1".to_string(),
-            operation: Operation::CreateSession {
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
         };
 
         let response = handler.handle(request).await;
@@ -272,9 +234,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "test-1".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -283,9 +243,7 @@ mod tests {
             .handle(Request {
                 id: 2,
                 session_id: "test-1".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -307,9 +265,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "test-1".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -355,9 +311,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "test-1".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -365,9 +319,7 @@ mod tests {
             .handle(Request {
                 id: 2,
                 session_id: "test-2".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Sexpr,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Sexpr },
             })
             .await;
 
@@ -401,9 +353,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "test".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -412,10 +362,7 @@ mod tests {
             .handle(Request {
                 id: 2,
                 session_id: "test".to_string(),
-                operation: Operation::Eval {
-                    code: "(+ 1 2)".to_string(),
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
             })
             .await;
 
@@ -435,10 +382,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "nonexistent".to_string(),
-                operation: Operation::Eval {
-                    code: "(+ 1 2)".to_string(),
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
             })
             .await;
 
@@ -459,9 +403,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "source".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -470,9 +412,7 @@ mod tests {
             .handle(Request {
                 id: 2,
                 session_id: "target".to_string(),
-                operation: Operation::Clone {
-                    source_session_id: "source".to_string(),
-                },
+                operation: Operation::Clone { source_session_id: "source".to_string() },
             })
             .await;
 
@@ -488,9 +428,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "target".to_string(),
-                operation: Operation::Clone {
-                    source_session_id: "nonexistent".to_string(),
-                },
+                operation: Operation::Clone { source_session_id: "nonexistent".to_string() },
             })
             .await;
 
@@ -511,9 +449,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "source".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -521,9 +457,7 @@ mod tests {
             .handle(Request {
                 id: 2,
                 session_id: "target".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -532,9 +466,7 @@ mod tests {
             .handle(Request {
                 id: 3,
                 session_id: "target".to_string(),
-                operation: Operation::Clone {
-                    source_session_id: "source".to_string(),
-                },
+                operation: Operation::Clone { source_session_id: "source".to_string() },
             })
             .await;
 
@@ -555,9 +487,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "test".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -587,9 +517,7 @@ mod tests {
             .handle(Request {
                 id: 1,
                 session_id: "test".to_string(),
-                operation: Operation::CreateSession {
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::CreateSession { mode: ReplMode::Lisp },
             })
             .await;
 
@@ -598,10 +526,7 @@ mod tests {
             .handle(Request {
                 id: 2,
                 session_id: "test".to_string(),
-                operation: Operation::Eval {
-                    code: "(+ 1 2)".to_string(),
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
             })
             .await;
 
@@ -609,10 +534,7 @@ mod tests {
             .handle(Request {
                 id: 3,
                 session_id: "test".to_string(),
-                operation: Operation::Eval {
-                    code: "(* 3 4)".to_string(),
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::Eval { code: "(* 3 4)".to_string(), mode: ReplMode::Lisp },
             })
             .await;
 
@@ -621,11 +543,7 @@ mod tests {
 
         // Close session
         let response3 = handler
-            .handle(Request {
-                id: 4,
-                session_id: "test".to_string(),
-                operation: Operation::Close,
-            })
+            .handle(Request { id: 4, session_id: "test".to_string(), operation: Operation::Close })
             .await;
 
         assert!(matches!(response3.result, OperationResult::Success { .. }));

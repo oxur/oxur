@@ -123,9 +123,7 @@ impl ReplServer {
     /// # }
     /// ```
     pub fn shutdown_handle(&self) -> ShutdownHandle {
-        ShutdownHandle {
-            tx: self.shutdown_tx.clone(),
-        }
+        ShutdownHandle { tx: self.shutdown_tx.clone() }
     }
 
     /// Start the server and listen for connections
@@ -315,7 +313,6 @@ impl ReplServer {
             }
         }
     }
-
 }
 
 #[cfg(test)]
@@ -346,9 +343,7 @@ mod tests {
             // Accept one connection then stop
             let transport = listener.accept().await.unwrap();
             let session_manager = Arc::new(SessionManager::new());
-            ReplServer::handle_connection(transport, session_manager)
-                .await
-                .unwrap();
+            ReplServer::handle_connection(transport, session_manager).await.unwrap();
         });
 
         // Give server time to start
@@ -361,9 +356,7 @@ mod tests {
         let request = Request {
             id: 1,
             session_id: "test".to_string(),
-            operation: Operation::CreateSession {
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
         };
 
         client.send_request(&request).await.unwrap();
@@ -378,10 +371,7 @@ mod tests {
         drop(client);
 
         // Wait for server to finish
-        timeout(Duration::from_secs(1), server_handle)
-            .await
-            .unwrap()
-            .unwrap();
+        timeout(Duration::from_secs(1), server_handle).await.unwrap().unwrap();
     }
 
     #[tokio::test]
@@ -393,9 +383,7 @@ mod tests {
         let server_handle = tokio::spawn(async move {
             let transport = listener.accept().await.unwrap();
             let session_manager = Arc::new(SessionManager::new());
-            ReplServer::handle_connection(transport, session_manager)
-                .await
-                .ok();
+            ReplServer::handle_connection(transport, session_manager).await.ok();
         });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -407,9 +395,7 @@ mod tests {
         let req1 = Request {
             id: 1,
             session_id: "test".to_string(),
-            operation: Operation::CreateSession {
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
         };
 
         client.send_request(&req1).await.unwrap();
@@ -420,10 +406,7 @@ mod tests {
         let req2 = Request {
             id: 2,
             session_id: "test".to_string(),
-            operation: Operation::Eval {
-                code: "(+ 1 2)".to_string(),
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
         client.send_request(&req2).await.unwrap();
@@ -437,20 +420,14 @@ mod tests {
         }
 
         // Request 3: Close session
-        let req3 = Request {
-            id: 3,
-            session_id: "test".to_string(),
-            operation: Operation::Close,
-        };
+        let req3 = Request { id: 3, session_id: "test".to_string(), operation: Operation::Close };
 
         client.send_request(&req3).await.unwrap();
         let resp3 = client.recv_response().await.unwrap();
         assert_eq!(resp3.request_id, 3);
 
         drop(client);
-        timeout(Duration::from_secs(1), server_handle)
-            .await
-            .ok();
+        timeout(Duration::from_secs(1), server_handle).await.ok();
     }
 
     #[tokio::test]
@@ -482,9 +459,7 @@ mod tests {
         let req1 = Request {
             id: 1,
             session_id: "session-1".to_string(),
-            operation: Operation::CreateSession {
-                mode: ReplMode::Lisp,
-            },
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
         };
         client1.send_request(&req1).await.unwrap();
         let resp1 = client1.recv_response().await.unwrap();
@@ -495,9 +470,7 @@ mod tests {
         let req2 = Request {
             id: 1,
             session_id: "session-2".to_string(),
-            operation: Operation::CreateSession {
-                mode: ReplMode::Sexpr,
-            },
+            operation: Operation::CreateSession { mode: ReplMode::Sexpr },
         };
         client2.send_request(&req2).await.unwrap();
         let resp2 = client2.recv_response().await.unwrap();
@@ -509,9 +482,7 @@ mod tests {
         drop(client1);
         drop(client2);
 
-        timeout(Duration::from_secs(1), server_handle)
-            .await
-            .ok();
+        timeout(Duration::from_secs(1), server_handle).await.ok();
     }
 
     #[tokio::test]
@@ -532,10 +503,7 @@ mod tests {
         drop(client);
 
         // Server should handle this gracefully (UnexpectedEof)
-        let result = timeout(Duration::from_secs(1), server_handle)
-            .await
-            .unwrap()
-            .unwrap();
+        let result = timeout(Duration::from_secs(1), server_handle).await.unwrap().unwrap();
 
         assert!(result.is_ok()); // Should return Ok(()) for clean close
     }
@@ -556,8 +524,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_with_shutdown_timeout() {
-        let server = ReplServer::new("127.0.0.1:5555")
-            .with_shutdown_timeout(Duration::from_secs(60));
+        let server =
+            ReplServer::new("127.0.0.1:5555").with_shutdown_timeout(Duration::from_secs(60));
 
         assert_eq!(server.shutdown_timeout, Duration::from_secs(60));
     }
