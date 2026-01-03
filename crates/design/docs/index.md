@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0026 | Oxur REPL Evaluation Strategy | Active | 2026-01-02 |
 | 0025 | Oxur Syntax Addendum: Function Head Pattern Matching | Draft | 2026-01-01 |
 | 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Accepted | 2025-12-31 |
 | 0023 | oxur-ast Phase 7: Generics & Lifetimes | Accepted | 2025-12-31 |
@@ -51,6 +52,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Active
 
+- [0026 - Oxur REPL Evaluation Strategy](05-active/0026-oxur-repl-evaluation-strategy.md)
 - [0022 - oxur-ast Phase 6: Integration Layer Expansion](05-active/0022-oxur-ast-phase-6-integration-layer-expansion.md)
 - [0013 - Oxur Compilation Chain Architecture](05-active/0013-oxur-compilation-chain-architecture.md)
 - [0003 - oxur-ast: Canonical S-Expression Format for Rust AST](05-active/0003-oxur-ast-canonical-s-expression-format-for-rust-ast.md)
