@@ -29,6 +29,7 @@
 //! ```
 
 mod expr;
+mod generics;
 mod item;
 mod rust;
 mod types;

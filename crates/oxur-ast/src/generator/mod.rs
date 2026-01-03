@@ -1,5 +1,6 @@
 mod expr;
 mod gen;
+mod generics;
 mod helpers;
 mod item;
 mod stmt;

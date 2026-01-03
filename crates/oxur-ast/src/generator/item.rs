@@ -229,36 +229,6 @@ impl Generator {
         }
     }
 
-    fn generate_generics(&self, generics: &Generics) -> Result<SExp> {
-        let fields = kwargs(vec![
-            kwarg("params", self.generate_generic_params(&generics.params)?),
-            kwarg("where-clause", self.generate_where_clause(&generics.where_clause)?),
-            kwarg("span", self.generate_span(generics.span)),
-        ]);
-
-        Ok(typed_node("Generics", fields))
-    }
-
-    fn generate_generic_params(&self, _params: &[GenericParam]) -> Result<SExp> {
-        // Phase 2: Just empty list for now
-        Ok(empty_list())
-    }
-
-    fn generate_where_clause(&self, clause: &WhereClause) -> Result<SExp> {
-        let fields = kwargs(vec![
-            kwarg("has-where-token", sym(if clause.has_where_token { "true" } else { "false" })),
-            kwarg("predicates", self.generate_where_predicates(&clause.predicates)?),
-            kwarg("span", self.generate_span(clause.span)),
-        ]);
-
-        Ok(typed_node("WhereClause", fields))
-    }
-
-    fn generate_where_predicates(&self, _predicates: &[WherePredicate]) -> Result<SExp> {
-        // Phase 2: Just empty list for now
-        Ok(empty_list())
-    }
-
     pub(crate) fn generate_ty(&self, ty: &Ty) -> Result<SExp> {
         let mut fields = kwargs(vec![
             kwarg("id", self.generate_node_id(ty.id)),
@@ -336,20 +306,24 @@ impl Generator {
                 Ok(list(fields))
             }
             TyKind::ImplTrait(bounds) => {
-                let bounds_sexps: Vec<SExp> =
+                let bounds_sexps: Result<Vec<SExp>> =
                     bounds.iter().map(|b| self.generate_generic_bound(b)).collect();
-                Ok(list(vec![sym("ImplTrait"), list(bounds_sexps)]))
+                Ok(list(vec![sym("ImplTrait"), list(bounds_sexps?)]))
             }
-            TyKind::TraitObject { bounds, syntax } => Ok(list(vec![
-                sym("TraitObject"),
-                kw("bounds"),
-                list(bounds.iter().map(|b| self.generate_generic_bound(b)).collect()),
-                kw("syntax"),
-                match syntax {
-                    TraitObjectSyntax::Dyn => sym("Dyn"),
-                    TraitObjectSyntax::None => sym("None"),
-                },
-            ])),
+            TyKind::TraitObject { bounds, syntax } => {
+                let bounds_sexps: Result<Vec<SExp>> =
+                    bounds.iter().map(|b| self.generate_generic_bound(b)).collect();
+                Ok(list(vec![
+                    sym("TraitObject"),
+                    kw("bounds"),
+                    list(bounds_sexps?),
+                    kw("syntax"),
+                    match syntax {
+                        TraitObjectSyntax::Dyn => sym("Dyn"),
+                        TraitObjectSyntax::None => sym("None"),
+                    },
+                ]))
+            }
             TyKind::MacCall(mac) => {
                 Ok(list(vec![sym("MacCall"), kw("mac"), self.generate_mac_call(mac)?]))
             }
@@ -542,7 +516,7 @@ impl Generator {
         }
     }
 
-    fn generate_lifetime(&self, lifetime: &Lifetime) -> SExp {
+    pub(crate) fn generate_lifetime(&self, lifetime: &Lifetime) -> SExp {
         typed_node("Lifetime", kwargs(vec![kwarg("ident", self.generate_ident(&lifetime.ident))]))
     }
 
@@ -666,9 +640,9 @@ impl Generator {
     }
 
     fn generate_trait_def(&self, trait_def: &TraitDef) -> Result<SExp> {
-        let bounds_sexp = list(
-            trait_def.bounds.iter().map(|b| self.generate_generic_bound(b)).collect::<Vec<_>>(),
-        );
+        let bounds_result: Result<Vec<SExp>> =
+            trait_def.bounds.iter().map(|b| self.generate_generic_bound(b)).collect();
+        let bounds_sexp = list(bounds_result?);
         let items_sexp = list(
             trait_def
                 .items
@@ -744,15 +718,15 @@ impl Generator {
         typed_node("TraitRef", kwargs(vec![kwarg("path", self.generate_path(&trait_ref.path))]))
     }
 
-    fn generate_generic_bound(&self, bound: &GenericBound) -> SExp {
-        match bound {
+    pub(crate) fn generate_generic_bound(&self, bound: &GenericBound) -> Result<SExp> {
+        Ok(match bound {
             GenericBound::Trait(poly_trait_ref, modifier) => {
                 list(vec![sym("Trait"), self.generate_poly_trait_ref(poly_trait_ref), self.generate_trait_bound_modifier(modifier)])
             }
             GenericBound::Outlives(lifetime) => {
                 list(vec![sym("Outlives"), self.generate_lifetime(lifetime)])
             }
-        }
+        })
     }
 
     fn generate_poly_trait_ref(&self, poly_trait_ref: &PolyTraitRef) -> SExp {
