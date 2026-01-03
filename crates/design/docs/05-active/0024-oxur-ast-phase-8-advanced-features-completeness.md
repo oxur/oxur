@@ -2,6 +2,8 @@
 number: 24
 title: "oxur-ast Phase 8: Advanced Features & Completeness"
 author: "Duncan McGreggor"
+component: AST
+tags: []
 created: 2025-12-31
 updated: 2026-01-03
 state: Active
