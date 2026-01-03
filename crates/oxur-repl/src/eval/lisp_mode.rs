@@ -12,6 +12,7 @@ use oxur_lang::{CoreForm, NodeId, Parser};
 ///
 /// Integrates with oxur-lang for parsing and evaluation.
 /// Provides fast-path calculator mode for simple arithmetic.
+#[derive(Clone)]
 pub struct LispEvaluator {
     /// Next node ID for AST construction
     next_id: u64,

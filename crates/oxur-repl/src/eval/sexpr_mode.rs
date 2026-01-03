@@ -13,6 +13,7 @@ use std::collections::HashMap;
 ///
 /// Handles canonical s-expression format with keyword fields.
 /// Format: `(NodeType :field1 value1 :field2 value2)`
+#[derive(Clone)]
 pub struct SexprEvaluator {
     /// Next node ID for AST construction
     next_id: u64,
