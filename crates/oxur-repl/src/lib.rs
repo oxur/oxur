@@ -7,6 +7,7 @@
 //! Based on ODD-0018: Oxur Remote REPL Protocol Design
 
 pub mod protocol;
+pub mod transport;
 
 // Old client/server modules (will be replaced in Phases 2-3)
 // mod client;
