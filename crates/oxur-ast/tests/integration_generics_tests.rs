@@ -1,4 +1,4 @@
-use oxur_ast::codegen::RustCodegen;
+use oxur_ast::gen_rs::RustCodegen;
 use oxur_ast::integration::parse_rust_file;
 use oxur_ast::Generator;
 

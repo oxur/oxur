@@ -1,8 +1,8 @@
 //! Comprehensive tests for Stage 8: Remaining Items
 
 use oxur_ast::ast::*;
-use oxur_ast::codegen::RustCodegen;
-use oxur_ast::generator::Generator;
+use oxur_ast::gen_rs::RustCodegen;
+use oxur_ast::gen_sexp::Generator;
 
 fn simple_path(name: &str) -> Path {
     Path {

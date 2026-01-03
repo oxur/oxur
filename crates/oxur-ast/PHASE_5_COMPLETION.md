@@ -49,9 +49,9 @@ Phase 5 successfully implemented comprehensive pattern and type system coverage 
        box inner => println!("{}", inner),
    }
    ```
-   - Generator: ✅ `src/generator/expr.rs`
+   - Generator: ✅ `src/gen_sexp/expr.rs`
    - Builder: ✅ `src/builder/expr.rs`
-   - Codegen: ✅ `src/codegen/expr.rs`
+   - Codegen: ✅ `src/gen_rs/expr.rs`
    - Tests: ✅ Round-trip verified
 
 2. **`PatKind::Path`** - Path patterns
@@ -157,9 +157,9 @@ Phase 5 successfully implemented comprehensive pattern and type system coverage 
    type Callback = fn(i32) -> String;
    type UnsafeFn = unsafe fn() -> !;
    ```
-   - Generator: ✅ `src/generator/expr.rs`
+   - Generator: ✅ `src/gen_sexp/expr.rs`
    - Builder: ✅ `src/builder/expr.rs`
-   - Codegen: ✅ `src/codegen/types.rs`
+   - Codegen: ✅ `src/gen_rs/types.rs`
    - Tests: ✅ Round-trip verified
    - **Complexity**: HIGH (function signatures with safety, constness, ABI)
 
@@ -222,9 +222,9 @@ Phase 5 successfully implemented comprehensive pattern and type system coverage 
    ```rust
    let x = (a + b);
    ```
-   - Generator: ✅ `src/generator/expr.rs`
+   - Generator: ✅ `src/gen_sexp/expr.rs`
    - Builder: ✅ `src/builder/expr.rs`
-   - Codegen: ✅ `src/codegen/expr.rs`
+   - Codegen: ✅ `src/gen_rs/expr.rs`
    - Tests: ✅ `tests/phase5_round_trip_tests.rs::test_expr_paren_round_trip`
 
 2. **`ExprKind::Try`** - Try operator (?)
@@ -395,9 +395,9 @@ Ignored Tests:      4 (known limitations)
 ```
 
 **Coverage by Module:**
-- `generator/`: 95%+
+- `gen_sexp/`: 95%+
 - `builder/`: 95%+
-- `codegen/`: 93%+
+- `gen_rs/`: 93%+
 - `integration/`: 85%+ (limited by syn integration scope)
 - `sexp/`: 98%+
 

@@ -3,7 +3,7 @@
 //! Tests for the foundational code generation infrastructure.
 
 use oxur_ast::ast::*;
-use oxur_ast::codegen::{generate_rust, RustCodegen};
+use oxur_ast::gen_rs::{generate_rust, RustCodegen};
 
 #[test]
 fn test_empty_crate_generates() {

@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::error::Result;
-use crate::generator::gen::Generator;
-use crate::generator::helpers::*;
+use crate::gen_sexp::gen::Generator;
+use crate::gen_sexp::helpers::*;
 use crate::sexp::SExp;
 
 impl Generator {

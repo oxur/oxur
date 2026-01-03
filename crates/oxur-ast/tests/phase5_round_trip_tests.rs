@@ -9,7 +9,7 @@
 //! then verifies: AST → SExp → AST → Rust code
 
 use oxur_ast::ast::*;
-use oxur_ast::codegen::generate_rust;
+use oxur_ast::gen_rs::generate_rust;
 use oxur_ast::sexp::{print_sexp, Parser};
 use oxur_ast::{AstBuilder, Generator};
 

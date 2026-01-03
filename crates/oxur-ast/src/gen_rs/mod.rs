@@ -13,7 +13,7 @@
 //!
 //! ```no_run
 //! use oxur_ast::ast::*;
-//! use oxur_ast::codegen::generate_rust;
+//! use oxur_ast::gen_rs::generate_rust;
 //!
 //! # fn example() -> anyhow::Result<()> {
 //! // Given an Oxur AST crate node...
@@ -56,7 +56,7 @@ use anyhow::Result;
 /// # Example
 ///
 /// ```no_run
-/// use oxur_ast::codegen::generate_rust;
+/// use oxur_ast::gen_rs::generate_rust;
 /// use oxur_ast::ast::Crate;
 ///
 /// # fn example(crate_node: Crate) -> anyhow::Result<()> {

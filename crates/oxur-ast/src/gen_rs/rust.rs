@@ -17,7 +17,7 @@ use std::fmt::Write;
 /// # Example
 ///
 /// ```no_run
-/// use oxur_ast::codegen::RustCodegen;
+/// use oxur_ast::gen_rs::RustCodegen;
 /// use oxur_ast::ast::Crate;
 ///
 /// # fn example(crate_node: Crate) -> anyhow::Result<()> {

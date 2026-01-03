@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::codegen::rust::RustCodegen;
+use crate::gen_rs::rust::RustCodegen;
 use anyhow::Result;
 
 impl RustCodegen {

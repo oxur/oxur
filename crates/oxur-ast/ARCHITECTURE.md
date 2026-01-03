@@ -94,7 +94,7 @@ oxur-ast is a bidirectional conversion library that bridges **Rust Abstract Synt
 │   (Internal AST)        │
 └─────────┬───────────────┘
           │
-          │ codegen::generate_rust()
+          │ gen_rs::generate_rust()
           ▼
 ┌─────────────────────────┐
 │   Rust Source Code      │
@@ -128,7 +128,7 @@ oxur-ast/
 │   │   ├── printer.rs          # SExp → Text formatting
 │   │   └── types.rs            # SExp enum definition
 │   │
-│   ├── generator/              # AST → S-expression
+│   ├── gen_sexp/              # AST → S-expression
 │   │   ├── mod.rs              # Generator struct
 │   │   ├── gen.rs              # Core generation logic
 │   │   ├── item.rs             # Item generation
@@ -143,7 +143,7 @@ oxur-ast/
 │   │   ├── stmt.rs             # Statement building
 │   │   └── helpers.rs          # Extraction utilities
 │   │
-│   ├── codegen/                # AST → Rust code
+│   ├── gen_rs/                # AST → Rust code
 │   │   ├── mod.rs              # Public API
 │   │   ├── rust.rs             # Main code generation
 │   │   ├── item.rs             # Item code generation
@@ -562,7 +562,7 @@ fn build_expr_kind(&mut self, sexp: &SExp) -> Result<ExprKind> {
 
 ### Architecture
 
-The `codegen` module generates Rust source code from AST:
+The `gen_rs` module generates Rust source code from AST:
 
 ```rust
 pub fn generate_rust(crate_node: &Crate) -> Result<String>;
@@ -882,9 +882,9 @@ See `workbench/phase-*-design-doc.md` for detailed planning.
 When adding new AST features:
 
 1. **Define AST structures** in `src/ast/*.rs`
-2. **Implement generator** in `src/generator/*.rs`
+2. **Implement generator** in `src/gen_sexp/*.rs`
 3. **Implement builder** in `src/builder/*.rs`
-4. **Implement codegen** in `src/codegen/*.rs`
+4. **Implement codegen** in `src/gen_rs/*.rs`
 5. **Add from_syn conversion** in `src/integration/from_syn.rs`
 6. **Write round-trip tests** in `tests/`
 7. **Update this document** with new variants

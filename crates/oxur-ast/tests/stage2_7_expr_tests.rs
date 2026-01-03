@@ -1,8 +1,8 @@
 //! Comprehensive tests for Stage 2-7: Control Flow, Operations, and Advanced Expressions
 
 use oxur_ast::ast::*;
-use oxur_ast::codegen::RustCodegen;
-use oxur_ast::generator::Generator;
+use oxur_ast::gen_rs::RustCodegen;
+use oxur_ast::gen_sexp::Generator;
 
 fn simple_int(n: i128) -> Expr {
     Expr {

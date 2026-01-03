@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::error::Result;
-use crate::generator::helpers::*;
+use crate::gen_sexp::helpers::*;
 use crate::sexp::SExp;
 
 pub struct Generator;

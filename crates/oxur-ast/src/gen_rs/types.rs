@@ -3,7 +3,7 @@
 //! Generates Rust code for types and patterns
 
 use crate::ast::*;
-use crate::codegen::RustCodegen;
+use crate::gen_rs::RustCodegen;
 use anyhow::Result;
 
 impl RustCodegen {
