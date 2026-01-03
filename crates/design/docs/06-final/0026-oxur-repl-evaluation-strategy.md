@@ -3,8 +3,8 @@ number: 26
 title: "Oxur REPL Evaluation Strategy"
 author: "resisting it"
 created: 2026-01-02
-updated: 2026-01-02
-state: Active
+updated: 2026-01-03
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0

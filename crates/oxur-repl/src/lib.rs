@@ -1,11 +1,13 @@
 //! Oxur REPL
 //!
-//! Provides a Read-Eval-Print-Loop with three-tier execution:
-//! - Tier 1: Calculator mode (interpret literals only)
+//! Provides a Read-Eval-Print-Loop with two-tier execution:
+//! - Tier 1: Calculator mode (interpret simple arithmetic only)
 //! - Tier 2: Cached compilation (compile and cache everything else)
 //!
 //! Based on ODD-0018: Oxur Remote REPL Protocol Design
+//! and ODD-0026: Oxur REPL Evaluation Strategy
 
+pub mod eval;
 pub mod protocol;
 pub mod transport;
 
