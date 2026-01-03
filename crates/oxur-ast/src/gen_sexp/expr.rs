@@ -290,7 +290,7 @@ impl Generator {
         Ok(typed_node("MacCall", fields))
     }
 
-    fn generate_mac_args(&self, args: &MacArgs) -> Result<SExp> {
+    pub(crate) fn generate_mac_args(&self, args: &MacArgs) -> Result<SExp> {
         match args {
             MacArgs::Empty => Ok(sym("Empty")),
             MacArgs::Delimited { dspan, delim, tokens } => {

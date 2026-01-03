@@ -23,9 +23,65 @@ impl Generator {
         Ok(typed_node("Crate", fields))
     }
 
-    pub(crate) fn generate_attr_vec(&self, _attrs: &AttrVec) -> Result<SExp> {
-        // Phase 2: Just empty list for now
-        Ok(empty_list())
+    pub(crate) fn generate_attr_vec(&self, attrs: &AttrVec) -> Result<SExp> {
+        let attr_sexps: Result<Vec<SExp>> = attrs
+            .iter()
+            .map(|attr| self.generate_attribute(attr))
+            .collect();
+        Ok(list(attr_sexps?))
+    }
+
+    fn generate_attribute(&self, attr: &Attribute) -> Result<SExp> {
+        let fields = kwargs(vec![
+            kwarg("kind", self.generate_attr_kind(&attr.kind)?),
+            kwarg("id", num(attr.id)),
+            kwarg("style", self.generate_attr_style(attr.style)),
+            kwarg("span", self.generate_span(attr.span)),
+        ]);
+
+        Ok(typed_node("Attribute", fields))
+    }
+
+    fn generate_attr_style(&self, style: AttrStyle) -> SExp {
+        match style {
+            AttrStyle::Outer => sym("Outer"),
+            AttrStyle::Inner => sym("Inner"),
+        }
+    }
+
+    fn generate_attr_kind(&self, kind: &AttrKind) -> Result<SExp> {
+        match kind {
+            AttrKind::Normal(normal) => {
+                Ok(list(vec![sym("Normal"), self.generate_attr_item(&normal.item)?]))
+            }
+            AttrKind::DocComment(comment_kind, text) => Ok(list(vec![
+                sym("DocComment"),
+                self.generate_comment_kind(*comment_kind),
+                string(text),
+            ])),
+        }
+    }
+
+    fn generate_attr_item(&self, item: &AttrItem) -> Result<SExp> {
+        let fields = kwargs(vec![
+            kwarg("path", self.generate_path(&item.path)),
+            kwarg("args", self.generate_mac_args_for_attr(&item.args)?),
+        ]);
+
+        Ok(typed_node("AttrItem", fields))
+    }
+
+    fn generate_comment_kind(&self, kind: CommentKind) -> SExp {
+        match kind {
+            CommentKind::Line => sym("Line"),
+            CommentKind::Block => sym("Block"),
+        }
+    }
+
+    // Helper to generate MacArgs - delegates to expr module's implementation
+    fn generate_mac_args_for_attr(&self, args: &MacArgs) -> Result<SExp> {
+        // Import the function from expr module via self
+        self.generate_mac_args(args)
     }
 
     fn generate_items(&self, items: &[Item]) -> Result<SExp> {

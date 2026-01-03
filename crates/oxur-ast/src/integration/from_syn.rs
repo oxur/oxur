@@ -1081,12 +1081,13 @@ impl SynConverter {
         // Use declarations don't have a meaningful ident, so we create a dummy one
         let ident = Ident::new("use".to_string(), Span::DUMMY);
         let vis = self.convert_visibility(&item_use.vis);
+        let attrs = self.convert_attributes(&item_use.attrs)?;
 
         // Convert the use tree
         let use_tree = self.convert_use_tree(&item_use.tree)?;
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
@@ -1172,6 +1173,7 @@ impl SynConverter {
     fn convert_item_static(&mut self, item_static: &syn::ItemStatic) -> Result<Item> {
         let ident = self.convert_ident(&item_static.ident);
         let vis = self.convert_visibility(&item_static.vis);
+        let attrs = self.convert_attributes(&item_static.attrs)?;
 
         // Convert mutability
         let mutability = match item_static.mutability {
@@ -1187,7 +1189,7 @@ impl SynConverter {
         let expr = Some(self.convert_expr(&item_static.expr)?);
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
@@ -1200,6 +1202,7 @@ impl SynConverter {
     fn convert_item_const(&mut self, item_const: &syn::ItemConst) -> Result<Item> {
         let ident = self.convert_ident(&item_const.ident);
         let vis = self.convert_visibility(&item_const.vis);
+        let attrs = self.convert_attributes(&item_const.attrs)?;
 
         // Convert type
         let ty = self.convert_type(&item_const.ty)?;
@@ -1208,7 +1211,7 @@ impl SynConverter {
         let expr = Some(self.convert_expr(&item_const.expr)?);
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
@@ -1221,6 +1224,7 @@ impl SynConverter {
     fn convert_item_type(&mut self, item_type: &syn::ItemType) -> Result<Item> {
         let ident = self.convert_ident(&item_type.ident);
         let vis = self.convert_visibility(&item_type.vis);
+        let attrs = self.convert_attributes(&item_type.attrs)?;
 
         // Convert generics
         let generics = self.convert_generics(&item_type.generics)?;
@@ -1229,7 +1233,7 @@ impl SynConverter {
         let ty = Some(self.convert_type(&item_type.ty)?);
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
@@ -1242,6 +1246,7 @@ impl SynConverter {
     fn convert_item_mod(&mut self, item_mod: &syn::ItemMod) -> Result<Item> {
         let ident = self.convert_ident(&item_mod.ident);
         let vis = self.convert_visibility(&item_mod.vis);
+        let attrs = self.convert_attributes(&item_mod.attrs)?;
 
         // Convert module items if present (inline module vs external module)
         let items = if let Some((_, module_items)) = &item_mod.content {
@@ -1257,7 +1262,7 @@ impl SynConverter {
         };
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
