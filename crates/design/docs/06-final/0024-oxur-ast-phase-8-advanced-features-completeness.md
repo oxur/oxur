@@ -6,7 +6,7 @@ component: AST
 tags: []
 created: 2025-12-31
 updated: 2026-01-03
-state: Active
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0

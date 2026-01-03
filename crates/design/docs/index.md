@@ -18,7 +18,7 @@ This index is automatically generated. Do not edit manually.
 | 0027 | evcxr_repl Audit Report | Final | 2026-01-03 |
 | 0026 | Oxur REPL Evaluation Strategy | Final | 2026-01-03 |
 | 0025 | Oxur Syntax Addendum: Function Head Pattern Matching | Draft | 2026-01-01 |
-| 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Active | 2026-01-03 |
+| 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Final | 2026-01-03 |
 | 0023 | oxur-ast Phase 7: Generics & Lifetimes | Final | 2026-01-03 |
 | 0022 | oxur-ast Phase 6: Integration Layer Expansion | Final | 2026-01-03 |
 | 0021 | Oxur Syntax Design Proposal | Draft | 2025-12-31 |
@@ -62,7 +62,6 @@ This index is automatically generated. Do not edit manually.
 
 - [0036 - oxur-ast Phase 8.5: Macros & Attributes Completeness](05-active/0036-oxur-ast-phase-8.md)
 - [0030 - Oxur REPL Implementation Specification](05-active/0030-oxur-repl-implementation-specification.md)
-- [0024 - oxur-ast Phase 8: Advanced Features & Completeness](05-active/0024-oxur-ast-phase-8-advanced-features-completeness.md)
 - [0018 - Oxur Remote REPL Protocol Design](05-active/0018-oxur-remote-repl-protocol-design.md)
 - [0013 - Oxur Compilation Chain Architecture](05-active/0013-oxur-compilation-chain-architecture.md)
 - [0003 - oxur-ast: Canonical S-Expression Format for Rust AST](05-active/0003-oxur-ast-canonical-s-expression-format-for-rust-ast.md)
@@ -74,6 +73,7 @@ This index is automatically generated. Do not edit manually.
 - [0028 - evcxr_runtime Audit Report](06-final/0028-evcxr-runtime-audit-report.md)
 - [0027 - evcxr_repl Audit Report](06-final/0027-evcxr-repl-audit-report.md)
 - [0026 - Oxur REPL Evaluation Strategy](06-final/0026-oxur-repl-evaluation-strategy.md)
+- [0024 - oxur-ast Phase 8: Advanced Features & Completeness](06-final/0024-oxur-ast-phase-8-advanced-features-completeness.md)
 - [0023 - oxur-ast Phase 7: Generics & Lifetimes](06-final/0023-oxur-ast-phase-7-generics-lifetimes.md)
 - [0022 - oxur-ast Phase 6: Integration Layer Expansion](06-final/0022-oxur-ast-phase-6-integration-layer-expansion.md)
 - [0020 - oxur-ast Phase 5: Complete Pattern & Type System Coverage](06-final/0020-oxur-ast-phase-5-complete-pattern-type-system-coverage.md)
