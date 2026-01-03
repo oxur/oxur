@@ -3,7 +3,7 @@
 // Manages session state, tiered execution, and code caching.
 // Based on ODD-0026: Oxur REPL Evaluation Strategy.
 
-use crate::eval::LispEvaluator;
+use crate::eval::{LispEvaluator, SexprEvaluator};
 use crate::protocol::{ReplMode, SessionId};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -79,8 +79,11 @@ pub struct EvalContext {
     /// Evaluation mode (Lisp or Sexpr)
     mode: ReplMode,
 
-    /// Lisp evaluator for Tier 1 (calculator mode)
+    /// Lisp evaluator for Tier 1 (calculator mode in Lisp mode)
     lisp_eval: LispEvaluator,
+
+    /// S-expression evaluator for Tier 1 (calculator mode in Sexpr mode)
+    sexpr_eval: SexprEvaluator,
 
     /// Cached compiled code (hash -> result)
     cache: HashMap<String, String>,
@@ -118,6 +121,7 @@ impl EvalContext {
             session_id,
             mode,
             lisp_eval: LispEvaluator::new(),
+            sexpr_eval: SexprEvaluator::new(),
             cache: HashMap::new(),
             stats: ExecutionStats::default(),
         }
@@ -151,6 +155,7 @@ impl EvalContext {
             session_id: new_session_id,
             mode: self.mode,
             lisp_eval: LispEvaluator::new(),
+            sexpr_eval: SexprEvaluator::new(),
             cache: self.cache.clone(),
             stats: ExecutionStats::default(),
         }
@@ -189,16 +194,16 @@ impl EvalContext {
 
     /// Try to evaluate using Tier 1 (Calculator mode)
     ///
-    /// Only handles simple arithmetic:
-    /// - Literals: integers
-    /// - Operations: +, -, *, /
-    /// - Nested expressions: `(+ (* 2 3) 4)`
-    /// - No variables, no side effects, no control flow
+    /// Dispatches to the appropriate evaluator based on mode:
+    /// - Lisp mode: Simple arithmetic with Lisp syntax
+    /// - Sexpr mode: Canonical s-expressions with keywords
     ///
     /// Returns Some(result) if successful, None if not calculator-eligible.
     fn try_calculator(&mut self, code: &str) -> Option<String> {
-        // Use LispEvaluator for calculator mode
-        self.lisp_eval.try_eval_calculator(code)
+        match self.mode {
+            ReplMode::Lisp => self.lisp_eval.try_eval_calculator(code),
+            ReplMode::Sexpr => self.sexpr_eval.try_eval_calculator(code),
+        }
     }
 
     /// Evaluate using Tier 2 (Cached Compilation)
