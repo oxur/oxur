@@ -3,7 +3,7 @@
 // Manages session state, tiered execution, and code caching.
 // Based on ODD-0026: Oxur REPL Evaluation Strategy.
 
-use crate::eval::{LispEvaluator, SexprEvaluator};
+use crate::eval::{output_capture::OutputCapturer, LispEvaluator, SexprEvaluator};
 use crate::protocol::{ReplMode, SessionId};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -229,10 +229,10 @@ impl EvalContext {
             });
         }
 
-        // Compile and execute
+        // Compile and execute with output capture
         // Steps 1-2 (parse and expand) are now implemented
         // Steps 3-6 (lower, codegen, compile, execute) are TODO
-        let result = self.compile_and_execute(code).await?;
+        let (result, stdout, stderr) = self.compile_and_execute(code).await?;
         let duration_ms = start.elapsed().as_millis() as u64;
 
         // Cache the result
@@ -244,8 +244,8 @@ impl EvalContext {
             tier: ExecutionTier::CachedCompilation,
             cached: false,
             duration_ms,
-            stdout: None,
-            stderr: None,
+            stdout,
+            stderr,
         })
     }
 
@@ -257,8 +257,10 @@ impl EvalContext {
     /// 3. Lower to Rust AST (oxur-comp) [TODO: when ready]
     /// 4. Generate Rust source [TODO: when ready]
     /// 5. Compile to dynamic library [TODO: when ready]
-    /// 6. Load and execute [TODO: when ready]
-    async fn compile_and_execute(&mut self, code: &str) -> Result<String> {
+    /// 6. Load and execute with output capture [TODO: when ready]
+    ///
+    /// Returns (result_value, stdout, stderr)
+    async fn compile_and_execute(&mut self, code: &str) -> Result<(String, Option<String>, Option<String>)> {
         // Step 1: Parse code to CoreForms using mode-specific parser
         let core_forms = match self.mode {
             ReplMode::Lisp => {
@@ -280,12 +282,18 @@ impl EvalContext {
             }
         };
 
+        // Create output capturer for this execution
+        let capturer = OutputCapturer::new();
+
         // Handle empty parse results (Parser is placeholder for now)
         if core_forms.is_empty() {
             // Parser returned empty - it's a placeholder
             // For now, just acknowledge we received code
             tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-            return Ok(format!("compiled(placeholder, mode: {:?})", self.mode));
+
+            let result = format!("compiled(placeholder, mode: {:?})", self.mode);
+            let output = capturer.get_output();
+            return Ok((result, output.stdout_option(), output.stderr_option()));
         }
 
         // Step 2: Expand macros (when Expander is ready)
@@ -293,23 +301,29 @@ impl EvalContext {
         // let mut expander = Expander::new();
         // let expanded = expander.expand(core_forms)?;
 
-        // Step 3-6: Compile and execute (placeholder for now)
+        // Step 3-6: Compile and execute with output capture
         // TODO: Integrate with oxur-comp when ready:
         // - Lower CoreForms to Rust AST
         // - Generate Rust source code
         // - Compile to dynamic library with cargo
         // - Load library and execute
-        // - Capture stdout/stderr
+        // - Capture stdout/stderr during execution
 
-        // For now, simulate compilation delay and return a representation
+        // For now, simulate compilation delay and execution
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        // Return placeholder result showing the parsed structure
-        Ok(format!(
-            "compiled({} form(s), mode: {:?})",
-            core_forms.len(),
-            self.mode
-        ))
+        // Simulate execution with output capture
+        let result = capturer.with_capture(|| {
+            // When we actually execute compiled code, output will be captured here
+            // For now, simulate some output for demonstration
+            use crate::eval::output_capture::simulate_execution;
+            simulate_execution(code, &capturer)
+        });
+
+        let output = capturer.get_output();
+
+        // Return result with captured output
+        Ok((result, output.stdout_option(), output.stderr_option()))
     }
 
     /// Generate cache key from code
@@ -457,7 +471,7 @@ mod tests {
 
         assert_eq!(result.tier, ExecutionTier::CachedCompilation);
         assert!(!result.cached);
-        assert!(result.value.contains("mode: Sexpr"));
+        assert!(result.value.contains("executed"));
     }
 
     #[tokio::test]
