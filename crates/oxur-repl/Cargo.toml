@@ -13,6 +13,7 @@ oxur-comp = { path = "../oxur-comp" }
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+postcard = { version = "1.0", features = ["alloc"] }
 
 [dev-dependencies]
 anyhow.workspace = true
