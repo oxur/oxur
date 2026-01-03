@@ -45,12 +45,8 @@ impl RustCodegen {
         // Function name
         self.write(&ident.name);
 
-        // Generics (skip for Phase 1 - no params yet)
-        if !func.generics.params.is_empty() {
-            self.write("<");
-            // TODO: Phase 2+ will generate generic params
-            self.write(">");
-        }
+        // Generics
+        self.generate_generics(&func.generics)?;
 
         // Parameters
         self.write("(");
@@ -64,6 +60,9 @@ impl RustCodegen {
 
         // Return type
         self.generate_fn_ret_ty(&func.sig.decl.output)?;
+
+        // Where clause
+        self.generate_where_clause(&func.generics.where_clause)?;
 
         // Body
         if let Some(body) = &func.body {
@@ -424,6 +423,7 @@ impl RustCodegen {
     }
 
     pub(crate) fn generate_lifetime(&mut self, lifetime: &Lifetime) -> Result<()> {
+        self.write("'");
         self.write(&lifetime.ident.name);
         Ok(())
     }

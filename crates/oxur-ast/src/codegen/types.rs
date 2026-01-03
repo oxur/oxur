@@ -162,7 +162,7 @@ impl RustCodegen {
             TyKind::Ref { lifetime, mutability, ty } => {
                 self.write("&");
                 if let Some(lt) = lifetime {
-                    self.write(&lt.ident.name);
+                    self.generate_lifetime(lt)?;
                     self.write(" ");
                 }
                 if matches!(mutability, Mutability::Mut) {

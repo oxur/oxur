@@ -276,22 +276,76 @@ impl SynConverter {
     }
 
     fn convert_type(&mut self, ty: &syn::Type) -> Result<Ty> {
-        match ty {
+        let kind = match ty {
             syn::Type::Path(type_path) => {
                 let path = self.convert_path(&type_path.path)?;
-                Ok(Ty {
-                    id: self.next_id(),
-                    kind: TyKind::Path(None, path),
-                    span: Span::DUMMY,
-                    tokens: None,
+                TyKind::Path(None, path)
+            }
+            syn::Type::Reference(type_ref) => {
+                // Convert &T or &mut T or &'a T
+                let lifetime = type_ref
+                    .lifetime
+                    .as_ref()
+                    .map(|lt| Lifetime { ident: self.convert_ident(&lt.ident) });
+
+                let mutability = if type_ref.mutability.is_some() {
+                    Mutability::Mut
+                } else {
+                    Mutability::Not
+                };
+
+                let ty = Box::new(self.convert_type(&type_ref.elem)?);
+                TyKind::Ref { lifetime, mutability, ty }
+            }
+            syn::Type::Slice(type_slice) => {
+                // Convert [T]
+                let inner_ty = Box::new(self.convert_type(&type_slice.elem)?);
+                TyKind::Slice(inner_ty)
+            }
+            syn::Type::Array(type_array) => {
+                // Convert [T; N]
+                let ty = Box::new(self.convert_type(&type_array.elem)?);
+                let len = Box::new(self.convert_expr(&type_array.len)?);
+                TyKind::Array { ty, len }
+            }
+            syn::Type::Tuple(type_tuple) => {
+                // Convert (T, U, V) or ()
+                let types = type_tuple
+                    .elems
+                    .iter()
+                    .map(|ty| self.convert_type(ty))
+                    .collect::<Result<Vec<_>>>()?;
+                TyKind::Tuple(types)
+            }
+            syn::Type::Ptr(type_ptr) => {
+                // Convert *const T or *mut T
+                let mutability = if type_ptr.mutability.is_some() {
+                    Mutability::Mut
+                } else {
+                    Mutability::Not
+                };
+
+                let ty = Box::new(self.convert_type(&type_ptr.elem)?);
+                TyKind::Ptr { mutability, ty }
+            }
+            syn::Type::Never(_) => {
+                // Convert !
+                TyKind::Never
+            }
+            syn::Type::Infer(_) => {
+                // Convert _
+                TyKind::Infer
+            }
+            _ => {
+                return Err(ParseError::Expected {
+                    expected: "supported type (path, reference, slice, array, tuple, ptr, never, infer)".to_string(),
+                    found: "unsupported type".to_string(),
+                    pos: Position::new(0, 1, 1),
                 })
             }
-            _ => Err(ParseError::Expected {
-                expected: "path type".to_string(),
-                found: "complex type".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
-        }
+        };
+
+        Ok(Ty { id: self.next_id(), kind, span: Span::DUMMY, tokens: None })
     }
 
     fn convert_path(&mut self, path: &syn::Path) -> Result<Path> {
@@ -314,17 +368,181 @@ impl SynConverter {
         }
     }
 
-    fn convert_generics(&mut self, _generics: &syn::Generics) -> Result<Generics> {
-        // Simplified for Phase 3 - just create empty generics
-        Ok(Generics {
-            params: vec![],
-            where_clause: WhereClause {
-                has_where_token: false,
-                predicates: vec![],
+    fn convert_generics(&mut self, generics: &syn::Generics) -> Result<Generics> {
+        // Convert generic parameters (lifetimes, types, consts)
+        let params = generics
+            .params
+            .iter()
+            .map(|param| self.convert_generic_param(param))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Convert where clause
+        let where_clause = self.convert_where_clause(&generics.where_clause)?;
+
+        Ok(Generics { params, where_clause, span: Span::DUMMY })
+    }
+
+    fn convert_generic_param(&mut self, param: &syn::GenericParam) -> Result<GenericParam> {
+        let kind = match param {
+            syn::GenericParam::Lifetime(lifetime_param) => {
+                GenericParamKind::Lifetime(self.convert_lifetime_param(lifetime_param)?)
+            }
+            syn::GenericParam::Type(type_param) => {
+                GenericParamKind::Type(self.convert_type_param(type_param)?)
+            }
+            syn::GenericParam::Const(const_param) => {
+                GenericParamKind::Const(self.convert_const_param(const_param)?)
+            }
+        };
+
+        Ok(GenericParam { attrs: vec![], id: self.next_id(), span: Span::DUMMY, kind })
+    }
+
+    fn convert_lifetime_param(
+        &mut self,
+        lifetime_param: &syn::LifetimeParam,
+    ) -> Result<LifetimeParam> {
+        let ident = self.convert_ident(&lifetime_param.lifetime.ident);
+
+        // Convert bounds (e.g., 'a: 'b + 'c)
+        let bounds = lifetime_param
+            .bounds
+            .iter()
+            .map(|bound| {
+                let ident = self.convert_ident(&bound.ident);
+                Lifetime { ident }
+            })
+            .collect();
+
+        // Determine colon_span based on whether there are bounds
+        let colon_span = if !lifetime_param.bounds.is_empty() {
+            Some(Span::DUMMY)
+        } else {
+            None
+        };
+
+        Ok(LifetimeParam { ident, bounds, colon_span })
+    }
+
+    fn convert_type_param(&mut self, type_param: &syn::TypeParam) -> Result<TypeParam> {
+        let ident = self.convert_ident(&type_param.ident);
+
+        // Convert bounds (e.g., T: Clone + Send)
+        let bounds = type_param
+            .bounds
+            .iter()
+            .map(|bound| self.convert_type_param_bound(bound))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Convert default type if present (e.g., T = i32)
+        let default = if let Some(default) = &type_param.default {
+            Some(self.convert_type(default)?)
+        } else {
+            None
+        };
+
+        Ok(TypeParam { ident, bounds, default })
+    }
+
+    fn convert_const_param(&mut self, const_param: &syn::ConstParam) -> Result<ConstParam> {
+        let ident = self.convert_ident(&const_param.ident);
+        let ty = self.convert_type(&const_param.ty)?;
+
+        // Convert default expression if present (e.g., const N: usize = 5)
+        let default = if let Some(default) = &const_param.default {
+            Some(self.convert_expr(default)?)
+        } else {
+            None
+        };
+
+        Ok(ConstParam { ident, ty, default })
+    }
+
+    fn convert_where_clause(
+        &mut self,
+        where_clause: &Option<syn::WhereClause>,
+    ) -> Result<WhereClause> {
+        if let Some(where_clause) = where_clause {
+            let predicates = where_clause
+                .predicates
+                .iter()
+                .map(|pred| self.convert_where_predicate(pred))
+                .collect::<Result<Vec<_>>>()?;
+
+            Ok(WhereClause {
+                has_where_token: true,
+                predicates,
                 span: Span::DUMMY,
-            },
-            span: Span::DUMMY,
-        })
+            })
+        } else {
+            Ok(WhereClause::empty())
+        }
+    }
+
+    fn convert_where_predicate(&mut self, predicate: &syn::WherePredicate) -> Result<WherePredicate> {
+        match predicate {
+            syn::WherePredicate::Type(pred_type) => {
+                // Convert bounded type (e.g., T in T: Clone)
+                let bounded_ty = self.convert_type(&pred_type.bounded_ty)?;
+
+                // Convert bounds (e.g., Clone + Send)
+                let bounds = pred_type
+                    .bounds
+                    .iter()
+                    .map(|bound| self.convert_type_param_bound(bound))
+                    .collect::<Result<Vec<_>>>()?;
+
+                // Convert bound lifetimes for HRTB (e.g., for<'a> in for<'a> F: Fn(&'a T))
+                let bound_lifetimes = pred_type
+                    .lifetimes
+                    .as_ref()
+                    .map(|lt| {
+                        lt.lifetimes
+                            .iter()
+                            .filter_map(|param| match param {
+                                syn::GenericParam::Lifetime(lifetime_param) => {
+                                    Some(self.convert_lifetime_param(lifetime_param))
+                                }
+                                _ => None,
+                            })
+                            .collect::<Result<Vec<_>>>()
+                    })
+                    .transpose()?
+                    .unwrap_or_default();
+
+                Ok(WherePredicate::BoundPredicate(WhereBoundPredicate {
+                    span: Span::DUMMY,
+                    bounded_ty,
+                    bounds,
+                    bound_lifetimes,
+                }))
+            }
+            syn::WherePredicate::Lifetime(pred_lifetime) => {
+                // Convert lifetime (e.g., 'a in 'a: 'b)
+                let lifetime = Lifetime { ident: self.convert_ident(&pred_lifetime.lifetime.ident) };
+
+                // Convert bounds (e.g., 'b + 'c in 'a: 'b + 'c)
+                let bounds = pred_lifetime
+                    .bounds
+                    .iter()
+                    .map(|bound| {
+                        let ident = self.convert_ident(&bound.ident);
+                        Lifetime { ident }
+                    })
+                    .collect();
+
+                Ok(WherePredicate::RegionPredicate(WhereRegionPredicate {
+                    span: Span::DUMMY,
+                    lifetime,
+                    bounds,
+                }))
+            }
+            _ => Err(ParseError::Expected {
+                expected: "type or lifetime predicate".to_string(),
+                found: "unknown where predicate".to_string(),
+                pos: Position::new(0, 1, 1),
+            }),
+        }
     }
 
     fn convert_block(&mut self, block: &syn::Block) -> Result<Block> {

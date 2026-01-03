@@ -43,6 +43,7 @@ impl RustCodegen {
 
     /// Generate a LifetimeParam: `'a`, `'a: 'b`, `'a: 'b + 'c`
     fn generate_lifetime_param(&mut self, param: &LifetimeParam) -> Result<()> {
+        self.write("'");
         self.write(&param.ident.name);
 
         if !param.bounds.is_empty() {
