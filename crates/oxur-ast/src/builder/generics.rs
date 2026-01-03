@@ -323,6 +323,7 @@ impl AstBuilder {
 /// Helper to check if an SExp is nil
 fn is_nil(sexp: &SExp) -> Result<bool> {
     match sexp {
+        SExp::Nil(_) => Ok(true),
         SExp::Symbol(sym) if sym.value == "nil" => Ok(true),
         _ => Ok(false),
     }
