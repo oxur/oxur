@@ -111,6 +111,14 @@ impl Generator {
                 };
                 Ok(list(vec![sym("Mod"), kw("items"), items_sexp]))
             }
+            // Phase 8.5: Macro definitions
+            ItemKind::MacroDef(macro_def) => {
+                let fields = kwargs(vec![
+                    kwarg("macro-rules", sym(if macro_def.macro_rules { "true" } else { "false" })),
+                    kwarg("body", self.generate_mac_args(&macro_def.body)?),
+                ]);
+                Ok(list(vec![sym("MacroDef")].into_iter().chain(fields).collect()))
+            }
         }
     }
 
@@ -720,9 +728,11 @@ impl Generator {
 
     pub(crate) fn generate_generic_bound(&self, bound: &GenericBound) -> Result<SExp> {
         Ok(match bound {
-            GenericBound::Trait(poly_trait_ref, modifier) => {
-                list(vec![sym("Trait"), self.generate_poly_trait_ref(poly_trait_ref), self.generate_trait_bound_modifier(modifier)])
-            }
+            GenericBound::Trait(poly_trait_ref, modifier) => list(vec![
+                sym("Trait"),
+                self.generate_poly_trait_ref(poly_trait_ref),
+                self.generate_trait_bound_modifier(modifier),
+            ]),
             GenericBound::Outlives(lifetime) => {
                 list(vec![sym("Outlives"), self.generate_lifetime(lifetime)])
             }
@@ -730,11 +740,14 @@ impl Generator {
     }
 
     fn generate_poly_trait_ref(&self, poly_trait_ref: &PolyTraitRef) -> SExp {
-        typed_node("PolyTraitRef", kwargs(vec![
-            kwarg("trait-ref", self.generate_trait_ref(&poly_trait_ref.trait_ref)),
-            // TODO: implement full lifetime param generation
-            kwarg("bound-lifetimes", empty_list()),
-        ]))
+        typed_node(
+            "PolyTraitRef",
+            kwargs(vec![
+                kwarg("trait-ref", self.generate_trait_ref(&poly_trait_ref.trait_ref)),
+                // TODO: implement full lifetime param generation
+                kwarg("bound-lifetimes", empty_list()),
+            ]),
+        )
     }
 
     fn generate_trait_bound_modifier(&self, modifier: &TraitBoundModifier) -> SExp {

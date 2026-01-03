@@ -115,11 +115,7 @@ impl SynConverter {
                 found: "`extern` block item".to_string(),
                 pos: Position::new(0, 1, 1),
             }),
-            syn::Item::Macro(_) => Err(ParseError::Expected {
-                expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`, `type`, `mod`)".to_string(),
-                found: "macro definition".to_string(),
-                pos: Position::new(0, 1, 1),
-            }),
+            syn::Item::Macro(item_macro) => self.convert_item_macro(item_macro),
             syn::Item::TraitAlias(_) => Err(ParseError::Expected {
                 expected: "supported item type (currently: `fn`, `struct`, `enum`, `trait`, `impl`, `use`, `static`, `const`, `type`, `mod`)".to_string(),
                 found: "`trait` alias".to_string(),
@@ -1268,6 +1264,49 @@ impl SynConverter {
             vis,
             ident,
             kind: ItemKind::Mod { items },
+            tokens: None,
+        })
+    }
+
+    fn convert_item_macro(&mut self, item_macro: &syn::ItemMacro) -> Result<Item> {
+        let attrs = self.convert_attributes(&item_macro.attrs)?;
+
+        // Get the macro name - for macro_rules!, this comes from the ident field
+        // For the newer `macro` syntax, it also uses ident
+        let ident = if let Some(ref mac_ident) = item_macro.ident {
+            self.convert_ident(mac_ident)
+        } else {
+            // Fallback: use the path as the name
+            let path_str = item_macro
+                .mac
+                .path
+                .segments
+                .last()
+                .map(|seg| seg.ident.to_string())
+                .unwrap_or_else(|| "unnamed_macro".to_string());
+            Ident::new(path_str, Span::DUMMY)
+        };
+
+        // Convert the macro body - convert tokens to string
+        let tokens_str = item_macro.mac.tokens.to_string();
+        let body = MacArgs::Delimited {
+            dspan: DelSpan::new(Span::DUMMY, Span::DUMMY),
+            delim: Delimiter::Brace,
+            tokens: TokenStream::Source(tokens_str),
+        };
+
+        // Check if this is a macro_rules! definition
+        let macro_rules = item_macro.mac.path.is_ident("macro_rules");
+
+        let macro_def = MacroDef { macro_rules, body };
+
+        Ok(Item {
+            attrs,
+            id: self.next_id(),
+            span: Span::DUMMY,
+            vis: Visibility::Inherited, // Macros don't have visibility in the same way
+            ident,
+            kind: ItemKind::MacroDef(Box::new(macro_def)),
             tokens: None,
         })
     }

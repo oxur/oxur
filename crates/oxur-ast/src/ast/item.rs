@@ -54,7 +54,17 @@ pub enum ItemKind {
         items: Option<Vec<Item>>,
     }, // None for `mod foo;`, Some for `mod foo { ... }`
 
-       // Future: ExternCrate, ForeignMod, MacCall, etc.
+    /// Declarative macro definition: `macro_rules! name { ... }` (Phase 8.5)
+    MacroDef(Box<MacroDef>),
+
+    // Future: ExternCrate, ForeignMod, etc.
+}
+
+/// Declarative macro definition (Phase 8.5)
+#[derive(Debug, Clone, PartialEq)]
+pub struct MacroDef {
+    pub macro_rules: bool, // true for macro_rules!, false for macro
+    pub body: MacArgs,     // Token stream of macro body
 }
 
 /// Function item

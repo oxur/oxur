@@ -35,6 +35,10 @@ impl RustCodegen {
                 self.generate_type_alias_item(&item.ident, generics, ty)?
             }
             ItemKind::Mod { items } => self.generate_mod_item(&item.ident, items)?,
+            // Phase 8.5: Macro definitions
+            ItemKind::MacroDef(macro_def) => {
+                self.generate_macro_def_item(&item.ident, macro_def)?
+            }
         }
 
         Ok(())
@@ -566,6 +570,48 @@ impl RustCodegen {
             }
         }
 
+        Ok(())
+    }
+
+    fn generate_macro_def_item(&mut self, ident: &Ident, macro_def: &MacroDef) -> Result<()> {
+        // Generate the macro keyword (macro_rules! or macro)
+        if macro_def.macro_rules {
+            self.write("macro_rules! ");
+        } else {
+            self.write("macro ");
+        }
+
+        // Macro name
+        self.write(&ident.name);
+        self.write(" ");
+
+        // Generate the macro body
+        match &macro_def.body {
+            MacArgs::Delimited { delim, tokens, .. } => {
+                let (open, close) = match delim {
+                    Delimiter::Paren => ("(", ")"),
+                    Delimiter::Brace => ("{", "}"),
+                    Delimiter::Bracket => ("[", "]"),
+                    Delimiter::Invisible => ("", ""),
+                };
+                let tok_str = match tokens {
+                    TokenStream::Source(s) => s.clone(),
+                    TokenStream::Empty => String::new(),
+                };
+                self.write(open);
+                self.write(&tok_str);
+                self.write(close);
+            }
+            MacArgs::Empty => {
+                self.write("{}");
+            }
+            MacArgs::Eq { .. } => {
+                // Shouldn't happen for macro definitions, but handle it gracefully
+                self.write("{}");
+            }
+        }
+
+        self.writeln();
         Ok(())
     }
 
