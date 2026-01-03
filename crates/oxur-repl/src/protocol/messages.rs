@@ -64,6 +64,12 @@ pub struct Response {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Operation {
+    /// Create a new session
+    CreateSession {
+        /// Evaluation mode (Lisp or Sexpr)
+        mode: ReplMode,
+    },
+
     /// Clone an existing session
     Clone {
         /// ID of session to clone from
@@ -139,8 +145,8 @@ pub enum OperationResult {
 
     /// Session list response
     Sessions {
-        /// List of session IDs
-        sessions: Vec<SessionId>,
+        /// List of active sessions
+        sessions: Vec<SessionInfo>,
     },
 
     /// History response
@@ -180,6 +186,19 @@ pub struct Status {
     pub duration_ms: u64,
 }
 
+/// Session information
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionInfo {
+    /// Session ID
+    pub id: SessionId,
+    /// Evaluation mode (Lisp or Sexpr)
+    pub mode: ReplMode,
+    /// Number of evaluations performed
+    pub eval_count: u64,
+    /// Creation timestamp (milliseconds since epoch)
+    pub created_at: u64,
+}
+
 /// Detailed error information
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ErrorInfo {
@@ -217,6 +236,8 @@ pub enum ErrorKind {
     CompilationError,
     /// Session not found
     SessionNotFound,
+    /// Session already exists
+    SessionAlreadyExists,
     /// File I/O error
     IoError,
     /// Operation interrupted
@@ -235,6 +256,7 @@ impl fmt::Display for ErrorKind {
             ErrorKind::RuntimeError => write!(f, "Runtime Error"),
             ErrorKind::CompilationError => write!(f, "Compilation Error"),
             ErrorKind::SessionNotFound => write!(f, "Session Not Found"),
+            ErrorKind::SessionAlreadyExists => write!(f, "Session Already Exists"),
             ErrorKind::IoError => write!(f, "I/O Error"),
             ErrorKind::Interrupted => write!(f, "Interrupted"),
             ErrorKind::InvalidRequest => write!(f, "Invalid Request"),

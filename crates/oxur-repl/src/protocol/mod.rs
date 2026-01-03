@@ -10,5 +10,5 @@ mod messages;
 pub use codec::{CodecError, PostcardCodec};
 pub use messages::{
     ErrorInfo, ErrorKind, HistoryEntry, MessageId, Operation, OperationResult, ReplMode, Request,
-    Response, SessionId, SourceLocation, Status,
+    Response, SessionId, SessionInfo, SourceLocation, Status,
 };

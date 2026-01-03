@@ -6,7 +6,7 @@
 // Wire format:
 //   [4 bytes: message length (u32 LE)][N bytes: postcard payload]
 
-use super::{Request, Response};
+use super::{ReplMode, Request, Response, SessionInfo};
 use std::io::{self, Read, Write};
 use thiserror::Error;
 
@@ -241,7 +241,20 @@ mod tests {
             request_id: 99,
             session_id: "response-test".to_string(),
             result: OperationResult::Sessions {
-                sessions: vec!["session1".to_string(), "session2".to_string()],
+                sessions: vec![
+                    SessionInfo {
+                        id: "session1".to_string(),
+                        mode: ReplMode::Lisp,
+                        eval_count: 0,
+                        created_at: 0,
+                    },
+                    SessionInfo {
+                        id: "session2".to_string(),
+                        mode: ReplMode::Sexpr,
+                        eval_count: 5,
+                        created_at: 1000,
+                    },
+                ],
             },
         };
 
