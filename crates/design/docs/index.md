@@ -6,6 +6,11 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0035 | oxur-ast Phase 13: Async/Await and Modern Rust Features | Under Review | 2026-01-03 |
+| 0034 | oxur-ast Phase 12: Advanced Type System | Under Review | 2026-01-03 |
+| 0033 | oxur-ast Phase 11: Literal Completeness and Pattern Refinement | Under Review | 2026-01-03 |
+| 0032 | oxur-ast Phase 10: Critical Expressions (Closures, Loops, Match) | Under Review | 2026-01-03 |
+| 0031 | oxur-ast Phase 9: Connect Existing AST Definitions | Under Review | 2026-01-03 |
 | 0030 | Oxur REPL Implementation Specification | Active | 2026-01-03 |
 | 0029 | evcxr Compiler Integration Audit Report | Final | 2026-01-03 |
 | 0028 | evcxr_runtime Audit Report | Final | 2026-01-03 |
@@ -38,6 +43,14 @@ This index is automatically generated. Do not edit manually.
 | 0001 | Oxur: A Letter of Intent | Active | 2025-12-30 |
 
 ## Documents by State
+
+### Under Review
+
+- [0035 - oxur-ast Phase 13: Async/Await and Modern Rust Features](02-under-review/0035-oxur-ast-phase-13-asyncawait-and-modern-rust-features.md)
+- [0034 - oxur-ast Phase 12: Advanced Type System](02-under-review/0034-oxur-ast-phase-12-advanced-type-system.md)
+- [0033 - oxur-ast Phase 11: Literal Completeness and Pattern Refinement](02-under-review/0033-oxur-ast-phase-11-literal-completeness-and-pattern-refinement.md)
+- [0032 - oxur-ast Phase 10: Critical Expressions (Closures, Loops, Match)](02-under-review/0032-oxur-ast-phase-10-critical-expressions-closures-loops-match.md)
+- [0031 - oxur-ast Phase 9: Connect Existing AST Definitions](02-under-review/0031-oxur-ast-phase-9-connect-existing-ast-definitions.md)
 
 ### Draft
 

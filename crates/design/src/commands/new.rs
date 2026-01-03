@@ -21,13 +21,15 @@ pub fn new_document(
 
     let today = Local::now().naive_local().date();
 
-    // Format component YAML (only if Some)
-    let component_yaml =
-        component.as_ref().map(|c| format!("component: {}\n", c)).unwrap_or_default();
+    // Apply defaults: component = "All", tags = ["change-me"]
+    let component = component.unwrap_or_else(|| "All".to_string());
+    let tags = if tags.is_empty() { vec!["change-me".to_string()] } else { tags };
 
-    // Format tags YAML (only if non-empty)
-    let tags_yaml =
-        if tags.is_empty() { String::new() } else { format!("tags: [{}]\n", tags.join(", ")) };
+    // Format component YAML (always present now)
+    let component_yaml = format!("component: {}\n", component);
+
+    // Format tags YAML (always present now)
+    let tags_yaml = format!("tags: [{}]\n", tags.join(", "));
 
     let template = format!(
         r#"---
@@ -171,11 +173,13 @@ mod tests {
         let expected_file = draft_dir.join("0002-test-document.md");
         assert!(expected_file.exists());
 
-        // Verify content
+        // Verify content (including defaults)
         let content = fs::read_to_string(&expected_file).unwrap();
         assert!(content.contains("number: 2"));
         assert!(content.contains("title: \"Test Document\""));
         assert!(content.contains("author: \"Alice\""));
+        assert!(content.contains("component: All"));
+        assert!(content.contains("tags: [change-me]"));
         assert!(content.contains("state: Draft"));
         assert!(content.contains("# Test Document"));
     }
@@ -326,5 +330,52 @@ mod tests {
         // Unicode 'é' is preserved because is_alphanumeric() returns true for it
         let expected_file = draft_dir.join("0002-test-café.md");
         assert!(expected_file.exists());
+    }
+
+    #[test]
+    fn test_new_document_with_custom_component_and_tags() {
+        let (index, _temp) = create_test_index();
+
+        let result = new_document(
+            &index,
+            "Custom Doc".to_string(),
+            Some("Author".to_string()),
+            Some("AST".to_string()),
+            vec!["Phase-1".to_string(), "Testing".to_string()],
+        );
+        assert!(result.is_ok());
+
+        let draft_dir = PathBuf::from(index.docs_dir()).join("01-draft");
+        let expected_file = draft_dir.join("0002-custom-doc.md");
+        assert!(expected_file.exists());
+
+        // Verify custom values are used
+        let content = fs::read_to_string(&expected_file).unwrap();
+        assert!(content.contains("component: AST"));
+        assert!(content.contains("tags: [Phase-1, Testing]"));
+    }
+
+    #[test]
+    fn test_new_document_applies_defaults() {
+        let (index, _temp) = create_test_index();
+
+        // Don't provide component or tags
+        let result = new_document(
+            &index,
+            "Default Values".to_string(),
+            Some("Author".to_string()),
+            None,
+            Vec::new(),
+        );
+        assert!(result.is_ok());
+
+        let draft_dir = PathBuf::from(index.docs_dir()).join("01-draft");
+        let expected_file = draft_dir.join("0002-default-values.md");
+        assert!(expected_file.exists());
+
+        // Verify defaults are applied
+        let content = fs::read_to_string(&expected_file).unwrap();
+        assert!(content.contains("component: All"));
+        assert!(content.contains("tags: [change-me]"));
     }
 }
