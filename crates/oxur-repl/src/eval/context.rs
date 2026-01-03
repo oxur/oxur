@@ -3,6 +3,7 @@
 // Manages session state, tiered execution, and code caching.
 // Based on ODD-0026: Oxur REPL Evaluation Strategy.
 
+use crate::eval::LispEvaluator;
 use crate::protocol::{ReplMode, SessionId};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -78,6 +79,9 @@ pub struct EvalContext {
     /// Evaluation mode (Lisp or Sexpr)
     mode: ReplMode,
 
+    /// Lisp evaluator for Tier 1 (calculator mode)
+    lisp_eval: LispEvaluator,
+
     /// Cached compiled code (hash -> result)
     cache: HashMap<String, String>,
 
@@ -113,6 +117,7 @@ impl EvalContext {
         Self {
             session_id,
             mode,
+            lisp_eval: LispEvaluator::new(),
             cache: HashMap::new(),
             stats: ExecutionStats::default(),
         }
@@ -145,6 +150,7 @@ impl EvalContext {
         Self {
             session_id: new_session_id,
             mode: self.mode,
+            lisp_eval: LispEvaluator::new(),
             cache: self.cache.clone(),
             stats: ExecutionStats::default(),
         }
@@ -184,33 +190,15 @@ impl EvalContext {
     /// Try to evaluate using Tier 1 (Calculator mode)
     ///
     /// Only handles simple arithmetic:
-    /// - Literals: integers, floats
+    /// - Literals: integers
     /// - Operations: +, -, *, /
+    /// - Nested expressions: `(+ (* 2 3) 4)`
     /// - No variables, no side effects, no control flow
     ///
     /// Returns Some(result) if successful, None if not calculator-eligible.
-    fn try_calculator(&self, code: &str) -> Option<String> {
-        // Basic calculator mode - only literal arithmetic
-        // This is a placeholder implementation
-        // Real implementation would use a minimal interpreter
-
-        let trimmed = code.trim();
-
-        // Only handle very simple cases for now
-        // Example: "(+ 1 2)" -> "3"
-        if trimmed.starts_with("(+") && trimmed.ends_with(')') {
-            // Extract numbers
-            let inner = &trimmed[2..trimmed.len() - 1].trim();
-            let parts: Vec<&str> = inner.split_whitespace().collect();
-
-            if parts.len() == 2 {
-                if let (Ok(a), Ok(b)) = (parts[0].parse::<i64>(), parts[1].parse::<i64>()) {
-                    return Some((a + b).to_string());
-                }
-            }
-        }
-
-        None
+    fn try_calculator(&mut self, code: &str) -> Option<String> {
+        // Use LispEvaluator for calculator mode
+        self.lisp_eval.try_eval_calculator(code)
     }
 
     /// Evaluate using Tier 2 (Cached Compilation)
@@ -389,11 +377,11 @@ mod tests {
 
     #[test]
     fn test_calculator_mode() {
-        let ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
 
         assert_eq!(ctx.try_calculator("(+ 1 2)"), Some("3".to_string()));
         assert_eq!(ctx.try_calculator("(+ 10 20)"), Some("30".to_string()));
         assert_eq!(ctx.try_calculator("(defn foo [x] x)"), None);
-        assert_eq!(ctx.try_calculator("(+ 1 2 3)"), None); // Too many args
+        assert_eq!(ctx.try_calculator("(+ 1 2 3)"), Some("6".to_string())); // Multiple args now supported
     }
 }
