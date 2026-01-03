@@ -9,5 +9,5 @@ mod session;
 
 // Re-export public types
 pub use handler::MessageHandler;
-pub use repl_server::ReplServer;
+pub use repl_server::{ReplServer, ShutdownHandle};
 pub use session::{SessionError, SessionInfo, SessionManager};
