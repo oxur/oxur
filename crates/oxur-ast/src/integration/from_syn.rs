@@ -294,11 +294,8 @@ impl SynConverter {
                     .as_ref()
                     .map(|lt| Lifetime { ident: self.convert_ident(&lt.ident) });
 
-                let mutability = if type_ref.mutability.is_some() {
-                    Mutability::Mut
-                } else {
-                    Mutability::Not
-                };
+                let mutability =
+                    if type_ref.mutability.is_some() { Mutability::Mut } else { Mutability::Not };
 
                 let ty = Box::new(self.convert_type(&type_ref.elem)?);
                 TyKind::Ref { lifetime, mutability, ty }
@@ -325,11 +322,8 @@ impl SynConverter {
             }
             syn::Type::Ptr(type_ptr) => {
                 // Convert *const T or *mut T
-                let mutability = if type_ptr.mutability.is_some() {
-                    Mutability::Mut
-                } else {
-                    Mutability::Not
-                };
+                let mutability =
+                    if type_ptr.mutability.is_some() { Mutability::Mut } else { Mutability::Not };
 
                 let ty = Box::new(self.convert_type(&type_ptr.elem)?);
                 TyKind::Ptr { mutability, ty }
@@ -344,7 +338,9 @@ impl SynConverter {
             }
             _ => {
                 return Err(ParseError::Expected {
-                    expected: "supported type (path, reference, slice, array, tuple, ptr, never, infer)".to_string(),
+                    expected:
+                        "supported type (path, reference, slice, array, tuple, ptr, never, infer)"
+                            .to_string(),
                     found: "unsupported type".to_string(),
                     pos: Position::new(0, 1, 1),
                 })
@@ -421,11 +417,7 @@ impl SynConverter {
             .collect();
 
         // Determine colon_span based on whether there are bounds
-        let colon_span = if !lifetime_param.bounds.is_empty() {
-            Some(Span::DUMMY)
-        } else {
-            None
-        };
+        let colon_span = if !lifetime_param.bounds.is_empty() { Some(Span::DUMMY) } else { None };
 
         Ok(LifetimeParam { ident, bounds, colon_span })
     }
@@ -475,17 +467,16 @@ impl SynConverter {
                 .map(|pred| self.convert_where_predicate(pred))
                 .collect::<Result<Vec<_>>>()?;
 
-            Ok(WhereClause {
-                has_where_token: true,
-                predicates,
-                span: Span::DUMMY,
-            })
+            Ok(WhereClause { has_where_token: true, predicates, span: Span::DUMMY })
         } else {
             Ok(WhereClause::empty())
         }
     }
 
-    fn convert_where_predicate(&mut self, predicate: &syn::WherePredicate) -> Result<WherePredicate> {
+    fn convert_where_predicate(
+        &mut self,
+        predicate: &syn::WherePredicate,
+    ) -> Result<WherePredicate> {
         match predicate {
             syn::WherePredicate::Type(pred_type) => {
                 // Convert bounded type (e.g., T in T: Clone)
@@ -525,7 +516,8 @@ impl SynConverter {
             }
             syn::WherePredicate::Lifetime(pred_lifetime) => {
                 // Convert lifetime (e.g., 'a in 'a: 'b)
-                let lifetime = Lifetime { ident: self.convert_ident(&pred_lifetime.lifetime.ident) };
+                let lifetime =
+                    Lifetime { ident: self.convert_ident(&pred_lifetime.lifetime.ident) };
 
                 // Convert bounds (e.g., 'b + 'c in 'a: 'b + 'c)
                 let bounds = pred_lifetime
@@ -688,11 +680,7 @@ impl SynConverter {
                 ExprKind::Unary { op, expr }
             }
             syn::Expr::Reference(expr_ref) => {
-                let op = if expr_ref.mutability.is_some() {
-                    UnOp::RefMut
-                } else {
-                    UnOp::Ref
-                };
+                let op = if expr_ref.mutability.is_some() { UnOp::RefMut } else { UnOp::Ref };
                 let expr = Box::new(self.convert_expr(&expr_ref.expr)?);
                 ExprKind::Unary { op, expr }
             }
@@ -700,7 +688,9 @@ impl SynConverter {
                 let expr = Box::new(self.convert_expr(&expr_field.base)?);
                 let field = match &expr_field.member {
                     syn::Member::Named(ident) => self.convert_ident(ident),
-                    syn::Member::Unnamed(index) => Ident::new(&index.index.to_string(), Span::DUMMY),
+                    syn::Member::Unnamed(index) => {
+                        Ident::new(&index.index.to_string(), Span::DUMMY)
+                    }
                 };
                 ExprKind::Field { expr, field }
             }
@@ -736,6 +726,69 @@ impl SynConverter {
             syn::MacroDelimiter::Paren(_) => Delimiter::Paren,
             syn::MacroDelimiter::Brace(_) => Delimiter::Brace,
             syn::MacroDelimiter::Bracket(_) => Delimiter::Bracket,
+        }
+    }
+
+    fn convert_attributes(&mut self, attrs: &[syn::Attribute]) -> Result<Vec<Attribute>> {
+        attrs.iter().map(|attr| self.convert_attribute(attr)).collect()
+    }
+
+    fn convert_attribute(&mut self, attr: &syn::Attribute) -> Result<Attribute> {
+        let style = match attr.style {
+            syn::AttrStyle::Outer => AttrStyle::Outer,
+            syn::AttrStyle::Inner(_) => AttrStyle::Inner,
+        };
+
+        let kind = if let Some(doc) = self.extract_doc_comment(attr) {
+            AttrKind::DocComment(CommentKind::Line, doc)
+        } else {
+            let path = self.convert_path(&attr.path())?;
+            let args = self.convert_attr_args(&attr.meta)?;
+
+            let item = AttrItem { path, args };
+            let normal = NormalAttr { item };
+            AttrKind::Normal(normal)
+        };
+
+        Ok(Attribute { kind, id: 0, style, span: Span::DUMMY })
+    }
+
+    fn extract_doc_comment(&self, attr: &syn::Attribute) -> Option<String> {
+        // Check if this is a doc comment attribute
+        if attr.path().is_ident("doc") {
+            if let syn::Meta::NameValue(meta) = &attr.meta {
+                if let syn::Expr::Lit(expr_lit) = &meta.value {
+                    if let syn::Lit::Str(lit_str) = &expr_lit.lit {
+                        return Some(lit_str.value());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn convert_attr_args(&mut self, meta: &syn::Meta) -> Result<MacArgs> {
+        match meta {
+            syn::Meta::Path(_) => Ok(MacArgs::Empty),
+
+            syn::Meta::List(meta_list) => {
+                // Convert tokens to our TokenStream
+                let tokens = TokenStream::Source(meta_list.tokens.to_string());
+                let delim_span = DelSpan::new(Span::DUMMY, Span::DUMMY);
+                Ok(MacArgs::Delimited { dspan: delim_span, delim: Delimiter::Paren, tokens })
+            }
+
+            syn::Meta::NameValue(meta_nv) => {
+                // For #[key = "value"] style
+                let value = match &meta_nv.value {
+                    syn::Expr::Lit(expr_lit) => {
+                        format!("{:?}", expr_lit.lit)
+                    }
+                    other => format!("{:?}", other),
+                };
+                let tokens = TokenStream::Source(value);
+                Ok(MacArgs::Eq { eq_span: Span::DUMMY, tokens })
+            }
         }
     }
 
@@ -818,6 +871,7 @@ impl SynConverter {
     }
 
     fn convert_item_struct(&mut self, item_struct: &syn::ItemStruct) -> Result<Item> {
+        let attrs = self.convert_attributes(&item_struct.attrs)?;
         let ident = self.convert_ident(&item_struct.ident);
         let vis = self.convert_visibility(&item_struct.vis);
 
@@ -843,7 +897,7 @@ impl SynConverter {
         };
 
         Ok(Item {
-            attrs: vec![],
+            attrs,
             id: self.next_id(),
             span: Span::DUMMY,
             vis,
