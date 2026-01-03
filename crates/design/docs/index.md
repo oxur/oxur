@@ -10,15 +10,15 @@ This index is automatically generated. Do not edit manually.
 | 0029 | evcxr Compiler Integration Audit Report | Final | 2026-01-03 |
 | 0028 | evcxr_runtime Audit Report | Final | 2026-01-03 |
 | 0027 | evcxr_repl Audit Report | Final | 2026-01-03 |
-| 0026 | Oxur REPL Evaluation Strategy | Active | 2026-01-02 |
+| 0026 | Oxur REPL Evaluation Strategy | Final | 2026-01-03 |
 | 0025 | Oxur Syntax Addendum: Function Head Pattern Matching | Draft | 2026-01-01 |
-| 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Accepted | 2025-12-31 |
-| 0023 | oxur-ast Phase 7: Generics & Lifetimes | Accepted | 2025-12-31 |
-| 0022 | oxur-ast Phase 6: Integration Layer Expansion | Active | 2025-12-31 |
+| 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Active | 2026-01-03 |
+| 0023 | oxur-ast Phase 7: Generics & Lifetimes | Final | 2026-01-03 |
+| 0022 | oxur-ast Phase 6: Integration Layer Expansion | Final | 2026-01-03 |
 | 0021 | Oxur Syntax Design Proposal | Draft | 2025-12-31 |
-| 0020 | oxur-ast Phase 5: Complete Pattern & Type System Coverage | Accepted | 2025-12-31 |
+| 0020 | oxur-ast Phase 5: Complete Pattern & Type System Coverage | Final | 2026-01-03 |
 | 0019 | oxur-ast Implementation Status Report | Final | 2025-12-31 |
-| 0018 | Oxur Remote REPL Protocol Design | Under Review | 2025-12-28 |
+| 0018 | Oxur Remote REPL Protocol Design | Active | 2026-01-03 |
 | 0017 | Recommendations for Future-proofing Multiple REPL Protocols | Final | 2025-12-31 |
 | 0016 | Research: Building a transport-agnostic REPL protocol in Rust | Final | 2025-12-28 |
 | 0015 | oxur-table API (re)Design | Final | 2025-12-31 |
@@ -44,21 +44,11 @@ This index is automatically generated. Do not edit manually.
 - [0025 - Oxur Syntax Addendum: Function Head Pattern Matching](01-draft/0025-oxur-syntax-addendum-function-head-pattern-matching.md)
 - [0021 - Oxur Syntax Design Proposal](01-draft/0021-oxur-syntax-design-proposal.md)
 
-### Under Review
-
-- [0018 - Oxur Remote REPL Protocol Design](02-under-review/0018-oxur-remote-repl-protocol-design.md)
-
-### Accepted
-
-- [0024 - oxur-ast Phase 8: Advanced Features & Completeness](04-accepted/0024-oxur-ast-phase-8-advanced-features-completeness.md)
-- [0023 - oxur-ast Phase 7: Generics & Lifetimes](04-accepted/0023-oxur-ast-phase-7-generics-lifetimes.md)
-- [0020 - oxur-ast Phase 5: Complete Pattern & Type System Coverage](04-accepted/0020-oxur-ast-phase-5-complete-pattern-type-system-coverage.md)
-
 ### Active
 
 - [0030 - Oxur REPL Implementation Specification](05-active/0030-oxur-repl-implementation-specification.md)
-- [0026 - Oxur REPL Evaluation Strategy](05-active/0026-oxur-repl-evaluation-strategy.md)
-- [0022 - oxur-ast Phase 6: Integration Layer Expansion](05-active/0022-oxur-ast-phase-6-integration-layer-expansion.md)
+- [0024 - oxur-ast Phase 8: Advanced Features & Completeness](05-active/0024-oxur-ast-phase-8-advanced-features-completeness.md)
+- [0018 - Oxur Remote REPL Protocol Design](05-active/0018-oxur-remote-repl-protocol-design.md)
 - [0013 - Oxur Compilation Chain Architecture](05-active/0013-oxur-compilation-chain-architecture.md)
 - [0003 - oxur-ast: Canonical S-Expression Format for Rust AST](05-active/0003-oxur-ast-canonical-s-expression-format-for-rust-ast.md)
 - [0001 - Oxur: A Letter of Intent](05-active/0001-oxur-letter-of-intent.md)
@@ -68,6 +58,10 @@ This index is automatically generated. Do not edit manually.
 - [0029 - evcxr Compiler Integration Audit Report](06-final/0029-evcxr-compiler-integration-audit-report.md)
 - [0028 - evcxr_runtime Audit Report](06-final/0028-evcxr-runtime-audit-report.md)
 - [0027 - evcxr_repl Audit Report](06-final/0027-evcxr-repl-audit-report.md)
+- [0026 - Oxur REPL Evaluation Strategy](06-final/0026-oxur-repl-evaluation-strategy.md)
+- [0023 - oxur-ast Phase 7: Generics & Lifetimes](06-final/0023-oxur-ast-phase-7-generics-lifetimes.md)
+- [0022 - oxur-ast Phase 6: Integration Layer Expansion](06-final/0022-oxur-ast-phase-6-integration-layer-expansion.md)
+- [0020 - oxur-ast Phase 5: Complete Pattern & Type System Coverage](06-final/0020-oxur-ast-phase-5-complete-pattern-type-system-coverage.md)
 - [0019 - oxur-ast Implementation Status Report](06-final/0019-oxur-ast-implementation-status-report.md)
 - [0017 - Recommendations for Future-proofing Multiple REPL Protocols](06-final/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
 - [0016 - Building a transport-agnostic REPL protocol in Rust](06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)

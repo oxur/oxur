@@ -3,8 +3,8 @@ number: 22
 title: "oxur-ast Phase 6: Integration Layer Expansion"
 author: "Duncan McGreggor"
 created: 2025-12-31
-updated: 2025-12-31
-state: Active
+updated: 2026-01-03
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0
