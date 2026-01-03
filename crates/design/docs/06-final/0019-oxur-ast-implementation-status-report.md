@@ -2,6 +2,8 @@
 number: 19
 title: "oxur-ast Implementation Status Report"
 author: "Duncan McGreggor"
+component: AST
+tags: [report]
 created: 2025-12-31
 updated: 2025-12-31
 state: Final
@@ -11,6 +13,7 @@ version: 1.0
 ---
 
 # oxur-ast Implementation Status Report
+
 *Generated: 2025-12-31*
 
 ## Executive Summary
@@ -36,6 +39,7 @@ The **oxur-ast** crate has achieved **60-70% completion** of the Phase 4 goals, 
 ### What Actually Works
 
 The implementation successfully handles:
+
 - ✅ Functions with full signatures (parameters, return types, generics basics)
 - ✅ Structs (named fields, tuple structs, unit structs)
 - ✅ Enums with variants
@@ -56,28 +60,34 @@ The implementation successfully handles:
 ### ItemKind Variants (10 of 17 = 59%)
 
 **Implemented:**
+
 - ✅ Fn, Struct, Enum, Trait, Impl, Use, Static, Const, TyAlias, Mod
 
 **Missing:**
+
 - ❌ ExternCrate, ForeignMod, GlobalAsm, Union, TraitAlias, MacCall (item-level), MacroDef
 
 ### ExprKind Variants (20+ of 35+ = 55%)
 
 **Implemented:**
+
 - ✅ MacCall, Lit, Path, If, Match, While, ForLoop, Loop
 - ✅ Binary, Unary, Call, MethodCall
 - ✅ Array, Tuple, Field, Index, Assign, Struct, Closure, Range
 
 **Critical Missing:**
+
 - ❌ Paren (parenthesized), Try (?), Cast (as), Break, Continue, Return
 - ❌ Await, Async, Block, TryBlock, Yield, Underscore
 
 ### PatKind Variants (3-4 of 15+ = 25%) ⚠️ CRITICAL GAP
 
 **Implemented:**
+
 - ✅ Ident (with binding modes), Wild (_), Range (partial)
 
 **Missing:**
+
 - ❌ Lit, Tuple, Struct, Path, Slice, Or (|), Ref, Box, Rest (..)
 
 **Impact:** Limited pattern matching capability affects match expressions, function parameters, let bindings.
@@ -85,9 +95,11 @@ The implementation successfully handles:
 ### TyKind Variants (3-4 of 15+ = 25%) ⚠️ CRITICAL GAP
 
 **Implemented:**
+
 - ✅ Path, Ptr (raw pointers), Ref (references)
 
 **Missing:**
+
 - ❌ Slice [T], Array [T; N], BareFn, Never (!), Tup
 - ❌ TraitObject (dyn), ImplTrait, Infer (_)
 
@@ -96,6 +108,7 @@ The implementation successfully handles:
 ### StmtKind Variants (6 of 6 = 100%) ✅
 
 **Fully Implemented:**
+
 - ✅ Expr, Semi, Let, Item, MacCall, Empty
 
 ---
@@ -103,6 +116,7 @@ The implementation successfully handles:
 ## Code Metrics
 
 ### Implementation Size
+
 - **Total crate:** ~8,500 lines of implementation code
 - **S-expression subsystem:** ~900 lines (lexer, parser, printer, types)
 - **AST types:** ~1,500 lines
@@ -113,6 +127,7 @@ The implementation successfully handles:
 - **Tests:** ~8,000+ lines across 19+ test files
 
 ### Module Organization
+
 ```
 crates/oxur-ast/src/
 ├── sexp/          # S-expression infrastructure (Phase 0)
@@ -130,12 +145,15 @@ crates/oxur-ast/src/
 ## Critical Gaps & Impact
 
 ### 1. Pattern Matching (25% complete)
+
 **Impact:** High
+
 - Cannot fully represent match arms with complex patterns
 - Function parameter patterns limited
 - Destructuring in let bindings incomplete
 
 **Missing patterns critical for real code:**
+
 - Literal patterns: `1 | 2 | 3`
 - Tuple patterns: `(a, b, c)`
 - Struct patterns: `Point { x, y }`
@@ -143,7 +161,9 @@ crates/oxur-ast/src/
 - Slice patterns: `[first, .., last]`
 
 ### 2. Type System (25% complete)
+
 **Impact:** High
+
 - Cannot represent array types: `[T; N]`
 - No slice types: `[T]`
 - Missing function pointers: `fn(T) -> U`
@@ -151,20 +171,26 @@ crates/oxur-ast/src/
 - Missing impl trait: `impl Trait`
 
 ### 3. Common Expressions (45% missing)
+
 **Impact:** Medium-High
+
 - No try operator: `expr?` (very common in error handling)
 - No casts: `expr as Type`
 - Missing break/return/continue as expressions
 - No parenthesized expressions
 
 ### 4. Code Generation Completeness (70%)
+
 **Impact:** Medium
+
 - Not all implemented AST types can generate code
 - Some expressions stubbed with comments
 - Attribute generation simplified
 
 ### 5. Attributes (20% complete)
+
 **Impact:** Medium
+
 - Basic structure only
 - No doc comment handling
 - Derive macros not parsed
@@ -176,11 +202,13 @@ crates/oxur-ast/src/
 ### Phase 1 Scope Expansion
 
 **Designed:** Phase 1 was supposed to support ONLY:
+
 - Item::Fn with basic function definitions
 - Expr::MacCall, Expr::Lit, Expr::Path
 - "Hello World" level complexity
 
 **Actually Implemented:**
+
 - 10 ItemKind variants (struct, enum, trait, impl, use, static, const, type, mod, fn)
 - 20+ ExprKind variants (control flow, operators, calls, closures, etc.)
 - Production-ready feature set
@@ -201,6 +229,7 @@ crates/oxur-ast/src/
 ## Test Coverage Assessment
 
 ### Test Files (19+)
+
 - ✅ Lexer tests (token types, escape sequences, positions)
 - ✅ Parser tests (nested structures, round-trips, errors)
 - ✅ Builder tests (all major types)
@@ -215,12 +244,14 @@ crates/oxur-ast/src/
 - ✅ Error tests (malformed input)
 
 ### Coverage Strengths
+
 - Round-trip verification (AST → S-expr → AST)
 - Error position tracking validated
 - Real-world code samples tested
 - Edge cases in lexer/parser
 
 ### Coverage Gaps
+
 - Partially implemented features not fully tested
 - Missing benchmark suite (mentioned in design)
 - Limited documentation tests
@@ -231,6 +262,7 @@ crates/oxur-ast/src/
 ## Code Quality Observations
 
 ### Strengths
+
 - ✅ Well-organized module structure with clear separation
 - ✅ Comprehensive error handling with position tracking
 - ✅ Consistent naming conventions
@@ -239,6 +271,7 @@ crates/oxur-ast/src/
 - ✅ Good use of type system (NodeId, Span, etc.)
 
 ### Areas for Improvement
+
 - ⚠️ Some large files (builder/item.rs: 877 lines, codegen/expr.rs: 889 lines)
 - ⚠️ Partial implementations use `todo!()` or comments
 - ⚠️ Span handling simplified with `Span::DUMMY` (noted limitation)
@@ -251,9 +284,11 @@ crates/oxur-ast/src/
 ### Immediate Priorities (Phase 5 Scope)
 
 #### 1. Complete Pattern Matching (HIGH PRIORITY)
+
 **Effort:** ~6-8 hours | **Value:** High
 
 Implement missing PatKind variants:
+
 - Literal patterns (numbers, strings, bools)
 - Tuple patterns `(a, b, c)`
 - Struct patterns `Point { x, y }`
@@ -264,9 +299,11 @@ Implement missing PatKind variants:
 **Impact:** Enables full match expression support, critical for real code.
 
 #### 2. Complete Type System (HIGH PRIORITY)
+
 **Effort:** ~5-7 hours | **Value:** High
 
 Implement missing TyKind variants:
+
 - Array types `[T; N]`
 - Slice types `[T]`
 - Function pointer types `fn(T) -> U`
@@ -278,9 +315,11 @@ Implement missing TyKind variants:
 **Impact:** Required for proper type annotations in function signatures, let bindings, etc.
 
 #### 3. Add Common Missing Expressions (MEDIUM PRIORITY)
+
 **Effort:** ~4-6 hours | **Value:** Medium-High
 
 Implement:
+
 - Parenthesized expressions `(expr)`
 - Try operator `expr?`
 - Cast expressions `expr as Type`
@@ -290,9 +329,11 @@ Implement:
 **Impact:** These are common in real code, especially `?` for error handling.
 
 #### 4. Complete Code Generation (MEDIUM PRIORITY)
+
 **Effort:** ~3-4 hours | **Value:** Medium
 
 Ensure all implemented AST types can generate Rust code:
+
 - Fill in stubbed expression codegen
 - Complete attribute generation
 - Add missing operator handling
@@ -300,6 +341,7 @@ Ensure all implemented AST types can generate Rust code:
 **Impact:** Required for AST → Rust round-trip.
 
 #### 5. Enhance Attributes (LOWER PRIORITY)
+
 **Effort:** ~2-3 hours | **Value:** Medium
 
 - Parse attribute arguments
@@ -311,9 +353,11 @@ Ensure all implemented AST types can generate Rust code:
 ### Documentation Updates Needed
 
 #### A. Create Implementation Status Doc
+
 **File:** `crates/design/docs/05-active/0009-oxur-ast-implementation-status-and-phase-5-plan.md`
 
 Content:
+
 - Current state vs. original designs
 - Phase 0-3 completion notes
 - Phase 4 actual progress (60-70%)
@@ -321,9 +365,11 @@ Content:
 - Roadmap for remaining work
 
 #### B. Create Architecture Guide
+
 **File:** `crates/oxur-ast/ARCHITECTURE.md`
 
 Content:
+
 - Module organization and responsibilities
 - Data flow diagrams (Rust → syn → AST → S-expr → codegen)
 - How to add new AST types (step-by-step guide)
@@ -371,6 +417,7 @@ Primarily **pattern matching completeness** and **type system coverage**. These 
 ### Estimated Effort to 95% Phase 4 Completion
 
 **~25-30 hours** of focused development:
+
 - Pattern matching: 6-8 hours
 - Type system: 5-7 hours
 - Expressions: 4-6 hours

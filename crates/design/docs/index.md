@@ -6,6 +6,10 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0030 | Oxur REPL Implementation Specification | Active | 2026-01-03 |
+| 0029 | evcxr Compiler Integration Audit Report | Final | 2026-01-03 |
+| 0028 | evcxr_runtime Audit Report | Final | 2026-01-03 |
+| 0027 | evcxr_repl Audit Report | Final | 2026-01-03 |
 | 0026 | Oxur REPL Evaluation Strategy | Active | 2026-01-02 |
 | 0025 | Oxur Syntax Addendum: Function Head Pattern Matching | Draft | 2026-01-01 |
 | 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Accepted | 2025-12-31 |
@@ -52,6 +56,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Active
 
+- [0030 - Oxur REPL Implementation Specification](05-active/0030-oxur-repl-implementation-specification.md)
 - [0026 - Oxur REPL Evaluation Strategy](05-active/0026-oxur-repl-evaluation-strategy.md)
 - [0022 - oxur-ast Phase 6: Integration Layer Expansion](05-active/0022-oxur-ast-phase-6-integration-layer-expansion.md)
 - [0013 - Oxur Compilation Chain Architecture](05-active/0013-oxur-compilation-chain-architecture.md)
@@ -60,6 +65,9 @@ This index is automatically generated. Do not edit manually.
 
 ### Final
 
+- [0029 - evcxr Compiler Integration Audit Report](06-final/0029-evcxr-compiler-integration-audit-report.md)
+- [0028 - evcxr_runtime Audit Report](06-final/0028-evcxr-runtime-audit-report.md)
+- [0027 - evcxr_repl Audit Report](06-final/0027-evcxr-repl-audit-report.md)
 - [0019 - oxur-ast Implementation Status Report](06-final/0019-oxur-ast-implementation-status-report.md)
 - [0017 - Recommendations for Future-proofing Multiple REPL Protocols](06-final/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
 - [0016 - Building a transport-agnostic REPL protocol in Rust](06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)
