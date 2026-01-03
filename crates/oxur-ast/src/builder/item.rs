@@ -410,12 +410,6 @@ impl AstBuilder {
         }
     }
 
-    fn build_generics(&mut self, sexp: &SExp) -> Result<Generics> {
-        // Simplified for Phase 1 - no generics support
-        let _list = expect_list(sexp)?; // Validate it's a list
-        Ok(Generics::empty())
-    }
-
     pub(crate) fn build_ty(&mut self, sexp: &SExp) -> Result<Ty> {
         let list = expect_node_type(expect_list(sexp)?, "Ty")?;
         let kwargs = parse_kwargs(list)?;
@@ -887,7 +881,7 @@ impl AstBuilder {
         }
     }
 
-    fn build_generic_bound_list(&mut self, sexp: &SExp) -> Result<Vec<GenericBound>> {
+    pub(crate) fn build_generic_bound_list(&mut self, sexp: &SExp) -> Result<Vec<GenericBound>> {
         let list = expect_list(sexp)?;
         list.elements.iter().map(|elem| self.build_generic_bound(elem)).collect()
     }
@@ -905,7 +899,7 @@ impl AstBuilder {
         parse_mutability(sexp)
     }
 
-    fn build_lifetime(&mut self, sexp: &SExp) -> Result<Lifetime> {
+    pub(crate) fn build_lifetime(&mut self, sexp: &SExp) -> Result<Lifetime> {
         let list = expect_node_type(expect_list(sexp)?, "Lifetime")?;
         let kwargs = parse_kwargs(list)?;
 

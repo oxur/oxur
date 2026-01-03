@@ -423,7 +423,7 @@ impl RustCodegen {
         Ok(())
     }
 
-    fn generate_lifetime(&mut self, lifetime: &Lifetime) -> Result<()> {
+    pub(crate) fn generate_lifetime(&mut self, lifetime: &Lifetime) -> Result<()> {
         self.write(&lifetime.ident.name);
         Ok(())
     }

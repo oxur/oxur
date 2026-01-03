@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::codegen::rust::RustCodegen;
-use crate::error::Result;
+use anyhow::Result;
 
 impl RustCodegen {
     /// Generate Generics

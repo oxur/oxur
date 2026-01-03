@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::builder::build::AstBuilder;
 use crate::builder::helpers::*;
-use crate::error::Result;
+use crate::error::{ParseError, Position, Result};
 use crate::sexp::SExp;
 
 impl AstBuilder {
@@ -10,14 +10,31 @@ impl AstBuilder {
         let list = expect_node_type(expect_list(sexp)?, "Generics")?;
         let kwargs = parse_kwargs(list)?;
 
-        let params_sexp = require_field(&kwargs, "params", list.pos)?;
-        let params = self.build_generic_param_list(params_sexp)?;
+        // Handle empty (Generics) case - return default empty generics
+        if kwargs.is_empty() {
+            return Ok(Generics::empty());
+        }
 
-        let where_clause_sexp = require_field(&kwargs, "where-clause", list.pos)?;
-        let where_clause = self.build_where_clause(where_clause_sexp)?;
+        // Parse params (optional, defaults to empty)
+        let params = if let Some(params_sexp) = kwargs.get("params") {
+            self.build_generic_param_list(params_sexp)?
+        } else {
+            Vec::new()
+        };
 
-        let span_sexp = require_field(&kwargs, "span", list.pos)?;
-        let span = self.build_span(span_sexp)?;
+        // Parse where clause (optional, defaults to empty)
+        let where_clause = if let Some(where_clause_sexp) = kwargs.get("where-clause") {
+            self.build_where_clause(where_clause_sexp)?
+        } else {
+            WhereClause::empty()
+        };
+
+        // Parse span (optional, defaults to DUMMY)
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
 
         Ok(Generics {
             params,
@@ -178,8 +195,12 @@ impl AstBuilder {
         let predicates_sexp = require_field(&kwargs, "predicates", list.pos)?;
         let predicates = self.build_where_predicate_list(predicates_sexp)?;
 
-        let span_sexp = require_field(&kwargs, "span", list.pos)?;
-        let span = self.build_span(span_sexp)?;
+        // Parse span (optional, defaults to DUMMY)
+        let span = if let Some(span_sexp) = kwargs.get("span") {
+            self.build_span(span_sexp)?
+        } else {
+            Span::DUMMY
+        };
 
         Ok(WhereClause {
             has_where_token,
@@ -298,8 +319,6 @@ impl AstBuilder {
 
     // Note: build_generic_bound and build_lifetime are already in item.rs
 }
-
-use crate::error::ParseError;
 
 /// Helper to check if an SExp is nil
 fn is_nil(sexp: &SExp) -> Result<bool> {

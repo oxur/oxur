@@ -18,6 +18,19 @@ impl AstBuilder {
         NodeId(id)
     }
 
+    /// Build a NodeId from an S-expression
+    pub(crate) fn build_node_id(&mut self, sexp: &SExp) -> Result<NodeId> {
+        let num = expect_number(sexp)?;
+        Ok(NodeId(num as u32))
+    }
+
+    /// Build an AttrVec from an S-expression (empty list for now)
+    pub(crate) fn build_attr_vec(&mut self, sexp: &SExp) -> Result<AttrVec> {
+        let _list = expect_list(sexp)?; // Validate it's a list
+        // TODO: implement attribute parsing when needed
+        Ok(Vec::new())
+    }
+
     pub fn build_crate(&mut self, sexp: &SExp) -> Result<Crate> {
         let list = expect_list(sexp)?;
 
