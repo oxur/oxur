@@ -230,6 +230,8 @@ pub enum UnOp {
     Not,   // !
     Neg,   // -
     Deref, // *
+    Ref,   // & (immutable borrow)
+    RefMut, // &mut (mutable borrow)
 }
 
 /// Expression field (for struct literals)

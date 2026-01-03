@@ -539,6 +539,8 @@ impl RustCodegen {
             UnOp::Not => "!",
             UnOp::Neg => "-",
             UnOp::Deref => "*",
+            UnOp::Ref => "&",
+            UnOp::RefMut => "&mut ",
         }
     }
 }

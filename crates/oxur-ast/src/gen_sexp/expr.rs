@@ -408,6 +408,8 @@ impl Generator {
             UnOp::Not => "Not",
             UnOp::Neg => "Neg",
             UnOp::Deref => "Deref",
+            UnOp::Ref => "Ref",
+            UnOp::RefMut => "RefMut",
         })
     }
 

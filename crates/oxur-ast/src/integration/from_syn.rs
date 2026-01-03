@@ -267,6 +267,12 @@ impl SynConverter {
                     tokens: None,
                 })
             }
+            syn::Pat::Type(pat_type) => {
+                // Type-annotated pattern: `x: T`
+                // For now, recursively convert the inner pattern and ignore the type
+                // The type will be extracted separately in convert_local
+                self.convert_pat(&pat_type.pat)
+            }
             _ => Err(ParseError::Expected {
                 expected: "ident pattern".to_string(),
                 found: "complex pattern".to_string(),
@@ -582,8 +588,12 @@ impl SynConverter {
     fn convert_local(&mut self, local: &syn::Local) -> Result<Local> {
         let pat = self.convert_pat(&local.pat)?;
 
-        // syn::Local doesn't have direct ty field anymore
-        let ty = None; // Phase 3: simplified
+        // Extract type annotation from Pat::Type if present
+        let ty = if let syn::Pat::Type(pat_type) = &local.pat {
+            Some(self.convert_type(&pat_type.ty)?)
+        } else {
+            None
+        };
 
         let kind = if let Some(init) = &local.init {
             let expr = self.convert_expr(&init.expr)?;
@@ -609,6 +619,90 @@ impl SynConverter {
             syn::Expr::Path(expr_path) => {
                 let path = self.convert_path(&expr_path.path)?;
                 ExprKind::Path(None, path)
+            }
+            syn::Expr::Call(expr_call) => {
+                let func = Box::new(self.convert_expr(&expr_call.func)?);
+                let args = expr_call
+                    .args
+                    .iter()
+                    .map(|arg| self.convert_expr(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                ExprKind::Call { func, args }
+            }
+            syn::Expr::MethodCall(method_call) => {
+                let receiver = Box::new(self.convert_expr(&method_call.receiver)?);
+                let method = self.convert_ident(&method_call.method);
+                let args = method_call
+                    .args
+                    .iter()
+                    .map(|arg| self.convert_expr(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                ExprKind::MethodCall { receiver, method, args }
+            }
+            syn::Expr::If(expr_if) => {
+                let cond = Box::new(self.convert_expr(&expr_if.cond)?);
+                let then_branch = self.convert_block(&expr_if.then_branch)?;
+                let else_branch = if let Some((_, else_expr)) = &expr_if.else_branch {
+                    Some(Box::new(self.convert_expr(else_expr)?))
+                } else {
+                    None
+                };
+                ExprKind::If { cond, then_branch, else_branch }
+            }
+            syn::Expr::Binary(expr_binary) => {
+                let left = Box::new(self.convert_expr(&expr_binary.left)?);
+                let op = self.convert_bin_op(&expr_binary.op);
+                let right = Box::new(self.convert_expr(&expr_binary.right)?);
+                ExprKind::Binary { left, op, right }
+            }
+            syn::Expr::Index(expr_index) => {
+                let expr = Box::new(self.convert_expr(&expr_index.expr)?);
+                let index = Box::new(self.convert_expr(&expr_index.index)?);
+                ExprKind::Index { expr, index }
+            }
+            syn::Expr::Block(expr_block) => {
+                // Convert block expression by extracting its final expression
+                // For now, we only support blocks that end with an expression
+                let block = &expr_block.block;
+
+                // Check if the block has statements
+                if let Some(last_stmt) = block.stmts.last() {
+                    // If the last statement is an expression without semicolon, use it
+                    if let syn::Stmt::Expr(expr, None) = last_stmt {
+                        // Recursively convert the expression
+                        return self.convert_expr(expr);
+                    }
+                }
+
+                // If the block is empty or doesn't end with an expression,
+                // this is not supported yet
+                return Err(ParseError::Expected {
+                    expected: "block ending with expression".to_string(),
+                    found: "block with statements or empty block".to_string(),
+                    pos: Position::new(0, 1, 1),
+                });
+            }
+            syn::Expr::Unary(expr_unary) => {
+                let op = self.convert_un_op(&expr_unary.op);
+                let expr = Box::new(self.convert_expr(&expr_unary.expr)?);
+                ExprKind::Unary { op, expr }
+            }
+            syn::Expr::Reference(expr_ref) => {
+                let op = if expr_ref.mutability.is_some() {
+                    UnOp::RefMut
+                } else {
+                    UnOp::Ref
+                };
+                let expr = Box::new(self.convert_expr(&expr_ref.expr)?);
+                ExprKind::Unary { op, expr }
+            }
+            syn::Expr::Field(expr_field) => {
+                let expr = Box::new(self.convert_expr(&expr_field.base)?);
+                let field = match &expr_field.member {
+                    syn::Member::Named(ident) => self.convert_ident(ident),
+                    syn::Member::Unnamed(index) => Ident::new(&index.index.to_string(), Span::DUMMY),
+                };
+                ExprKind::Field { expr, field }
             }
             _ => {
                 return Err(ParseError::Expected {
@@ -678,6 +772,49 @@ impl SynConverter {
         };
 
         Ok(Lit { kind, span: Span::DUMMY })
+    }
+
+    fn convert_bin_op(&mut self, op: &syn::BinOp) -> BinOp {
+        match op {
+            syn::BinOp::Add(_) => BinOp::Add,
+            syn::BinOp::Sub(_) => BinOp::Sub,
+            syn::BinOp::Mul(_) => BinOp::Mul,
+            syn::BinOp::Div(_) => BinOp::Div,
+            syn::BinOp::Rem(_) => BinOp::Rem,
+            syn::BinOp::And(_) => BinOp::And,
+            syn::BinOp::Or(_) => BinOp::Or,
+            syn::BinOp::BitXor(_) => BinOp::BitXor,
+            syn::BinOp::BitAnd(_) => BinOp::BitAnd,
+            syn::BinOp::BitOr(_) => BinOp::BitOr,
+            syn::BinOp::Shl(_) => BinOp::Shl,
+            syn::BinOp::Shr(_) => BinOp::Shr,
+            syn::BinOp::Eq(_) => BinOp::Eq,
+            syn::BinOp::Lt(_) => BinOp::Lt,
+            syn::BinOp::Le(_) => BinOp::Le,
+            syn::BinOp::Ne(_) => BinOp::Ne,
+            syn::BinOp::Ge(_) => BinOp::Ge,
+            syn::BinOp::Gt(_) => BinOp::Gt,
+            syn::BinOp::AddAssign(_) => BinOp::Add, // Simplification
+            syn::BinOp::SubAssign(_) => BinOp::Sub,
+            syn::BinOp::MulAssign(_) => BinOp::Mul,
+            syn::BinOp::DivAssign(_) => BinOp::Div,
+            syn::BinOp::RemAssign(_) => BinOp::Rem,
+            syn::BinOp::BitXorAssign(_) => BinOp::BitXor,
+            syn::BinOp::BitAndAssign(_) => BinOp::BitAnd,
+            syn::BinOp::BitOrAssign(_) => BinOp::BitOr,
+            syn::BinOp::ShlAssign(_) => BinOp::Shl,
+            syn::BinOp::ShrAssign(_) => BinOp::Shr,
+            _ => BinOp::Add, // Default fallback
+        }
+    }
+
+    fn convert_un_op(&mut self, op: &syn::UnOp) -> UnOp {
+        match op {
+            syn::UnOp::Deref(_) => UnOp::Deref,
+            syn::UnOp::Not(_) => UnOp::Not,
+            syn::UnOp::Neg(_) => UnOp::Neg,
+            _ => UnOp::Deref, // Default fallback
+        }
     }
 
     fn convert_item_struct(&mut self, item_struct: &syn::ItemStruct) -> Result<Item> {
