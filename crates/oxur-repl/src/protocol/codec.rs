@@ -6,7 +6,7 @@
 // Wire format:
 //   [4 bytes: message length (u32 LE)][N bytes: postcard payload]
 
-use super::{ReplMode, Request, Response, SessionInfo};
+use super::{Request, Response};
 use std::io::{self, Read, Write};
 use thiserror::Error;
 
@@ -178,7 +178,7 @@ impl PostcardCodec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{Operation, OperationResult, ReplMode, Status};
+    use crate::protocol::{Operation, OperationResult, ReplMode, SessionInfo, Status};
     use std::io::Cursor;
 
     #[test]

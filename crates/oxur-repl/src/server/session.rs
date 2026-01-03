@@ -46,6 +46,7 @@ pub struct SessionInfo {
 ///
 /// Thread-safe session storage using Arc<RwLock<HashMap>>.
 /// Each session has its own EvalContext with isolated state.
+#[derive(Clone)]
 pub struct SessionManager {
     /// Active sessions (session_id -> context)
     sessions: Arc<RwLock<HashMap<SessionId, EvalContext>>>,
