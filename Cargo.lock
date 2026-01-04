@@ -992,6 +992,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxur-pretty"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "criterion",
+ "oxur-cli",
+ "proptest",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "oxur-repl"
 version = "0.1.0"
 dependencies = [

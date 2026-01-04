@@ -1,0 +1,27 @@
+[package]
+name = "oxur-pretty"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pretty-printer for S-expression formatted data"
+
+[[bin]]
+name = "oxur-fmt"
+path = "src/main.rs"
+
+[dependencies]
+thiserror.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+oxur-cli = { version = "0.1.0", path = "../oxur-cli" }
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "formatting_bench"
+harness = false
