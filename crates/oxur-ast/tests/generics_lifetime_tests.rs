@@ -6,7 +6,6 @@
 /// - LifetimeParam with bounds
 /// - Round-trip conversions (AST → S-expr → AST)
 /// - Integration with GenericParam and WhereClause
-
 use oxur_ast::ast::*;
 use oxur_ast::sexp::{print_sexp, Parser};
 use oxur_ast::*;
@@ -37,18 +36,16 @@ use oxur_ast::*;
 fn test_generate_generics_with_lifetime() {
     let gen = Generator::new();
     let generics = Generics {
-        params: vec![
-            GenericParam {
-                attrs: vec![],
-                id: NodeId(1),
-                span: Span::new(0, 2),
-                kind: GenericParamKind::Lifetime(LifetimeParam {
-                    ident: Ident::new("a", Span::new(0, 2)),
-                    bounds: vec![],
-                    colon_span: None,
-                }),
-            },
-        ],
+        params: vec![GenericParam {
+            attrs: vec![],
+            id: NodeId(1),
+            span: Span::new(0, 2),
+            kind: GenericParamKind::Lifetime(LifetimeParam {
+                ident: Ident::new("a", Span::new(0, 2)),
+                bounds: vec![],
+                colon_span: None,
+            }),
+        }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 3),
     };
@@ -65,18 +62,16 @@ fn test_generate_generics_with_lifetime() {
 #[test]
 fn test_round_trip_generics_with_lifetime() {
     let generics = Generics {
-        params: vec![
-            GenericParam {
-                attrs: vec![],
-                id: NodeId(1),
-                span: Span::new(0, 2),
-                kind: GenericParamKind::Lifetime(LifetimeParam {
-                    ident: Ident::new("a", Span::new(0, 2)),
-                    bounds: vec![],
-                    colon_span: None,
-                }),
-            },
-        ],
+        params: vec![GenericParam {
+            attrs: vec![],
+            id: NodeId(1),
+            span: Span::new(0, 2),
+            kind: GenericParamKind::Lifetime(LifetimeParam {
+                ident: Ident::new("a", Span::new(0, 2)),
+                bounds: vec![],
+                colon_span: None,
+            }),
+        }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 3),
     };
@@ -116,9 +111,7 @@ fn test_round_trip_generics_multiple_lifetimes() {
                 span: Span::new(4, 6),
                 kind: GenericParamKind::Lifetime(LifetimeParam {
                     ident: Ident::new("b", Span::new(4, 6)),
-                    bounds: vec![
-                        Lifetime { ident: Ident::new("a", Span::new(9, 11)) },
-                    ],
+                    bounds: vec![Lifetime { ident: Ident::new("a", Span::new(9, 11)) }],
                     colon_span: Some(Span::new(6, 7)),
                 }),
             },
@@ -172,15 +165,11 @@ fn test_round_trip_generics_multiple_lifetimes() {
 fn test_where_clause_with_region_predicate() {
     let where_clause = WhereClause {
         has_where_token: true,
-        predicates: vec![
-            WherePredicate::RegionPredicate(WhereRegionPredicate {
-                span: Span::new(0, 10),
-                lifetime: Lifetime { ident: Ident::new("a", Span::new(0, 2)) },
-                bounds: vec![
-                    Lifetime { ident: Ident::new("b", Span::new(5, 7)) },
-                ],
-            }),
-        ],
+        predicates: vec![WherePredicate::RegionPredicate(WhereRegionPredicate {
+            span: Span::new(0, 10),
+            lifetime: Lifetime { ident: Ident::new("a", Span::new(0, 2)) },
+            bounds: vec![Lifetime { ident: Ident::new("b", Span::new(5, 7)) }],
+        })],
         span: Span::new(0, 15),
     };
 
@@ -221,18 +210,16 @@ fn test_where_clause_with_region_predicate() {
 fn test_generate_generics_with_type_param() {
     let gen = Generator::new();
     let generics = Generics {
-        params: vec![
-            GenericParam {
-                attrs: vec![],
-                id: NodeId(1),
-                span: Span::new(0, 1),
-                kind: GenericParamKind::Type(TypeParam {
-                    ident: Ident::new("T", Span::new(0, 1)),
-                    bounds: vec![],
-                    default: None,
-                }),
-            },
-        ],
+        params: vec![GenericParam {
+            attrs: vec![],
+            id: NodeId(1),
+            span: Span::new(0, 1),
+            kind: GenericParamKind::Type(TypeParam {
+                ident: Ident::new("T", Span::new(0, 1)),
+                bounds: vec![],
+                default: None,
+            }),
+        }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 3),
     };
@@ -250,18 +237,16 @@ fn test_generate_generics_with_type_param() {
 #[test]
 fn test_round_trip_generics_with_type_param() {
     let generics = Generics {
-        params: vec![
-            GenericParam {
-                attrs: vec![],
-                id: NodeId(1),
-                span: Span::new(0, 1),
-                kind: GenericParamKind::Type(TypeParam {
-                    ident: Ident::new("T", Span::new(0, 1)),
-                    bounds: vec![],
-                    default: None,
-                }),
-            },
-        ],
+        params: vec![GenericParam {
+            attrs: vec![],
+            id: NodeId(1),
+            span: Span::new(0, 1),
+            kind: GenericParamKind::Type(TypeParam {
+                ident: Ident::new("T", Span::new(0, 1)),
+                bounds: vec![],
+                default: None,
+            }),
+        }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 3),
     };
@@ -293,34 +278,31 @@ fn test_round_trip_generics_with_type_param() {
 #[test]
 fn test_round_trip_generics_with_type_param_with_trait_bound() {
     let generics = Generics {
-        params: vec![
-            GenericParam {
-                attrs: vec![],
-                id: NodeId(1),
-                span: Span::new(0, 1),
-                kind: GenericParamKind::Type(TypeParam {
-                    ident: Ident::new("T", Span::new(0, 1)),
-                    bounds: vec![
-                        GenericBound::Trait(
-                            PolyTraitRef {
-                                trait_ref: TraitRef {
-                                    path: Path {
-                                        span: Span::new(3, 8),
-                                        segments: vec![PathSegment::from_ident(
-                                            Ident::new("Clone", Span::new(3, 8))
-                                        )],
-                                        tokens: None,
-                                    },
-                                },
-                                bound_lifetimes: vec![],
+        params: vec![GenericParam {
+            attrs: vec![],
+            id: NodeId(1),
+            span: Span::new(0, 1),
+            kind: GenericParamKind::Type(TypeParam {
+                ident: Ident::new("T", Span::new(0, 1)),
+                bounds: vec![GenericBound::Trait(
+                    PolyTraitRef {
+                        trait_ref: TraitRef {
+                            path: Path {
+                                span: Span::new(3, 8),
+                                segments: vec![PathSegment::from_ident(Ident::new(
+                                    "Clone",
+                                    Span::new(3, 8),
+                                ))],
+                                tokens: None,
                             },
-                            TraitBoundModifier::None,
-                        ),
-                    ],
-                    default: None,
-                }),
-            },
-        ],
+                        },
+                        bound_lifetimes: vec![],
+                    },
+                    TraitBoundModifier::None,
+                )],
+                default: None,
+            }),
+        }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 10),
     };
@@ -402,29 +384,31 @@ fn test_round_trip_generics_mixed_lifetime_and_type() {
 fn test_generate_generics_with_const_param() {
     let gen = Generator::new();
     let generics = Generics {
-        params: vec![
-            GenericParam {
-                attrs: vec![],
-                id: NodeId(1),
-                span: Span::new(0, 1),
-                kind: GenericParamKind::Const(ConstParam {
-                    ident: Ident::new("N", Span::new(6, 7)),
-                    ty: Ty {
-                        id: NodeId(2),
-                        kind: TyKind::Path(None, Path {
+        params: vec![GenericParam {
+            attrs: vec![],
+            id: NodeId(1),
+            span: Span::new(0, 1),
+            kind: GenericParamKind::Const(ConstParam {
+                ident: Ident::new("N", Span::new(6, 7)),
+                ty: Ty {
+                    id: NodeId(2),
+                    kind: TyKind::Path(
+                        None,
+                        Path {
                             span: Span::new(9, 14),
-                            segments: vec![PathSegment::from_ident(
-                                Ident::new("usize", Span::new(9, 14))
-                            )],
+                            segments: vec![PathSegment::from_ident(Ident::new(
+                                "usize",
+                                Span::new(9, 14),
+                            ))],
                             tokens: None,
-                        }),
-                        span: Span::new(9, 14),
-                        tokens: None,
-                    },
-                    default: None,
-                }),
-            },
-        ],
+                        },
+                    ),
+                    span: Span::new(9, 14),
+                    tokens: None,
+                },
+                default: None,
+            }),
+        }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 15),
     };
@@ -443,29 +427,31 @@ fn test_generate_generics_with_const_param() {
 #[test]
 fn test_round_trip_generics_with_const_param() {
     let generics = Generics {
-        params: vec![
-            GenericParam {
-                attrs: vec![],
-                id: NodeId(1),
-                span: Span::new(0, 1),
-                kind: GenericParamKind::Const(ConstParam {
-                    ident: Ident::new("N", Span::new(6, 7)),
-                    ty: Ty {
-                        id: NodeId(2),
-                        kind: TyKind::Path(None, Path {
+        params: vec![GenericParam {
+            attrs: vec![],
+            id: NodeId(1),
+            span: Span::new(0, 1),
+            kind: GenericParamKind::Const(ConstParam {
+                ident: Ident::new("N", Span::new(6, 7)),
+                ty: Ty {
+                    id: NodeId(2),
+                    kind: TyKind::Path(
+                        None,
+                        Path {
                             span: Span::new(9, 14),
-                            segments: vec![PathSegment::from_ident(
-                                Ident::new("usize", Span::new(9, 14))
-                            )],
+                            segments: vec![PathSegment::from_ident(Ident::new(
+                                "usize",
+                                Span::new(9, 14),
+                            ))],
                             tokens: None,
-                        }),
-                        span: Span::new(9, 14),
-                        tokens: None,
-                    },
-                    default: None,
-                }),
-            },
-        ],
+                        },
+                    ),
+                    span: Span::new(9, 14),
+                    tokens: None,
+                },
+                default: None,
+            }),
+        }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 15),
     };
@@ -526,13 +512,17 @@ fn test_round_trip_generics_all_param_types() {
                     ident: Ident::new("N", Span::new(13, 14)),
                     ty: Ty {
                         id: NodeId(4),
-                        kind: TyKind::Path(None, Path {
-                            span: Span::new(16, 21),
-                            segments: vec![PathSegment::from_ident(
-                                Ident::new("usize", Span::new(16, 21))
-                            )],
-                            tokens: None,
-                        }),
+                        kind: TyKind::Path(
+                            None,
+                            Path {
+                                span: Span::new(16, 21),
+                                segments: vec![PathSegment::from_ident(Ident::new(
+                                    "usize",
+                                    Span::new(16, 21),
+                                ))],
+                                tokens: None,
+                            },
+                        ),
                         span: Span::new(16, 21),
                         tokens: None,
                     },
@@ -574,41 +564,39 @@ fn test_where_clause_with_bound_predicate() {
     // Test: where T: Clone
     let where_clause = WhereClause {
         has_where_token: true,
-        predicates: vec![
-            WherePredicate::BoundPredicate(WhereBoundPredicate {
-                span: Span::new(0, 15),
-                bounded_ty: Ty {
-                    id: NodeId(1),
-                    kind: TyKind::Path(None, Path {
+        predicates: vec![WherePredicate::BoundPredicate(WhereBoundPredicate {
+            span: Span::new(0, 15),
+            bounded_ty: Ty {
+                id: NodeId(1),
+                kind: TyKind::Path(
+                    None,
+                    Path {
                         span: Span::new(6, 7),
-                        segments: vec![PathSegment::from_ident(
-                            Ident::new("T", Span::new(6, 7))
-                        )],
+                        segments: vec![PathSegment::from_ident(Ident::new("T", Span::new(6, 7)))],
                         tokens: None,
-                    }),
-                    span: Span::new(6, 7),
-                    tokens: None,
-                },
-                bounds: vec![
-                    GenericBound::Trait(
-                        PolyTraitRef {
-                            trait_ref: TraitRef {
-                                path: Path {
-                                    span: Span::new(9, 14),
-                                    segments: vec![PathSegment::from_ident(
-                                        Ident::new("Clone", Span::new(9, 14))
-                                    )],
-                                    tokens: None,
-                                },
-                            },
-                            bound_lifetimes: vec![],
+                    },
+                ),
+                span: Span::new(6, 7),
+                tokens: None,
+            },
+            bounds: vec![GenericBound::Trait(
+                PolyTraitRef {
+                    trait_ref: TraitRef {
+                        path: Path {
+                            span: Span::new(9, 14),
+                            segments: vec![PathSegment::from_ident(Ident::new(
+                                "Clone",
+                                Span::new(9, 14),
+                            ))],
+                            tokens: None,
                         },
-                        TraitBoundModifier::None,
-                    ),
-                ],
-                bound_lifetimes: vec![],
-            }),
-        ],
+                    },
+                    bound_lifetimes: vec![],
+                },
+                TraitBoundModifier::None,
+            )],
+            bound_lifetimes: vec![],
+        })],
         span: Span::new(0, 15),
     };
 
@@ -633,56 +621,57 @@ fn test_where_clause_with_multiple_bounds() {
     // Test: where T: Clone + Send
     let where_clause = WhereClause {
         has_where_token: true,
-        predicates: vec![
-            WherePredicate::BoundPredicate(WhereBoundPredicate {
-                span: Span::new(0, 20),
-                bounded_ty: Ty {
-                    id: NodeId(1),
-                    kind: TyKind::Path(None, Path {
+        predicates: vec![WherePredicate::BoundPredicate(WhereBoundPredicate {
+            span: Span::new(0, 20),
+            bounded_ty: Ty {
+                id: NodeId(1),
+                kind: TyKind::Path(
+                    None,
+                    Path {
                         span: Span::new(6, 7),
-                        segments: vec![PathSegment::from_ident(
-                            Ident::new("T", Span::new(6, 7))
-                        )],
+                        segments: vec![PathSegment::from_ident(Ident::new("T", Span::new(6, 7)))],
                         tokens: None,
-                    }),
-                    span: Span::new(6, 7),
-                    tokens: None,
-                },
-                bounds: vec![
-                    GenericBound::Trait(
-                        PolyTraitRef {
-                            trait_ref: TraitRef {
-                                path: Path {
-                                    span: Span::new(9, 14),
-                                    segments: vec![PathSegment::from_ident(
-                                        Ident::new("Clone", Span::new(9, 14))
-                                    )],
-                                    tokens: None,
-                                },
+                    },
+                ),
+                span: Span::new(6, 7),
+                tokens: None,
+            },
+            bounds: vec![
+                GenericBound::Trait(
+                    PolyTraitRef {
+                        trait_ref: TraitRef {
+                            path: Path {
+                                span: Span::new(9, 14),
+                                segments: vec![PathSegment::from_ident(Ident::new(
+                                    "Clone",
+                                    Span::new(9, 14),
+                                ))],
+                                tokens: None,
                             },
-                            bound_lifetimes: vec![],
                         },
-                        TraitBoundModifier::None,
-                    ),
-                    GenericBound::Trait(
-                        PolyTraitRef {
-                            trait_ref: TraitRef {
-                                path: Path {
-                                    span: Span::new(17, 21),
-                                    segments: vec![PathSegment::from_ident(
-                                        Ident::new("Send", Span::new(17, 21))
-                                    )],
-                                    tokens: None,
-                                },
+                        bound_lifetimes: vec![],
+                    },
+                    TraitBoundModifier::None,
+                ),
+                GenericBound::Trait(
+                    PolyTraitRef {
+                        trait_ref: TraitRef {
+                            path: Path {
+                                span: Span::new(17, 21),
+                                segments: vec![PathSegment::from_ident(Ident::new(
+                                    "Send",
+                                    Span::new(17, 21),
+                                ))],
+                                tokens: None,
                             },
-                            bound_lifetimes: vec![],
                         },
-                        TraitBoundModifier::None,
-                    ),
-                ],
-                bound_lifetimes: vec![],
-            }),
-        ],
+                        bound_lifetimes: vec![],
+                    },
+                    TraitBoundModifier::None,
+                ),
+            ],
+            bound_lifetimes: vec![],
+        })],
         span: Span::new(0, 20),
     };
 
@@ -713,35 +702,38 @@ fn test_where_clause_with_eq_predicate() {
     // Test: where T = String
     let where_clause = WhereClause {
         has_where_token: true,
-        predicates: vec![
-            WherePredicate::EqPredicate(WhereEqPredicate {
-                span: Span::new(0, 15),
-                lhs_ty: Ty {
-                    id: NodeId(1),
-                    kind: TyKind::Path(None, Path {
+        predicates: vec![WherePredicate::EqPredicate(WhereEqPredicate {
+            span: Span::new(0, 15),
+            lhs_ty: Ty {
+                id: NodeId(1),
+                kind: TyKind::Path(
+                    None,
+                    Path {
                         span: Span::new(6, 7),
-                        segments: vec![PathSegment::from_ident(
-                            Ident::new("T", Span::new(6, 7))
-                        )],
+                        segments: vec![PathSegment::from_ident(Ident::new("T", Span::new(6, 7)))],
                         tokens: None,
-                    }),
-                    span: Span::new(6, 7),
-                    tokens: None,
-                },
-                rhs_ty: Ty {
-                    id: NodeId(2),
-                    kind: TyKind::Path(None, Path {
+                    },
+                ),
+                span: Span::new(6, 7),
+                tokens: None,
+            },
+            rhs_ty: Ty {
+                id: NodeId(2),
+                kind: TyKind::Path(
+                    None,
+                    Path {
                         span: Span::new(10, 16),
-                        segments: vec![PathSegment::from_ident(
-                            Ident::new("String", Span::new(10, 16))
-                        )],
+                        segments: vec![PathSegment::from_ident(Ident::new(
+                            "String",
+                            Span::new(10, 16),
+                        ))],
                         tokens: None,
-                    }),
-                    span: Span::new(10, 16),
-                    tokens: None,
-                },
-            }),
-        ],
+                    },
+                ),
+                span: Span::new(10, 16),
+                tokens: None,
+            },
+        })],
         span: Span::new(0, 15),
     };
 
@@ -774,65 +766,74 @@ fn test_where_clause_mixed_predicates() {
                 span: Span::new(0, 10),
                 bounded_ty: Ty {
                     id: NodeId(1),
-                    kind: TyKind::Path(None, Path {
-                        span: Span::new(6, 7),
-                        segments: vec![PathSegment::from_ident(
-                            Ident::new("T", Span::new(6, 7))
-                        )],
-                        tokens: None,
-                    }),
+                    kind: TyKind::Path(
+                        None,
+                        Path {
+                            span: Span::new(6, 7),
+                            segments: vec![PathSegment::from_ident(Ident::new(
+                                "T",
+                                Span::new(6, 7),
+                            ))],
+                            tokens: None,
+                        },
+                    ),
                     span: Span::new(6, 7),
                     tokens: None,
                 },
-                bounds: vec![
-                    GenericBound::Trait(
-                        PolyTraitRef {
-                            trait_ref: TraitRef {
-                                path: Path {
-                                    span: Span::new(9, 14),
-                                    segments: vec![PathSegment::from_ident(
-                                        Ident::new("Clone", Span::new(9, 14))
-                                    )],
-                                    tokens: None,
-                                },
+                bounds: vec![GenericBound::Trait(
+                    PolyTraitRef {
+                        trait_ref: TraitRef {
+                            path: Path {
+                                span: Span::new(9, 14),
+                                segments: vec![PathSegment::from_ident(Ident::new(
+                                    "Clone",
+                                    Span::new(9, 14),
+                                ))],
+                                tokens: None,
                             },
-                            bound_lifetimes: vec![],
                         },
-                        TraitBoundModifier::None,
-                    ),
-                ],
+                        bound_lifetimes: vec![],
+                    },
+                    TraitBoundModifier::None,
+                )],
                 bound_lifetimes: vec![],
             }),
             WherePredicate::RegionPredicate(WhereRegionPredicate {
                 span: Span::new(16, 23),
                 lifetime: Lifetime { ident: Ident::new("a", Span::new(16, 18)) },
-                bounds: vec![
-                    Lifetime { ident: Ident::new("b", Span::new(21, 23)) },
-                ],
+                bounds: vec![Lifetime { ident: Ident::new("b", Span::new(21, 23)) }],
             }),
             WherePredicate::EqPredicate(WhereEqPredicate {
                 span: Span::new(25, 35),
                 lhs_ty: Ty {
                     id: NodeId(2),
-                    kind: TyKind::Path(None, Path {
-                        span: Span::new(25, 26),
-                        segments: vec![PathSegment::from_ident(
-                            Ident::new("U", Span::new(25, 26))
-                        )],
-                        tokens: None,
-                    }),
+                    kind: TyKind::Path(
+                        None,
+                        Path {
+                            span: Span::new(25, 26),
+                            segments: vec![PathSegment::from_ident(Ident::new(
+                                "U",
+                                Span::new(25, 26),
+                            ))],
+                            tokens: None,
+                        },
+                    ),
                     span: Span::new(25, 26),
                     tokens: None,
                 },
                 rhs_ty: Ty {
                     id: NodeId(3),
-                    kind: TyKind::Path(None, Path {
-                        span: Span::new(29, 35),
-                        segments: vec![PathSegment::from_ident(
-                            Ident::new("String", Span::new(29, 35))
-                        )],
-                        tokens: None,
-                    }),
+                    kind: TyKind::Path(
+                        None,
+                        Path {
+                            span: Span::new(29, 35),
+                            segments: vec![PathSegment::from_ident(Ident::new(
+                                "String",
+                                Span::new(29, 35),
+                            ))],
+                            tokens: None,
+                        },
+                    ),
                     span: Span::new(29, 35),
                     tokens: None,
                 },
@@ -890,44 +891,45 @@ fn test_complete_generics_with_where_clause() {
         ],
         where_clause: WhereClause {
             has_where_token: true,
-            predicates: vec![
-                WherePredicate::BoundPredicate(WhereBoundPredicate {
-                    span: Span::new(0, 20),
-                    bounded_ty: Ty {
-                        id: NodeId(3),
-                        kind: TyKind::Path(None, Path {
+            predicates: vec![WherePredicate::BoundPredicate(WhereBoundPredicate {
+                span: Span::new(0, 20),
+                bounded_ty: Ty {
+                    id: NodeId(3),
+                    kind: TyKind::Path(
+                        None,
+                        Path {
                             span: Span::new(6, 7),
-                            segments: vec![PathSegment::from_ident(
-                                Ident::new("T", Span::new(6, 7))
-                            )],
+                            segments: vec![PathSegment::from_ident(Ident::new(
+                                "T",
+                                Span::new(6, 7),
+                            ))],
                             tokens: None,
-                        }),
-                        span: Span::new(6, 7),
-                        tokens: None,
-                    },
-                    bounds: vec![
-                        GenericBound::Trait(
-                            PolyTraitRef {
-                                trait_ref: TraitRef {
-                                    path: Path {
-                                        span: Span::new(9, 14),
-                                        segments: vec![PathSegment::from_ident(
-                                            Ident::new("Clone", Span::new(9, 14))
-                                        )],
-                                        tokens: None,
-                                    },
+                        },
+                    ),
+                    span: Span::new(6, 7),
+                    tokens: None,
+                },
+                bounds: vec![
+                    GenericBound::Trait(
+                        PolyTraitRef {
+                            trait_ref: TraitRef {
+                                path: Path {
+                                    span: Span::new(9, 14),
+                                    segments: vec![PathSegment::from_ident(Ident::new(
+                                        "Clone",
+                                        Span::new(9, 14),
+                                    ))],
+                                    tokens: None,
                                 },
-                                bound_lifetimes: vec![],
                             },
-                            TraitBoundModifier::None,
-                        ),
-                        GenericBound::Outlives(
-                            Lifetime { ident: Ident::new("a", Span::new(17, 19)) }
-                        ),
-                    ],
-                    bound_lifetimes: vec![],
-                }),
-            ],
+                            bound_lifetimes: vec![],
+                        },
+                        TraitBoundModifier::None,
+                    ),
+                    GenericBound::Outlives(Lifetime { ident: Ident::new("a", Span::new(17, 19)) }),
+                ],
+                bound_lifetimes: vec![],
+            })],
             span: Span::new(0, 20),
         },
         span: Span::new(0, 25),

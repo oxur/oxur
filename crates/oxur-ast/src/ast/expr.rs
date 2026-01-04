@@ -227,10 +227,10 @@ pub enum BinOp {
 /// Unary operator
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
-    Not,   // !
-    Neg,   // -
-    Deref, // *
-    Ref,   // & (immutable borrow)
+    Not,    // !
+    Neg,    // -
+    Deref,  // *
+    Ref,    // & (immutable borrow)
     RefMut, // &mut (mutable borrow)
 }
 

@@ -36,11 +36,7 @@ impl AstBuilder {
             Span::DUMMY
         };
 
-        Ok(Generics {
-            params,
-            where_clause,
-            span,
-        })
+        Ok(Generics { params, where_clause, span })
     }
 
     /// Build a list of GenericParam
@@ -66,12 +62,7 @@ impl AstBuilder {
         let kind_sexp = require_field(&kwargs, "kind", list.pos)?;
         let kind = self.build_generic_param_kind(kind_sexp)?;
 
-        Ok(GenericParam {
-            attrs,
-            id,
-            span,
-            kind,
-        })
+        Ok(GenericParam { attrs, id, span, kind })
     }
 
     /// Build a GenericParamKind
@@ -115,17 +106,10 @@ impl AstBuilder {
         let bounds = self.build_lifetime_list(bounds_sexp)?;
 
         let colon_span_sexp = require_field(&kwargs, "colon-span", list.pos)?;
-        let colon_span = if is_nil(colon_span_sexp)? {
-            None
-        } else {
-            Some(self.build_span(colon_span_sexp)?)
-        };
+        let colon_span =
+            if is_nil(colon_span_sexp)? { None } else { Some(self.build_span(colon_span_sexp)?) };
 
-        Ok(LifetimeParam {
-            ident,
-            bounds,
-            colon_span,
-        })
+        Ok(LifetimeParam { ident, bounds, colon_span })
     }
 
     /// Build a list of Lifetime
@@ -146,17 +130,9 @@ impl AstBuilder {
         let bounds = self.build_generic_bound_list(bounds_sexp)?;
 
         let default_sexp = require_field(&kwargs, "default", list.pos)?;
-        let default = if is_nil(default_sexp)? {
-            None
-        } else {
-            Some(self.build_ty(default_sexp)?)
-        };
+        let default = if is_nil(default_sexp)? { None } else { Some(self.build_ty(default_sexp)?) };
 
-        Ok(TypeParam {
-            ident,
-            bounds,
-            default,
-        })
+        Ok(TypeParam { ident, bounds, default })
     }
 
     /// Build a ConstParam
@@ -171,17 +147,10 @@ impl AstBuilder {
         let ty = self.build_ty(ty_sexp)?;
 
         let default_sexp = require_field(&kwargs, "default", list.pos)?;
-        let default = if is_nil(default_sexp)? {
-            None
-        } else {
-            Some(self.build_expr(default_sexp)?)
-        };
+        let default =
+            if is_nil(default_sexp)? { None } else { Some(self.build_expr(default_sexp)?) };
 
-        Ok(ConstParam {
-            ident,
-            ty,
-            default,
-        })
+        Ok(ConstParam { ident, ty, default })
     }
 
     /// Build a WhereClause
@@ -202,11 +171,7 @@ impl AstBuilder {
             Span::DUMMY
         };
 
-        Ok(WhereClause {
-            has_where_token,
-            predicates,
-            span,
-        })
+        Ok(WhereClause { has_where_token, predicates, span })
     }
 
     /// Build a list of WherePredicate
@@ -261,12 +226,7 @@ impl AstBuilder {
         let bound_lifetimes_sexp = require_field(&kwargs, "bound-lifetimes", list.pos)?;
         let bound_lifetimes = self.build_lifetime_param_list(bound_lifetimes_sexp)?;
 
-        Ok(WhereBoundPredicate {
-            span,
-            bounded_ty,
-            bounds,
-            bound_lifetimes,
-        })
+        Ok(WhereBoundPredicate { span, bounded_ty, bounds, bound_lifetimes })
     }
 
     /// Build a list of LifetimeParam
@@ -289,11 +249,7 @@ impl AstBuilder {
         let bounds_sexp = require_field(&kwargs, "bounds", list.pos)?;
         let bounds = self.build_lifetime_list(bounds_sexp)?;
 
-        Ok(WhereRegionPredicate {
-            span,
-            lifetime,
-            bounds,
-        })
+        Ok(WhereRegionPredicate { span, lifetime, bounds })
     }
 
     /// Build a WhereEqPredicate
@@ -310,11 +266,7 @@ impl AstBuilder {
         let rhs_ty_sexp = require_field(&kwargs, "rhs-ty", list.pos)?;
         let rhs_ty = self.build_ty(rhs_ty_sexp)?;
 
-        Ok(WhereEqPredicate {
-            span,
-            lhs_ty,
-            rhs_ty,
-        })
+        Ok(WhereEqPredicate { span, lhs_ty, rhs_ty })
     }
 
     // Note: build_generic_bound and build_lifetime are already in item.rs

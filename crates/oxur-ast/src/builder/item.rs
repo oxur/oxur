@@ -862,10 +862,7 @@ impl AstBuilder {
         // bound-lifetimes field (optional for now, defaults to empty)
         let bound_lifetimes = vec![]; // TODO: implement when needed
 
-        Ok(PolyTraitRef {
-            trait_ref,
-            bound_lifetimes,
-        })
+        Ok(PolyTraitRef { trait_ref, bound_lifetimes })
     }
 
     fn build_trait_bound_modifier(&mut self, sexp: &SExp) -> Result<TraitBoundModifier> {

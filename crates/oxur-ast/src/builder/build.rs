@@ -27,7 +27,7 @@ impl AstBuilder {
     /// Build an AttrVec from an S-expression (empty list for now)
     pub(crate) fn build_attr_vec(&mut self, sexp: &SExp) -> Result<AttrVec> {
         let _list = expect_list(sexp)?; // Validate it's a list
-        // TODO: implement attribute parsing when needed
+                                        // TODO: implement attribute parsing when needed
         Ok(Vec::new())
     }
 
