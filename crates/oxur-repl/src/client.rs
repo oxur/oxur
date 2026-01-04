@@ -20,9 +20,7 @@ pub struct ReplClient {
 impl ReplClient {
     /// Creates a new stub REPL client.
     pub fn new() -> Self {
-        Self {
-            _placeholder: (),
-        }
+        Self { _placeholder: () }
     }
 
     /// Runs the REPL (stub - not implemented).
@@ -32,7 +30,8 @@ impl ReplClient {
     /// Always returns an error indicating this is a stub.
     pub fn run(&mut self) -> Result<()> {
         Err(crate::Error::Protocol(
-            "ReplClient is a stub. Use the TCP-based server/client architecture instead.".to_string(),
+            "ReplClient is a stub. Use the TCP-based server/client architecture instead."
+                .to_string(),
         ))
     }
 }
