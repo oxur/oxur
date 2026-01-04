@@ -14,10 +14,12 @@ version: 1.0
 
 # Oxur REPL Architecture Overview
 
-**Version:** 1.0
-**Date:** January 3, 2026
-**Status:** Definitive Reference
-**Purpose:** An initial sketch of a complete architectural specification for Oxur REPL system; in its current form some of the namings, design decisions, etc., are incomplete, actively being researched for better alternatives, or under actual re-design. A v1.1 of this doc will address all of these rough edges.
+```
+Version: 1.0
+Date: January 3, 2026
+Status: Definitive Reference
+Purpose: An initial sketch of a complete architectural specification for Oxur REPL system; in its current form some of the namings, design decisions, etc., are incomplete, actively being researched for better alternatives, or under actual re-design. A v1.1 of this doc will address all of these rough edges.
+```
 
 ---
 
