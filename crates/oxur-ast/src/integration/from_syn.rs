@@ -952,6 +952,88 @@ impl SynConverter {
 
                 ExprKind::Return { value }
             }
+            // Phase 10: Closure expressions (HIGHEST PRIORITY)
+            syn::Expr::Closure(expr_closure) => {
+                // Convert parameters (closure arguments use patterns)
+                let params = expr_closure
+                    .inputs
+                    .iter()
+                    .map(|input| {
+                        let pat = self.convert_pat(input)?;
+
+                        // Closures often infer types
+                        Ok(Param {
+                            attrs: vec![],
+                            ty: Ty {
+                                id: self.next_id(),
+                                kind: TyKind::Infer,
+                                span: Span::DUMMY,
+                                tokens: None,
+                            },
+                            pat,
+                            id: self.next_id(),
+                            span: Span::DUMMY,
+                            is_placeholder: false,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                let body = Box::new(self.convert_expr(&expr_closure.body)?);
+
+                ExprKind::Closure { params, body }
+            }
+            // Phase 10: Match expressions
+            syn::Expr::Match(expr_match) => {
+                let expr = Box::new(self.convert_expr(&expr_match.expr)?);
+
+                let arms = expr_match
+                    .arms
+                    .iter()
+                    .map(|arm| {
+                        let pat = self.convert_pat(&arm.pat)?;
+
+                        let guard = arm
+                            .guard
+                            .as_ref()
+                            .map(|(_, expr)| self.convert_expr(expr))
+                            .transpose()?
+                            .map(Box::new);
+
+                        let body = Box::new(self.convert_expr(&arm.body)?);
+
+                        Ok(Arm { attrs: vec![], pat, guard, body, span: Span::DUMMY, id: self.next_id() })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                ExprKind::Match { expr, arms }
+            }
+            // Phase 10: ForLoop expressions
+            syn::Expr::ForLoop(expr_for) => {
+                let label = expr_for.label.as_ref().map(|l| self.convert_label(&l.name));
+
+                let pat = self.convert_pat(&expr_for.pat)?;
+                let iter = Box::new(self.convert_expr(&expr_for.expr)?);
+                let body = self.convert_block(&expr_for.body)?;
+
+                ExprKind::ForLoop { label, pat, iter, body }
+            }
+            // Phase 10: Loop expressions
+            syn::Expr::Loop(expr_loop) => {
+                let label = expr_loop.label.as_ref().map(|l| self.convert_label(&l.name));
+
+                let body = self.convert_block(&expr_loop.body)?;
+
+                ExprKind::Loop { label, body }
+            }
+            // Phase 10: While expressions
+            syn::Expr::While(expr_while) => {
+                let label = expr_while.label.as_ref().map(|l| self.convert_label(&l.name));
+
+                let cond = Box::new(self.convert_expr(&expr_while.cond)?);
+                let body = self.convert_block(&expr_while.body)?;
+
+                ExprKind::While { label, cond, body }
+            }
             _ => {
                 return Err(ParseError::Expected {
                     expected: "supported expression".to_string(),
