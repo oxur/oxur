@@ -1,45 +1,39 @@
-//! REPL Client
+//! REPL Client (Stub)
 //!
-//! Handles user interaction and communication with the REPL server.
+//! This is a placeholder stub for the old ReplClient API.
+//! The new architecture uses TCP-based client/server (see server/mod.rs and transport/mod.rs).
+//!
+//! This stub exists only to satisfy external dependencies until they are updated
+//! to use the new architecture.
 
-use crate::{protocol::*, Result};
+use crate::Result;
 
-/// REPL client for user interaction
+/// Stub REPL client for backwards compatibility.
+///
+/// **Note:** This is a placeholder. Use the TCP-based client architecture instead.
+/// See `crates/oxur-repl/src/transport/tcp.rs` for the actual client implementation.
+#[derive(Debug, Default)]
 pub struct ReplClient {
-    // In a full implementation, this would handle communication
-    // with the server process
+    _placeholder: (),
 }
 
 impl ReplClient {
+    /// Creates a new stub REPL client.
     pub fn new() -> Self {
-        Self {}
-    }
-
-    /// Send a request to the server
-    pub fn send(&mut self, request: ReplRequest) -> Result<ReplResponse> {
-        // Placeholder implementation
-        match request {
-            ReplRequest::Eval { .. } => Ok(ReplResponse::Value { value: "result".to_string() }),
-            ReplRequest::Status => {
-                Ok(ReplResponse::Status { tier1_count: 0, tier2_count: 0, tier3_count: 0 })
-            }
-            _ => Ok(ReplResponse::Ok),
+        Self {
+            _placeholder: (),
         }
     }
 
-    /// Run the interactive REPL loop
+    /// Runs the REPL (stub - not implemented).
+    ///
+    /// # Errors
+    ///
+    /// Always returns an error indicating this is a stub.
     pub fn run(&mut self) -> Result<()> {
-        println!("Oxur REPL v0.1.0");
-        println!("Type (exit) to quit");
-
-        // Placeholder - would read from stdin and evaluate
-        Ok(())
-    }
-}
-
-impl Default for ReplClient {
-    fn default() -> Self {
-        Self::new()
+        Err(crate::Error::Protocol(
+            "ReplClient is a stub. Use the TCP-based server/client architecture instead.".to_string(),
+        ))
     }
 }
 
@@ -48,71 +42,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_client_creation() {
+    fn test_new_client() {
         let _client = ReplClient::new();
     }
 
     #[test]
-    fn test_client_default() {
-        let _client = ReplClient::default();
-    }
-
-    #[test]
-    fn test_send_eval() {
+    fn test_run_returns_error() {
         let mut client = ReplClient::new();
-        let req = ReplRequest::Eval { source: "(+ 1 2)".to_string() };
-        let resp = client.send(req);
-        assert!(resp.is_ok());
-        match resp.unwrap() {
-            ReplResponse::Value { value } => assert_eq!(value, "result"),
-            _ => panic!("Expected Value response"),
-        }
-    }
-
-    #[test]
-    fn test_send_status() {
-        let mut client = ReplClient::new();
-        let req = ReplRequest::Status;
-        let resp = client.send(req);
-        assert!(resp.is_ok());
-        match resp.unwrap() {
-            ReplResponse::Status { tier1_count, tier2_count, tier3_count } => {
-                assert_eq!(tier1_count, 0);
-                assert_eq!(tier2_count, 0);
-                assert_eq!(tier3_count, 0);
-            }
-            _ => panic!("Expected Status response"),
-        }
-    }
-
-    #[test]
-    fn test_send_reset() {
-        let mut client = ReplClient::new();
-        let req = ReplRequest::Reset;
-        let resp = client.send(req);
-        assert!(resp.is_ok());
-    }
-
-    #[test]
-    fn test_send_load() {
-        let mut client = ReplClient::new();
-        let req = ReplRequest::Load { path: "test.ox".to_string() };
-        let resp = client.send(req);
-        assert!(resp.is_ok());
-    }
-
-    #[test]
-    fn test_send_shutdown() {
-        let mut client = ReplClient::new();
-        let req = ReplRequest::Shutdown;
-        let resp = client.send(req);
-        assert!(resp.is_ok());
-    }
-
-    #[test]
-    fn test_run_does_not_panic() {
-        let mut client = ReplClient::new();
-        let result = client.run();
-        assert!(result.is_ok());
+        assert!(client.run().is_err());
     }
 }

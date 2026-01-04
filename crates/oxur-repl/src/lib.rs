@@ -12,12 +12,9 @@ pub mod protocol;
 pub mod server;
 pub mod transport;
 
-// Old client/server modules (will be replaced in Phases 2-3)
-// mod client;
-// mod server;
-
-// pub use client::ReplClient;
-// pub use server::ReplServer;
+// Stub client for backwards compatibility with oxur-cli
+mod client;
+pub use client::ReplClient;
 
 /// Result type for REPL operations
 pub type Result<T> = std::result::Result<T, Error>;
