@@ -289,15 +289,15 @@ fn standalone() {}
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Struct and standalone function should succeed
-    // Impl fails due to struct expression `Point { x }` in method body (expression limitation)
-    assert_eq!(crate_node.items.len(), 2);
+    // Phase 9: Struct expressions are now supported!
+    // All three items (struct, impl, and standalone function) should succeed
+    assert_eq!(crate_node.items.len(), 3);
     assert_eq!(crate_node.items[0].ident.name, "Point");
-    assert_eq!(crate_node.items[1].ident.name, "standalone");
+    assert_eq!(crate_node.items[1].ident.name, "impl"); // impl block uses "impl" as dummy ident
+    assert_eq!(crate_node.items[2].ident.name, "standalone");
 
-    // Impl fails due to unsupported struct expression in method body
-    assert_eq!(errors.len(), 1);
-    assert!(errors[0].error_message.contains("complex expression"));
+    // No errors now that struct expressions are supported
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
@@ -408,24 +408,19 @@ trait Processable {
 
     let (crate_node, errors) = parse_rust_file_partial(source).expect("Failed to parse");
 
-    // Should have 8 successful items (2 use + struct + 2 functions + const + trait + static)
-    assert_eq!(crate_node.items.len(), 8);
+    // Phase 9: Struct expressions are now supported!
+    // Should have 9 successful items (2 use + struct + impl + 2 functions + const + static + trait)
+    assert_eq!(crate_node.items.len(), 9);
     assert_eq!(crate_node.items[0].ident.name, "use");
     assert_eq!(crate_node.items[1].ident.name, "use");
     assert_eq!(crate_node.items[2].ident.name, "Cache");
-    assert_eq!(crate_node.items[3].ident.name, "get_from_cache");
-    assert_eq!(crate_node.items[4].ident.name, "MAX_SIZE");
-    assert_eq!(crate_node.items[5].ident.name, "process");
-    assert_eq!(crate_node.items[6].ident.name, "COUNTER");
-    assert_eq!(crate_node.items[7].ident.name, "Processable");
+    assert_eq!(crate_node.items[3].ident.name, "impl"); // impl block uses "impl" as dummy ident
+    assert_eq!(crate_node.items[4].ident.name, "get_from_cache");
+    assert_eq!(crate_node.items[5].ident.name, "MAX_SIZE");
+    assert_eq!(crate_node.items[6].ident.name, "process");
+    assert_eq!(crate_node.items[7].ident.name, "COUNTER");
+    assert_eq!(crate_node.items[8].ident.name, "Processable");
 
-    // Should have 1 error (use, struct, trait, const, and static all work!):
-    // - 1 impl (fails due to struct expression in method body)
-    assert_eq!(errors.len(), 1, "Should have 1 error for impl");
-
-    // Verify impl/expression error
-    assert!(
-        errors[0].error_message.contains("complex expression"),
-        "Should have impl/expression error"
-    );
+    // No errors now that struct expressions are supported
+    assert_eq!(errors.len(), 0, "Should have no errors");
 }

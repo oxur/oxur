@@ -270,6 +270,163 @@ impl SynConverter {
                 // The type will be extracted separately in convert_local
                 self.convert_pat(&pat_type.pat)
             }
+            // Phase 9: Wildcard pattern (CRITICAL)
+            syn::Pat::Wild(_) => Ok(Pat {
+                id: self.next_id(),
+                kind: PatKind::Wild,
+                span: Span::DUMMY,
+                tokens: None,
+            }),
+            // Phase 9: Tuple patterns
+            syn::Pat::Tuple(pat_tuple) => {
+                let elems =
+                    pat_tuple.elems.iter().map(|p| self.convert_pat(p)).collect::<Result<Vec<_>>>()?;
+
+                Ok(Pat { id: self.next_id(), kind: PatKind::Tuple(elems), span: Span::DUMMY, tokens: None })
+            }
+            // Phase 9: Struct patterns
+            syn::Pat::Struct(pat_struct) => {
+                let path = self.convert_path(&pat_struct.path)?;
+
+                let fields = pat_struct
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        let ident = match &field.member {
+                            syn::Member::Named(name) => self.convert_ident(name),
+                            syn::Member::Unnamed(index) => {
+                                Ident::new(index.index.to_string(), Span::DUMMY)
+                            }
+                        };
+                        let pat = self.convert_pat(&field.pat)?;
+                        Ok(PatField {
+                            attrs: vec![],
+                            ident,
+                            pat,
+                            is_shorthand: false, // TODO: detect shorthand
+                            span: Span::DUMMY,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Struct { path, fields },
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
+            }
+            // Phase 9: Tuple struct patterns
+            syn::Pat::TupleStruct(pat_tuple_struct) => {
+                let path = self.convert_path(&pat_tuple_struct.path)?;
+
+                let elems = pat_tuple_struct
+                    .elems
+                    .iter()
+                    .map(|p| self.convert_pat(p))
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::TupleStruct { path, elems },
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
+            }
+            // Phase 9: Path patterns
+            syn::Pat::Path(pat_path) => {
+                // TODO: Handle qself properly when QSelf conversion is implemented
+                let qself = None;
+
+                let path = self.convert_path(&pat_path.path)?;
+
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Path { qself, path },
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
+            }
+            // Phase 9: Literal patterns
+            syn::Pat::Lit(pat_lit) => {
+                let lit = self.convert_lit(&pat_lit.lit)?;
+                let expr = Expr {
+                    id: self.next_id(),
+                    kind: ExprKind::Lit(lit),
+                    span: Span::DUMMY,
+                    attrs: vec![],
+                    tokens: None,
+                };
+
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Lit(Box::new(expr)),
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
+            }
+            // Phase 9: Range patterns
+            syn::Pat::Range(pat_range) => {
+                let start = pat_range
+                    .start
+                    .as_ref()
+                    .map(|e| self.convert_expr(e))
+                    .transpose()?
+                    .map(Box::new);
+
+                let end =
+                    pat_range.end.as_ref().map(|e| self.convert_expr(e)).transpose()?.map(Box::new);
+
+                let limits = match &pat_range.limits {
+                    syn::RangeLimits::HalfOpen(_) => RangeEnd::Excluded,
+                    syn::RangeLimits::Closed(_) => RangeEnd::Included,
+                };
+
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Range { start, end, limits },
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
+            }
+            // Phase 9: Reference patterns
+            syn::Pat::Reference(pat_ref) => {
+                let mutability =
+                    if pat_ref.mutability.is_some() { Mutability::Mut } else { Mutability::Not };
+
+                let pat = Box::new(self.convert_pat(&pat_ref.pat)?);
+
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Ref { pat, mutability },
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
+            }
+            // Phase 9: Slice patterns
+            syn::Pat::Slice(pat_slice) => {
+                let elems =
+                    pat_slice.elems.iter().map(|p| self.convert_pat(p)).collect::<Result<Vec<_>>>()?;
+
+                Ok(Pat { id: self.next_id(), kind: PatKind::Slice(elems), span: Span::DUMMY, tokens: None })
+            }
+            // Phase 9: Or patterns
+            syn::Pat::Or(pat_or) => {
+                let cases =
+                    pat_or.cases.iter().map(|p| self.convert_pat(p)).collect::<Result<Vec<_>>>()?;
+
+                Ok(Pat { id: self.next_id(), kind: PatKind::Or(cases), span: Span::DUMMY, tokens: None })
+            }
+            // Phase 9: Parenthesized patterns
+            syn::Pat::Paren(pat_paren) => {
+                let inner = Box::new(self.convert_pat(&pat_paren.pat)?);
+
+                Ok(Pat { id: self.next_id(), kind: PatKind::Paren(inner), span: Span::DUMMY, tokens: None })
+            }
+            // Phase 9: Rest pattern
+            syn::Pat::Rest(_) => {
+                Ok(Pat { id: self.next_id(), kind: PatKind::Rest, span: Span::DUMMY, tokens: None })
+            }
             _ => Err(ParseError::Expected {
                 expected: "ident pattern".to_string(),
                 found: "complex pattern".to_string(),
@@ -687,6 +844,114 @@ impl SynConverter {
                 };
                 ExprKind::Field { expr, field }
             }
+            // Phase 9: Struct literals (HIGH PRIORITY)
+            syn::Expr::Struct(expr_struct) => {
+                let path = self.convert_path(&expr_struct.path)?;
+
+                // Convert fields
+                let fields = expr_struct
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        let ident = match &field.member {
+                            syn::Member::Named(name) => self.convert_ident(name),
+                            syn::Member::Unnamed(index) => {
+                                Ident::new(index.index.to_string(), Span::DUMMY)
+                            }
+                        };
+                        let expr = self.convert_expr(&field.expr)?;
+                        Ok(ExprField {
+                            attrs: vec![],
+                            ident,
+                            expr,
+                            is_shorthand: false, // TODO: detect shorthand
+                            span: Span::DUMMY,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                ExprKind::Struct { path, fields }
+            }
+            // Phase 9: Array literals
+            syn::Expr::Array(expr_array) => {
+                let elems =
+                    expr_array.elems.iter().map(|e| self.convert_expr(e)).collect::<Result<Vec<_>>>()?;
+                ExprKind::Array(elems)
+            }
+            // Phase 9: Tuple expressions
+            syn::Expr::Tuple(expr_tuple) => {
+                let elems =
+                    expr_tuple.elems.iter().map(|e| self.convert_expr(e)).collect::<Result<Vec<_>>>()?;
+                ExprKind::Tuple(elems)
+            }
+            // Phase 9: Range expressions
+            syn::Expr::Range(expr_range) => {
+                let start = expr_range
+                    .start
+                    .as_ref()
+                    .map(|e| self.convert_expr(e))
+                    .transpose()?
+                    .map(Box::new);
+
+                let end =
+                    expr_range.end.as_ref().map(|e| self.convert_expr(e)).transpose()?.map(Box::new);
+
+                let inclusive = matches!(expr_range.limits, syn::RangeLimits::Closed(_));
+
+                ExprKind::Range { start, end, inclusive }
+            }
+            // Phase 9: Assignment
+            syn::Expr::Assign(expr_assign) => {
+                let left = Box::new(self.convert_expr(&expr_assign.left)?);
+                let right = Box::new(self.convert_expr(&expr_assign.right)?);
+                ExprKind::Assign { left, right }
+            }
+            // Phase 9: Parenthesized expressions
+            syn::Expr::Paren(expr_paren) => {
+                let inner = Box::new(self.convert_expr(&expr_paren.expr)?);
+                ExprKind::Paren(inner)
+            }
+            // Phase 9: Try operator
+            syn::Expr::Try(expr_try) => {
+                let inner = Box::new(self.convert_expr(&expr_try.expr)?);
+                ExprKind::Try(inner)
+            }
+            // Phase 9: Type cast
+            syn::Expr::Cast(expr_cast) => {
+                let expr = Box::new(self.convert_expr(&expr_cast.expr)?);
+                let ty = Box::new(self.convert_type(&expr_cast.ty)?);
+                ExprKind::Cast { expr, ty }
+            }
+            // Phase 9: Break with optional label and value
+            syn::Expr::Break(expr_break) => {
+                let label = expr_break.label.as_ref().map(|l| self.convert_label(l));
+
+                let value = expr_break
+                    .expr
+                    .as_ref()
+                    .map(|e| self.convert_expr(e))
+                    .transpose()?
+                    .map(Box::new);
+
+                ExprKind::Break { label, value }
+            }
+            // Phase 9: Continue with optional label
+            syn::Expr::Continue(expr_continue) => {
+                let label = expr_continue.label.as_ref().map(|l| self.convert_label(l));
+
+                ExprKind::Continue { label }
+            }
+            // Phase 9: Return with optional value
+            syn::Expr::Return(expr_return) => {
+                let value = expr_return
+                    .expr
+                    .as_ref()
+                    .map(|e| self.convert_expr(e))
+                    .transpose()?
+                    .map(Box::new);
+
+                ExprKind::Return { value }
+            }
             _ => {
                 return Err(ParseError::Expected {
                     expected: "supported expression".to_string(),
@@ -697,6 +962,10 @@ impl SynConverter {
         };
 
         Ok(Expr { id: self.next_id(), kind, span: Span::DUMMY, attrs: vec![], tokens: None })
+    }
+
+    fn convert_label(&mut self, lifetime: &syn::Lifetime) -> Label {
+        Label { ident: self.convert_ident(&lifetime.ident) }
     }
 
     fn convert_macro(&mut self, mac: &syn::Macro) -> Result<MacCall> {
