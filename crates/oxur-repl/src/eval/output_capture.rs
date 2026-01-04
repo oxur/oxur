@@ -138,11 +138,8 @@ impl OutputCapturer {
         // Clear previous output
         self.clear();
 
-        // Execute the function
-        let result = f();
-
-        // Return the result
-        result
+        // Execute and return the result
+        f()
     }
 }
 

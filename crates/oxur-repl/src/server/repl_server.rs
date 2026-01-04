@@ -169,7 +169,7 @@ impl ReplServer {
 
         let listener = TcpTransportListener::bind(&self.address)
             .await
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
+            .map_err(|e| io::Error::other(format!("{:?}", e)))?;
         eprintln!("[INFO] Server listening on {}", self.address);
 
         // Subscribe to shutdown signal
@@ -290,7 +290,7 @@ impl ReplServer {
                 Err(e) => {
                     // Other errors are actual errors
                     eprintln!("[ERROR] Failed to read request: {:?}", e);
-                    return Err(io::Error::new(io::ErrorKind::Other, format!("{:?}", e)));
+                    return Err(io::Error::other(format!("{:?}", e)));
                 }
             };
 
@@ -307,7 +307,7 @@ impl ReplServer {
                     }
                     _ => {
                         eprintln!("[ERROR] Failed to write response: {:?}", e);
-                        return Err(io::Error::new(io::ErrorKind::Other, format!("{:?}", e)));
+                        return Err(io::Error::other(format!("{:?}", e)));
                     }
                 }
             }

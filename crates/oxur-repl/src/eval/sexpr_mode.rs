@@ -70,8 +70,8 @@ impl SexprEvaluator {
         }
 
         // Check for keyword
-        if trimmed.starts_with(':') {
-            return Ok(SexprExpr::Keyword(trimmed[1..].to_string()));
+        if let Some(stripped) = trimmed.strip_prefix(':') {
+            return Ok(SexprExpr::Keyword(stripped.to_string()));
         }
 
         // Check for list
@@ -327,6 +327,7 @@ impl SexprEvaluator {
     }
 
     /// Convert value to string representation
+    #[allow(clippy::only_used_in_recursion)]
     fn value_to_string(&self, value: &SexprValue) -> String {
         match value {
             SexprValue::Number(n) => n.to_string(),
