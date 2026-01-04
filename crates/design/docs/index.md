@@ -6,13 +6,14 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0037 | oxur-pretty Implementation Plan | Active | 2026-01-03 |
-| 0036 | oxur-ast Phase 8.5: Macros & Attributes Completeness | Active | 2026-01-03 |
+| 0038 | Oxur REPL Architecture Overview | Under Review | 2026-01-04 |
+| 0037 | oxur-pretty Implementation Plan | Final | 2026-01-04 |
+| 0036 | oxur-ast Phase 8.5: Macros & Attributes Completeness | Final | 2026-01-04 |
 | 0035 | oxur-ast Phase 13: Async/Await and Modern Rust Features | Under Review | 2026-01-03 |
 | 0034 | oxur-ast Phase 12: Advanced Type System | Under Review | 2026-01-03 |
 | 0033 | oxur-ast Phase 11: Literal Completeness and Pattern Refinement | Under Review | 2026-01-03 |
 | 0032 | oxur-ast Phase 10: Critical Expressions (Closures, Loops, Match) | Under Review | 2026-01-03 |
-| 0031 | oxur-ast Phase 9: Connect Existing AST Definitions | Under Review | 2026-01-03 |
+| 0031 | oxur-ast Phase 9: Connect Existing AST Definitions | Active | 2026-01-04 |
 | 0030 | Oxur REPL Implementation Specification | Active | 2026-01-03 |
 | 0029 | evcxr Compiler Integration Audit Report | Final | 2026-01-03 |
 | 0028 | evcxr_runtime Audit Report | Final | 2026-01-03 |
@@ -48,11 +49,11 @@ This index is automatically generated. Do not edit manually.
 
 ### Under Review
 
+- [0038 - Oxur REPL Architecture Overview](02-under-review/0038-oxur-repl-architecture-overview.md)
 - [0035 - oxur-ast Phase 13: Async/Await and Modern Rust Features](02-under-review/0035-oxur-ast-phase-13-asyncawait-and-modern-rust-features.md)
 - [0034 - oxur-ast Phase 12: Advanced Type System](02-under-review/0034-oxur-ast-phase-12-advanced-type-system.md)
 - [0033 - oxur-ast Phase 11: Literal Completeness and Pattern Refinement](02-under-review/0033-oxur-ast-phase-11-literal-completeness-and-pattern-refinement.md)
 - [0032 - oxur-ast Phase 10: Critical Expressions (Closures, Loops, Match)](02-under-review/0032-oxur-ast-phase-10-critical-expressions-closures-loops-match.md)
-- [0031 - oxur-ast Phase 9: Connect Existing AST Definitions](02-under-review/0031-oxur-ast-phase-9-connect-existing-ast-definitions.md)
 
 ### Draft
 
@@ -61,8 +62,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Active
 
-- [0037 - oxur-pretty Implementation Plan](05-active/0037-oxur-pretty-implementation-plan.md)
-- [0036 - oxur-ast Phase 8.5: Macros & Attributes Completeness](05-active/0036-oxur-ast-phase-8.md)
+- [0031 - oxur-ast Phase 9: Connect Existing AST Definitions](05-active/0031-oxur-ast-phase-9-connect-existing-ast-definitions.md)
 - [0030 - Oxur REPL Implementation Specification](05-active/0030-oxur-repl-implementation-specification.md)
 - [0018 - Oxur Remote REPL Protocol Design](05-active/0018-oxur-remote-repl-protocol-design.md)
 - [0013 - Oxur Compilation Chain Architecture](05-active/0013-oxur-compilation-chain-architecture.md)
@@ -71,6 +71,8 @@ This index is automatically generated. Do not edit manually.
 
 ### Final
 
+- [0037 - oxur-pretty Implementation Plan](06-final/0037-oxur-pretty-implementation-plan.md)
+- [0036 - oxur-ast Phase 8.5: Macros & Attributes Completeness](06-final/0036-oxur-ast-phase-8.md)
 - [0029 - evcxr Compiler Integration Audit Report](06-final/0029-evcxr-compiler-integration-audit-report.md)
 - [0028 - evcxr_runtime Audit Report](06-final/0028-evcxr-runtime-audit-report.md)
 - [0027 - evcxr_repl Audit Report](06-final/0027-evcxr-repl-audit-report.md)

@@ -5,8 +5,8 @@ author: "Duncan McGreggor"
 component: All
 tags: [tooling]
 created: 2026-01-03
-updated: 2026-01-03
-state: Active
+updated: 2026-01-04
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0

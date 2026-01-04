@@ -3,8 +3,8 @@ number: 31
 title: "oxur-ast Phase 9: Connect Existing AST Definitions"
 author: "Duncan McGreggor"
 created: 2026-01-03
-updated: 2026-01-03
-state: Under Review
+updated: 2026-01-04
+state: Active
 supersedes: null
 superseded-by: null
 version: 1.0
