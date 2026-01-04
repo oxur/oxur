@@ -56,7 +56,6 @@ pub enum ItemKind {
 
     /// Declarative macro definition: `macro_rules! name { ... }` (Phase 8.5)
     MacroDef(Box<MacroDef>),
-
     // Future: ExternCrate, ForeignMod, etc.
 }
 

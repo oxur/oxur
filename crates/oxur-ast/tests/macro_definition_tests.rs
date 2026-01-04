@@ -53,7 +53,10 @@ fn test_vec_macro_definition() {
     let rust = rust_gen.generate_crate(&ast).unwrap();
 
     assert!(rust.contains("macro_rules! vec"), "Should contain macro_rules! vec");
-    assert!(rust.contains("$") && rust.contains("x") && rust.contains("expr"), "Should contain macro pattern variables");
+    assert!(
+        rust.contains("$") && rust.contains("x") && rust.contains("expr"),
+        "Should contain macro pattern variables"
+    );
 }
 
 #[test]
@@ -73,7 +76,10 @@ fn test_macro_with_multiple_patterns() {
     let rust = rust_gen.generate_crate(&ast).unwrap();
 
     assert!(rust.contains("macro_rules! max"), "Should contain macro_rules! max");
-    assert!(rust.contains("$") && rust.contains("x") && rust.contains("y") && rust.contains("expr"), "Should contain macro pattern variables");
+    assert!(
+        rust.contains("$") && rust.contains("x") && rust.contains("y") && rust.contains("expr"),
+        "Should contain macro pattern variables"
+    );
 }
 
 #[test]
@@ -94,7 +100,10 @@ fn test_macro_with_repetition() {
     let rust = rust_gen.generate_crate(&ast).unwrap();
 
     assert!(rust.contains("macro_rules! create_function"), "Should contain macro definition");
-    assert!(rust.contains("$") && rust.contains("func_name") && rust.contains("ident"), "Should contain macro pattern variable");
+    assert!(
+        rust.contains("$") && rust.contains("func_name") && rust.contains("ident"),
+        "Should contain macro pattern variable"
+    );
 }
 
 #[test]
@@ -177,7 +186,10 @@ fn test_macro_with_doc_comment() {
     let sexp = sexp_gen.generate_crate(&ast).unwrap();
     let sexp_str = format!("{:?}", sexp);
 
-    assert!(sexp_str.contains("DocComment") || sexp_str.contains("doc"), "Should contain doc comment");
+    assert!(
+        sexp_str.contains("DocComment") || sexp_str.contains("doc"),
+        "Should contain doc comment"
+    );
 
     // Verify in generated Rust
     let mut rust_gen = RustCodegen::new();
@@ -209,7 +221,10 @@ fn test_complex_macro_pattern() {
     let rust = rust_gen.generate_crate(&ast).unwrap();
 
     assert!(rust.contains("macro_rules! hash_map"), "Should contain macro definition");
-    assert!(rust.contains("$") && rust.contains("key") && rust.contains("expr"), "Should contain key pattern");
+    assert!(
+        rust.contains("$") && rust.contains("key") && rust.contains("expr"),
+        "Should contain key pattern"
+    );
     assert!(rust.contains("val") && rust.contains("expr"), "Should contain value pattern");
 }
 

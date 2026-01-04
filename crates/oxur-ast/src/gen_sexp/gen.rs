@@ -24,10 +24,8 @@ impl Generator {
     }
 
     pub(crate) fn generate_attr_vec(&self, attrs: &AttrVec) -> Result<SExp> {
-        let attr_sexps: Result<Vec<SExp>> = attrs
-            .iter()
-            .map(|attr| self.generate_attribute(attr))
-            .collect();
+        let attr_sexps: Result<Vec<SExp>> =
+            attrs.iter().map(|attr| self.generate_attribute(attr)).collect();
         Ok(list(attr_sexps?))
     }
 
