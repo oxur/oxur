@@ -1,4 +1,4 @@
-//! Check command implementation for oxur-fmt.
+//! Check command implementation for oxurfmt.
 
 use anyhow::{Context, Result};
 use oxur_cli::common::output;

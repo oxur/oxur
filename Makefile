@@ -26,11 +26,11 @@ RUST_VERSION := $(shell rustc --version 2>/dev/null || echo "unknown")
 help:
 	@echo ""
 	@echo "$(CYAN)╔══════════════════════════════════════════════════════════╗$(RESET)"
-	@echo "$(CYAN)║$(RESET)  $(BLUE)$(PROJECT_NAME) - Rust Build System$(RESET)                              $(CYAN)║$(RESET)"
+	@echo "$(CYAN)║$(RESET) $(BLUE)$(PROJECT_NAME) Build System$(RESET)                                        $(CYAN)║$(RESET)"
 	@echo "$(CYAN)╚══════════════════════════════════════════════════════════╝$(RESET)"
 	@echo ""
 	@echo "$(GREEN)Building:$(RESET)"
-	@echo "  $(YELLOW)make build$(RESET)            - Build all binaries (aster, oxd, oxur-fmt)"
+	@echo "  $(YELLOW)make build$(RESET)            - Build all binaries (aster, oxd, oxurfmt)"
 	@echo "  $(YELLOW)make build-release$(RESET)    - Build optimized release binaries"
 	@echo ""
 	@echo "$(GREEN)Testing & Quality:$(RESET)"
@@ -46,6 +46,8 @@ help:
 	@echo "  $(YELLOW)make clean-all$(RESET)        - Full clean (cargo clean)"
 	@echo ""
 	@echo "$(GREEN)Utilities:$(RESET)"
+	@echo "  $(YELLOW)make push$(RESET)             - Pushes to Codeberg and Github"
+	@echo "  $(YELLOW)make publish$(RESET)          - WIP: Publishes all crates to crates.io"
 	@echo "  $(YELLOW)make tracked-files$(RESET)    - Save list of tracked files"
 	@echo ""
 	@echo "$(GREEN)Information:$(RESET)"
@@ -86,7 +88,7 @@ info:
 	@echo "$(GREEN)Binaries:$(RESET)"
 	@echo "  aster:          $$(test -f $(BIN_DIR)/aster && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
 	@echo "  oxd:            $$(test -f $(BIN_DIR)/oxd && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
-	@echo "  oxur-fmt:       $$(test -f $(BIN_DIR)/oxur-fmt && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
+	@echo "  oxurfmt:        $$(test -f $(BIN_DIR)/oxurfmt && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
 	@echo ""
 
 # Check tools target
@@ -116,7 +118,7 @@ build: clean $(BIN_DIR)
 	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
 	@cp $(TARGET)/aster $(BIN_DIR)/aster
 	@cp $(TARGET)/oxd $(BIN_DIR)/oxd
-	@cp $(TARGET)/oxur-fmt $(BIN_DIR)/oxur-fmt
+	@cp $(TARGET)/oxurfmt $(BIN_DIR)/oxurfmt
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 	@echo "$(CYAN)→ Binaries available in $(BIN_DIR)/$(RESET)"
 
@@ -130,12 +132,12 @@ build-release: clean $(BIN_DIR)
 	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
 	@cp $(TARGET)/aster $(BIN_DIR)/aster
 	@cp $(TARGET)/oxd $(BIN_DIR)/oxd
-	@cp $(TARGET)/oxur-fmt $(BIN_DIR)/oxur-fmt
+	@cp $(TARGET)/oxurfmt $(BIN_DIR)/oxurfmt
 	@echo "$(GREEN)✓ Release build complete$(RESET)"
 	@echo "$(CYAN)→ Optimized binaries in $(BIN_DIR)/$(RESET)"
 	@echo "$(CYAN)• aster size: $$(du -h $(BIN_DIR)/aster | cut -f1)$(RESET)"
 	@echo "$(CYAN)• oxd size: $$(du -h $(BIN_DIR)/oxd | cut -f1)$(RESET)"
-	@echo "$(CYAN)• oxur-fmt size: $$(du -h $(BIN_DIR)/oxur-fmt | cut -f1)$(RESET)"
+	@echo "$(CYAN)• oxurfmt size: $$(du -h $(BIN_DIR)/oxurfmt | cut -f1)$(RESET)"
 
 # Cleaning targets
 .PHONY: clean
@@ -215,9 +217,9 @@ tracked-files:
 
 push:
 	@echo "$(BLUE)Pushing changes ...$(RESET)"
-	@echo "$(CYAN)• Codeberg ...$(RESET)"
+	@echo "$(CYAN)• Codeberg:$(RESET)"
 	@git push codeberg && git push codeberg --tags
 	@echo "$(GREEN)✓ Pushed$(RESET)"
-	@echo "$(CYAN)• Github ...$(RESET)"
+	@echo "$(CYAN)• Github:$(RESET)"
 	@git push origin && git push origin --tags
 	@echo "$(GREEN)✓ Pushed$(RESET)"

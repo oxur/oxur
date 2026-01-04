@@ -1,4 +1,4 @@
-//! oxur-fmt - Format S-expression files
+//! oxurfmt - Format S-expression files
 //!
 //! A command-line tool for formatting S-expression files, following rustfmt conventions.
 

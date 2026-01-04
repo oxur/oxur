@@ -1,4 +1,4 @@
-//! Format command implementation for oxur-fmt.
+//! Format command implementation for oxurfmt.
 
 use anyhow::{Context, Result};
 use oxur_cli::common::{io, output};

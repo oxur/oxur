@@ -1,17 +1,17 @@
-//! CLI argument parsing for oxur-fmt.
+//! CLI argument parsing for oxurfmt.
 
 use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 
 /// Format S-expression files
 ///
-/// oxur-fmt formats S-expression files to make them more readable.
+/// oxurfmt formats S-expression files to make them more readable.
 /// By default it reformats files in-place.
 #[derive(Parser, Debug)]
-#[command(name = "oxur-fmt")]
+#[command(name = "oxurfmt")]
 #[command(version)]
 #[command(about = "Format S-expression files", long_about = None)]
-#[command(after_help = "Use 'oxur-fmt --help' for more information.")]
+#[command(after_help = "Use 'oxurfmt --help' for more information.")]
 pub struct Cli {
     /// Input files to format (use '-' for stdin)
     #[arg(value_name = "FILE")]

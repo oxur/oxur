@@ -1,4 +1,4 @@
-//! Command implementations for the oxur-fmt CLI tool.
+//! Command implementations for the oxurfmt CLI tool.
 
 pub mod check;
 pub mod format;

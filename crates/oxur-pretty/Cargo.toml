@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Pretty-printer for S-expression formatted data"
 
 [[bin]]
-name = "oxur-fmt"
+name = "oxurfmt"
 path = "src/main.rs"
 
 [dependencies]

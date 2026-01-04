@@ -58,14 +58,14 @@ The build includes several command-line tools:
 
 - **`aster`** - AST manipulation (Rust ↔ S-expression conversions)
 - **`oxd`** - Design documentation manager
-- **`oxur-fmt`** - S-expression formatter
+- **`oxurfmt`** - S-expression formatter
 
 Which you can also build individually:
 
 ```bash
 cargo build --release --bin aster
 cargo build --release --bin oxd
-cargo build --release --bin oxur-fmt
+cargo build --release --bin oxurfmt
 ```
 
 ## Oxur Syntax
@@ -139,13 +139,13 @@ A full round-trip example that you can run yourself is provided in [the crate RE
 
 ## S-Expression Formatting
 
-The `oxur-pretty` crate provides the `oxur-fmt` tool for formatting S-expression files with human-readable output. It follows rustfmt conventions for a familiar workflow:
+The `oxur-pretty` crate provides the `oxurfmt` tool for formatting S-expression files with human-readable output. It follows rustfmt conventions for a familiar workflow:
 
 ```bash
-$ ./bin/oxur-fmt --help
+$ ./bin/oxurfmt --help
 Format S-expression files
 
-Usage: oxur-fmt [OPTIONS] <FILE>...
+Usage: oxurfmt [OPTIONS] <FILE>...
 
 Arguments:
   <FILE>...  Input files to format (use '-' for stdin)
@@ -166,13 +166,13 @@ Format files in-place, check formatting for CI/CD, or pipe through stdin/stdout:
 
 ```bash
 # Format file in-place
-./bin/oxur-fmt my-ast.sexp
+./bin/oxurfmt my-ast.sexp
 
 # Check if formatted (exits 1 if not)
-./bin/oxur-fmt --check src/*.sexp
+./bin/oxurfmt --check src/*.sexp
 
 # Stdin to stdout
-echo "(Span :lo 0 :hi 10)" | ./bin/oxur-fmt
+echo "(Span :lo 0 :hi 10)" | ./bin/oxurfmt
 ```
 
 See [the crate README](./crates/oxur-pretty/README.md) for detailed usage and configuration options.

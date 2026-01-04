@@ -11,14 +11,14 @@ Key features:
 - **Zero dependencies on oxur-ast** - Avoids cyclic dependencies
 - **Idempotent formatting** - `format(format(x)) === format(x)`
 - **Multiple strategies** - Automatic selection between inline, compact, and multiline formats
-- **CLI tool** - `oxur-fmt` command-line tool matching rustfmt interface
+- **CLI tool** - `oxurfmt` command-line tool matching rustfmt interface
 - **Check mode** - CI/CD integration with `--check` flag
 - **Configurable** - Control line width, indentation, and formatting rules
 - **Atomic writes** - Safe in-place file modification with permission preservation
 
-## CLI Tool: `oxur-fmt`
+## CLI Tool: `oxurfmt`
 
-The `oxur-fmt` command-line tool formats S-expression files following rustfmt conventions.
+The `oxurfmt` command-line tool formats S-expression files following rustfmt conventions.
 
 ### Installation
 
@@ -30,26 +30,26 @@ make build
 cargo build --release -p oxur-pretty
 ```
 
-The binary will be at `./bin/oxur-fmt` (via Makefile) or `target/release/oxur-fmt`.
+The binary will be at `./bin/oxurfmt` (via Makefile) or `target/release/oxurfmt`.
 
 ### Quick Start
 
 ```bash
 # Format file in-place
-oxur-fmt file.sexp
+oxurfmt file.sexp
 
 # Check if formatted (CI/CD)
-oxur-fmt --check file.sexp
+oxurfmt --check file.sexp
 
 # Format to stdout
-oxur-fmt --emit stdout file.sexp
+oxurfmt --emit stdout file.sexp
 
 # Stdin to stdout
-cat file.sexp | oxur-fmt
-echo "(Span :lo 0 :hi 10)" | oxur-fmt
+cat file.sexp | oxurfmt
+echo "(Span :lo 0 :hi 10)" | oxurfmt
 
 # With custom config
-oxur-fmt --config max_width=120,tab_spaces=4 file.sexp
+oxurfmt --config max_width=120,tab_spaces=4 file.sexp
 ```
 
 ### Commands and Flags
@@ -57,7 +57,7 @@ oxur-fmt --config max_width=120,tab_spaces=4 file.sexp
 **Basic Usage:**
 
 ```bash
-oxur-fmt [OPTIONS] <FILE>...
+oxurfmt [OPTIONS] <FILE>...
 ```
 
 **Options:**
@@ -87,53 +87,53 @@ oxur-fmt [OPTIONS] <FILE>...
 
 ```bash
 # Single file
-oxur-fmt my-ast.sexp
+oxurfmtmy-ast.sexp
 
 # Multiple files
-oxur-fmt file1.sexp file2.sexp file3.sexp
+oxurfmtfile1.sexp file2.sexp file3.sexp
 
 # With glob expansion
-oxur-fmt **/*.sexp
+oxurfmt**/*.sexp
 ```
 
 #### Check Mode (CI/CD)
 
 ```bash
 # Check if files are formatted
-oxur-fmt --check src/*.sexp
+oxurfmt--check src/*.sexp
 
 # Exit code 0 if formatted, 1 if not, 2 on error
-if oxur-fmt --check file.sexp; then
+if oxurfmt--check file.sexp; then
     echo "Formatted correctly"
 else
     echo "Needs formatting"
 fi
 
 # List files needing formatting
-oxur-fmt --check -l **/*.sexp
+oxurfmt--check -l **/*.sexp
 ```
 
 #### Stdin/Stdout Usage
 
 ```bash
 # Read from stdin, write to stdout
-cat input.sexp | oxur-fmt > output.sexp
+cat input.sexp | oxurfmt> output.sexp
 
 # Use '-' explicitly
-oxur-fmt - < input.sexp > output.sexp
+oxurfmt- < input.sexp > output.sexp
 
 # Format and pipe
-echo "(Item :id 0 :name value)" | oxur-fmt | less
+echo "(Item :id 0 :name value)" | oxurfmt| less
 
 # Format to stdout even with file input
-oxur-fmt --emit stdout my-ast.sexp > formatted.sexp
+oxurfmt--emit stdout my-ast.sexp > formatted.sexp
 ```
 
 #### Backup Files
 
 ```bash
 # Create backup before formatting
-oxur-fmt --backup important.sexp
+oxurfmt--backup important.sexp
 
 # Creates important.sexp.bk before modifying important.sexp
 ```
@@ -142,28 +142,28 @@ oxur-fmt --backup important.sexp
 
 ```bash
 # Single option
-oxur-fmt --config max_width=120 file.sexp
+oxurfmt--config max_width=120 file.sexp
 
 # Multiple options
-oxur-fmt --config max_width=80,tab_spaces=4,align_keywords=false file.sexp
+oxurfmt--config max_width=80,tab_spaces=4,align_keywords=false file.sexp
 
 # Disable keyword alignment
-oxur-fmt --config align_keywords=false file.sexp
+oxurfmt--config align_keywords=false file.sexp
 ```
 
 #### Verbose Output
 
 ```bash
 # Show what's being formatted
-oxur-fmt -v file1.sexp file2.sexp
+oxurfmt-v file1.sexp file2.sexp
 
 # Quiet mode (errors only)
-oxur-fmt -q **/*.sexp
+oxurfmt-q **/*.sexp
 ```
 
 ### Formatting Strategies
 
-`oxur-fmt` automatically selects the best formatting strategy based on content:
+`oxurfmt` automatically selects the best formatting strategy based on content:
 
 #### Inline Format
 
@@ -408,16 +408,16 @@ cargo bench -p oxur-pretty
 
 ```bash
 # Format generated AST files
-./bin/aster to-ast examples/hello.rs | oxur-fmt
+./bin/aster to-ast examples/hello.rs | oxurfmt
 
 # Format test fixtures
-oxur-fmt test-data/**/*.sexp
+oxurfmt test-data/**/*.sexp
 
 # Check formatting in CI
-oxur-fmt --check src/**/*.sexp || exit 1
+oxurfmt --check src/**/*.sexp || exit 1
 
 # Format with project-specific config
-oxur-fmt --config max_width=120,tab_spaces=4 src/*.sexp
+oxurfmt --config max_width=120,tab_spaces=4 src/*.sexp
 ```
 
 ## Comparison with Other Tools
@@ -441,7 +441,7 @@ Check that all parentheses are balanced:
 
 ```bash
 # Use verbose mode to see where parsing fails
-oxur-fmt -v file.sexp
+oxurfmt-v file.sexp
 ```
 
 ### "Invalid config: max_width must be greater than 0"
@@ -450,10 +450,10 @@ Ensure config values are valid:
 
 ```bash
 # Wrong
-oxur-fmt --config max_width=0 file.sexp
+oxurfmt--config max_width=0 file.sexp
 
 # Correct
-oxur-fmt --config max_width=80 file.sexp
+oxurfmt--config max_width=80 file.sexp
 ```
 
 ### File Not Modified
@@ -462,10 +462,10 @@ If using `--emit stdout`, output goes to stdout, not file:
 
 ```bash
 # This DOES NOT modify file.sexp
-oxur-fmt --emit stdout file.sexp
+oxurfmt--emit stdout file.sexp
 
 # This modifies file.sexp in-place
-oxur-fmt file.sexp
+oxurfmtfile.sexp
 ```
 
 ### Permission Denied
@@ -474,7 +474,7 @@ Ensure write permissions:
 
 ```bash
 chmod u+w file.sexp
-oxur-fmt file.sexp
+oxurfmtfile.sexp
 ```
 
 ## License
