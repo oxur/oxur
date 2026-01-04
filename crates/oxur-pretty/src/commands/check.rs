@@ -52,10 +52,7 @@ pub fn execute(cli: &Cli, config: FormatConfig) -> Result<bool> {
 
     if cli.is_verbose() {
         if all_formatted {
-            output::success(&format!(
-                "All {} file(s) are formatted correctly",
-                cli.files.len()
-            ));
+            output::success(&format!("All {} file(s) are formatted correctly", cli.files.len()));
         } else {
             output::error(&format!(
                 "{} of {} file(s) need formatting",

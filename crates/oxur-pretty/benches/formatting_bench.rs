@@ -4,15 +4,11 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use oxur_pretty::format_sexp;
 
 fn bench_simple_formatting(c: &mut Criterion) {
-    c.bench_function("format simple sexp", |b| {
-        b.iter(|| format_sexp("(a b c)"))
-    });
+    c.bench_function("format simple sexp", |b| b.iter(|| format_sexp("(a b c)")));
 }
 
 fn bench_compact_struct(c: &mut Criterion) {
-    c.bench_function("format compact struct", |b| {
-        b.iter(|| format_sexp("(Span :lo 0 :hi 10)"))
-    });
+    c.bench_function("format compact struct", |b| b.iter(|| format_sexp("(Span :lo 0 :hi 10)")));
 }
 
 fn bench_nested_formatting(c: &mut Criterion) {

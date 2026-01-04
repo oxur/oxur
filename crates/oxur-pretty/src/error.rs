@@ -68,9 +68,7 @@ impl FormatterError {
 
     /// Create an invalid configuration error.
     pub fn invalid_config(message: impl Into<String>) -> Self {
-        Self::InvalidConfig {
-            message: message.into(),
-        }
+        Self::InvalidConfig { message: message.into() }
     }
 }
 
@@ -93,10 +91,7 @@ mod tests {
     #[test]
     fn test_unmatched_close_error() {
         let err = FormatterError::unmatched_close(15);
-        assert_eq!(
-            err.to_string(),
-            "Unmatched closing parenthesis at position 15"
-        );
+        assert_eq!(err.to_string(), "Unmatched closing parenthesis at position 15");
     }
 
     #[test]
@@ -114,9 +109,6 @@ mod tests {
     #[test]
     fn test_invalid_config_error() {
         let err = FormatterError::invalid_config("max_width must be > 0");
-        assert_eq!(
-            err.to_string(),
-            "Invalid configuration: max_width must be > 0"
-        );
+        assert_eq!(err.to_string(), "Invalid configuration: max_width must be > 0");
     }
 }

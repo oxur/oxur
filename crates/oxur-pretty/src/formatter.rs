@@ -264,14 +264,8 @@ mod tests {
         let formatter = Formatter::new(FormatConfig::default());
         let list = SExpr::List(vec![
             SExpr::Atom("outer".to_string()),
-            SExpr::List(vec![
-                SExpr::Atom("inner1".to_string()),
-                SExpr::Atom("a".to_string()),
-            ]),
-            SExpr::List(vec![
-                SExpr::Atom("inner2".to_string()),
-                SExpr::Atom("b".to_string()),
-            ]),
+            SExpr::List(vec![SExpr::Atom("inner1".to_string()), SExpr::Atom("a".to_string())]),
+            SExpr::List(vec![SExpr::Atom("inner2".to_string()), SExpr::Atom("b".to_string())]),
         ]);
 
         let result = formatter.format(&list);

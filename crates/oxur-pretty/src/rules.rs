@@ -11,9 +11,7 @@ pub struct FormattingRules {
 impl FormattingRules {
     /// Create a new rules engine with the given configuration.
     pub fn new(config: &FormatConfig) -> Self {
-        Self {
-            config: config.clone(),
-        }
+        Self { config: config.clone() }
     }
 
     /// Determine if an expression should be formatted inline.
@@ -192,11 +190,8 @@ mod tests {
     #[test]
     fn test_all_atoms_false() {
         let rules = default_rules();
-        let items = vec![
-            SExpr::Atom("a".to_string()),
-            SExpr::List(vec![]),
-            SExpr::Atom("c".to_string()),
-        ];
+        let items =
+            vec![SExpr::Atom("a".to_string()), SExpr::List(vec![]), SExpr::Atom("c".to_string())];
         assert!(!rules.all_atoms(&items));
     }
 

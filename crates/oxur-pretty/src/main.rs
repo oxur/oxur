@@ -15,11 +15,7 @@ fn main() -> Result<()> {
     let config = build_config(&cli)?;
 
     // Execute the appropriate command
-    let result = if cli.check {
-        execute_check(&cli, config)
-    } else {
-        execute_format(&cli, config)
-    };
+    let result = if cli.check { execute_check(&cli, config) } else { execute_format(&cli, config) };
 
     // Handle errors
     if let Err(e) = result {
@@ -101,9 +97,9 @@ fn parse_config_string(config_str: &str, mut config: FormatConfig) -> Result<For
                 config = config.with_compact_simple_values(compact);
             }
             "max_inline_items" => {
-                let max: usize = value.parse().map_err(|_| {
-                    anyhow::anyhow!("Invalid max_inline_items value: {}", value)
-                })?;
+                let max: usize = value
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("Invalid max_inline_items value: {}", value))?;
                 config = config.with_max_inline_items(max);
             }
             _ => {

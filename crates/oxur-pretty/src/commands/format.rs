@@ -102,11 +102,7 @@ fn create_backup(file: &Path) -> Result<()> {
     );
 
     fs::copy(file, &backup_path).with_context(|| {
-        format!(
-            "Failed to create backup '{}' -> '{}'",
-            file.display(),
-            backup_path.display()
-        )
+        format!("Failed to create backup '{}' -> '{}'", file.display(), backup_path.display())
     })?;
 
     Ok(())
@@ -137,21 +133,14 @@ fn atomic_write_file(file: &Path, content: &str) -> Result<()> {
         if let Ok(metadata) = fs::metadata(file) {
             let permissions = metadata.permissions();
             fs::set_permissions(&temp_path, permissions).with_context(|| {
-                format!(
-                    "Failed to set permissions on temp file '{}'",
-                    temp_path.display()
-                )
+                format!("Failed to set permissions on temp file '{}'", temp_path.display())
             })?;
         }
     }
 
     // Atomic rename
     fs::rename(&temp_path, file).with_context(|| {
-        format!(
-            "Failed to rename '{}' to '{}'",
-            temp_path.display(),
-            file.display()
-        )
+        format!("Failed to rename '{}' to '{}'", temp_path.display(), file.display())
     })?;
 
     Ok(())

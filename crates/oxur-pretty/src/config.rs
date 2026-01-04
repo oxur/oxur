@@ -24,11 +24,11 @@ pub struct FormatConfig {
 impl Default for FormatConfig {
     fn default() -> Self {
         Self {
-            max_width: 100,        // Match rustfmt default
-            tab_spaces: 2,         // Common Lisp convention
-            align_keywords: true,  // Readable keyword-value pairs
+            max_width: 100,              // Match rustfmt default
+            tab_spaces: 2,               // Common Lisp convention
+            align_keywords: true,        // Readable keyword-value pairs
             compact_simple_values: true, // (Span :lo 0 :hi 0) on one line
-            max_inline_items: 3,   // Keep small lists inline
+            max_inline_items: 3,         // Keep small lists inline
         }
     }
 }
@@ -51,9 +51,7 @@ impl FormatConfig {
     /// Set the number of spaces per indentation level.
     pub fn with_tab_spaces(mut self, spaces: usize) -> Result<Self> {
         if spaces == 0 {
-            return Err(FormatterError::invalid_config(
-                "tab_spaces must be greater than 0",
-            ));
+            return Err(FormatterError::invalid_config("tab_spaces must be greater than 0"));
         }
         self.tab_spaces = spaces;
         Ok(self)
@@ -83,9 +81,7 @@ impl FormatConfig {
             return Err(FormatterError::invalid_config("max_width must be greater than 0"));
         }
         if self.tab_spaces == 0 {
-            return Err(FormatterError::invalid_config(
-                "tab_spaces must be greater than 0",
-            ));
+            return Err(FormatterError::invalid_config("tab_spaces must be greater than 0"));
         }
         Ok(())
     }
@@ -120,10 +116,7 @@ mod tests {
     #[test]
     fn test_with_max_width_zero_error() {
         let result = FormatConfig::new().with_max_width(0);
-        assert!(matches!(
-            result,
-            Err(FormatterError::InvalidConfig { .. })
-        ));
+        assert!(matches!(result, Err(FormatterError::InvalidConfig { .. })));
     }
 
     #[test]
@@ -135,10 +128,7 @@ mod tests {
     #[test]
     fn test_with_tab_spaces_zero_error() {
         let result = FormatConfig::new().with_tab_spaces(0);
-        assert!(matches!(
-            result,
-            Err(FormatterError::InvalidConfig { .. })
-        ));
+        assert!(matches!(result, Err(FormatterError::InvalidConfig { .. })));
     }
 
     #[test]
@@ -169,20 +159,14 @@ mod tests {
     fn test_validate_zero_max_width() {
         let mut config = FormatConfig::default();
         config.max_width = 0;
-        assert!(matches!(
-            config.validate(),
-            Err(FormatterError::InvalidConfig { .. })
-        ));
+        assert!(matches!(config.validate(), Err(FormatterError::InvalidConfig { .. })));
     }
 
     #[test]
     fn test_validate_zero_tab_spaces() {
         let mut config = FormatConfig::default();
         config.tab_spaces = 0;
-        assert!(matches!(
-            config.validate(),
-            Err(FormatterError::InvalidConfig { .. })
-        ));
+        assert!(matches!(config.validate(), Err(FormatterError::InvalidConfig { .. })));
     }
 
     #[test]

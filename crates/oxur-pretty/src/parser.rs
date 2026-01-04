@@ -55,10 +55,7 @@ struct Parser {
 impl Parser {
     /// Create a new parser for the given input.
     fn new(input: &str) -> Self {
-        Self {
-            input: input.chars().collect(),
-            pos: 0,
-        }
+        Self { input: input.chars().collect(), pos: 0 }
     }
 
     /// Parse a single S-expression.
@@ -306,10 +303,7 @@ mod tests {
             result,
             SExpr::List(vec![
                 SExpr::Atom("a".to_string()),
-                SExpr::List(vec![
-                    SExpr::Atom("b".to_string()),
-                    SExpr::Atom("c".to_string()),
-                ]),
+                SExpr::List(vec![SExpr::Atom("b".to_string()), SExpr::Atom("c".to_string()),]),
                 SExpr::Atom("d".to_string()),
             ])
         );
@@ -357,10 +351,7 @@ mod tests {
         let result = parse("; this is a comment\n(a b)").unwrap();
         assert_eq!(
             result,
-            SExpr::List(vec![
-                SExpr::Atom("a".to_string()),
-                SExpr::Atom("b".to_string()),
-            ])
+            SExpr::List(vec![SExpr::Atom("a".to_string()), SExpr::Atom("b".to_string()),])
         );
     }
 
@@ -369,10 +360,7 @@ mod tests {
         let result = parse("(a ; comment\n b)").unwrap();
         assert_eq!(
             result,
-            SExpr::List(vec![
-                SExpr::Atom("a".to_string()),
-                SExpr::Atom("b".to_string()),
-            ])
+            SExpr::List(vec![SExpr::Atom("a".to_string()), SExpr::Atom("b".to_string()),])
         );
     }
 
@@ -406,28 +394,19 @@ mod tests {
     #[test]
     fn test_parse_unterminated_string_error() {
         let result = parse(r#""hello"#);
-        assert!(matches!(
-            result,
-            Err(FormatterError::UnterminatedString { pos: 0 })
-        ));
+        assert!(matches!(result, Err(FormatterError::UnterminatedString { pos: 0 })));
     }
 
     #[test]
     fn test_parse_invalid_escape_error() {
         let result = parse(r#""hello\x""#);
-        assert!(matches!(
-            result,
-            Err(FormatterError::InvalidEscape { ch: 'x', pos: 7 })
-        ));
+        assert!(matches!(result, Err(FormatterError::InvalidEscape { ch: 'x', pos: 7 })));
     }
 
     #[test]
     fn test_parse_unmatched_open_error() {
         let result = parse("(a b c");
-        assert!(matches!(
-            result,
-            Err(FormatterError::UnmatchedOpen { pos: 0 })
-        ));
+        assert!(matches!(result, Err(FormatterError::UnmatchedOpen { pos: 0 })));
     }
 
     #[test]
