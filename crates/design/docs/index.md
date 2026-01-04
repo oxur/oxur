@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0037 | oxur-pretty Implementation Plan | Active | 2026-01-03 |
 | 0036 | oxur-ast Phase 8.5: Macros & Attributes Completeness | Active | 2026-01-03 |
 | 0035 | oxur-ast Phase 13: Async/Await and Modern Rust Features | Under Review | 2026-01-03 |
 | 0034 | oxur-ast Phase 12: Advanced Type System | Under Review | 2026-01-03 |
@@ -60,6 +61,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Active
 
+- [0037 - oxur-pretty Implementation Plan](05-active/0037-oxur-pretty-implementation-plan.md)
 - [0036 - oxur-ast Phase 8.5: Macros & Attributes Completeness](05-active/0036-oxur-ast-phase-8.md)
 - [0030 - Oxur REPL Implementation Specification](05-active/0030-oxur-repl-implementation-specification.md)
 - [0018 - Oxur Remote REPL Protocol Design](05-active/0018-oxur-remote-repl-protocol-design.md)

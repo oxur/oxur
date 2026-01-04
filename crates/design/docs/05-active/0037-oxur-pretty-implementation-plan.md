@@ -2,6 +2,8 @@
 number: 37
 title: "oxur-pretty Implementation Plan"
 author: "Duncan McGreggor"
+component: All
+tags: [tooling]
 created: 2026-01-03
 updated: 2026-01-03
 state: Active
@@ -138,19 +140,19 @@ pub enum TokenType {
 pub struct FormatConfig {
     /// Maximum line width before breaking
     pub max_width: usize,
-    
+
     /// Number of spaces per indentation level
     pub indent_size: usize,
-    
+
     /// Whether to align keywords vertically
     pub align_keywords: bool,
-    
+
     /// Whether to keep simple values on one line
     pub compact_simple_values: bool,
-    
+
     /// Maximum number of items to keep on one line
     pub max_inline_items: usize,
-    
+
     /// Whether to add extra spacing around nested structures
     pub spacious_nesting: bool,
 }
@@ -194,30 +196,30 @@ impl FormattingRules {
             }
         }
     }
-    
+
     /// Determine if this is a keyword-value pair structure
     pub fn is_keyword_value_pair(&self, items: &[SExpr]) -> bool {
-        items.len() >= 2 && 
+        items.len() >= 2 &&
         matches!(&items[0], SExpr::Atom(s) if s.starts_with(':'))
     }
-    
+
     /// Check if this represents a simple struct-like form
     /// e.g., (Span :lo 0 :hi 0)
     pub fn is_simple_struct(&self, items: &[SExpr]) -> bool {
         if items.is_empty() {
             return false;
         }
-        
+
         // First item is a symbol (constructor)
         let has_constructor = matches!(&items[0], SExpr::Atom(s) if !s.starts_with(':'));
-        
+
         // Rest are keyword-value pairs with atomic values
         let has_simple_pairs = items[1..].chunks(2).all(|chunk| {
             chunk.len() == 2 &&
             matches!(&chunk[0], SExpr::Atom(s) if s.starts_with(':')) &&
             matches!(&chunk[1], SExpr::Atom(_))
         });
-        
+
         has_constructor && has_simple_pairs
     }
 }
@@ -238,14 +240,14 @@ impl Formatter {
         let rules = FormattingRules::new(&config);
         Self { config, rules }
     }
-    
+
     /// Format an S-expression to a string
     pub fn format(&self, expr: &SExpr) -> String {
         let mut output = String::new();
         self.format_expr(expr, 0, &mut output);
         output
     }
-    
+
     /// Format an S-expression at a given indentation level
     fn format_expr(&self, expr: &SExpr, indent: usize, output: &mut String) {
         match expr {
@@ -260,10 +262,10 @@ impl Formatter {
             }
         }
     }
-    
+
     fn format_list(&self, items: &[SExpr], indent: usize, output: &mut String) {
         output.push('(');
-        
+
         if self.rules.should_inline_list(items) {
             // Format everything on one line
             self.format_inline(items, output);
@@ -274,10 +276,10 @@ impl Formatter {
             // Format with proper indentation and line breaks
             self.format_multiline(items, indent, output);
         }
-        
+
         output.push(')');
     }
-    
+
     fn format_inline(&self, items: &[SExpr], output: &mut String) {
         for (i, item) in items.iter().enumerate() {
             if i > 0 {
@@ -286,11 +288,11 @@ impl Formatter {
             self.format_expr(item, 0, output);
         }
     }
-    
+
     fn format_compact_struct(&self, items: &[SExpr], output: &mut String) {
         // (StructName :key1 val1 :key2 val2)
         self.format_expr(&items[0], 0, output);
-        
+
         for chunk in items[1..].chunks(2) {
             output.push(' ');
             self.format_expr(&chunk[0], 0, output);
@@ -300,15 +302,15 @@ impl Formatter {
             }
         }
     }
-    
+
     fn format_multiline(&self, items: &[SExpr], indent: usize, output: &mut String) {
         let new_indent = indent + self.config.indent_size;
-        
+
         // First item stays on same line as opening paren
         if let Some(first) = items.first() {
             self.format_expr(first, new_indent, output);
         }
-        
+
         // Rest get their own lines
         for item in items.iter().skip(1) {
             output.push('\n');
@@ -338,7 +340,7 @@ pub fn format_sexp(input: &str) -> Result<String, FormattingError> {
 
 /// Format with custom configuration
 pub fn format_sexp_with_config(
-    input: &str, 
+    input: &str,
     config: FormatConfig
 ) -> Result<String, FormattingError> {
     let expr = parse_sexp(input)?;
@@ -394,6 +396,7 @@ Drawing inspiration from clj-commons/pretty and standard EDN formatting:
 ### Formatting Examples
 
 **Before (Current):**
+
 ```clojure
 (Span
   :lo
@@ -403,11 +406,13 @@ Drawing inspiration from clj-commons/pretty and standard EDN formatting:
 ```
 
 **After (Pretty):**
+
 ```clojure
 (Span :lo 0 :hi 0)
 ```
 
 **Before (Current):**
+
 ```clojure
 (Ident
   :name
@@ -421,6 +426,7 @@ Drawing inspiration from clj-commons/pretty and standard EDN formatting:
 ```
 
 **After (Pretty):**
+
 ```clojure
 (Ident
   :name "use"
@@ -428,6 +434,7 @@ Drawing inspiration from clj-commons/pretty and standard EDN formatting:
 ```
 
 **Before (Current):**
+
 ```clojure
 (Item
   :attrs
@@ -457,6 +464,7 @@ Drawing inspiration from clj-commons/pretty and standard EDN formatting:
 ```
 
 **After (Pretty):**
+
 ```clojure
 (Item
   :attrs ()
@@ -486,40 +494,40 @@ pub struct Parser {
 impl Parser {
     pub fn parse(&mut self) -> Result<SExpr, ParseError> {
         self.skip_whitespace();
-        
+
         if self.peek() == Some('(') {
             self.parse_list()
         } else {
             self.parse_atom()
         }
     }
-    
+
     fn parse_list(&mut self) -> Result<SExpr, ParseError> {
         self.expect('(')?;
         let mut items = Vec::new();
-        
+
         loop {
             self.skip_whitespace();
-            
+
             if self.peek() == Some(')') {
                 self.advance();
                 break;
             }
-            
+
             items.push(self.parse()?);
         }
-        
+
         Ok(SExpr::List(items))
     }
-    
+
     fn parse_atom(&mut self) -> Result<SExpr, ParseError> {
         let start = self.pos;
-        
+
         // Handle strings
         if self.peek() == Some('"') {
             return self.parse_string();
         }
-        
+
         // Handle keywords, symbols, numbers, nil, true, false
         while let Some(ch) = self.peek() {
             if ch.is_whitespace() || ch == '(' || ch == ')' {
@@ -527,15 +535,15 @@ impl Parser {
             }
             self.advance();
         }
-        
+
         let text = self.input[start..self.pos].to_string();
         Ok(SExpr::Atom(text))
     }
-    
+
     fn parse_string(&mut self) -> Result<SExpr, ParseError> {
         self.expect('"')?;
         let mut s = String::from("\"");
-        
+
         loop {
             match self.peek() {
                 Some('"') => {
@@ -558,7 +566,7 @@ impl Parser {
                 None => return Err(ParseError::UnterminatedString),
             }
         }
-        
+
         Ok(SExpr::Atom(s))
     }
 }
@@ -576,11 +584,11 @@ impl FormattingRules {
     pub fn all_atoms(&self, items: &[SExpr]) -> bool {
         items.iter().all(|item| matches!(item, SExpr::Atom(_)))
     }
-    
+
     /// Estimate the width if formatted on one line
     pub fn estimate_width(&self, items: &[SExpr]) -> usize {
         let mut width = 2; // For parens
-        
+
         for (i, item) in items.iter().enumerate() {
             if i > 0 {
                 width += 1; // Space
@@ -590,17 +598,17 @@ impl FormattingRules {
                 SExpr::List(inner) => self.estimate_width(inner),
             };
         }
-        
+
         width
     }
-    
+
     /// Determine if this is a simple keyword-value structure
     /// Examples: (Span :lo 0 :hi 0), (Inherited), etc.
     pub fn is_compact_struct(&self, items: &[SExpr]) -> bool {
         if items.is_empty() {
             return true; // Empty list ()
         }
-        
+
         // First element is a type name (not a keyword)
         if let Some(SExpr::Atom(first)) = items.first() {
             if first.starts_with(':') {
@@ -609,13 +617,13 @@ impl FormattingRules {
         } else {
             return false;
         }
-        
+
         // Check if fits width constraint
         let width = self.estimate_width(items);
         if width > self.config.max_width {
             return false;
         }
-        
+
         // Check if all values are simple
         items[1..].chunks(2).all(|chunk| {
             chunk.len() == 2 &&
@@ -623,7 +631,7 @@ impl FormattingRules {
             self.is_simple_value(&chunk[1])
         })
     }
-    
+
     fn is_simple_value(&self, expr: &SExpr) -> bool {
         match expr {
             SExpr::Atom(_) => true,
@@ -633,13 +641,13 @@ impl FormattingRules {
             }
         }
     }
-    
+
     /// Check if this is a keyword-value pair pattern
     pub fn has_keyword_structure(&self, items: &[SExpr]) -> bool {
         if items.len() < 3 {
             return false;
         }
-        
+
         // First is type name, rest are key-value pairs
         items[1..].chunks(2).all(|chunk| {
             chunk.len() == 2 &&
@@ -657,12 +665,12 @@ impl FormattingRules {
 impl Formatter {
     fn format_list(&self, items: &[SExpr], indent: usize, output: &mut String) {
         output.push('(');
-        
+
         if items.is_empty() {
             output.push(')');
             return;
         }
-        
+
         // Decision tree for formatting
         if self.rules.is_compact_struct(items) {
             // Format: (Type :key1 val1 :key2 val2)
@@ -677,27 +685,27 @@ impl Formatter {
             // Complex multiline
             self.format_multiline_smart(items, indent, output);
         }
-        
+
         output.push(')');
     }
-    
+
     fn format_keyword_aligned(&self, items: &[SExpr], indent: usize, output: &mut String) {
         let new_indent = indent + self.config.indent_size;
-        
+
         // First item (type name) on same line as opening paren
         self.format_expr(&items[0], new_indent, output);
-        
+
         // Process keyword-value pairs
         for chunk in items[1..].chunks(2) {
             output.push('\n');
             output.push_str(&" ".repeat(new_indent));
-            
+
             // Keyword
             self.format_expr(&chunk[0], new_indent, output);
-            
+
             if chunk.len() > 1 {
                 output.push(' ');
-                
+
                 // Value - may be inline or need its own formatting
                 if self.rules.is_simple_value(&chunk[1]) {
                     self.format_expr(&chunk[1], new_indent, output);
@@ -708,16 +716,16 @@ impl Formatter {
             }
         }
     }
-    
+
     fn format_multiline_smart(&self, items: &[SExpr], indent: usize, output: &mut String) {
         let new_indent = indent + self.config.indent_size;
-        
+
         for (i, item) in items.iter().enumerate() {
             if i > 0 {
                 output.push('\n');
                 output.push_str(&" ".repeat(new_indent));
             }
-            
+
             self.format_expr(item, new_indent, output);
         }
     }
@@ -758,11 +766,11 @@ fn test_nested_ident() {
     0
     :hi
     0))"#;
-    
+
     let expected = r#"(Ident
   :name "use"
   :span (Span :lo 0 :hi 0))"#;
-    
+
     let output = format_sexp(input).unwrap();
     assert_eq!(output, expected);
 }
@@ -771,7 +779,7 @@ fn test_nested_ident() {
 fn test_complex_item() {
     let input = include_str!("fixtures/input/complex_item.sexp");
     let expected = include_str!("fixtures/expected/complex_item.sexp");
-    
+
     let output = format_sexp(input).unwrap();
     assert_eq!(output, expected);
 }
@@ -780,13 +788,24 @@ fn test_complex_item() {
 fn test_full_crate_formatting() {
     let input = include_str!("../../test-data/main_oxur.sexp");
     let output = format_sexp(input).unwrap();
-    
+
     // Verify key structural improvements
     assert!(output.contains("(Span :lo 0 :hi 0)"));
     assert!(output.contains(":attrs ()"));
     assert!(!output.contains(":lo\n  0")); // No broken pairs
 }
 ```
+
+### Step 5: oxpretty CLI tool
+
+You will need to go into plan mode in order to create a development plan that satisfies the following:
+
+- Update the oxur-pretty crate to be a binary crate in addition to being a library create
+- Follow the CLI patterns established by ./crates/oxur-ast/src/main.rs and ./crates/design/src/main.rs: with special attention to:
+  - how they use supporting libraries (including oxur-cli)
+  - how their Cargo.toml files are configured
+  - how they are included in the top-level Makefile that builds them
+- Additionally, you will want to conform VERY closely to Rust formatting tools as far as flags, defaults, and behaviours, with special attention to how intput and outputs are treated, how files are modified in-place, etc.
 
 ## Integration Points
 
@@ -799,14 +818,14 @@ use oxur_pretty::{format_sexp, FormatConfig};
 
 fn to_ast_command(input: &str, output: &str, pretty: bool) -> Result<()> {
     // ... existing code to convert to S-expression ...
-    
+
     let sexp_str = if pretty {
         let config = FormatConfig::default();
         oxur_pretty::format_sexp_with_config(&raw_sexp, config)?
     } else {
         raw_sexp
     };
-    
+
     fs::write(output, sexp_str)?;
     Ok(())
 }
@@ -882,14 +901,17 @@ path = "examples/format_file.rs"
 ## Deliverables
 
 ### Phase 1 (Weeks 1-3)
+
 - [ ] Complete S-expression parser
 - [ ] Basic formatting engine
 - [ ] Rule system for structure detection
+- [ ] A new oxpretty binary that can operate on Oxur .sexp files
 - [ ] Comprehensive test suite
 - [ ] Documentation and examples
 - [ ] Integration with oxur-ast CLI
 
 ### Success Criteria
+
 - Formats the provided `main_oxur.sexp` into readable output
 - All tests pass
 - No dependencies on oxur-ast or oxur-lang
@@ -906,21 +928,21 @@ use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    
+
     if args.len() < 2 {
         eprintln!("Usage: format_file <input.sexp> [output.sexp]");
         std::process::exit(1);
     }
-    
+
     let input = fs::read_to_string(&args[1])?;
     let formatted = format_sexp(&input)?;
-    
+
     if args.len() > 2 {
         fs::write(&args[2], formatted)?;
     } else {
         println!("{}", formatted);
     }
-    
+
     Ok(())
 }
 ```
@@ -935,6 +957,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## References
 
-- Clojure/EDN formatting: https://github.com/clj-commons/pretty
+- Clojure/EDN formatting: <https://github.com/clj-commons/pretty>
 - S-expression standards: Wikipedia S-expression article
 - Rust formatting tools: rustfmt for inspiration on configuration
