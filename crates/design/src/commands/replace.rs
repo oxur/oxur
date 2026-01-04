@@ -283,6 +283,27 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
+    /// RAII guard to ensure current directory is restored after test
+    struct DirGuard {
+        original: std::path::PathBuf,
+    }
+
+    impl DirGuard {
+        fn new() -> Self {
+            Self { original: std::env::current_dir().expect("Failed to get current dir") }
+        }
+
+        fn change_to(&self, path: &std::path::Path) {
+            std::env::set_current_dir(path).expect("Failed to change dir");
+        }
+    }
+
+    impl Drop for DirGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.original);
+        }
+    }
+
     fn setup_git_repo(temp_dir: &std::path::Path) {
         use std::process::Command;
         Command::new("git").args(["init"]).current_dir(temp_dir).output().ok();
@@ -372,32 +393,28 @@ mod tests {
     #[serial]
     fn test_replace_by_number() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
 
         let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap(), None);
         assert!(result.is_ok());
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_replace_by_path() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
 
         let result = execute(&mut state_mgr, "old-doc", new_doc.to_str().unwrap(), None);
         assert!(result.is_ok());
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -425,24 +442,22 @@ mod tests {
     #[serial]
     fn test_replace_without_frontmatter() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", false);
 
         let result = execute(&mut state_mgr, "1", new_doc.to_str().unwrap(), None);
         assert!(result.is_ok());
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_replace_preserves_number_and_created() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let mut state_mgr = create_test_state_manager(&temp);
         let old_doc = state_mgr.state().get(1).unwrap();
@@ -455,16 +470,14 @@ mod tests {
         assert_eq!(updated_doc.metadata.number, 1);
         assert_eq!(updated_doc.metadata.created, old_created);
         assert_eq!(updated_doc.metadata.title, "New Doc");
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_replace_creates_dustbin_overwritten() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
@@ -475,16 +488,14 @@ mod tests {
         assert!(dustbin.exists());
         let files: Vec<_> = fs::read_dir(&dustbin).unwrap().collect();
         assert_eq!(files.len(), 1);
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_replace_new_doc_in_draft() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let mut state_mgr = create_test_state_manager(&temp);
         let new_doc = create_test_doc(&temp, 2, "New Doc", true);
@@ -495,8 +506,6 @@ mod tests {
         assert!(draft_dir.exists());
         let new_file = draft_dir.join("0001-new-doc.md");
         assert!(new_file.exists());
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]

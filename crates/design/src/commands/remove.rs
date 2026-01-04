@@ -148,6 +148,27 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
+    /// RAII guard to ensure current directory is restored after test
+    struct DirGuard {
+        original: std::path::PathBuf,
+    }
+
+    impl DirGuard {
+        fn new() -> Self {
+            Self { original: std::env::current_dir().expect("Failed to get current dir") }
+        }
+
+        fn change_to(&self, path: &std::path::Path) {
+            std::env::set_current_dir(path).expect("Failed to change dir");
+        }
+    }
+
+    impl Drop for DirGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.original);
+        }
+    }
+
     fn setup_git_repo(temp_dir: &std::path::Path) {
         use std::process::Command;
 
@@ -236,8 +257,8 @@ mod tests {
     #[serial]
     fn test_remove_by_number() {
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let result = execute(&mut state_mgr, "1");
         assert!(result.is_ok());
@@ -245,24 +266,20 @@ mod tests {
         // Check that document state is updated
         let doc = state_mgr.state().get(1).unwrap();
         assert_eq!(doc.metadata.state, DocState::Removed);
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_remove_by_path() {
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let result = execute(&mut state_mgr, "test-doc");
         assert!(result.is_ok());
 
         let doc = state_mgr.state().get(1).unwrap();
         assert_eq!(doc.metadata.state, DocState::Removed);
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -270,8 +287,8 @@ mod tests {
     fn test_remove_by_full_path_with_docs_dir_prefix() {
         // Regression test for bug where full path with docs_dir prefix failed to find document
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         // Build the full path including docs_dir prefix
         let full_path = temp.path().join("docs/01-draft/0001-test-doc.md");
@@ -282,8 +299,6 @@ mod tests {
 
         let doc = state_mgr.state().get(1).unwrap();
         assert_eq!(doc.metadata.state, DocState::Removed);
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -308,8 +323,8 @@ mod tests {
     #[serial]
     fn test_remove_already_removed() {
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         // First removal
         execute(&mut state_mgr, "1").unwrap();
@@ -318,30 +333,28 @@ mod tests {
         let result = execute(&mut state_mgr, "1");
         assert!(result.is_ok());
 
-        std::env::set_current_dir(original_dir).unwrap();
+        // Directory is automatically restored when _guard is dropped
     }
 
     #[test]
     #[serial]
     fn test_remove_creates_dustbin_directory() {
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         execute(&mut state_mgr, "1").unwrap();
 
         let dustbin_dir = temp.path().join("docs/.dustbin/01-draft");
         assert!(dustbin_dir.exists());
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_remove_generates_unique_filename() {
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         execute(&mut state_mgr, "1").unwrap();
 
@@ -356,8 +369,6 @@ mod tests {
         // Should have UUID suffix
         assert!(filename_str.starts_with("0001-test-doc-"));
         assert!(filename_str.ends_with(".md"));
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
@@ -407,8 +418,8 @@ mod tests {
     #[serial]
     fn test_remove_overwritten_document() {
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         // Change state to Overwritten (already in dustbin) by updating the record
         let doc = state_mgr.state().get(1).unwrap().clone();
@@ -431,16 +442,14 @@ mod tests {
         let result = execute(&mut state_mgr, "1");
         // Should succeed (early return for already removed/overwritten)
         assert!(result.is_ok());
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_remove_updates_frontmatter() {
         let (mut state_mgr, temp) = create_test_state_manager();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         execute(&mut state_mgr, "1").unwrap();
 
@@ -452,16 +461,14 @@ mod tests {
         // Read and check frontmatter
         let content = fs::read_to_string(&moved_file).unwrap();
         assert!(content.contains("state: Removed"));
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_remove_multiple_documents() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let docs_dir = temp.path().join("docs");
         fs::create_dir_all(&docs_dir).unwrap();
@@ -531,16 +538,14 @@ mod tests {
             let doc = state_mgr.state().get(num).unwrap();
             assert_eq!(doc.metadata.state, DocState::Removed);
         }
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]
     #[serial]
     fn test_remove_from_different_states() {
         let temp = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         let docs_dir = temp.path().join("docs");
         fs::create_dir_all(&docs_dir).unwrap();
@@ -615,7 +620,5 @@ mod tests {
         assert!(temp.path().join("docs/.dustbin/01-draft").exists());
         assert!(temp.path().join("docs/.dustbin/05-active").exists());
         assert!(temp.path().join("docs/.dustbin/06-final").exists());
-
-        std::env::set_current_dir(original_dir).unwrap();
     }
 }

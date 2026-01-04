@@ -203,6 +203,27 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
+    /// RAII guard to ensure current directory is restored after test
+    struct DirGuard {
+        original: std::path::PathBuf,
+    }
+
+    impl DirGuard {
+        fn new() -> Self {
+            Self { original: std::env::current_dir().expect("Failed to get current dir") }
+        }
+
+        fn change_to(&self, path: &std::path::Path) {
+            std::env::set_current_dir(path).expect("Failed to change dir");
+        }
+    }
+
+    impl Drop for DirGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.original);
+        }
+    }
+
     /// Helper to create a test StateManager with necessary setup
     fn setup_test_state_manager() -> (TempDir, StateManager) {
         let temp = TempDir::new().unwrap();
@@ -462,14 +483,13 @@ author: Test Author
         fs::write(&cwd_file, "test").unwrap();
 
         // Change to temp directory
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         // Resolve relative path - should find it in cwd
         let result = resolve_path("file-in-cwd.md", &docs_dir);
 
         // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
 
         assert!(result.is_ok());
         // Canonicalize both paths to handle /var vs /private/var on macOS
@@ -483,15 +503,14 @@ author: Test Author
         fs::create_dir_all(&docs_dir).unwrap();
 
         // Change to temp directory
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
+        let _guard = DirGuard::new();
+        _guard.change_to(temp.path());
 
         // Try to resolve a multi-component path that doesn't exist
         // Should return relative to cwd
         let result = resolve_path("subdir/newfile.md", &docs_dir).unwrap();
 
         // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
 
         // Should resolve to cwd + path
         assert!(result.to_str().unwrap().contains("subdir"));
