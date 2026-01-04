@@ -212,3 +212,12 @@ tracked-files:
 	@git ls-files > $(TARGET)/git-tracked-files.txt
 	@echo "$(GREEN)✓ Tracked files saved to $(TARGET)/git-tracked-files.txt$(RESET)"
 	@echo "$(CYAN)• Total files: $$(wc -l < $(TARGET)/git-tracked-files.txt)$(RESET)"
+
+push:
+	@echo "$(BLUE)Pushing changes ...$(RESET)"
+	@echo "$(CYAN)• Codeberg ...$(RESET)"
+	@git push codeberg && git push codeberg --tags
+	@echo "$(GREEN)✓ Pushed$(RESET)"
+	@echo "$(CYAN)• Github ...$(RESET)"
+	@git push origin && git push origin --tags
+	@echo "$(GREEN)✓ Pushed$(RESET)"
