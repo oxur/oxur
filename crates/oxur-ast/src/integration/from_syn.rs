@@ -390,7 +390,7 @@ impl SynConverter {
                 GenericParamKind::Type(self.convert_type_param(type_param)?)
             }
             syn::GenericParam::Const(const_param) => {
-                GenericParamKind::Const(self.convert_const_param(const_param)?)
+                GenericParamKind::Const(Box::new(self.convert_const_param(const_param)?))
             }
         };
 
@@ -655,12 +655,10 @@ impl SynConverter {
                 let block = &expr_block.block;
 
                 // Check if the block has statements
-                if let Some(last_stmt) = block.stmts.last() {
-                    // If the last statement is an expression without semicolon, use it
-                    if let syn::Stmt::Expr(expr, None) = last_stmt {
-                        // Recursively convert the expression
-                        return self.convert_expr(expr);
-                    }
+                // If the last statement is an expression without semicolon, use it
+                if let Some(syn::Stmt::Expr(expr, None)) = block.stmts.last() {
+                    // Recursively convert the expression
+                    return self.convert_expr(expr);
                 }
 
                 // If the block is empty or doesn't end with an expression,
@@ -686,7 +684,7 @@ impl SynConverter {
                 let field = match &expr_field.member {
                     syn::Member::Named(ident) => self.convert_ident(ident),
                     syn::Member::Unnamed(index) => {
-                        Ident::new(&index.index.to_string(), Span::DUMMY)
+                        Ident::new(index.index.to_string(), Span::DUMMY)
                     }
                 };
                 ExprKind::Field { expr, field }
@@ -739,7 +737,7 @@ impl SynConverter {
         let kind = if let Some(doc) = self.extract_doc_comment(attr) {
             AttrKind::DocComment(CommentKind::Line, doc)
         } else {
-            let path = self.convert_path(&attr.path())?;
+            let path = self.convert_path(attr.path())?;
             let args = self.convert_attr_args(&attr.meta)?;
 
             let item = AttrItem { path, args };

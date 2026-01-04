@@ -84,7 +84,7 @@ impl AstBuilder {
             "Const" => {
                 let const_param_sexp = &list.elements[1];
                 let const_param = self.build_const_param(const_param_sexp)?;
-                Ok(GenericParamKind::Const(const_param))
+                Ok(GenericParamKind::Const(Box::new(const_param)))
             }
             _ => Err(ParseError::Expected {
                 expected: "Lifetime, Type, or Const".to_string(),

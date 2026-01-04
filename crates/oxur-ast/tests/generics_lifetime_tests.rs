@@ -388,7 +388,7 @@ fn test_generate_generics_with_const_param() {
             attrs: vec![],
             id: NodeId(1),
             span: Span::new(0, 1),
-            kind: GenericParamKind::Const(ConstParam {
+            kind: GenericParamKind::Const(Box::new(ConstParam {
                 ident: Ident::new("N", Span::new(6, 7)),
                 ty: Ty {
                     id: NodeId(2),
@@ -407,7 +407,7 @@ fn test_generate_generics_with_const_param() {
                     tokens: None,
                 },
                 default: None,
-            }),
+            })),
         }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 15),
@@ -431,7 +431,7 @@ fn test_round_trip_generics_with_const_param() {
             attrs: vec![],
             id: NodeId(1),
             span: Span::new(0, 1),
-            kind: GenericParamKind::Const(ConstParam {
+            kind: GenericParamKind::Const(Box::new(ConstParam {
                 ident: Ident::new("N", Span::new(6, 7)),
                 ty: Ty {
                     id: NodeId(2),
@@ -450,7 +450,7 @@ fn test_round_trip_generics_with_const_param() {
                     tokens: None,
                 },
                 default: None,
-            }),
+            })),
         }],
         where_clause: WhereClause::empty(),
         span: Span::new(0, 15),
@@ -508,7 +508,7 @@ fn test_round_trip_generics_all_param_types() {
                 attrs: vec![],
                 id: NodeId(3),
                 span: Span::new(7, 8),
-                kind: GenericParamKind::Const(ConstParam {
+                kind: GenericParamKind::Const(Box::new(ConstParam {
                     ident: Ident::new("N", Span::new(13, 14)),
                     ty: Ty {
                         id: NodeId(4),
@@ -527,7 +527,7 @@ fn test_round_trip_generics_all_param_types() {
                         tokens: None,
                     },
                     default: None,
-                }),
+                })),
             },
         ],
         where_clause: WhereClause::empty(),

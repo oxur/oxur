@@ -148,7 +148,7 @@ pub enum GenericParamKind {
     /// Type parameter: `T`, `T: Clone`, `T = i32`
     Type(TypeParam),
     /// Const parameter: `const N: usize`, `const N: usize = 5`
-    Const(ConstParam),
+    Const(Box<ConstParam>),
 }
 
 /// Lifetime parameter
