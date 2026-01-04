@@ -683,9 +683,7 @@ impl SynConverter {
                 let expr = Box::new(self.convert_expr(&expr_field.base)?);
                 let field = match &expr_field.member {
                     syn::Member::Named(ident) => self.convert_ident(ident),
-                    syn::Member::Unnamed(index) => {
-                        Ident::new(index.index.to_string(), Span::DUMMY)
-                    }
+                    syn::Member::Unnamed(index) => Ident::new(index.index.to_string(), Span::DUMMY),
                 };
                 ExprKind::Field { expr, field }
             }
