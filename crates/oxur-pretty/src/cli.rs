@@ -1,6 +1,6 @@
 //! CLI argument parsing for oxur-fmt.
 
-use clap::{ArgAction, Parser, ValueEnum};
+use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 
 /// Format S-expression files

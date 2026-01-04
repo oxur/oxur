@@ -131,6 +131,7 @@ fn atomic_write_file(file: &Path, content: &str) -> Result<()> {
     // Preserve permissions if original file exists
     #[cfg(unix)]
     {
+        #[allow(unused_imports)]
         use std::os::unix::fs::PermissionsExt;
 
         if let Ok(metadata) = fs::metadata(file) {
@@ -190,7 +191,9 @@ mod tests {
     fn test_format_file_with_backup() {
         let temp = TempDir::new().unwrap();
         let file = temp.path().join("test.sexp");
-        fs::write(&file, "(a b c)").unwrap();
+        // Use unformatted content that will be changed
+        let unformatted = "(a    b    c)";
+        fs::write(&file, unformatted).unwrap();
 
         let config = FormatConfig::default();
         format_file(&file, EmitMode::Files, true, &config, false).unwrap();
@@ -198,8 +201,13 @@ mod tests {
         let backup = temp.path().join("test.sexp.bk");
         assert!(backup.exists());
 
+        // Backup should contain original unformatted content
         let backup_content = fs::read_to_string(&backup).unwrap();
-        assert_eq!(backup_content, "(a b c)");
+        assert_eq!(backup_content, unformatted);
+
+        // Original file should be formatted
+        let formatted_content = fs::read_to_string(&file).unwrap();
+        assert_eq!(formatted_content, "(a b c)");
     }
 
     #[test]

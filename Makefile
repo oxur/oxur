@@ -30,7 +30,7 @@ help:
 	@echo "$(CYAN)╚══════════════════════════════════════════════════════════╝$(RESET)"
 	@echo ""
 	@echo "$(GREEN)Building:$(RESET)"
-	@echo "  $(YELLOW)make build$(RESET)            - Build all binaries (aster, oxd)"
+	@echo "  $(YELLOW)make build$(RESET)            - Build all binaries (aster, oxd, oxur-fmt)"
 	@echo "  $(YELLOW)make build-release$(RESET)    - Build optimized release binaries"
 	@echo ""
 	@echo "$(GREEN)Testing & Quality:$(RESET)"
@@ -86,6 +86,7 @@ info:
 	@echo "$(GREEN)Binaries:$(RESET)"
 	@echo "  aster:          $$(test -f $(BIN_DIR)/aster && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
 	@echo "  oxd:            $$(test -f $(BIN_DIR)/oxd && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
+	@echo "  oxur-fmt:       $$(test -f $(BIN_DIR)/oxur-fmt && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
 	@echo ""
 
 # Check tools target
@@ -115,6 +116,7 @@ build: clean $(BIN_DIR)
 	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
 	@cp $(TARGET)/aster $(BIN_DIR)/aster
 	@cp $(TARGET)/oxd $(BIN_DIR)/oxd
+	@cp $(TARGET)/oxur-fmt $(BIN_DIR)/oxur-fmt
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 	@echo "$(CYAN)→ Binaries available in $(BIN_DIR)/$(RESET)"
 
@@ -128,10 +130,12 @@ build-release: clean $(BIN_DIR)
 	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
 	@cp $(TARGET)/aster $(BIN_DIR)/aster
 	@cp $(TARGET)/oxd $(BIN_DIR)/oxd
+	@cp $(TARGET)/oxur-fmt $(BIN_DIR)/oxur-fmt
 	@echo "$(GREEN)✓ Release build complete$(RESET)"
 	@echo "$(CYAN)→ Optimized binaries in $(BIN_DIR)/$(RESET)"
 	@echo "$(CYAN)• aster size: $$(du -h $(BIN_DIR)/aster | cut -f1)$(RESET)"
 	@echo "$(CYAN)• oxd size: $$(du -h $(BIN_DIR)/oxd | cut -f1)$(RESET)"
+	@echo "$(CYAN)• oxur-fmt size: $$(du -h $(BIN_DIR)/oxur-fmt | cut -f1)$(RESET)"
 
 # Cleaning targets
 .PHONY: clean

@@ -37,6 +37,7 @@
 //! // Output will be multiline because it exceeds max_width
 //! ```
 
+pub mod cli;
 pub mod config;
 pub mod error;
 pub mod formatter;

@@ -26,6 +26,7 @@ This is a Cargo workspace containing multiple related crates:
 - **design/** - Design documentation and CLI tool for managing docs
 - **oxur-ast/** - *(in progress)* - Rust AST ↔ S-expression representation and CLI tool for generating S-expressions and Rust code
 - **oxur-cli/** - *(early stages)* - CLI infrastructure and unified command-line tool
+- **oxur-pretty/** - S-expression formatter with rustfmt-style CLI
 - **oxur-lang/** - *(planning)* - The Oxur Lisp dialect
 - **oxur-repl/** - *(planning)* - REPL server/client
 - **oxur-comp/** - *(planning)* - The Oxur compiler
@@ -57,12 +58,14 @@ The build includes several command-line tools:
 
 - **`aster`** - AST manipulation (Rust ↔ S-expression conversions)
 - **`oxd`** - Design documentation manager
+- **`oxur-fmt`** - S-expression formatter
 
 Which you can also build individually:
 
 ```bash
 cargo build --release --bin aster
 cargo build --release --bin oxd
+cargo build --release --bin oxur-fmt
 ```
 
 ## Oxur Syntax
@@ -133,6 +136,46 @@ Use 'aster <command> --help' for more information.
 ```
 
 A full round-trip example that you can run yourself is provided in [the crate README](./crates/oxur-ast/README.md#end-to-end-examples).
+
+## S-Expression Formatting
+
+The `oxur-pretty` crate provides the `oxur-fmt` tool for formatting S-expression files with human-readable output. It follows rustfmt conventions for a familiar workflow:
+
+```bash
+$ ./bin/oxur-fmt --help
+Format S-expression files
+
+Usage: oxur-fmt [OPTIONS] <FILE>...
+
+Arguments:
+  <FILE>...  Input files to format (use '-' for stdin)
+
+Options:
+      --check                      Check if files are formatted correctly
+      --emit <MODE>                What data to emit and how [possible values: files, stdout]
+      --backup                     Backup any modified files
+      --config <key1=val1,key2=val2>  Set options from command line
+      --color <MODE>               Use colored output [possible values: always, never, auto]
+  -l, --files-with-diff            Prints names of mismatched files
+  -v, --verbose                    Print verbose output
+  -q, --quiet                      Print less output
+  -h, --help                       Print help
+```
+
+Format files in-place, check formatting for CI/CD, or pipe through stdin/stdout:
+
+```bash
+# Format file in-place
+./bin/oxur-fmt my-ast.sexp
+
+# Check if formatted (exits 1 if not)
+./bin/oxur-fmt --check src/*.sexp
+
+# Stdin to stdout
+echo "(Span :lo 0 :hi 10)" | ./bin/oxur-fmt
+```
+
+See [the crate README](./crates/oxur-pretty/README.md) for detailed usage and configuration options.
 
 ## The Oxur Compiler
 
