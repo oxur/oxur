@@ -352,6 +352,20 @@ impl Generator {
         match kind {
             LitKind::Str(s) => list(vec![sym("Str"), string(s)]),
             LitKind::Int(i) => list(vec![sym("Int"), num(*i)]),
+            // Phase 11: New literal types
+            LitKind::Bool(b) => list(vec![sym("Bool"), sym(if *b { "true" } else { "false" })]),
+            LitKind::Float(f) => list(vec![sym("Float"), string(f)]),
+            LitKind::Char(c) => list(vec![sym("Char"), string(&c.to_string())]),
+            LitKind::Byte(b) => list(vec![sym("Byte"), num(*b as i128)]),
+            LitKind::ByteStr(bytes) => {
+                let bytes_sexp = list(bytes.iter().map(|b| num(*b as i128)).collect());
+                list(vec![sym("ByteStr"), bytes_sexp])
+            }
+            LitKind::CStr(bytes) => {
+                let bytes_sexp = list(bytes.iter().map(|b| num(*b as i128)).collect());
+                list(vec![sym("CStr"), bytes_sexp])
+            }
+            LitKind::Verbatim(s) => list(vec![sym("Verbatim"), string(s)]),
         }
     }
 

@@ -179,9 +179,24 @@ pub struct Lit {
 /// Literal kind
 #[derive(Debug, Clone, PartialEq)]
 pub enum LitKind {
+    /// String literal: `"hello"`
     Str(String),
+    /// Integer literal: `42`, `0xFF`, `0o755`, `0b1010`
     Int(i128),
-    // Future: Float, Char, Bool, Byte, ByteStr, etc.
+    /// Boolean literal: `true`, `false`
+    Bool(bool),
+    /// Floating point literal: `3.14`, `1.0e-5`
+    Float(String),
+    /// Character literal: `'a'`, `'\n'`, `'\u{1F600}'`
+    Char(char),
+    /// Byte literal: `b'A'`, `b'\n'`
+    Byte(u8),
+    /// Byte string literal: `b"hello"`
+    ByteStr(Vec<u8>),
+    /// C string literal: `c"hello"`
+    CStr(Vec<u8>),
+    /// Error or unknown literal (for forward compatibility)
+    Verbatim(String),
 }
 
 /// Match arm

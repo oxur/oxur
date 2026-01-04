@@ -294,6 +294,57 @@ impl RustCodegen {
             LitKind::Int(n) => {
                 self.write(&n.to_string());
             }
+            // Phase 11: New literal types
+            LitKind::Bool(b) => {
+                self.write(if *b { "true" } else { "false" });
+            }
+            LitKind::Float(f) => {
+                self.write(f);
+            }
+            LitKind::Char(c) => {
+                self.write("'");
+                match c {
+                    '\'' => self.write("\\'"),
+                    '\\' => self.write("\\\\"),
+                    '\n' => self.write("\\n"),
+                    '\r' => self.write("\\r"),
+                    '\t' => self.write("\\t"),
+                    _ => {
+                        let mut buf = [0; 4];
+                        self.write(c.encode_utf8(&mut buf));
+                    }
+                }
+                self.write("'");
+            }
+            LitKind::Byte(b) => {
+                self.write(&format!("b'{}'", *b as char));
+            }
+            LitKind::ByteStr(bytes) => {
+                self.write("b\"");
+                for &byte in bytes {
+                    if byte.is_ascii_graphic() && byte != b'"' && byte != b'\\' {
+                        self.write(&format!("{}", byte as char));
+                    } else {
+                        self.write(&format!("\\x{:02x}", byte));
+                    }
+                }
+                self.write("\"");
+            }
+            LitKind::CStr(bytes) => {
+                self.write("c\"");
+                for &byte in bytes {
+                    if byte.is_ascii_graphic() && byte != b'"' && byte != b'\\' {
+                        self.write(&format!("{}", byte as char));
+                    } else {
+                        self.write(&format!("\\x{:02x}", byte));
+                    }
+                }
+                self.write("\"");
+            }
+            LitKind::Verbatim(s) => {
+                // Verbatim literals are already in string form
+                self.write(s);
+            }
         }
         Ok(())
     }

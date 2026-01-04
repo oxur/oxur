@@ -1149,6 +1149,7 @@ impl SynConverter {
 
     fn convert_lit(&mut self, lit: &syn::Lit) -> Result<Lit> {
         let kind = match lit {
+            // Phase 1: String and integer literals
             syn::Lit::Str(lit_str) => LitKind::Str(lit_str.value()),
             syn::Lit::Int(lit_int) => {
                 let value =
@@ -1159,13 +1160,22 @@ impl SynConverter {
                     })?;
                 LitKind::Int(value)
             }
-            _ => {
-                return Err(ParseError::Expected {
-                    expected: "string or int literal".to_string(),
-                    found: "other literal".to_string(),
-                    pos: Position::new(0, 1, 1),
-                });
-            }
+            // Phase 11: Boolean literals (VERY COMMON)
+            syn::Lit::Bool(lit_bool) => LitKind::Bool(lit_bool.value),
+            // Phase 11: Floating point literals
+            syn::Lit::Float(lit_float) => LitKind::Float(lit_float.base10_digits().to_string()),
+            // Phase 11: Character literals
+            syn::Lit::Char(lit_char) => LitKind::Char(lit_char.value()),
+            // Phase 11: Byte literals
+            syn::Lit::Byte(lit_byte) => LitKind::Byte(lit_byte.value()),
+            // Phase 11: Byte string literals
+            syn::Lit::ByteStr(lit_byte_str) => LitKind::ByteStr(lit_byte_str.value().to_vec()),
+            // Phase 11: C string literals
+            syn::Lit::CStr(lit_cstr) => LitKind::CStr(lit_cstr.value().into_bytes()),
+            // Phase 11: Verbatim (unknown/error literals)
+            syn::Lit::Verbatim(lit_verbatim) => LitKind::Verbatim(lit_verbatim.to_string()),
+            // Catch-all for future syn::Lit variants (syn::Lit is non-exhaustive)
+            _ => LitKind::Verbatim(format!("{:?}", lit)),
         };
 
         Ok(Lit { kind, span: Span::DUMMY })
