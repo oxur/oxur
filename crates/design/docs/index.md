@@ -6,7 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0038 | Oxur REPL Architecture Overview | Under Review | 2026-01-04 |
+| 0038 | Oxur REPL Architecture | Under Review | 2026-01-05 |
 | 0037 | oxur-pretty Implementation Plan | Final | 2026-01-04 |
 | 0036 | oxur-ast Phase 8.5: Macros & Attributes Completeness | Final | 2026-01-04 |
 | 0035 | oxur-ast Phase 13: Async/Await and Modern Rust Features | Under Review | 2026-01-03 |
@@ -49,7 +49,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Under Review
 
-- [0038 - Oxur REPL Architecture Overview](02-under-review/0038-oxur-repl-architecture-overview.md)
+- [0038 - Oxur REPL Architecture](02-under-review/0038-oxur-repl-architecture.md)
 - [0035 - oxur-ast Phase 13: Async/Await and Modern Rust Features](02-under-review/0035-oxur-ast-phase-13-asyncawait-and-modern-rust-features.md)
 - [0034 - oxur-ast Phase 12: Advanced Type System](02-under-review/0034-oxur-ast-phase-12-advanced-type-system.md)
 - [0033 - oxur-ast Phase 11: Literal Completeness and Pattern Refinement](02-under-review/0033-oxur-ast-phase-11-literal-completeness-and-pattern-refinement.md)
