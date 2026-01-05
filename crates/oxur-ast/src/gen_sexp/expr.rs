@@ -288,24 +288,20 @@ impl Generator {
             ExprKind::Await { expr } => {
                 Ok(list(vec![sym("Await"), kw("expr"), self.generate_expr(expr)?]))
             }
-            ExprKind::Let { pat, expr } => {
-                Ok(list(vec![
-                    sym("Let"),
-                    kw("pat"),
-                    self.generate_pat(pat)?,
-                    kw("expr"),
-                    self.generate_expr(expr)?,
-                ]))
-            }
-            ExprKind::Repeat { expr, count } => {
-                Ok(list(vec![
-                    sym("Repeat"),
-                    kw("expr"),
-                    self.generate_expr(expr)?,
-                    kw("count"),
-                    self.generate_expr(count)?,
-                ]))
-            }
+            ExprKind::Let { pat, expr } => Ok(list(vec![
+                sym("Let"),
+                kw("pat"),
+                self.generate_pat(pat)?,
+                kw("expr"),
+                self.generate_expr(expr)?,
+            ])),
+            ExprKind::Repeat { expr, count } => Ok(list(vec![
+                sym("Repeat"),
+                kw("expr"),
+                self.generate_expr(expr)?,
+                kw("count"),
+                self.generate_expr(count)?,
+            ])),
             ExprKind::Unsafe { body } => {
                 Ok(list(vec![sym("Unsafe"), kw("body"), self.generate_block(body)?]))
             }

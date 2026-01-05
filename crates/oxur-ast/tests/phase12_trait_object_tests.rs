@@ -23,7 +23,11 @@ fn test_trait_object_multiple_bounds() {
     "#;
 
     let result = parse_rust_file(code);
-    assert!(result.is_ok(), "Failed to parse trait object with multiple bounds: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse trait object with multiple bounds: {:?}",
+        result.err()
+    );
 }
 
 /// Phase 12: Test trait object reference

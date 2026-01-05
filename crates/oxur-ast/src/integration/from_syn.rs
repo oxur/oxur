@@ -271,18 +271,23 @@ impl SynConverter {
                 self.convert_pat(&pat_type.pat)
             }
             // Phase 9: Wildcard pattern (CRITICAL)
-            syn::Pat::Wild(_) => Ok(Pat {
-                id: self.next_id(),
-                kind: PatKind::Wild,
-                span: Span::DUMMY,
-                tokens: None,
-            }),
+            syn::Pat::Wild(_) => {
+                Ok(Pat { id: self.next_id(), kind: PatKind::Wild, span: Span::DUMMY, tokens: None })
+            }
             // Phase 9: Tuple patterns
             syn::Pat::Tuple(pat_tuple) => {
-                let elems =
-                    pat_tuple.elems.iter().map(|p| self.convert_pat(p)).collect::<Result<Vec<_>>>()?;
+                let elems = pat_tuple
+                    .elems
+                    .iter()
+                    .map(|p| self.convert_pat(p))
+                    .collect::<Result<Vec<_>>>()?;
 
-                Ok(Pat { id: self.next_id(), kind: PatKind::Tuple(elems), span: Span::DUMMY, tokens: None })
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Tuple(elems),
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
             }
             // Phase 9: Struct patterns
             syn::Pat::Struct(pat_struct) => {
@@ -405,23 +410,41 @@ impl SynConverter {
             }
             // Phase 9: Slice patterns
             syn::Pat::Slice(pat_slice) => {
-                let elems =
-                    pat_slice.elems.iter().map(|p| self.convert_pat(p)).collect::<Result<Vec<_>>>()?;
+                let elems = pat_slice
+                    .elems
+                    .iter()
+                    .map(|p| self.convert_pat(p))
+                    .collect::<Result<Vec<_>>>()?;
 
-                Ok(Pat { id: self.next_id(), kind: PatKind::Slice(elems), span: Span::DUMMY, tokens: None })
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Slice(elems),
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
             }
             // Phase 9: Or patterns
             syn::Pat::Or(pat_or) => {
                 let cases =
                     pat_or.cases.iter().map(|p| self.convert_pat(p)).collect::<Result<Vec<_>>>()?;
 
-                Ok(Pat { id: self.next_id(), kind: PatKind::Or(cases), span: Span::DUMMY, tokens: None })
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Or(cases),
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
             }
             // Phase 9: Parenthesized patterns
             syn::Pat::Paren(pat_paren) => {
                 let inner = Box::new(self.convert_pat(&pat_paren.pat)?);
 
-                Ok(Pat { id: self.next_id(), kind: PatKind::Paren(inner), span: Span::DUMMY, tokens: None })
+                Ok(Pat {
+                    id: self.next_id(),
+                    kind: PatKind::Paren(inner),
+                    span: Span::DUMMY,
+                    tokens: None,
+                })
             }
             // Phase 9: Rest pattern
             syn::Pat::Rest(_) => {
@@ -943,14 +966,20 @@ impl SynConverter {
             }
             // Phase 9: Array literals
             syn::Expr::Array(expr_array) => {
-                let elems =
-                    expr_array.elems.iter().map(|e| self.convert_expr(e)).collect::<Result<Vec<_>>>()?;
+                let elems = expr_array
+                    .elems
+                    .iter()
+                    .map(|e| self.convert_expr(e))
+                    .collect::<Result<Vec<_>>>()?;
                 ExprKind::Array(elems)
             }
             // Phase 9: Tuple expressions
             syn::Expr::Tuple(expr_tuple) => {
-                let elems =
-                    expr_tuple.elems.iter().map(|e| self.convert_expr(e)).collect::<Result<Vec<_>>>()?;
+                let elems = expr_tuple
+                    .elems
+                    .iter()
+                    .map(|e| self.convert_expr(e))
+                    .collect::<Result<Vec<_>>>()?;
                 ExprKind::Tuple(elems)
             }
             // Phase 9: Range expressions
@@ -962,8 +991,12 @@ impl SynConverter {
                     .transpose()?
                     .map(Box::new);
 
-                let end =
-                    expr_range.end.as_ref().map(|e| self.convert_expr(e)).transpose()?.map(Box::new);
+                let end = expr_range
+                    .end
+                    .as_ref()
+                    .map(|e| self.convert_expr(e))
+                    .transpose()?
+                    .map(Box::new);
 
                 let inclusive = matches!(expr_range.limits, syn::RangeLimits::Closed(_));
 
@@ -1070,7 +1103,14 @@ impl SynConverter {
 
                         let body = Box::new(self.convert_expr(&arm.body)?);
 
-                        Ok(Arm { attrs: vec![], pat, guard, body, span: Span::DUMMY, id: self.next_id() })
+                        Ok(Arm {
+                            attrs: vec![],
+                            pat,
+                            guard,
+                            body,
+                            span: Span::DUMMY,
+                            id: self.next_id(),
+                        })
                     })
                     .collect::<Result<Vec<_>>>()?;
 

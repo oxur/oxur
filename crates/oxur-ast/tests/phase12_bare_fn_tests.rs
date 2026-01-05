@@ -23,7 +23,11 @@ fn test_function_pointer_named_params() {
     "#;
 
     let result = parse_rust_file(code);
-    assert!(result.is_ok(), "Failed to parse function pointer with named params: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse function pointer with named params: {:?}",
+        result.err()
+    );
 }
 
 /// Phase 12: Test unsafe function pointer
@@ -118,7 +122,11 @@ fn test_function_pointer_multiple_params() {
     "#;
 
     let result = parse_rust_file(code);
-    assert!(result.is_ok(), "Failed to parse function pointer with multiple params: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse function pointer with multiple params: {:?}",
+        result.err()
+    );
 }
 
 /// Phase 12: Test extern "system" ABI
