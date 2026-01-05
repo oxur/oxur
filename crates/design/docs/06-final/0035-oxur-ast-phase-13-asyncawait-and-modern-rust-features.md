@@ -3,8 +3,8 @@ number: 35
 title: "oxur-ast Phase 13: Async/Await and Modern Rust Features"
 author: "Duncan McGreggor"
 created: 2026-01-03
-updated: 2026-01-03
-state: Under Review
+updated: 2026-01-05
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0

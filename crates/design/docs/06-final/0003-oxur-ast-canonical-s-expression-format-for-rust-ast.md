@@ -5,8 +5,8 @@ author: "Duncan McGreggor"
 component: AST
 tags: [sexpr, syntax]
 created: 2025-12-27
-updated: 2025-12-27
-state: Active
+updated: 2026-01-05
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0

@@ -5,8 +5,8 @@ author: "Duncan McGreggor & Claude"
 component: Compiler
 tags: [architecture, compiler, source maps]
 created: 2025-12-27
-updated: 2025-12-27
-state: Active
+updated: 2026-01-05
+state: Draft
 supersedes: null
 superseded-by: null
 version: 1.0

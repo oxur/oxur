@@ -3,8 +3,8 @@ number: 32
 title: "oxur-ast Phase 10: Critical Expressions (Closures, Loops, Match)"
 author: "testing round"
 created: 2026-01-03
-updated: 2026-01-03
-state: Under Review
+updated: 2026-01-05
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0

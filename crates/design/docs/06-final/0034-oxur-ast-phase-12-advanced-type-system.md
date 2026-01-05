@@ -3,8 +3,8 @@ number: 34
 title: "oxur-ast Phase 12: Advanced Type System"
 author: "adding advanced"
 created: 2026-01-03
-updated: 2026-01-03
-state: Under Review
+updated: 2026-01-05
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.0
