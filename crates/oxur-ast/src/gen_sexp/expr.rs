@@ -271,6 +271,52 @@ impl Generator {
                     if let Some(v) = value { self.generate_expr(v)? } else { sym("nil") };
                 Ok(list(vec![sym("Return"), kw("value"), value_sexp]))
             }
+            // Phase 13: Async/await and modern features
+            ExprKind::Async { capture, body } => {
+                let capture_sexp = match capture {
+                    CaptureBy::Value => sym("Value"),
+                    CaptureBy::Ref => sym("Ref"),
+                };
+                Ok(list(vec![
+                    sym("Async"),
+                    kw("capture"),
+                    capture_sexp,
+                    kw("body"),
+                    self.generate_block(body)?,
+                ]))
+            }
+            ExprKind::Await { expr } => {
+                Ok(list(vec![sym("Await"), kw("expr"), self.generate_expr(expr)?]))
+            }
+            ExprKind::Let { pat, expr } => {
+                Ok(list(vec![
+                    sym("Let"),
+                    kw("pat"),
+                    self.generate_pat(pat)?,
+                    kw("expr"),
+                    self.generate_expr(expr)?,
+                ]))
+            }
+            ExprKind::Repeat { expr, count } => {
+                Ok(list(vec![
+                    sym("Repeat"),
+                    kw("expr"),
+                    self.generate_expr(expr)?,
+                    kw("count"),
+                    self.generate_expr(count)?,
+                ]))
+            }
+            ExprKind::Unsafe { body } => {
+                Ok(list(vec![sym("Unsafe"), kw("body"), self.generate_block(body)?]))
+            }
+            ExprKind::Yield { value } => {
+                let value_sexp =
+                    if let Some(v) = value { self.generate_expr(v)? } else { sym("nil") };
+                Ok(list(vec![sym("Yield"), kw("value"), value_sexp]))
+            }
+            ExprKind::Const { body } => {
+                Ok(list(vec![sym("Const"), kw("body"), self.generate_block(body)?]))
+            }
         }
     }
 

@@ -1,5 +1,14 @@
 use super::*;
 
+/// Capture mode for closures and async blocks
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureBy {
+    /// By-value capture: `move`
+    Value,
+    /// By-reference capture (default)
+    Ref,
+}
+
 /// Expression
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expr {
@@ -135,6 +144,45 @@ pub enum ExprKind {
     /// Return with optional value: `return`, `return expr`
     Return {
         value: Option<Box<Expr>>,
+    },
+
+    // Phase 13: Async/await and modern features
+    /// Async block: `async { ... }` or `async move { ... }`
+    Async {
+        capture: CaptureBy,
+        body: Block,
+    },
+
+    /// Await: `expr.await`
+    Await {
+        expr: Box<Expr>,
+    },
+
+    /// Let expression: `let pat = expr` (in if-let, while-let)
+    Let {
+        pat: Pat,
+        expr: Box<Expr>,
+    },
+
+    /// Array repeat: `[expr; count]`
+    Repeat {
+        expr: Box<Expr>,
+        count: Box<Expr>,
+    },
+
+    /// Unsafe block: `unsafe { ... }`
+    Unsafe {
+        body: Block,
+    },
+
+    /// Yield: `yield expr` (generators - unstable)
+    Yield {
+        value: Option<Box<Expr>>,
+    },
+
+    /// Const block: `const { ... }`
+    Const {
+        body: Block,
     },
 }
 

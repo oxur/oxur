@@ -266,6 +266,47 @@ impl RustCodegen {
                     self.generate_expr(value)?;
                 }
             }
+            // Phase 13: Async/await and modern features
+            ExprKind::Async { capture, body } => {
+                self.write("async");
+                if matches!(capture, CaptureBy::Value) {
+                    self.write(" move");
+                }
+                self.write(" ");
+                self.generate_block(body)?;
+            }
+            ExprKind::Await { expr } => {
+                self.generate_expr(expr)?;
+                self.write(".await");
+            }
+            ExprKind::Let { pat, expr } => {
+                self.write("let ");
+                self.generate_pat(pat)?;
+                self.write(" = ");
+                self.generate_expr(expr)?;
+            }
+            ExprKind::Repeat { expr, count } => {
+                self.write("[");
+                self.generate_expr(expr)?;
+                self.write("; ");
+                self.generate_expr(count)?;
+                self.write("]");
+            }
+            ExprKind::Unsafe { body } => {
+                self.write("unsafe ");
+                self.generate_block(body)?;
+            }
+            ExprKind::Yield { value } => {
+                self.write("yield");
+                if let Some(value) = value {
+                    self.write(" ");
+                    self.generate_expr(value)?;
+                }
+            }
+            ExprKind::Const { body } => {
+                self.write("const ");
+                self.generate_block(body)?;
+            }
         }
         Ok(())
     }

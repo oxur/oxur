@@ -1103,6 +1103,56 @@ impl SynConverter {
 
                 ExprKind::While { label, cond, body }
             }
+            // Phase 13: Async block
+            syn::Expr::Async(expr_async) => {
+                let capture = if expr_async.capture.is_some() {
+                    CaptureBy::Value // async move
+                } else {
+                    CaptureBy::Ref // async
+                };
+
+                let body = self.convert_block(&expr_async.block)?;
+
+                ExprKind::Async { capture, body }
+            }
+            // Phase 13: Await expression
+            syn::Expr::Await(expr_await) => {
+                let expr = Box::new(self.convert_expr(&expr_await.base)?);
+                ExprKind::Await { expr }
+            }
+            // Phase 13: Let expression (if-let, while-let)
+            syn::Expr::Let(expr_let) => {
+                let pat = self.convert_pat(&expr_let.pat)?;
+                let expr = Box::new(self.convert_expr(&expr_let.expr)?);
+                ExprKind::Let { pat, expr }
+            }
+            // Phase 13: Array repeat [expr; count]
+            syn::Expr::Repeat(expr_repeat) => {
+                let expr = Box::new(self.convert_expr(&expr_repeat.expr)?);
+                let count = Box::new(self.convert_expr(&expr_repeat.len)?);
+                ExprKind::Repeat { expr, count }
+            }
+            // Phase 13: Unsafe block
+            syn::Expr::Unsafe(expr_unsafe) => {
+                let body = self.convert_block(&expr_unsafe.block)?;
+                ExprKind::Unsafe { body }
+            }
+            // Phase 13: Yield expression (generators - unstable)
+            syn::Expr::Yield(expr_yield) => {
+                let value = expr_yield
+                    .expr
+                    .as_ref()
+                    .map(|e| self.convert_expr(e))
+                    .transpose()?
+                    .map(Box::new);
+
+                ExprKind::Yield { value }
+            }
+            // Phase 13: Const block
+            syn::Expr::Const(expr_const) => {
+                let body = self.convert_block(&expr_const.block)?;
+                ExprKind::Const { body }
+            }
             _ => {
                 return Err(ParseError::Expected {
                     expected: "supported expression".to_string(),
