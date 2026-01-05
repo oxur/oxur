@@ -6,7 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
-| 0039 | oxur-smap Implementation Plan | Active | 2026-01-05 |
+| 0039 | oxur-smap Implementation Plan | Final | 2026-01-05 |
 | 0038 | Oxur REPL Architecture | Draft | 2026-01-05 |
 | 0037 | oxur-pretty Implementation Plan | Final | 2026-01-04 |
 | 0036 | oxur-ast Phase 8.5: Macros & Attributes Completeness | Final | 2026-01-04 |
@@ -59,11 +59,11 @@ This index is automatically generated. Do not edit manually.
 
 ### Active
 
-- [0039 - oxur-smap Implementation Plan](05-active/0039-oxur-smap-implementation-plan.md)
 - [0001 - Oxur: A Letter of Intent](05-active/0001-oxur-letter-of-intent.md)
 
 ### Final
 
+- [0039 - oxur-smap Implementation Plan](06-final/0039-oxur-smap-implementation-plan.md)
 - [0037 - oxur-pretty Implementation Plan](06-final/0037-oxur-pretty-implementation-plan.md)
 - [0036 - oxur-ast Phase 8.5: Macros & Attributes Completeness](06-final/0036-oxur-ast-phase-8.md)
 - [0035 - oxur-ast Phase 13: Async/Await and Modern Rust Features](06-final/0035-oxur-ast-phase-13-asyncawait-and-modern-rust-features.md)
