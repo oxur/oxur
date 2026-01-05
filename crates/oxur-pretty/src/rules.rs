@@ -46,6 +46,7 @@ impl FormattingRules {
     }
 
     /// Estimate the width if this expression were formatted on one line.
+    #[allow(clippy::only_used_in_recursion)]
     pub fn estimate_width(&self, expr: &SExpr) -> usize {
         match expr {
             SExpr::Atom(s) => s.len(),

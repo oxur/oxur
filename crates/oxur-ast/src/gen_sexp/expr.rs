@@ -397,7 +397,7 @@ impl Generator {
             // Phase 11: New literal types
             LitKind::Bool(b) => list(vec![sym("Bool"), sym(if *b { "true" } else { "false" })]),
             LitKind::Float(f) => list(vec![sym("Float"), string(f)]),
-            LitKind::Char(c) => list(vec![sym("Char"), string(&c.to_string())]),
+            LitKind::Char(c) => list(vec![sym("Char"), string(c.to_string())]),
             LitKind::Byte(b) => list(vec![sym("Byte"), num(*b as i128)]),
             LitKind::ByteStr(bytes) => {
                 let bytes_sexp = list(bytes.iter().map(|b| num(*b as i128)).collect());
