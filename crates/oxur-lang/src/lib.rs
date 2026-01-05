@@ -16,7 +16,7 @@ pub use expander::Expander;
 pub use parser::Parser;
 
 // Re-export oxur-smap types for convenience
-pub use oxur_smap::{SourceMap, SourcePos, new_node_id};
+pub use oxur_smap::{new_node_id, SourceMap, SourcePos};
 
 /// Result type for language operations
 pub type Result<T> = std::result::Result<T, Error>;

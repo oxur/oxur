@@ -17,7 +17,7 @@ mod client;
 pub use client::ReplClient;
 
 // Re-export oxur-smap types for convenience
-pub use oxur_smap::{SourceMap, SourcePos, NodeId, new_node_id};
+pub use oxur_smap::{new_node_id, NodeId, SourceMap, SourcePos};
 
 /// Result type for REPL operations
 pub type Result<T> = std::result::Result<T, Error>;

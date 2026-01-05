@@ -3,8 +3,8 @@
 //! Converts Surface Forms into Core Forms through macro expansion and desugaring.
 //! This is where syntactic sugar gets transformed into canonical forms.
 
-use crate::parser::SurfaceForm;
 use crate::core_forms::CoreForm;
+use crate::parser::SurfaceForm;
 use crate::Result;
 use oxur_smap::SourceMap;
 

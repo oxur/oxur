@@ -136,7 +136,10 @@ mod tests {
     fn test_if_expr_node_id() {
         let form = CoreForm::IfExpr {
             id: NodeId::from_raw(50),
-            condition: Box::new(CoreForm::Symbol { id: NodeId::from_raw(51), name: "true".to_string() }),
+            condition: Box::new(CoreForm::Symbol {
+                id: NodeId::from_raw(51),
+                name: "true".to_string(),
+            }),
             then_branch: Box::new(CoreForm::Number { id: NodeId::from_raw(52), value: 1 }),
             else_branch: None,
         };
@@ -147,7 +150,10 @@ mod tests {
     fn test_match_expr_node_id() {
         let form = CoreForm::MatchExpr {
             id: NodeId::from_raw(60),
-            scrutinee: Box::new(CoreForm::Symbol { id: NodeId::from_raw(61), name: "x".to_string() }),
+            scrutinee: Box::new(CoreForm::Symbol {
+                id: NodeId::from_raw(61),
+                name: "x".to_string(),
+            }),
             arms: vec![],
         };
         assert_eq!(form.node_id().as_raw(), 60);
