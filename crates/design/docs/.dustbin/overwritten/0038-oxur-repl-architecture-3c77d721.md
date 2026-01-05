@@ -6,12 +6,11 @@ component: All
 tags: [repl, architecture, definitive]
 created: 2026-01-04
 updated: 2026-01-05
-state: Under Review
+state: Overwritten
 supersedes: null
 superseded-by: null
 version: 1.1
 ---
-
 
 # Oxur REPL Architecture Overview
 

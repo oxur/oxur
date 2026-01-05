@@ -7,7 +7,7 @@ This index is automatically generated. Do not edit manually.
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
 | 0039 | oxur-smap Implementation Plan | Active | 2026-01-05 |
-| 0038 | Oxur REPL Architecture | Under Review | 2026-01-05 |
+| 0038 | Oxur REPL Architecture | Draft | 2026-01-05 |
 | 0037 | oxur-pretty Implementation Plan | Final | 2026-01-04 |
 | 0036 | oxur-ast Phase 8.5: Macros & Attributes Completeness | Final | 2026-01-04 |
 | 0035 | oxur-ast Phase 13: Async/Await and Modern Rust Features | Final | 2026-01-05 |
@@ -48,12 +48,9 @@ This index is automatically generated. Do not edit manually.
 
 ## Documents by State
 
-### Under Review
-
-- [0038 - Oxur REPL Architecture](02-under-review/0038-oxur-repl-architecture.md)
-
 ### Draft
 
+- [0038 - Oxur REPL Architecture](01-draft/0038-oxur-repl-architecture.md)
 - [0030 - Oxur REPL Implementation Specification](01-draft/0030-oxur-repl-implementation-specification.md)
 - [0026 - Oxur REPL Evaluation Strategy](01-draft/0026-oxur-repl-evaluation-strategy.md)
 - [0025 - Oxur Syntax Addendum: Function Head Pattern Matching](01-draft/0025-oxur-syntax-addendum-function-head-pattern-matching.md)
