@@ -45,5 +45,5 @@ mod source_pos;
 
 // Re-export public API
 pub use node_id::{new_node_id, NodeId, NodeIdGenerator};
-pub use source_map::{SourceMap, SourceMapStats};
+pub use source_map::{LookupStats, SourceMap, SourceMapStats};
 pub use source_pos::SourcePos;

@@ -14,3 +14,8 @@ categories = ["development-tools"]
 
 [dev-dependencies]
 # For testing only
+criterion = "0.5"
+
+[[bench]]
+name = "source_map_bench"
+harness = false

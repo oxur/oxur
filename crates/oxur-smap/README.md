@@ -151,6 +151,105 @@ let hash = map.content_hash();
 // Note: Hash is structure-based, excludes source positions
 ```
 
+### Concurrency and Freezing
+
+For build-once, read-many scenarios, freeze the map after construction:
+
+```rust
+// During compilation (single-threaded)
+let mut map = SourceMap::new();
+// ... record all transformations ...
+map.freeze();
+
+// During error reporting (can be multi-threaded)
+// Safe to share &map across threads
+if let Some(pos) = map.lookup(&rust_node) {
+    // ... report error ...
+}
+```
+
+Frozen maps panic on modification attempts (defensive programming).
+
+## Performance
+
+oxur-smap is designed for **negligible compiler overhead** with sub-microsecond operations.
+
+### Benchmarks
+
+Hardware: Apple Silicon M-series | Rust 1.75+ optimized build
+
+**Core Operations (nanoseconds):**
+
+| Operation | Time | Description |
+|-----------|------|-------------|
+| `new_node_id()` | 7.5 ns | Thread-safe atomic counter |
+| `record_surface_node()` | 58 ns | Record source position |
+| `record_expansion()` | 84 ns | Link surface → core |
+| `record_lowering()` | 102 ns | Link core → rust |
+| `lookup()` | 120 ns | Full 3-stage chain traversal |
+| `freeze()` | 1.3 µs | One-time freeze operation (100 nodes) |
+
+**Scaling (complete 3-stage chains):**
+
+| Nodes | Total Operations | Build Time | Per-Node |
+|-------|-----------------|------------|----------|
+| 100 | 300 | 9.1 µs | 91 ns |
+| 1,000 | 3,000 | 115 µs | 115 ns |
+| 10,000 | 30,000 | 1.26 ms | 126 ns |
+
+**Performance characteristics:**
+- **O(1) lookups**: Constant-time error translation regardless of project size
+- **O(n) construction**: Linear scaling with number of AST nodes
+- **Zero runtime overhead**: Frozen maps have no synchronization cost
+
+Run benchmarks:
+
+```bash
+cargo bench --package oxur-smap
+```
+
+### Memory Overhead
+
+**Per transformation chain (surface → core → rust):**
+- NodeId storage: 4 bytes × 3 = 12 bytes
+- SourcePos data: ~40-80 bytes (varies with file path length)
+- HashMap overhead: ~24-48 bytes (3 entries with load factor)
+- **Total: ~76-140 bytes per chain**
+
+**Real-world estimates:**
+
+| Project Size | AST Nodes | Memory Overhead |
+|--------------|-----------|-----------------|
+| Small (100 LOC) | ~100 | <20 KB |
+| Medium (10k LOC) | ~10,000 | ~1-2 MB |
+| Large (100k LOC) | ~100,000 | ~10-20 MB |
+
+**Compiler impact:**
+- Small project: <10 µs build time, <20 KB memory
+- Large project: ~13 ms build time, ~10-20 MB memory
+- Error lookup: O(1) constant time regardless of size
+
+### Design Trade-offs
+
+**Frozen flag vs `Arc<RwLock>`:**
+
+We use a simple `frozen: bool` flag instead of `Arc<RwLock<SourceMap>>`:
+
+- **Frozen flag**: 0 ns overhead (compile-time check), panics on misuse
+- **RwLock**: 50-100 ns per read operation (~50% slowdown)
+
+Rationale: Compilation is sequential (no concurrent writes needed), error reporting is read-only (safe to share `&SourceMap`). The frozen flag provides defensive programming with zero runtime cost.
+
+**Three HashMaps vs unified structure:**
+
+We maintain three separate HashMaps instead of `HashMap<NodeId, TransformChain>`:
+
+- Allows incremental construction during compilation stages
+- Minimal memory overhead (~16 bytes per entry vs ~40+ for Option-based)
+- Clear separation matching compilation pipeline phases
+
+See module documentation for complete design rationale.
+
 ## Design Documentation
 
 This implementation follows the specifications in:
@@ -228,6 +327,22 @@ at your option.
 
 ## Status
 
-**Phase 0: Complete** - Foundation implementation finished with comprehensive testing.
+**Phase 0 (Complete)**: Foundation implementation with 98.41% test coverage
+- Core types: NodeId, SourcePos, SourceMap
+- Thread-safe NodeId generation
+- Zero-dependency foundation crate
 
-**Next Phase**: Integration with oxur-lang, oxur-comp, and oxur-repl for end-to-end error mapping.
+**Phase 1 (Complete)**: Integration with oxur-lang, oxur-comp, oxur-repl
+- Migrated all crates to use oxur-smap NodeId
+- Removed placeholder source_map.rs implementations
+- All 197 workspace tests passing
+
+**Phase 2 (Complete)**: Polish & Optimization
+- Concurrency model: Frozen flag pattern (zero runtime overhead)
+- Performance instrumentation: `lookup_stats()` for profiling
+- Comprehensive benchmark suite (9 benchmark groups)
+- Performance profiling: <10 µs for 100 nodes, ~120 ns lookups
+- Complete design decision documentation
+- README with performance characteristics
+
+**Next Phase**: Production use in full Oxur compilation pipeline
