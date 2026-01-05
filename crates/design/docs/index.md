@@ -18,7 +18,7 @@ This index is automatically generated. Do not edit manually.
 | 0029 | evcxr Compiler Integration Audit Report | Final | 2026-01-03 |
 | 0028 | evcxr_runtime Audit Report | Final | 2026-01-03 |
 | 0027 | evcxr_repl Audit Report | Final | 2026-01-03 |
-| 0026 | Oxur REPL Evaluation Strategy | Final | 2026-01-03 |
+| 0026 | Oxur REPL Evaluation Strategy | Draft | 2026-01-04 |
 | 0025 | Oxur Syntax Addendum: Function Head Pattern Matching | Draft | 2026-01-01 |
 | 0024 | oxur-ast Phase 8: Advanced Features & Completeness | Final | 2026-01-03 |
 | 0023 | oxur-ast Phase 7: Generics & Lifetimes | Final | 2026-01-03 |
@@ -57,6 +57,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Draft
 
+- [0026 - Oxur REPL Evaluation Strategy](01-draft/0026-oxur-repl-evaluation-strategy.md)
 - [0025 - Oxur Syntax Addendum: Function Head Pattern Matching](01-draft/0025-oxur-syntax-addendum-function-head-pattern-matching.md)
 - [0021 - Oxur Syntax Design Proposal](01-draft/0021-oxur-syntax-design-proposal.md)
 
@@ -76,7 +77,6 @@ This index is automatically generated. Do not edit manually.
 - [0029 - evcxr Compiler Integration Audit Report](06-final/0029-evcxr-compiler-integration-audit-report.md)
 - [0028 - evcxr_runtime Audit Report](06-final/0028-evcxr-runtime-audit-report.md)
 - [0027 - evcxr_repl Audit Report](06-final/0027-evcxr-repl-audit-report.md)
-- [0026 - Oxur REPL Evaluation Strategy](06-final/0026-oxur-repl-evaluation-strategy.md)
 - [0024 - oxur-ast Phase 8: Advanced Features & Completeness](06-final/0024-oxur-ast-phase-8-advanced-features-completeness.md)
 - [0023 - oxur-ast Phase 7: Generics & Lifetimes](06-final/0023-oxur-ast-phase-7-generics-lifetimes.md)
 - [0022 - oxur-ast Phase 6: Integration Layer Expansion](06-final/0022-oxur-ast-phase-6-integration-layer-expansion.md)
