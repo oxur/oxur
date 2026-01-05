@@ -3,41 +3,47 @@ number: 30
 title: "Oxur REPL Implementation Specification"
 author: "Claude Code & Duncan McGreggor"
 component: REPL
-tags: []
 created: 2026-01-03
-updated: 2026-01-03
-state: Active
+updated: 2026-01-04
+state: Draft
 supersedes: null
 superseded-by: null
-version: 1.0
+version: 1.1
 ---
+
 
 # Oxur REPL Implementation Specification
 
 *Synthesized from evcxr Audits*
 
-(see ODDs 0027, 0028, 0029)
+```
+Version: 1.1
+Date: January 3, 2026
+Status: Definitive Reference
+```
 
-**Version:** 1.0
-**Date:** January 3, 2026
-**Status:** Definitive Reference
+**IMPORTANT:** This document focuses on component implementation details. For the complete system architecture (client/server, data flow, integration points), see the **REPL Architecture Overview** document.
 
 ---
 
 ## Table of Contents
 
 1. [Executive Summary](#1-executive-summary)
-2. [Architecture Decision Records](#2-architecture-decision-records)
-3. [Implementation Specification](#3-implementation-specification)
-4. [rustc Invocation Reference](#4-rustc-invocation-reference)
-5. [File System Organization](#5-file-system-organization)
-6. [Performance Expectations](#6-performance-expectations)
-7. [Error Handling Strategy](#7-error-handling-strategy)
-8. [Testing Strategy](#8-testing-strategy)
-9. [Implementation Roadmap](#9-implementation-roadmap)
-10. [Dependencies and Versioning](#10-dependencies-and-versioning)
-11. [Risk Mitigation](#11-risk-mitigation)
-12. [Appendix: Audit Summary](#12-appendix-audit-summary)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Architecture Decision Records](#3-architecture-decision-records)
+4. [Component Implementation Specifications](#4-component-implementation-specifications)
+5. [rustc Invocation Reference](#5-rustc-invocation-reference)
+6. [File System Organization](#6-file-system-organization)
+7. [Performance Expectations](#7-performance-expectations)
+8. [Error Handling Strategy](#8-error-handling-strategy)
+9. [Testing Strategy](#9-testing-strategy)
+10. [Implementation Roadmap](#10-implementation-roadmap)
+11. [Dependencies and Versioning](#11-dependencies-and-versioning)
+12. [Risk Mitigation](#12-risk-mitigation)
+13. [See Also](#13-see-also)
+14. [Revision History](#14-revision-history)
+15. [Conclusion](#15-conclusion)
+16. [Appendix: Audit Summary](#16-appendix-audit-summary)
 
 ---
 
@@ -79,6 +85,7 @@ After auditing evcxr_repl, evcxr_runtime, and evcxr's compiler integration:
 - Source map integration (Oxur → Rust error translation)
 - Tier 1 calculator mode (<1ms for literal arithmetic)
 - Network protocol integration (postcard serialization)
+- Client/server architecture integration
 
 **DEFER to v1.1:**
 
@@ -105,7 +112,130 @@ After auditing evcxr_repl, evcxr_runtime, and evcxr's compiler integration:
 
 ---
 
-## 2. Architecture Decision Records
+## 2. Architecture Overview
+
+### 2.1 Purpose and Scope
+
+This section provides a high-level overview of how the REPL components fit into the broader Oxur system. **For complete architectural details, see the REPL Architecture Overview document**, which includes:
+
+- Complete client/server architecture
+- Detailed component diagrams
+- Full data flow specifications
+- Integration point specifications
+- Session management architecture
+- Protocol integration patterns
+
+### 2.2 System Architecture Summary
+
+**Client-Server Model:**
+
+```
+┌─────────────┐                ┌──────────────────────────────┐
+│   Client    │   TCP/Binary   │         Server               │
+│  ReplClient │◄──────────────►│  ReplServer                  │
+│             │   Protocol     │    │                         │
+│  (Thin)     │   (Postcard)   │    ↓                         │
+│             │                │  MessageHandler              │
+│             │                │    │                         │
+│             │                │    ↓                         │
+│             │                │  SessionManager              │
+│             │                │    │                         │
+│             │                │    ↓                         │
+│             │                │  EvalContext (per session)   │
+│             │                │    │                         │
+│             │                │    ↓                         │
+│             │                │  CachedCompiler              │
+│             │                │    │                         │
+│             │                │    ↓                         │
+│             │                │  Subprocess (isolated)       │
+└─────────────┘                └──────────────────────────────┘
+```
+
+**Key Architectural Decisions:**
+
+1. **Server-Side Compilation** - All compilation happens on the server, not the client
+2. **CachedCompiler Owned by EvalContext** - One compiler per session, simplest ownership
+3. **Subprocess Isolation** - Each session has its own subprocess for safety
+4. **Protocol Integration** - Client/server communicate via ODD-0018 protocol
+
+### 2.3 Component Locations
+
+| Component | Crate | Module | Owned By | Description |
+|-----------|-------|--------|----------|-------------|
+| ReplClient | oxur-repl | client/ | User code | Protocol client |
+| ReplServer | oxur-repl | server/ | Server process | TCP listener |
+| MessageHandler | oxur-repl | server/ | ReplServer | Operation dispatcher |
+| SessionManager | oxur-repl | server/ | ReplServer | Session lifecycle |
+| EvalContext | oxur-repl | eval/ | SessionManager | Per-session state |
+| CachedCompiler | oxur-repl | compiler/ | EvalContext | Compilation engine |
+| CodeGenerator | oxur-repl | codegen/ | CachedCompiler | Core Forms → Rust |
+| SessionDir | oxur-repl | session/ | CachedCompiler | Temp filesystem |
+| SourceMap | oxur-repl | source_map.rs | CachedCompiler | Error translation |
+| VariableStore | oxur-subprocess | variable_store.rs | Subprocess | Type-erased storage |
+| Subprocess Runtime | oxur-subprocess | main.rs | - | Execution environment |
+
+### 2.4 Compilation Pipeline Ownership
+
+```
+User Input: "(+ 1 2)"
+  ↓
+EvalContext (server)
+  ├─→ oxur-lang::parse_lisp() → SurfaceForms
+  ├─→ oxur-lang::expand() → CoreForms
+  └─→ Tier decision
+      ↓
+CachedCompiler (server)
+  ├─→ CodeGenerator
+  │   ├─→ oxur-comp::lower() → RustAst
+  │   └─→ oxur-ast::print_rust() → Rust source
+  ├─→ cargo build → dylib
+  └─→ Subprocess: load & execute
+```
+
+**Critical Insight:** ALL stages happen on the server. The client is purely a protocol endpoint.
+
+### 2.5 Integration Points
+
+**Required from oxur-lang:**
+
+```rust
+pub fn parse_lisp(source: &str) -> Result<SurfaceForms>;
+pub fn expand(surface: SurfaceForms) -> Result<CoreForms>;
+pub fn parse_core_forms(source: &str) -> Result<CoreForms>;
+```
+
+**Required from oxur-comp:**
+
+```rust
+pub fn lower(core: &CoreForm) -> Result<RustAst>;
+```
+
+**Required from oxur-ast:**
+
+```rust
+pub fn print_rust(ast: &syn::File) -> String;
+```
+
+**Status:** These APIs need to be verified or designed in their respective crates.
+
+### 2.6 Session Architecture
+
+Each session is completely isolated:
+
+- **Filesystem:** Separate temp directory (`/tmp/oxur-repl/session-{uuid}/`)
+- **Process:** Separate subprocess (prevents crash propagation)
+- **State:** Independent EvalContext, VariableStore, history
+- **Concurrency:** Mutex on EvalContext (one eval at a time per session)
+
+Sessions managed by SessionManager:
+
+- Creates/destroys sessions
+- Enforces limits (max sessions, timeouts)
+- Thread-safe access (`Arc<RwLock<HashMap<SessionId, EvalContext>>>`)
+
+---
+
+## 3. Architecture Decision Records
 
 ### ADR-001: Value Representation and Variable Storage
 
@@ -407,29 +537,242 @@ pub async fn eval(&mut self, form: CoreForm) -> Result<Response> {
 
 ---
 
-## 3. Implementation Specification
+### ADR-009: Client-Server Architecture **(NEW)**
 
-### 3.1 Core Components
+**Status:** Decided
 
-#### CachedCompiler
+**Decision:** Server-side compilation, thin client.
+
+**Rationale:**
+
+- Session state lives on server
+- Subprocess is server-local (can't be remote)
+- Matches evcxr pattern (local REPL)
+- Simplifies client implementation
+- Leverages existing protocol (ODD-0018)
+
+**Client Responsibilities:**
+
+- Send Request messages
+- Receive Response messages
+- Handle reconnection
+- NO compilation, parsing, or execution logic
+
+**Server Responsibilities:**
+
+- All parsing (via oxur-lang)
+- All compilation (CachedCompiler)
+- All execution (Subprocess)
+- Session management
+- Protocol handling
+
+**Consequences:**
+
+- Client is simple and portable
+- All heavy lifting on server
+- Network latency per eval (acceptable for dev use)
+- Resource management centralized
+
+---
+
+### ADR-010: Component Ownership **(NEW)**
+
+**Status:** Decided
+
+**Decision:** CachedCompiler owned by EvalContext.
+
+**Rationale:**
+
+- One-to-one relationship (one compiler per session)
+- Simplest lifecycle management
+- Natural ownership (EvalContext owns its compiler)
+- Drop cascade works naturally
+
+**Structure:**
+
+```rust
+pub struct EvalContext {
+    session_id: SessionId,
+    mode: ReplMode,
+    compiler: CachedCompiler,  // ← Owned
+    history: Vec<HistoryEntry>,
+    output_buffer: OutputBuffer,
+}
+```
+
+**Alternatives Considered:**
+
+1. **Separate management** - More complex, no benefit
+2. **Shared via Arc** - Unnecessary overhead, no concurrent access needed
+3. **In MessageHandler** - Breaks session encapsulation
+
+**Consequences:**
+
+- Clear ownership model
+- Simple drop semantics
+- No Arc/Mutex overhead for compiler
+- One compiler lifetime = one session lifetime
+
+---
+
+## 4. Component Implementation Specifications
+
+This section provides detailed implementation specifications for each component. Component locations and ownership are defined in Section 2.3.
+
+### 4.1 Server Components
+
+#### 4.1.1 EvalContext
+
+**Location:** `oxur-repl/src/eval/context.rs`
+**Ownership:** Created and owned by SessionManager
+
+**Purpose:** Manages evaluation state for a single REPL session.
+
+**State:**
+
+```rust
+pub struct EvalContext {
+    session_id: SessionId,
+    mode: ReplMode,                    // Lisp or Sexpr
+    compiler: CachedCompiler,          // Owned compilation engine
+    history: Vec<HistoryEntry>,
+    output_buffer: OutputBuffer,
+}
+```
+
+**Core Methods:**
+
+```rust
+impl EvalContext {
+    pub fn new(session_id: SessionId) -> Result<Self> {
+        Ok(Self {
+            session_id: session_id.clone(),
+            mode: ReplMode::Lisp,
+            compiler: CachedCompiler::new(session_id)?,
+            history: Vec::new(),
+            output_buffer: OutputBuffer::new(),
+        })
+    }
+
+    pub async fn eval(&mut self, code: &str) -> Result<Value> {
+        // 1. Parse based on mode
+        let core_forms = match self.mode {
+            ReplMode::Lisp => {
+                let surface = oxur_lang::parse_lisp(code)?;
+                oxur_lang::expand(surface)?
+            }
+            ReplMode::Sexpr => {
+                oxur_lang::parse_core_forms(code)?
+            }
+        };
+
+        // 2. Decide tier
+        let tier = self.decide_tier(&core_forms);
+
+        // 3. Execute
+        let result = match tier {
+            Tier::Calculator => self.eval_calculator(&core_forms),
+            Tier::Cached | Tier::Jit => {
+                self.compiler.eval(core_forms).await?
+            }
+        };
+
+        // 4. Record history
+        self.record_history(code.to_string(), result.clone());
+
+        Ok(result)
+    }
+
+    pub async fn load_file(&mut self, path: &str) -> Result<Value> {
+        let source = tokio::fs::read_to_string(path).await?;
+        self.eval(&source).await
+    }
+
+    pub fn set_mode(&mut self, mode: ReplMode) {
+        self.mode = mode;
+    }
+
+    fn decide_tier(&self, core_forms: &CoreForm) -> Tier {
+        // Check Tier 1: Calculator
+        if is_simple_arithmetic(core_forms) {
+            return Tier::Calculator;
+        }
+
+        // Check Tier 2: Cached
+        let hash = hash_core_forms(core_forms);
+        if self.compiler.is_cached(hash) {
+            return Tier::Cached;
+        }
+
+        // Default: Tier 3: JIT
+        Tier::Jit
+    }
+
+    fn eval_calculator(&self, form: &CoreForm) -> Result<Value> {
+        // Direct Rust evaluation for simple arithmetic
+        // No compilation needed
+        todo!("Implement calculator mode")
+    }
+}
+```
+
+**Integration Points:**
+
+- Calls `oxur_lang::parse_lisp()` and `oxur_lang::expand()`
+- Calls `CachedCompiler::eval()` for tier 2/3
+- Called by MessageHandler via SessionManager
+
+---
+
+#### 4.1.2 CachedCompiler
+
+**Location:** `oxur-repl/src/compiler/cached.rs`
+**Ownership:** Owned by EvalContext
+
+**Purpose:** Compiles Core Forms to Rust and executes them.
+
+**State:**
 
 ```rust
 pub struct CachedCompiler {
     session_id: SessionId,
-    session_dir: SessionDir,
-    state: SessionState,
-    subprocess: Option<ChildProcess>,
-    code_gen: CodeGenerator,
-    source_map: Arc<SourceMap>,
+    session_dir: SessionDir,           // Temp directory management
+    state: SessionState,               // Variable names/types, eval counter
+    subprocess: Option<ChildProcess>,  // Execution environment
+    code_gen: CodeGenerator,           // Core Forms → Rust
+    source_map: Arc<SourceMap>,        // Error translation
 }
 
-impl CachedCompiler {
-    pub async fn eval(&mut self, form: CoreForm) -> Result<Response> {
-        // Clone-try-commit
-        let mut tentative = self.state.clone();
+pub struct SessionState {
+    variables: HashMap<String, TypeInfo>,
+    eval_counter: u32,
+}
+```
 
-        // Generate code
-        let code = self.code_gen.generate(&form, &tentative)?;
+**Core Methods:**
+
+```rust
+impl CachedCompiler {
+    pub fn new(session_id: SessionId) -> Result<Self> {
+        let session_dir = SessionDir::new(&session_id)?;
+
+        Ok(Self {
+            session_id,
+            session_dir,
+            state: SessionState::new(),
+            subprocess: None,
+            code_gen: CodeGenerator::new(),
+            source_map: Arc::new(SourceMap::new()),
+        })
+    }
+
+    pub async fn eval(&mut self, form: CoreForm) -> Result<Response> {
+        // Clone-try-commit pattern
+        let mut tentative_state = self.state.clone();
+        tentative_state.eval_counter += 1;
+
+        // Generate Rust code
+        let code = self.code_gen.generate(&form, &tentative_state)?;
 
         // Compile
         let artifact = self.compile_to_dylib(&code).await?;
@@ -437,8 +780,8 @@ impl CachedCompiler {
         // Execute
         let result = self.execute(&artifact).await?;
 
-        // Commit
-        self.state = tentative;
+        // Commit state only on success
+        self.state = tentative_state;
 
         Ok(result)
     }
@@ -478,11 +821,16 @@ impl CachedCompiler {
     }
 
     async fn execute(&mut self, lib_path: &Path) -> Result<ExecResult> {
-        let subprocess = self.subprocess.as_mut()
-            .ok_or(Error::NoSubprocess)?;
+        // Ensure subprocess is running
+        if self.subprocess.is_none() {
+            self.subprocess = Some(self.spawn_subprocess().await?);
+        }
+
+        let subprocess = self.subprocess.as_mut().unwrap();
 
         // Send LOAD command
-        subprocess.send_line(&format!("LOAD {} {}",
+        subprocess.send_line(&format!(
+            "LOAD {} {}",
             lib_path.display(),
             code.fn_name
         )).await?;
@@ -497,9 +845,19 @@ impl CachedCompiler {
                 break;
             }
             // Parse output markers
+            // TODO: Implement output parsing
         }
 
         Ok(ExecResult { stdout, stderr, value: None })
+    }
+
+    fn translate_errors(
+        &self,
+        rustc_errors: &[CompilerMessage]
+    ) -> Result<Vec<OxurError>> {
+        // Use SourceMap to translate rustc errors to Oxur positions
+        // See Section 8 for details
+        todo!("Implement error translation")
     }
 
     fn rustflags(&self) -> String {
@@ -511,10 +869,206 @@ impl CachedCompiler {
             ""
         }.to_string()
     }
+
+    pub fn is_cached(&self, hash: u64) -> bool {
+        // Check if this Core Form hash has been compiled before
+        // TODO: Implement cache lookup
+        false
+    }
 }
 ```
 
-#### Subprocess Binary
+**Integration Points:**
+
+- Calls `CodeGenerator::generate()`
+- Calls `cargo build` (external process)
+- Communicates with subprocess via stdin/stdout
+- Uses `SourceMap` for error translation
+
+---
+
+#### 4.1.3 CodeGenerator
+
+**Location:** `oxur-repl/src/codegen/generator.rs`
+**Ownership:** Owned by CachedCompiler
+
+**Purpose:** Converts Core Forms to Rust source code.
+
+**Core Methods:**
+
+```rust
+pub struct CodeGenerator {
+    // Stateless; can be reused
+}
+
+impl CodeGenerator {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn generate(
+        &self,
+        form: &CoreForm,
+        state: &SessionState
+    ) -> Result<GeneratedCode> {
+        // 1. Lower Core Forms to Rust AST
+        let rust_ast = oxur_comp::lower(form)?;
+
+        // 2. Wrap in function with VariableStore integration
+        let fn_name = format!("run_user_code_{}", state.eval_counter);
+        let wrapped_ast = self.wrap_in_function(rust_ast, state, &fn_name);
+
+        // 3. Generate Rust source
+        let source = oxur_ast::print_rust(&wrapped_ast);
+
+        // 4. Add source map comments
+        let source_with_maps = self.add_source_map_comments(source);
+
+        Ok(GeneratedCode {
+            source: source_with_maps,
+            fn_name,
+        })
+    }
+
+    fn wrap_in_function(
+        &self,
+        ast: RustAst,
+        state: &SessionState,
+        fn_name: &str
+    ) -> RustAst {
+        // Generate complete library with:
+        // - VariableStore module
+        // - Variable load code
+        // - User code
+        // - Variable store code
+        todo!("Implement function wrapping")
+    }
+
+    fn add_source_map_comments(&self, source: String) -> String {
+        // Insert /* oxur_node=N */ comments
+        todo!("Implement source map comments")
+    }
+}
+```
+
+**Integration Points:**
+
+- Calls `oxur_comp::lower()`
+- Calls `oxur_ast::print_rust()`
+
+---
+
+#### 4.1.4 SessionDir
+
+**Location:** `oxur-repl/src/session/dir.rs`
+**Ownership:** Owned by CachedCompiler
+
+**Purpose:** Manages temporary filesystem for a session.
+
+```rust
+pub struct SessionDir {
+    root: PathBuf,
+    session_id: SessionId,
+}
+
+impl SessionDir {
+    pub fn new(session_id: &SessionId) -> Result<Self> {
+        let root = PathBuf::from("/tmp/oxur-repl")
+            .join(format!("session-{}", session_id));
+
+        // Create directory structure
+        std::fs::create_dir_all(&root)?;
+        std::fs::create_dir_all(root.join("src"))?;
+
+        // Write Cargo.toml
+        let cargo_toml = include_str!("../templates/Cargo.toml");
+        std::fs::write(root.join("Cargo.toml"), cargo_toml)?;
+
+        Ok(Self {
+            root,
+            session_id: session_id.clone(),
+        })
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn src_path(&self) -> PathBuf {
+        self.root.join("src/lib.rs")
+    }
+
+    pub fn target_dir(&self) -> PathBuf {
+        self.root.join("target")
+    }
+}
+
+impl Drop for SessionDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.root);
+    }
+}
+```
+
+---
+
+#### 4.1.5 SourceMap
+
+**Location:** `oxur-repl/src/source_map.rs`
+**Ownership:** Shared by CachedCompiler (Arc)
+
+**Purpose:** Tracks transformations for error translation.
+
+```rust
+pub struct SourceMap {
+    surface_map: HashMap<NodeId, SourcePos>,
+    core_to_surface: HashMap<NodeId, NodeId>,
+    rust_to_core: HashMap<NodeId, NodeId>,
+}
+
+impl SourceMap {
+    pub fn new() -> Self {
+        Self {
+            surface_map: HashMap::new(),
+            core_to_surface: HashMap::new(),
+            rust_to_core: HashMap::new(),
+        }
+    }
+
+    pub fn lookup(&self, node_id: NodeId) -> Option<SourcePos> {
+        // Traverse backwards: Rust → Core → Surface → SourcePos
+        let core_id = self.rust_to_core.get(&node_id)?;
+        let surface_id = self.core_to_surface.get(core_id)?;
+        self.surface_map.get(surface_id).cloned()
+    }
+
+    pub fn add_surface_mapping(&mut self, node_id: NodeId, pos: SourcePos) {
+        self.surface_map.insert(node_id, pos);
+    }
+
+    pub fn add_transformation(&mut self, from: NodeId, to: NodeId) {
+        // Record transformation (e.g., Core → Rust)
+        // Used during error translation
+    }
+}
+
+pub struct SourcePos {
+    pub file: String,
+    pub line: u32,
+    pub column: u32,
+}
+```
+
+---
+
+### 4.2 Subprocess Components
+
+#### 4.2.1 Subprocess Runtime
+
+**Location:** `oxur-subprocess/src/main.rs`
+**Ownership:** Separate binary, spawned by CachedCompiler
+
+**Purpose:** Isolated execution environment for user code.
 
 ```rust
 // oxur-subprocess/main.rs
@@ -530,12 +1084,26 @@ struct Runtime {
 }
 
 impl Runtime {
+    fn new() -> Self {
+        Self {
+            libraries: Vec::new(),
+            variable_store: Box::new(VariableStore::new()),
+        }
+    }
+
     fn run_loop(&mut self) {
         let stdin = io::stdin();
         for line in stdin.lock().lines() {
-            match self.handle_command(&line?) {
-                Ok(_) => {}
-                Err(e) => eprintln!("ERROR: {}", e),
+            let line = match line {
+                Ok(l) => l,
+                Err(e) => {
+                    eprintln!("ERROR: {}", e);
+                    continue;
+                }
+            };
+
+            if let Err(e) = self.handle_command(&line) {
+                eprintln!("ERROR: {}", e);
             }
         }
     }
@@ -543,29 +1111,45 @@ impl Runtime {
     fn handle_command(&mut self, cmd: &str) -> Result<()> {
         let parts: Vec<&str> = cmd.split_whitespace().collect();
 
-        match parts[0] {
-            "LOAD" => {
-                let lib_path = parts[1];
-                let fn_name = parts[2];
+        match parts.get(0) {
+            Some(&"LOAD") => {
+                let lib_path = parts.get(1).ok_or("Missing lib path")?;
+                let fn_name = parts.get(2).ok_or("Missing function name")?;
                 self.load_and_run(lib_path, fn_name)?;
                 println!("EVCXR_EXECUTION_COMPLETE");
             }
-            "PING" => println!("PONG"),
-            _ => return Err(Error::UnknownCommand),
+            Some(&"PING") => {
+                println!("PONG");
+            }
+            _ => {
+                return Err(Error::UnknownCommand);
+            }
         }
         Ok(())
     }
 
     fn load_and_run(&mut self, path: &str, name: &str) -> Result<()> {
+        use libloading::Library;
+
+        // Load library
         let lib = unsafe { Library::new(path)? };
+
+        // Get function
         let func = unsafe {
-            lib.get::<extern "C" fn(*mut c_void) -> *mut c_void>(name.as_bytes())?
+            lib.get::<extern "C" fn(*mut c_void) -> *mut c_void>(
+                name.as_bytes()
+            )?
         };
 
+        // Execute with VariableStore
         let store_ptr = &mut *self.variable_store as *mut _ as *mut c_void;
-        unsafe { func(store_ptr); }
+        unsafe {
+            func(store_ptr);
+        }
 
-        self.libraries.push(lib);  // Keep loaded
+        // Keep library loaded
+        self.libraries.push(lib);
+
         Ok(())
     }
 }
@@ -573,9 +1157,20 @@ impl Runtime {
 
 ---
 
-## 4. rustc Invocation Reference
+#### 4.2.2 VariableStore
 
-### 4.1 The Cargo Command
+**Location:** `oxur-subprocess/src/variable_store.rs`
+**Also:** Embedded in generated code (same implementation)
+
+**Purpose:** Type-erased variable persistence.
+
+*See ADR-001 for complete implementation.*
+
+---
+
+## 5. rustc Invocation Reference
+
+### 5.1 The Cargo Command
 
 ```bash
 # Primary invocation
@@ -588,7 +1183,7 @@ CARGO_TARGET_DIR=/tmp/oxur-session-abc/target
 RUSTFLAGS="-C link-arg=-fuse-ld=mold"
 ```
 
-### 4.2 Cargo.toml
+### 5.2 Cargo.toml
 
 ```toml
 [package]
@@ -605,7 +1200,7 @@ opt-level = 2
 incremental = true
 ```
 
-### 4.3 Platform Specifics
+### 5.3 Platform Specifics
 
 **Linux:**
 
@@ -627,7 +1222,7 @@ incremental = true
 
 ---
 
-## 5. File System Organization
+## 6. File System Organization
 
 ```
 /tmp/oxur-repl/
@@ -660,7 +1255,7 @@ incremental = true
 
 ---
 
-## 6. Performance Expectations
+## 7. Performance Expectations
 
 | Operation | Target | Notes |
 |-----------|--------|-------|
@@ -681,9 +1276,9 @@ incremental = true
 
 ---
 
-## 7. Error Handling Strategy
+## 8. Error Handling Strategy
 
-### 7.1 Error Translation Pipeline
+### 8.1 Error Translation Pipeline
 
 ```
 rustc error (lib.rs:42:10)
@@ -697,7 +1292,7 @@ Oxur source position (test.ox:5:15)
 OxurError with context
 ```
 
-### 7.2 Implementation
+### 8.2 Implementation
 
 ```rust
 pub struct ErrorTranslator {
@@ -734,7 +1329,7 @@ fn extract_node_id(line: &str) -> Option<NodeId> {
 }
 ```
 
-### 7.3 Cargo JSON Parsing
+### 8.3 Cargo JSON Parsing
 
 ```rust
 #[derive(Deserialize)]
@@ -763,9 +1358,9 @@ fn parse_cargo_errors(output: &str) -> Vec<CompilerMessage> {
 
 ---
 
-## 8. Testing Strategy
+## 9. Testing Strategy
 
-### 8.1 Unit Tests
+### 9.1 Unit Tests
 
 ```rust
 #[test]
@@ -790,7 +1385,7 @@ fn test_code_generation() {
 }
 ```
 
-### 8.2 Integration Tests
+### 9.2 Integration Tests
 
 ```rust
 #[tokio::test]
@@ -822,7 +1417,7 @@ async fn test_compilation_error() {
 }
 ```
 
-### 8.3 Property Tests
+### 9.3 Property Tests
 
 ```rust
 use proptest::prelude::*;
@@ -841,7 +1436,7 @@ proptest! {
 
 ---
 
-## 9. Implementation Roadmap
+## 10. Implementation Roadmap
 
 ### Phase 1: Foundation (Week 1)
 
@@ -855,6 +1450,8 @@ proptest! {
 
 **Deliverable:** Can compile and execute simple Rust code in subprocess
 
+**Note:** Protocol layer (ODD-0018) already implemented in Phases 1-3.
+
 ### Phase 2: Code Generation (Week 2)
 
 **Goal:** Oxur → Rust lowering
@@ -863,8 +1460,11 @@ proptest! {
 - [ ] Add source map tracking
 - [ ] Generate wrapper functions
 - [ ] Test with various Core Forms
+- [ ] **Define integration APIs with oxur-lang, oxur-comp** *(NEW)*
 
 **Deliverable:** Can lower Oxur Core Forms to Rust
+
+**Blockers:** Requires Core Forms definition and oxur-comp lowering implementation.
 
 ### Phase 3: Compilation Integration (Week 3)
 
@@ -889,16 +1489,17 @@ proptest! {
 
 **Deliverable:** Errors point to Oxur source
 
-### Phase 5: Session Management (Week 5)
+### Phase 5: EvalContext Integration (Week 5) *(UPDATED)*
 
-**Goal:** Multi-session support
+**Goal:** Connect compilation to protocol layer
 
-- [ ] Implement SessionManager
-- [ ] Add clone-try-commit pattern
-- [ ] Handle session lifecycle
-- [ ] Test concurrent sessions
+- [ ] Implement EvalContext
+- [ ] Integrate with CachedCompiler
+- [ ] Connect to SessionManager
+- [ ] Implement tier decision logic
+- [ ] Test multi-session scenarios
 
-**Deliverable:** Multiple isolated sessions work
+**Deliverable:** Complete server-side evaluation pipeline
 
 ### Phase 6: Calculator Mode (Week 6)
 
@@ -911,16 +1512,16 @@ proptest! {
 
 **Deliverable:** Fast path for simple math
 
-### Phase 7: Protocol Integration (Week 7)
+### Phase 7: End-to-End Integration (Week 7) *(UPDATED)*
 
-**Goal:** Network REPL server
+**Goal:** Complete REPL system
 
-- [ ] Implement protocol handler
-- [ ] Add postcard serialization
-- [ ] Connect to SessionManager
-- [ ] Test over TCP/Unix sockets
+- [ ] Connect MessageHandler to EvalContext
+- [ ] Test full client→server→eval flow
+- [ ] Verify protocol compliance
+- [ ] Test error propagation through protocol
 
-**Deliverable:** Working network REPL
+**Deliverable:** Working end-to-end REPL system
 
 ### Phase 8: Polish (Week 8)
 
@@ -934,7 +1535,7 @@ proptest! {
 
 ---
 
-## 10. Dependencies and Versioning
+## 11. Dependencies and Versioning
 
 ```toml
 [dependencies]
@@ -955,6 +1556,11 @@ thiserror = "1.0"
 # Other
 regex = "1.10"
 uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Internal dependencies (NEW)
+oxur-lang = { path = "../oxur-lang" }
+oxur-comp = { path = "../oxur-comp" }
+oxur-ast = { path = "../oxur-ast" }
 ```
 
 **Feature Flags:**
@@ -967,7 +1573,7 @@ fast-linker = []  # Auto-detect mold/lld
 
 ---
 
-## 11. Risk Mitigation
+## 12. Risk Mitigation
 
 ### Risk 1: Multi-Session Resource Exhaustion
 
@@ -1035,7 +1641,61 @@ fast-linker = []  # Auto-detect mold/lld
 
 ---
 
-## 12. Appendix: Audit Summary
+## 13. See Also
+
+---
+
+## 14. Revision History
+
+### Changes from v1.0 to v1.1
+
+**Date:** January 3, 2026
+
+#### Major Additions
+
+- **Section 2: Architecture Overview (NEW)** - High-level system architecture, component locations, compilation pipeline ownership, integration points
+- **ADR-009: Client-Server Architecture (NEW)** - Formalizes server-side compilation decision, defines client vs server responsibilities
+- **ADR-010: Component Ownership (NEW)** - Documents CachedCompiler ownership by EvalContext
+
+#### Updates
+
+- **Section 4: Component Implementation Specifications** - Added Location and Ownership fields to each component, clarified integration points with external crates
+- **Section 10: Implementation Roadmap** - Phase 5 renamed to "EvalContext Integration", Phase 7 renamed to "End-to-End Integration", added blockers
+- **Section 11: Dependencies** - Added internal dependencies: oxur-lang, oxur-comp, oxur-ast
+
+#### Key Improvements
+
+- Architecture clarity: explicit component locations and ownership
+- Integration points: clear APIs defined for cross-crate dependencies
+- References REPL Architecture Overview document for complete architectural details
+
+## 15. Conclusion
+
+This specification provides a complete, actionable blueprint for implementing Oxur's REPL based on proven patterns from evcxr, **now integrated with the complete client-server architecture defined in ODD-0018 and detailed in the REPL Architecture Overview**.
+
+**Key Takeaways:**
+
+1. **Adopt proven patterns** - evcxr validates our approach
+2. **Server-side compilation** - All heavy lifting on server, thin client
+3. **Clear component ownership** - CachedCompiler owned by EvalContext
+4. **Well-defined integration points** - APIs specified for oxur-lang, oxur-comp, oxur-ast
+5. **Simplify where possible** - Skip evcxr_runtime, rustc wrapper initially
+6. **Invest in quality** - Source maps, error translation critical
+7. **Ship iteratively** - v1.0 core, v1.1 optimizations
+
+**Architecture Clarity:** See **REPL Architecture Overview** for:
+
+- Complete system architecture diagrams
+- Detailed data flow specifications
+- Integration point details
+- Session management architecture
+- Protocol integration patterns
+
+**Ready to implement.** 🚀
+
+---
+
+## 16. Appendix: Audit Summary
 
 ### Pattern Adoption Matrix
 
@@ -1086,20 +1746,6 @@ fast-linker = []  # Auto-detect mold/lld
 
 ---
 
-## Conclusion
-
-This specification provides a complete, actionable blueprint for implementing Oxur's REPL based on proven patterns from evcxr. The architecture is validated, the risks are identified and mitigated, and the implementation path is clear.
-
-**Key Takeaways:**
-
-1. **Adopt proven patterns** - evcxr validates our approach
-2. **Simplify where possible** - Skip evcxr_runtime, rustc wrapper initially
-3. **Invest in quality** - Source maps, error translation critical
-4. **Ship iteratively** - v1.0 core, v1.1 optimizations
-
-**Ready to implement.** 🚀
-
----
-
 **Document Status:** Definitive Reference for Oxur REPL Implementation
+**Version:** 1.1 (Updated with architecture clarifications)
 **Next Steps:** Begin Phase 1 (Foundation) implementation

@@ -14,7 +14,7 @@ This index is automatically generated. Do not edit manually.
 | 0033 | oxur-ast Phase 11: Literal Completeness and Pattern Refinement | Under Review | 2026-01-03 |
 | 0032 | oxur-ast Phase 10: Critical Expressions (Closures, Loops, Match) | Under Review | 2026-01-03 |
 | 0031 | oxur-ast Phase 9: Connect Existing AST Definitions | Active | 2026-01-04 |
-| 0030 | Oxur REPL Implementation Specification | Active | 2026-01-03 |
+| 0030 | Oxur REPL Implementation Specification | Draft | 2026-01-04 |
 | 0029 | evcxr Compiler Integration Audit Report | Final | 2026-01-03 |
 | 0028 | evcxr_runtime Audit Report | Final | 2026-01-03 |
 | 0027 | evcxr_repl Audit Report | Final | 2026-01-03 |
@@ -57,6 +57,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Draft
 
+- [0030 - Oxur REPL Implementation Specification](01-draft/0030-oxur-repl-implementation-specification.md)
 - [0026 - Oxur REPL Evaluation Strategy](01-draft/0026-oxur-repl-evaluation-strategy.md)
 - [0025 - Oxur Syntax Addendum: Function Head Pattern Matching](01-draft/0025-oxur-syntax-addendum-function-head-pattern-matching.md)
 - [0021 - Oxur Syntax Design Proposal](01-draft/0021-oxur-syntax-design-proposal.md)
@@ -64,7 +65,6 @@ This index is automatically generated. Do not edit manually.
 ### Active
 
 - [0031 - oxur-ast Phase 9: Connect Existing AST Definitions](05-active/0031-oxur-ast-phase-9-connect-existing-ast-definitions.md)
-- [0030 - Oxur REPL Implementation Specification](05-active/0030-oxur-repl-implementation-specification.md)
 - [0018 - Oxur Remote REPL Protocol Design](05-active/0018-oxur-remote-repl-protocol-design.md)
 - [0013 - Oxur Compilation Chain Architecture](05-active/0013-oxur-compilation-chain-architecture.md)
 - [0003 - oxur-ast: Canonical S-Expression Format for Rust AST](05-active/0003-oxur-ast-canonical-s-expression-format-for-rust-ast.md)
