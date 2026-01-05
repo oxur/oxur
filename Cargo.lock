@@ -986,6 +986,7 @@ name = "oxur-lang"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "oxur-smap",
  "serde",
  "syn 2.0.111",
  "thiserror 1.0.69",

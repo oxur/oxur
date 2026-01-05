@@ -4,7 +4,9 @@
 //! This is where syntactic sugar gets transformed into canonical forms.
 
 use crate::parser::SurfaceForm;
-use crate::{core_forms::CoreForm, source_map::SourceMap, Result};
+use crate::core_forms::CoreForm;
+use crate::Result;
+use oxur_smap::SourceMap;
 
 /// Expander handles macro expansion and desugaring
 pub struct Expander {
@@ -26,6 +28,12 @@ impl Expander {
     pub fn source_map(&self) -> &SourceMap {
         &self.source_map
     }
+
+    /// Check if the source map is empty
+    pub fn is_empty(&self) -> bool {
+        let stats = self.source_map.stats();
+        stats.surface_nodes == 0 && stats.expansions == 0 && stats.lowerings == 0
+    }
 }
 
 impl Default for Expander {
@@ -41,13 +49,13 @@ mod tests {
     #[test]
     fn test_expander_creation() {
         let expander = Expander::new();
-        assert!(expander.source_map().is_empty());
+        assert!(expander.is_empty());
     }
 
     #[test]
     fn test_expander_default() {
         let expander = Expander::default();
-        assert!(expander.source_map().is_empty());
+        assert!(expander.is_empty());
     }
 
     #[test]
@@ -61,7 +69,7 @@ mod tests {
     #[test]
     fn test_source_map_access() {
         let expander = Expander::new();
-        let map = expander.source_map();
-        assert!(map.is_empty());
+        let _map = expander.source_map();
+        assert!(expander.is_empty());
     }
 }

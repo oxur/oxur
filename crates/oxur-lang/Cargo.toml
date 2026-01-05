@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Oxur language processing: parser, expander, and Core Forms IR"
 
 [dependencies]
+oxur-smap = { path = "../oxur-smap" }
 thiserror.workspace = true
 serde.workspace = true
 syn.workspace = true

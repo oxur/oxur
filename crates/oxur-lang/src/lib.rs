@@ -10,12 +10,13 @@
 pub mod core_forms;
 pub mod expander;
 pub mod parser;
-pub mod source_map;
 
 pub use core_forms::{CoreForm, NodeId};
 pub use expander::Expander;
 pub use parser::Parser;
-pub use source_map::SourceMap;
+
+// Re-export oxur-smap types for convenience
+pub use oxur_smap::{SourceMap, SourcePos, new_node_id};
 
 /// Result type for language operations
 pub type Result<T> = std::result::Result<T, Error>;
@@ -72,11 +73,11 @@ mod tests {
     fn test_expand_error_display() {
         let err = Error::Expand {
             message: "macro expansion failed".to_string(),
-            node_id: NodeId::new(42),
+            node_id: NodeId::from_raw(42),
         };
         let msg = format!("{}", err);
         assert!(msg.contains("Expansion error"));
-        assert!(msg.contains("#42"));
+        assert!(msg.contains("NodeId(42)"));
         assert!(msg.contains("macro expansion failed"));
     }
 
