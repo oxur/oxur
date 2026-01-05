@@ -490,10 +490,79 @@ impl SynConverter {
                 // Convert _
                 TyKind::Infer
             }
+            // Phase 12: ImplTrait - impl Iterator<Item = i32>
+            syn::Type::ImplTrait(type_impl_trait) => {
+                let bounds = type_impl_trait
+                    .bounds
+                    .iter()
+                    .map(|bound| self.convert_type_param_bound(bound))
+                    .collect::<Result<Vec<_>>>()?;
+
+                TyKind::ImplTrait(bounds)
+            }
+            // Phase 12: TraitObject - dyn Display + Send
+            syn::Type::TraitObject(type_trait_object) => {
+                let syntax = if type_trait_object.dyn_token.is_some() {
+                    TraitObjectSyntax::Dyn
+                } else {
+                    TraitObjectSyntax::None
+                };
+
+                let bounds = type_trait_object
+                    .bounds
+                    .iter()
+                    .map(|bound| self.convert_type_param_bound(bound))
+                    .collect::<Result<Vec<_>>>()?;
+
+                TyKind::TraitObject { bounds, syntax }
+            }
+            // Phase 12: BareFn - fn(i32) -> bool
+            syn::Type::BareFn(type_bare_fn) => {
+                let safety = match type_bare_fn.unsafety {
+                    Some(_) => Safety::Unsafe,
+                    None => Safety::Default,
+                };
+
+                let abi = type_bare_fn.abi.as_ref().map(|abi_spec| {
+                    abi_spec
+                        .name
+                        .as_ref()
+                        .map(|lit_str| lit_str.value())
+                        .unwrap_or_else(|| "Rust".to_string())
+                });
+
+                // Input parameters
+                let inputs = type_bare_fn
+                    .inputs
+                    .iter()
+                    .map(|bare_fn_arg| {
+                        let name = bare_fn_arg.name.as_ref().map(|(ident, _)| self.convert_ident(ident));
+
+                        let ty = self.convert_type(&bare_fn_arg.ty)?;
+
+                        Ok(BareFnParam { attrs: vec![], name, ty })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                // Return type
+                let output = self.convert_return_type(&type_bare_fn.output)?;
+
+                TyKind::BareFn { safety, abi, inputs, output }
+            }
+            // Phase 12: Paren - (Type)
+            syn::Type::Paren(type_paren) => {
+                let inner = Box::new(self.convert_type(&type_paren.elem)?);
+                TyKind::Paren(inner)
+            }
+            // Phase 12: Macro - vec![i32]
+            syn::Type::Macro(type_macro) => {
+                let mac = self.convert_macro(&type_macro.mac)?;
+                TyKind::MacCall(mac)
+            }
             _ => {
                 return Err(ParseError::Expected {
                     expected:
-                        "supported type (path, reference, slice, array, tuple, ptr, never, infer)"
+                        "supported type (path, reference, slice, array, tuple, ptr, never, infer, impl, dyn, fn, paren, macro)"
                             .to_string(),
                     found: "unsupported type".to_string(),
                     pos: Position::new(0, 1, 1),
