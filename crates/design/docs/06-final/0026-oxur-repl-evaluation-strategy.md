@@ -39,6 +39,7 @@ Oxur REPL will use a **minimal interpretation** strategy:
 ### Integration with Existing Designs
 
 This strategy builds upon:
+
 - [Design Doc 0013: Compilation Chain Architecture](./0013-oxur-compilation-chain-architecture.md) - Full compilation pipeline
 - [Design Doc 0018: REPL Protocol Design](./0018-oxur-remote-repl-protocol-design.md) - Network protocol and session management
 
@@ -67,6 +68,7 @@ oxur> (defn factorial [n] (if (<= n 1) 1 (* n (factorial (- n 1)))))
 ```
 
 **Every interpreted feature becomes:**
+
 - Code that doesn't benefit from rustc's type checking
 - Code that doesn't benefit from rustc's borrow checker
 - Code that doesn't benefit from rustc's optimization
@@ -136,7 +138,7 @@ impl Calculator {
             _ => false,
         }
     }
-    
+
     pub fn eval(&self, form: &CoreForm) -> Result<i64> {
         match form {
             CoreForm::Literal(Literal::Integer(n)) => Ok(*n),
@@ -199,35 +201,36 @@ pub struct CachedCompiler {
 impl CachedCompiler {
     pub async fn eval(&mut self, form: CoreForm) -> Result<EvalResult> {
         let code_hash = hash(&form);
-        
+
         // Check cache
         if let Some(compiled) = self.cache.get(&code_hash) {
             return self.execute(compiled);
         }
-        
+
         // Compile (with progress indicator for slow compiles)
         let compiled = self.compile(form).await?;
         self.cache.insert(code_hash, compiled.clone());
-        
+
         self.execute(&compiled)
     }
-    
+
     async fn compile(&self, form: CoreForm) -> Result<CompiledCode> {
         // Full pipeline from compilation chain doc:
         // 1. Lower Core Forms → Rust AST
         // 2. Generate Rust source
         // 3. Compile to dynamic library
         // 4. Load with libloading
-        
+
         let rust_code = lower_and_generate(&form)?;
         let lib_path = self.compile_dylib(&rust_code).await?;
-        
+
         Ok(CompiledCode::load(lib_path)?)
     }
 }
 ```
 
 **Benefits:**
+
 - First compile: 50-200ms (acceptable for non-trivial code)
 - Cached: ~0ms (instant function call)
 - Full Rust safety guarantees
@@ -243,10 +246,10 @@ For user-facing development:
 pub async fn eval_lisp(&mut self, source: &str) -> Result<Response> {
     // Stage 1: Parse Oxur syntax
     let surface_forms = parse_oxur_syntax(source)?;
-    
+
     // Stage 2: Expand macros
     let core_forms = expand_macros(surface_forms)?;
-    
+
     // Try calculator mode (Tier 1)
     if let Ok(result) = self.calculator.eval(&core_forms[0]) {
         return Ok(Response {
@@ -255,7 +258,7 @@ pub async fn eval_lisp(&mut self, source: &str) -> Result<Response> {
             ..Default::default()
         });
     }
-    
+
     // Fall through to compilation (Tier 2)
     self.compile_and_run(core_forms[0]).await
 }
@@ -269,7 +272,7 @@ For compiler debugging - **always compile**, never interpret:
 pub async fn eval_sexpr(&mut self, source: &str) -> Result<Response> {
     // Parse Core Forms directly (skip macro expansion)
     let core_forms = parse_core_forms(source)?;
-    
+
     // ALWAYS compile (no calculator fast path)
     // This mode is for debugging the compiler itself
     self.compile_and_run(core_forms[0]).await
@@ -292,16 +295,17 @@ use evcxr_runtime::{Runtime, EvalResult};
 impl CachedCompiler {
     async fn execute(&self, compiled: &CompiledCode) -> Result<EvalResult> {
         let runtime = Runtime::new();
-        
+
         // Execute compiled code with runtime
         let result = unsafe { compiled.call_with_runtime(&runtime) }?;
-        
+
         Ok(result)
     }
 }
 ```
 
 **Benefits:**
+
 - Battle-tested value representation
 - Display/Debug formatting for REPL output
 - Error handling for runtime failures
@@ -363,6 +367,7 @@ Before detailed REPL design, we need hands-on experience. The following work is 
 **Goal:** Extract useful patterns, assess against Oxur's needs
 
 **Tasks:**
+
 - [ ] Document evcxr's compilation workflow
 - [ ] Identify output capture mechanism
 - [ ] Extract temporary file handling patterns
@@ -378,6 +383,7 @@ Before detailed REPL design, we need hands-on experience. The following work is 
 **Goal:** Identify what we need from the runtime
 
 **Tasks:**
+
 - [ ] Document runtime value representation
 - [ ] Identify display/debug formatting utilities
 - [ ] Extract error handling patterns
@@ -392,6 +398,7 @@ Before detailed REPL design, we need hands-on experience. The following work is 
 **Goal:** Create test cases for end-to-end compilation
 
 **Tasks:**
+
 - [ ] Define syntax for 2-3 simple forms (e.g., arithmetic, let bindings)
 - [ ] Write example `.ox` files using these forms
 - [ ] Document expected Rust output for each example
@@ -420,6 +427,7 @@ Before detailed REPL design, we need hands-on experience. The following work is 
 **Goal:** End-to-end compilation of prototype syntax
 
 **Tasks:**
+
 - [ ] Implement parser for prototype syntax → Surface Forms
 - [ ] Implement expander for prototype forms → Core Forms
 - [ ] Implement lowerer Core Forms → Rust AST (for test cases)
@@ -444,6 +452,7 @@ $ ./output/arithmetic
 ### Avoid Premature Design Decisions
 
 Without hands-on experience:
+
 - We might design APIs that don't fit actual usage
 - We might miss important integration points
 - We might overcommit to patterns that don't work
@@ -451,6 +460,7 @@ Without hands-on experience:
 ### Validate Assumptions
 
 The prototype will reveal:
+
 - Whether our two-tier strategy actually works
 - How well evcxr_runtime integrates with our compiler
 - What compilation performance really looks like
@@ -459,6 +469,7 @@ The prototype will reveal:
 ### Build Intuition
 
 Working code provides:
+
 - Concrete examples for documentation
 - Test cases for the real implementation
 - Muscle memory for Oxur idioms
@@ -469,29 +480,34 @@ Working code provides:
 These phases are **subject to revision** after preparatory work:
 
 ### Phase 0: Preparatory Work (Weeks 1-3)
+
 - Audit evcxr projects
 - Define prototype syntax
 - Build prototype compiler
 - **Validate:** Can compile 3 test cases end-to-end
 
 ### Phase 1: Tier 2 Only (Weeks 4-5)
+
 - Implement compilation-only REPL
 - Integrate evcxr_runtime
 - Get output capture working
 - **Validate:** Can evaluate all test cases via REPL
 
 ### Phase 2: Add Calculator (Week 6)
+
 - Implement Tier 1 (calculator mode)
 - Add fast path for literal arithmetic
 - **Validate:** Calculator <1ms, compilation <200ms
 
 ### Phase 3: Protocol Server (Weeks 7-8)
+
 - Implement REPL protocol (Doc 0018)
 - Add session management
 - Support TCP transport
 - **Validate:** Remote clients can connect and evaluate
 
 ### Phase 4: Polish (Week 9)
+
 - Error translation with source maps
 - Progress indicators for slow compiles
 - Comprehensive testing
