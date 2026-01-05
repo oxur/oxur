@@ -13,15 +13,12 @@ use oxur_lang::{CoreForm, NodeId, Parser};
 /// Integrates with oxur-lang for parsing and evaluation.
 /// Provides fast-path calculator mode for simple arithmetic.
 #[derive(Clone)]
-pub struct LispEvaluator {
-    /// Next node ID for AST construction
-    next_id: u64,
-}
+pub struct LispEvaluator {}
 
 impl LispEvaluator {
     /// Create a new Lisp evaluator
     pub fn new() -> Self {
-        Self { next_id: 0 }
+        Self {}
     }
 
     /// Try to evaluate code in calculator mode (Tier 1)
@@ -288,9 +285,8 @@ impl LispEvaluator {
 
     /// Generate next node ID
     fn next_node_id(&mut self) -> NodeId {
-        let id = NodeId::new(self.next_id);
-        self.next_id += 1;
-        id
+        use oxur_smap::new_node_id;
+        new_node_id()
     }
 }
 
@@ -521,7 +517,8 @@ mod tests {
         let mut eval = LispEvaluator::new();
         let id1 = eval.next_node_id();
         let id2 = eval.next_node_id();
-        assert_eq!(id1.0, 0);
-        assert_eq!(id2.0, 1);
+        // NodeIds are generated globally, so we can't assert specific values
+        // Just verify they're different
+        assert_ne!(id1, id2);
     }
 }

@@ -13,6 +13,9 @@ pub use codegen::CodeGenerator;
 pub use compiler::Compiler;
 pub use lowering::Lowerer;
 
+// Re-export oxur-smap types for convenience
+pub use oxur_smap::{SourceMap, SourcePos, NodeId, new_node_id};
+
 /// Result type for compilation operations
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -15,9 +15,6 @@ use std::collections::HashMap;
 /// Format: `(NodeType :field1 value1 :field2 value2)`
 #[derive(Clone)]
 pub struct SexprEvaluator {
-    /// Next node ID for AST construction
-    next_id: u64,
-
     /// Symbol table for variable bindings
     symbols: HashMap<String, SexprValue>,
 }
@@ -25,7 +22,7 @@ pub struct SexprEvaluator {
 impl SexprEvaluator {
     /// Create a new s-expression evaluator
     pub fn new() -> Self {
-        Self { next_id: 0, symbols: HashMap::new() }
+        Self { symbols: HashMap::new() }
     }
 
     /// Try to evaluate code in calculator mode (Tier 1)
@@ -376,9 +373,8 @@ impl SexprEvaluator {
 
     /// Generate next node ID
     fn next_node_id(&mut self) -> NodeId {
-        let id = NodeId::new(self.next_id);
-        self.next_id += 1;
-        id
+        use oxur_smap::new_node_id;
+        new_node_id()
     }
 
     /// Clear the symbol table

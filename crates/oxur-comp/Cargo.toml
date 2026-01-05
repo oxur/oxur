@@ -12,6 +12,7 @@ name = "oxurc"
 path = "src/main.rs"
 
 [dependencies]
+oxur-smap = { path = "../oxur-smap" }
 oxur-lang = { version = "0.1.0", path = "../oxur-lang" }
 anyhow.workspace = true
 thiserror.workspace = true
