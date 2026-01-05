@@ -8,6 +8,7 @@ members = [
     "crates/oxur-repl",
     "crates/oxur-cli",
     "crates/oxur-pretty",
+    "crates/oxur-smap",
 ]
 
 # Workspace-wide dependencies (shared versions)

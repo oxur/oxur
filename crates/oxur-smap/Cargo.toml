@@ -1,0 +1,16 @@
+[package]
+name = "oxur-smap"
+version = "0.1.0"
+edition = "2021"
+authors = ["Duncan McGreggor"]
+license = "MIT OR Apache-2.0"
+description = "Source mapping for Oxur language - tracks code transformations for error reporting"
+repository = "https://github.com/oxur-lang/oxur"
+keywords = ["compiler", "source-map", "error-reporting"]
+categories = ["development-tools"]
+
+[dependencies]
+# Intentionally empty - this is a foundation crate with zero dependencies
+
+[dev-dependencies]
+# For testing only
