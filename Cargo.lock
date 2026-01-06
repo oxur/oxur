@@ -74,6 +74,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
+name = "ariadne"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44055e597c674aef7cb903b2b9f6e4cba1277ed0d2d61dae7cd52d7ffa81f8e2"
+dependencies = [
+ "unicode-width 0.1.14",
+ "yansi",
+]
+
+[[package]]
 name = "assert_cmd"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1074,6 +1084,7 @@ name = "oxur-repl"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ariadne",
  "async-trait",
  "dirs",
  "libloading",
@@ -1084,6 +1095,7 @@ dependencies = [
  "prettyplease",
  "proc-macro2",
  "quote",
+ "regex",
  "serde",
  "serde_json",
  "sha2",
@@ -1108,7 +1120,7 @@ checksum = "d2b0f8def1f117e13c895f3eda65a7b5650688da29d6ad04635f61bc7b92eebd"
 dependencies = [
  "bytecount",
  "fnv",
- "unicode-width",
+ "unicode-width 0.2.2",
 ]
 
 [[package]]
@@ -2001,6 +2013,12 @@ dependencies = [
 
 [[package]]
 name = "unicode-width"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
+
+[[package]]
+name = "unicode-width"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
@@ -2430,6 +2448,12 @@ dependencies = [
  "libc",
  "rustix 1.1.3",
 ]
+
+[[package]]
+name = "yansi"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "zerocopy"

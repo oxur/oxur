@@ -27,6 +27,9 @@ syn = { version = "2.0", features = ["full", "parsing", "visit"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 prettyplease = "0.2"
+# Required for Phase 4: Source Map Integration
+ariadne = "0.4"          # Beautiful error display (rustc-style)
+regex = "1.10"           # Parse /* oxur_node=N */ comments
 
 [dev-dependencies]
 anyhow.workspace = true

@@ -216,15 +216,30 @@ impl ErrorTranslator {
 
     /// Translate a rustc span to Oxur position
     fn translate_span(&self, span: &RustcSpan) -> Result<TranslatedSpan> {
-        // If no source map, return Rust positions as-is
-        let pos = if let Some(_source_map) = &self.source_map {
-            // TODO: Implement actual source map lookup
-            // For now, create a placeholder position
-            SourcePos::repl(
-                span.line_start as u32,
-                span.column_start as u32,
-                (span.byte_end - span.byte_start) as u32,
-            )
+        // If we have a source map, try to look up the original position
+        let pos = if let Some(source_map) = &self.source_map {
+            // Try to extract NodeId from generated source
+            match self.extract_node_id_from_file(&span.file_name, span.line_start, span.column_start) {
+                Ok(node_id) => {
+                    // Look up original position in source map
+                    source_map.lookup(&node_id).unwrap_or_else(|| {
+                        // Fallback to Rust position if lookup fails
+                        SourcePos::repl(
+                            span.line_start as u32,
+                            span.column_start as u32,
+                            (span.byte_end - span.byte_start) as u32,
+                        )
+                    })
+                }
+                Err(_) => {
+                    // Fallback to Rust position if extraction fails
+                    SourcePos::repl(
+                        span.line_start as u32,
+                        span.column_start as u32,
+                        (span.byte_end - span.byte_start) as u32,
+                    )
+                }
+            }
         } else {
             // No source map - use Rust positions directly
             SourcePos::repl(
@@ -235,6 +250,70 @@ impl ErrorTranslator {
         };
 
         Ok(TranslatedSpan { pos, label: span.label.clone(), source_text: None })
+    }
+
+    /// Extract NodeId from generated Rust source file
+    ///
+    /// Reads the specified line and searches for /* oxur_node=N */ comments
+    /// near the given column position.
+    fn extract_node_id_from_file(
+        &self,
+        file_path: &str,
+        line: usize,
+        column: usize,
+    ) -> Result<oxur_smap::NodeId> {
+        // Read the source file
+        let source = std::fs::read_to_string(file_path)
+            .map_err(|e| TranslationError::LookupFailed(format!("Failed to read {}: {}", file_path, e)))?;
+
+        // Get the specific line (line numbers are 1-based)
+        let line_content = source
+            .lines()
+            .nth(line.saturating_sub(1))
+            .ok_or_else(|| TranslationError::LookupFailed(format!("Line {} not found in {}", line, file_path)))?;
+
+        // Extract NodeId from the line
+        self.extract_node_id_from_line(line_content, column)
+    }
+
+    /// Extract NodeId from a line of source code
+    ///
+    /// Searches for /* oxur_node=N */ comments and returns the NodeId
+    /// closest to the given column position.
+    fn extract_node_id_from_line(&self, line: &str, column: usize) -> Result<oxur_smap::NodeId> {
+        use regex::Regex;
+
+        // Pattern to match /* oxur_node=123 */ comments
+        let pattern = Regex::new(r"/\*\s*oxur_node=(\d+)\s*\*/")
+            .map_err(|e| TranslationError::LookupFailed(format!("Regex compilation failed: {}", e)))?;
+
+        // Find all matches and pick the one closest to the column
+        let mut best_match: Option<(usize, u32)> = None;
+
+        for capture in pattern.captures_iter(line) {
+            if let Some(whole_match) = capture.get(0) {
+                if let Some(node_id_str) = capture.get(1) {
+                    let match_start = whole_match.start();
+                    let node_id: u32 = node_id_str
+                        .as_str()
+                        .parse()
+                        .map_err(|e| TranslationError::LookupFailed(format!("Invalid node_id: {}", e)))?;
+
+                    // Calculate distance from column (columns are 1-based)
+                    let distance = (match_start as i32 - column.saturating_sub(1) as i32).abs() as usize;
+
+                    // Keep the closest match
+                    if best_match.is_none() || distance < best_match.unwrap().0 {
+                        best_match = Some((distance, node_id));
+                    }
+                }
+            }
+        }
+
+        // Return the NodeId of the closest match
+        best_match
+            .map(|(_, id)| oxur_smap::NodeId::from_raw(id))
+            .ok_or_else(|| TranslationError::LookupFailed("No oxur_node comment found in line".to_string()))
     }
 }
 
@@ -283,6 +362,137 @@ impl TranslatedDiagnostic {
         }
 
         output
+    }
+
+    /// Display the diagnostic with ariadne for beautiful rustc-style error output
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The original Oxur source code
+    ///
+    /// # Returns
+    ///
+    /// A beautifully formatted error message with source highlighting
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use oxur_repl::compiler::TranslatedDiagnostic;
+    /// # use oxur_repl::compiler::DiagnosticLevel;
+    /// # use oxur_repl::compiler::TranslatedSpan;
+    /// # use oxur_smap::SourcePos;
+    ///
+    /// let diag = TranslatedDiagnostic {
+    ///     message: "cannot find value `x`".to_string(),
+    ///     level: DiagnosticLevel::Error,
+    ///     code: Some("E0425".to_string()),
+    ///     primary_span: Some(TranslatedSpan {
+    ///         pos: SourcePos::repl(3, 15, 1),
+    ///         label: Some("not found".to_string()),
+    ///         source_text: None,
+    ///     }),
+    ///     secondary_spans: vec![],
+    ///     children: vec![],
+    ///     suggestion: None,
+    ///     };
+    ///
+    /// let source = "(def x 42)\n(def y (+ x 10))\n(+ y z)";
+    /// let formatted = diag.display_with_ariadne(source);
+    /// println!("{}", formatted);
+    /// ```
+    pub fn display_with_ariadne(&self, source: &str) -> String {
+        use ariadne::{Color, Label, Report, ReportKind, Source};
+
+        // Determine report kind from diagnostic level
+        let kind = match self.level {
+            DiagnosticLevel::Error => ReportKind::Error,
+            DiagnosticLevel::Warning => ReportKind::Warning,
+            DiagnosticLevel::Note | DiagnosticLevel::Help => ReportKind::Advice,
+            DiagnosticLevel::FailureNote | DiagnosticLevel::Other => ReportKind::Custom("note", Color::Cyan),
+        };
+
+        // Build the report
+        let mut report_builder = Report::build(kind, "<repl>", 0).with_message(&self.message);
+
+        // Add error code if present
+        if let Some(code) = &self.code {
+            report_builder = report_builder.with_code(code.clone());
+        }
+
+        // Add primary span if present
+        if let Some(primary) = &self.primary_span {
+            // Calculate byte offset from line and column
+            let byte_offset = self.calculate_byte_offset(source, &primary.pos);
+            let end_offset = byte_offset + primary.pos.length as usize;
+
+            let mut label = Label::new(("<repl>", byte_offset..end_offset)).with_color(Color::Red);
+
+            if let Some(msg) = &primary.label {
+                label = label.with_message(msg);
+            }
+
+            report_builder = report_builder.with_label(label);
+        }
+
+        // Add secondary spans
+        for secondary in &self.secondary_spans {
+            let byte_offset = self.calculate_byte_offset(source, &secondary.pos);
+            let end_offset = byte_offset + secondary.pos.length as usize;
+
+            let mut label = Label::new(("<repl>", byte_offset..end_offset)).with_color(Color::Yellow);
+
+            if let Some(msg) = &secondary.label {
+                label = label.with_message(msg);
+            }
+
+            report_builder = report_builder.with_label(label);
+        }
+
+        // Add help messages from children
+        for child in &self.children {
+            if child.level == DiagnosticLevel::Help {
+                report_builder = report_builder.with_help(&child.message);
+            } else if child.level == DiagnosticLevel::Note {
+                report_builder = report_builder.with_note(&child.message);
+            }
+        }
+
+        // Build and render the report
+        let mut output = Vec::new();
+
+        // Use a simple inline cache - ariadne accepts closures that implement FnMut
+        report_builder
+            .finish()
+            .write(("<repl>", Source::from(source)), &mut output)
+            .expect("Failed to write ariadne report");
+
+        String::from_utf8(output).unwrap_or_else(|_| "Error formatting diagnostic".to_string())
+    }
+
+    /// Calculate byte offset from line and column
+    fn calculate_byte_offset(&self, source: &str, pos: &SourcePos) -> usize {
+        let mut offset = 0;
+        let mut current_line = 1;
+
+        for (idx, ch) in source.char_indices() {
+            if current_line >= pos.line {
+                // We're on the target line, add column offset
+                let column_offset = source[offset..]
+                    .chars()
+                    .take((pos.column.saturating_sub(1)) as usize)
+                    .map(|c| c.len_utf8())
+                    .sum::<usize>();
+                return offset + column_offset;
+            }
+
+            if ch == '\n' {
+                current_line += 1;
+                offset = idx + 1;
+            }
+        }
+
+        // If we reached end without finding the line, return last position
+        offset
     }
 }
 
@@ -342,5 +552,206 @@ mod tests {
         assert!(formatted.contains("error[E0001]: test error"));
         assert!(formatted.contains("line 10, column 15"));
         assert!(formatted.contains("here"));
+    }
+
+    // ===== Phase 4 Tests: Source Map Comment Extraction =====
+
+    #[test]
+    fn test_extract_node_id_from_line() {
+        let translator = ErrorTranslator::new();
+
+        // Test with a comment at the start
+        let line = "/* oxur_node=123 */ let x = 42;";
+        let result = translator.extract_node_id_from_line(line, 5);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_raw(), 123);
+    }
+
+    #[test]
+    fn test_extract_node_id_multiple_comments() {
+        let translator = ErrorTranslator::new();
+
+        // Test with multiple comments - should pick the closest
+        let line = "/* oxur_node=10 */ let x = /* oxur_node=20 */ 42;";
+
+        // Column 5 is closer to first comment
+        let result1 = translator.extract_node_id_from_line(line, 5);
+        assert!(result1.is_ok());
+        assert_eq!(result1.unwrap().as_raw(), 10);
+
+        // Column 30 is closer to second comment
+        let result2 = translator.extract_node_id_from_line(line, 30);
+        assert!(result2.is_ok());
+        assert_eq!(result2.unwrap().as_raw(), 20);
+    }
+
+    #[test]
+    fn test_extract_node_id_with_whitespace() {
+        let translator = ErrorTranslator::new();
+
+        // Test with extra whitespace in comment
+        let line = "/*  oxur_node=456  */ let y = 100;";
+        let result = translator.extract_node_id_from_line(line, 10);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_raw(), 456);
+    }
+
+    #[test]
+    fn test_extract_node_id_no_comment() {
+        let translator = ErrorTranslator::new();
+
+        // Test with no oxur_node comment
+        let line = "let x = 42; // regular comment";
+        let result = translator.extract_node_id_from_line(line, 5);
+        assert!(result.is_err());
+        assert!(matches!(result, Err(TranslationError::LookupFailed(_))));
+    }
+
+    #[test]
+    fn test_extract_node_id_invalid_number() {
+        let translator = ErrorTranslator::new();
+
+        // Test with invalid node_id (not a number)
+        let line = "/* oxur_node=abc */ let x = 42;";
+        let result = translator.extract_node_id_from_line(line, 5);
+        assert!(result.is_err());
+    }
+
+    // ===== Phase 4 Tests: ariadne Display =====
+
+    #[test]
+    fn test_display_with_ariadne() {
+        let diag = TranslatedDiagnostic {
+            message: "cannot find value `x` in this scope".to_string(),
+            level: DiagnosticLevel::Error,
+            code: Some("E0425".to_string()),
+            primary_span: Some(TranslatedSpan {
+                pos: SourcePos::repl(2, 10, 1),
+                label: Some("not found in this scope".to_string()),
+                source_text: None,
+            }),
+            secondary_spans: vec![],
+            children: vec![],
+            suggestion: None,
+        };
+
+        let source = "(def y 42)\n(+ y x z)";
+        let output = diag.display_with_ariadne(source);
+
+        // Should contain the error code and message
+        assert!(output.contains("E0425"));
+        assert!(output.contains("cannot find value `x` in this scope"));
+
+        // Should contain source highlighting (exact format may vary)
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_display_with_ariadne_multiline() {
+        let diag = TranslatedDiagnostic {
+            message: "type mismatch".to_string(),
+            level: DiagnosticLevel::Error,
+            code: Some("E0308".to_string()),
+            primary_span: Some(TranslatedSpan {
+                pos: SourcePos::repl(3, 5, 3),
+                label: Some("expected i32, found &str".to_string()),
+                source_text: None,
+            }),
+            secondary_spans: vec![],
+            children: vec![
+                TranslatedDiagnostic {
+                    message: "consider using .parse()".to_string(),
+                    level: DiagnosticLevel::Help,
+                    code: None,
+                    primary_span: None,
+                    secondary_spans: vec![],
+                    children: vec![],
+                    suggestion: None,
+                },
+            ],
+            suggestion: None,
+        };
+
+        let source = "(def x 42)\n(def y \"hello\")\n(+ x y)";
+        let output = diag.display_with_ariadne(source);
+
+        // Should contain error and help
+        assert!(output.contains("E0308"));
+        assert!(output.contains("type mismatch"));
+        assert!(output.contains("consider using .parse()"));
+    }
+
+    #[test]
+    fn test_display_with_ariadne_warning() {
+        let diag = TranslatedDiagnostic {
+            message: "unused variable".to_string(),
+            level: DiagnosticLevel::Warning,
+            code: Some("W0001".to_string()),
+            primary_span: Some(TranslatedSpan {
+                pos: SourcePos::repl(1, 6, 1),
+                label: Some("never used".to_string()),
+                source_text: None,
+            }),
+            secondary_spans: vec![],
+            children: vec![],
+            suggestion: None,
+        };
+
+        let source = "(def x 42)";
+        let output = diag.display_with_ariadne(source);
+
+        // Should contain warning
+        assert!(output.contains("W0001"));
+        assert!(output.contains("unused variable"));
+    }
+
+    #[test]
+    fn test_calculate_byte_offset() {
+        let diag = TranslatedDiagnostic {
+            message: "test".to_string(),
+            level: DiagnosticLevel::Error,
+            code: None,
+            primary_span: None,
+            secondary_spans: vec![],
+            children: vec![],
+            suggestion: None,
+        };
+
+        let source = "line1\nline2\nline3";
+
+        // Line 1, column 1 should be offset 0
+        let pos1 = SourcePos::repl(1, 1, 1);
+        assert_eq!(diag.calculate_byte_offset(source, &pos1), 0);
+
+        // Line 2, column 1 should be offset 6 (after "line1\n")
+        let pos2 = SourcePos::repl(2, 1, 1);
+        assert_eq!(diag.calculate_byte_offset(source, &pos2), 6);
+
+        // Line 2, column 3 should be offset 8 (6 + 2)
+        let pos3 = SourcePos::repl(2, 3, 1);
+        assert_eq!(diag.calculate_byte_offset(source, &pos3), 8);
+    }
+
+    #[test]
+    fn test_calculate_byte_offset_unicode() {
+        let diag = TranslatedDiagnostic {
+            message: "test".to_string(),
+            level: DiagnosticLevel::Error,
+            code: None,
+            primary_span: None,
+            secondary_spans: vec![],
+            children: vec![],
+            suggestion: None,
+        };
+
+        // Source with unicode characters
+        let source = "hello 世界\nworld";
+
+        // Line 1, column 7 should account for multibyte chars
+        let pos = SourcePos::repl(1, 7, 1);
+        let offset = diag.calculate_byte_offset(source, &pos);
+
+        // "hello " = 6 bytes, "世" = 3 bytes in UTF-8
+        assert_eq!(offset, 6);
     }
 }
