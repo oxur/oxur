@@ -588,4 +588,131 @@ mod tests {
         let deserialized: Response = serde_json::from_str(&json).unwrap();
         assert_eq!(response, deserialized);
     }
+
+    #[test]
+    fn test_all_operations_roundtrip() {
+        let operations = vec![
+            Operation::CreateSession { mode: ReplMode::Lisp },
+            Operation::CreateSession { mode: ReplMode::Sexpr },
+            Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
+            Operation::Clone { source_session_id: SessionId::new("source") },
+            Operation::LoadFile { path: "test.lisp".to_string(), mode: ReplMode::Lisp },
+            Operation::Interrupt,
+            Operation::Close,
+            Operation::LsSessions,
+            Operation::Describe { symbol: "foo".to_string() },
+            Operation::History { limit: Some(10) },
+            Operation::ClearOutput,
+        ];
+
+        for op in operations {
+            let request = Request {
+                id: MessageId::new(1),
+                session_id: SessionId::new("test"),
+                operation: op.clone(),
+            };
+
+            let json = serde_json::to_string(&request).unwrap();
+            let deserialized: Request = serde_json::from_str(&json).unwrap();
+            assert_eq!(request, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_all_error_kinds_serialization() {
+        let error_kinds = vec![
+            ErrorKind::SyntaxError,
+            ErrorKind::TypeError,
+            ErrorKind::RuntimeError,
+            ErrorKind::CompilationError,
+            ErrorKind::SessionNotFound,
+            ErrorKind::SessionAlreadyExists,
+            ErrorKind::InternalError,
+        ];
+
+        for kind in error_kinds {
+            let error_info = ErrorInfo {
+                kind: kind.clone(),
+                message: "Test error".to_string(),
+                location: Some(SourceLocation { offset: 10, line: 5, column: 10 }),
+                details: Some("Additional details".to_string()),
+            };
+
+            let json = serde_json::to_string(&error_info).unwrap();
+            let deserialized: ErrorInfo = serde_json::from_str(&json).unwrap();
+            assert_eq!(error_info, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_session_info_serialization() {
+        let info = SessionInfo {
+            id: SessionId::new("test-session"),
+            mode: ReplMode::Lisp,
+            eval_count: 42,
+            created_at: 1234567890,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let deserialized: SessionInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(info, deserialized);
+    }
+
+    #[test]
+    fn test_operation_result_sessions() {
+        let result = OperationResult::Sessions {
+            sessions: vec![
+                SessionInfo {
+                    id: SessionId::new("session-1"),
+                    mode: ReplMode::Lisp,
+                    eval_count: 10,
+                    created_at: 1000,
+                },
+                SessionInfo {
+                    id: SessionId::new("session-2"),
+                    mode: ReplMode::Sexpr,
+                    eval_count: 5,
+                    created_at: 2000,
+                },
+            ],
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: OperationResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(result, deserialized);
+    }
+
+    #[test]
+    fn test_source_location_format() {
+        let loc = SourceLocation { offset: 42, line: 10, column: 5 };
+        assert_eq!(loc.to_string(), "line 10, column 5");
+    }
+
+    #[test]
+    fn test_repl_modes_display() {
+        assert_eq!(ReplMode::Lisp.to_string(), "Lisp");
+        assert_eq!(ReplMode::Sexpr.to_string(), "Sexpr");
+    }
+
+    #[test]
+    fn test_error_kinds_display() {
+        assert_eq!(ErrorKind::SyntaxError.to_string(), "Syntax Error");
+        assert_eq!(ErrorKind::RuntimeError.to_string(), "Runtime Error");
+        assert_eq!(ErrorKind::SessionNotFound.to_string(), "Session Not Found");
+    }
+
+    #[test]
+    fn test_error_info_with_location() {
+        let error = ErrorInfo {
+            kind: ErrorKind::SyntaxError,
+            message: "Unexpected token".to_string(),
+            location: Some(SourceLocation { offset: 15, line: 3, column: 15 }),
+            details: None,
+        };
+
+        let display = error.to_string();
+        assert!(display.contains("Syntax Error"));
+        assert!(display.contains("Unexpected token"));
+        assert!(display.contains("line 3, column 15"));
+    }
 }

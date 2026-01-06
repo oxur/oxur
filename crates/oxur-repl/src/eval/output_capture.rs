@@ -144,7 +144,6 @@ impl OutputCapturer {
     }
 }
 
-
 /// Simulate compiled code execution with output
 ///
 /// This is a placeholder for when we actually execute compiled code.

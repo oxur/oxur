@@ -320,10 +320,11 @@ impl EvalContext {
             }
             ReplMode::Sexpr => {
                 // Use Sexpr parser to parse and convert to CoreForms
-                let form = self.sexpr_eval.parse_to_core(code).map_err(|e| EvalError::SyntaxError {
-                    msg: format!("S-expression parse error: {}", e),
-                    pos: Position::start(),
-                })?;
+                let form =
+                    self.sexpr_eval.parse_to_core(code).map_err(|e| EvalError::SyntaxError {
+                        msg: format!("S-expression parse error: {}", e),
+                        pos: Position::start(),
+                    })?;
 
                 vec![form]
             }
