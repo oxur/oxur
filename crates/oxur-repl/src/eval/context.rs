@@ -9,28 +9,68 @@ use std::collections::HashMap;
 use std::time::Instant;
 use thiserror::Error;
 
+/// Source code position for error reporting
+///
+/// Tracks the location of an error in the source code with byte offset,
+/// line number, and column number. Used for precise error messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Position {
+    /// Byte offset in source (0-based)
+    pub offset: usize,
+
+    /// Line number (1-based)
+    pub line: usize,
+
+    /// Column number (1-based)
+    pub column: usize,
+}
+
+impl Position {
+    /// Create a new position
+    pub fn new(offset: usize, line: usize, column: usize) -> Self {
+        Self { offset, line, column }
+    }
+
+    /// Create a position at the start of input
+    pub fn start() -> Self {
+        Self { offset: 0, line: 1, column: 1 }
+    }
+}
+
+impl std::fmt::Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "line {}, column {}", self.line, self.column)
+    }
+}
+
+impl Default for Position {
+    fn default() -> Self {
+        Self::start()
+    }
+}
+
 /// Evaluation errors
 #[derive(Debug, Error)]
 pub enum EvalError {
     /// Syntax error during parsing
-    #[error("Syntax error: {0}")]
-    SyntaxError(String),
+    #[error("Syntax error at {pos}: {msg}")]
+    SyntaxError { msg: String, pos: Position },
 
     /// Type error during compilation
-    #[error("Type error: {0}")]
-    TypeError(String),
+    #[error("Type error at {pos}: {msg}")]
+    TypeError { msg: String, pos: Position },
 
     /// Runtime evaluation error
-    #[error("Runtime error: {0}")]
-    RuntimeError(String),
+    #[error("Runtime error at {pos}: {msg}")]
+    RuntimeError { msg: String, pos: Position },
 
     /// Compilation failed
-    #[error("Compilation failed: {0}")]
-    CompilationError(String),
+    #[error("Compilation failed at {pos}: {msg}")]
+    CompilationError { msg: String, pos: Position },
 
     /// Unsupported operation for tier
-    #[error("Unsupported operation: {0}")]
-    UnsupportedOperation(String),
+    #[error("Unsupported operation at {pos}: {msg}")]
+    UnsupportedOperation { msg: String, pos: Position },
 }
 
 pub type Result<T> = std::result::Result<T, EvalError>;
@@ -271,17 +311,18 @@ impl EvalContext {
         let core_forms = match self.mode {
             ReplMode::Lisp => {
                 // Use Lisp parser to parse and convert to CoreForms
-                let forms = self
-                    .lisp_eval
-                    .parse(code)
-                    .map_err(|e| EvalError::SyntaxError(format!("Lisp parse error: {}", e)))?;
+                let forms = self.lisp_eval.parse(code).map_err(|e| EvalError::SyntaxError {
+                    msg: format!("Lisp parse error: {}", e),
+                    pos: Position::start(),
+                })?;
 
                 forms
             }
             ReplMode::Sexpr => {
                 // Use Sexpr parser to parse and convert to CoreForms
-                let form = self.sexpr_eval.parse_to_core(code).map_err(|e| {
-                    EvalError::SyntaxError(format!("S-expression parse error: {}", e))
+                let form = self.sexpr_eval.parse_to_core(code).map_err(|e| EvalError::SyntaxError {
+                    msg: format!("S-expression parse error: {}", e),
+                    pos: Position::start(),
                 })?;
 
                 vec![form]
@@ -507,5 +548,73 @@ mod tests {
         let sexpr_result = sexpr_ctx.eval("(/ 10 2)").await.unwrap();
         assert_eq!(sexpr_result.tier, ExecutionTier::Calculator);
         assert_eq!(sexpr_result.value, "5");
+    }
+
+    #[test]
+    fn test_position_creation() {
+        let pos = Position::new(42, 3, 15);
+        assert_eq!(pos.offset, 42);
+        assert_eq!(pos.line, 3);
+        assert_eq!(pos.column, 15);
+    }
+
+    #[test]
+    fn test_position_start() {
+        let pos = Position::start();
+        assert_eq!(pos.offset, 0);
+        assert_eq!(pos.line, 1);
+        assert_eq!(pos.column, 1);
+    }
+
+    #[test]
+    fn test_position_default() {
+        let pos = Position::default();
+        assert_eq!(pos, Position::start());
+    }
+
+    #[test]
+    fn test_position_display() {
+        let pos = Position::new(42, 3, 15);
+        assert_eq!(pos.to_string(), "line 3, column 15");
+    }
+
+    #[test]
+    fn test_position_equality() {
+        let pos1 = Position::new(42, 3, 15);
+        let pos2 = Position::new(42, 3, 15);
+        let pos3 = Position::new(50, 4, 10);
+
+        assert_eq!(pos1, pos2);
+        assert_ne!(pos1, pos3);
+    }
+
+    #[test]
+    fn test_eval_error_includes_position() {
+        let err = EvalError::SyntaxError {
+            msg: "Unexpected token".to_string(),
+            pos: Position::new(10, 2, 5),
+        };
+
+        let err_string = err.to_string();
+        assert!(err_string.contains("line 2, column 5"));
+        assert!(err_string.contains("Unexpected token"));
+    }
+
+    #[test]
+    fn test_all_error_variants_include_position() {
+        let pos = Position::new(0, 1, 1);
+
+        let errors = vec![
+            EvalError::SyntaxError { msg: "syntax".to_string(), pos },
+            EvalError::TypeError { msg: "type".to_string(), pos },
+            EvalError::RuntimeError { msg: "runtime".to_string(), pos },
+            EvalError::CompilationError { msg: "compilation".to_string(), pos },
+            EvalError::UnsupportedOperation { msg: "unsupported".to_string(), pos },
+        ];
+
+        for err in errors {
+            let err_string = err.to_string();
+            assert!(err_string.contains("line 1, column 1"));
+        }
     }
 }

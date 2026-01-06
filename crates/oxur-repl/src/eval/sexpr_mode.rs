@@ -52,7 +52,10 @@ impl SexprEvaluator {
         let trimmed = code.trim();
 
         if trimmed.is_empty() {
-            return Err(EvalError::SyntaxError("Empty expression".to_string()));
+            return Err(EvalError::SyntaxError {
+                msg: "Empty expression".to_string(),
+                pos: crate::eval::context::Position::start(),
+            });
         }
 
         // Try to parse as number
@@ -155,11 +158,17 @@ impl SexprEvaluator {
         }
 
         if depth != 0 {
-            return Err(EvalError::SyntaxError("Mismatched parentheses".to_string()));
+            return Err(EvalError::SyntaxError {
+                msg: "Mismatched parentheses".to_string(),
+                pos: crate::eval::context::Position::start(),
+            });
         }
 
         if in_string {
-            return Err(EvalError::SyntaxError("Unterminated string".to_string()));
+            return Err(EvalError::SyntaxError {
+                msg: "Unterminated string".to_string(),
+                pos: crate::eval::context::Position::start(),
+            });
         }
 
         Ok(tokens)
@@ -173,10 +182,10 @@ impl SexprEvaluator {
             SexprExpr::Keyword(k) => Ok(SexprValue::Keyword(k.clone())),
             SexprExpr::Symbol(s) => {
                 // Look up symbol in symbol table
-                self.symbols
-                    .get(s)
-                    .cloned()
-                    .ok_or_else(|| EvalError::RuntimeError(format!("Undefined symbol: {}", s)))
+                self.symbols.get(s).cloned().ok_or_else(|| EvalError::RuntimeError {
+                    msg: format!("Undefined symbol: {}", s),
+                    pos: crate::eval::context::Position::start(),
+                })
             }
             SexprExpr::List(elements) => {
                 if elements.is_empty() {
@@ -209,15 +218,19 @@ impl SexprEvaluator {
             // Define a variable
             "define" => {
                 if args.len() != 2 {
-                    return Err(EvalError::SyntaxError("define requires 2 arguments".to_string()));
+                    return Err(EvalError::SyntaxError {
+                        msg: "define requires 2 arguments".to_string(),
+                        pos: crate::eval::context::Position::start(),
+                    });
                 }
 
                 let name = match &args[0] {
                     SexprExpr::Symbol(s) => s,
                     _ => {
-                        return Err(EvalError::SyntaxError(
-                            "First argument to define must be a symbol".to_string(),
-                        ))
+                        return Err(EvalError::SyntaxError {
+                            msg: "First argument to define must be a symbol".to_string(),
+                            pos: crate::eval::context::Position::start(),
+                        })
                     }
                 };
 
@@ -236,19 +249,20 @@ impl SexprEvaluator {
                     match &args[i] {
                         SexprExpr::Keyword(k) => {
                             if i + 1 >= args.len() {
-                                return Err(EvalError::SyntaxError(format!(
-                                    "Keyword :{} missing value",
-                                    k
-                                )));
+                                return Err(EvalError::SyntaxError {
+                                    msg: format!("Keyword :{} missing value", k),
+                                    pos: crate::eval::context::Position::start(),
+                                });
                             }
                             let value = self.eval_expr(&args[i + 1])?;
                             fields.insert(k.clone(), value);
                             i += 2;
                         }
                         _ => {
-                            return Err(EvalError::SyntaxError(
-                                "Expected keyword in node construction".to_string(),
-                            ))
+                            return Err(EvalError::SyntaxError {
+                                msg: "Expected keyword in node construction".to_string(),
+                                pos: crate::eval::context::Position::start(),
+                            })
                         }
                     }
                 }
@@ -273,10 +287,10 @@ impl SexprEvaluator {
     /// Evaluate arithmetic operations
     fn eval_arithmetic(&mut self, op: &str, args: &[SexprExpr]) -> Result<SexprValue> {
         if args.is_empty() {
-            return Err(EvalError::SyntaxError(format!(
-                "Operator '{}' requires at least one argument",
-                op
-            )));
+            return Err(EvalError::SyntaxError {
+                msg: format!("Operator '{}' requires at least one argument", op),
+                pos: crate::eval::context::Position::start(),
+            });
         }
 
         // Evaluate all arguments to numbers
@@ -286,7 +300,10 @@ impl SexprEvaluator {
                 let val = self.eval_expr(e)?;
                 match val {
                     SexprValue::Number(n) => Ok(n),
-                    _ => Err(EvalError::TypeError(format!("Expected number, got {:?}", val))),
+                    _ => Err(EvalError::TypeError {
+                        msg: format!("Expected number, got {:?}", val),
+                        pos: crate::eval::context::Position::start(),
+                    }),
                 }
             })
             .collect();
@@ -305,13 +322,17 @@ impl SexprEvaluator {
             "*" => nums.iter().product(),
             "/" => {
                 if nums.len() == 1 {
-                    return Err(EvalError::RuntimeError(
-                        "Division requires at least two arguments".to_string(),
-                    ));
+                    return Err(EvalError::RuntimeError {
+                        msg: "Division requires at least two arguments".to_string(),
+                        pos: crate::eval::context::Position::start(),
+                    });
                 }
                 nums.iter().skip(1).try_fold(nums[0], |acc, &x| {
                     if x == 0 {
-                        Err(EvalError::RuntimeError("Division by zero".to_string()))
+                        Err(EvalError::RuntimeError {
+                            msg: "Division by zero".to_string(),
+                            pos: crate::eval::context::Position::start(),
+                        })
                     } else {
                         Ok(acc / x)
                     }
@@ -360,9 +381,10 @@ impl SexprEvaluator {
             SexprExpr::Number(n) => Ok(CoreForm::Number { id, value: *n }),
             SexprExpr::String(s) => Ok(CoreForm::String { id, value: s.clone() }),
             SexprExpr::Symbol(s) => Ok(CoreForm::Symbol { id, name: s.clone() }),
-            SexprExpr::Keyword(_) => Err(EvalError::SyntaxError(
-                "Keywords not supported in CoreForm conversion".to_string(),
-            )),
+            SexprExpr::Keyword(_) => Err(EvalError::SyntaxError {
+                msg: "Keywords not supported in CoreForm conversion".to_string(),
+                pos: crate::eval::context::Position::start(),
+            }),
             SexprExpr::List(elements) => {
                 let elements: Result<Vec<_>> =
                     elements.iter().map(|e| self.expr_to_core(e)).collect();

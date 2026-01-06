@@ -48,7 +48,10 @@ impl LispEvaluator {
     fn parse_simple(&mut self, code: &str) -> Result<Expr> {
         let trimmed = code.trim();
         if trimmed.is_empty() {
-            return Err(EvalError::SyntaxError("Empty expression".to_string()));
+            return Err(EvalError::SyntaxError {
+                msg: "Empty expression".to_string(),
+                pos: crate::eval::context::Position::start(),
+            });
         }
 
         // Try to parse as number first
@@ -140,7 +143,10 @@ impl LispEvaluator {
         }
 
         if depth != 0 {
-            return Err(EvalError::SyntaxError("Mismatched parentheses".to_string()));
+            return Err(EvalError::SyntaxError {
+                msg: "Mismatched parentheses".to_string(),
+                pos: crate::eval::context::Position::start(),
+            });
         }
 
         Ok(tokens)
@@ -151,23 +157,27 @@ impl LispEvaluator {
         match expr {
             Expr::Number(n) => Ok(n.to_string()),
 
-            Expr::Symbol(s) => Err(EvalError::UnsupportedOperation(format!(
-                "Variables not supported in calculator mode: {}",
-                s
-            ))),
+            Expr::Symbol(s) => Err(EvalError::UnsupportedOperation {
+                msg: format!("Variables not supported in calculator mode: {}", s),
+                pos: crate::eval::context::Position::start(),
+            }),
 
             Expr::List(elements) => {
                 if elements.is_empty() {
-                    return Err(EvalError::SyntaxError("Empty list".to_string()));
+                    return Err(EvalError::SyntaxError {
+                        msg: "Empty list".to_string(),
+                        pos: crate::eval::context::Position::start(),
+                    });
                 }
 
                 // First element should be an operator
                 let op = match &elements[0] {
                     Expr::Symbol(s) => s.as_str(),
                     _ => {
-                        return Err(EvalError::SyntaxError(
-                            "First element must be an operator".to_string(),
-                        ))
+                        return Err(EvalError::SyntaxError {
+                            msg: "First element must be an operator".to_string(),
+                            pos: crate::eval::context::Position::start(),
+                        })
                     }
                 };
 
@@ -176,8 +186,9 @@ impl LispEvaluator {
                     .iter()
                     .map(|e| {
                         let result = self.eval_calculator_expr(e)?;
-                        result.parse::<i64>().map_err(|_| {
-                            EvalError::RuntimeError(format!("Not a number: {}", result))
+                        result.parse::<i64>().map_err(|_| EvalError::RuntimeError {
+                            msg: format!("Not a number: {}", result),
+                            pos: crate::eval::context::Position::start(),
                         })
                     })
                     .collect();
@@ -193,10 +204,10 @@ impl LispEvaluator {
     /// Apply an arithmetic operator to arguments
     fn apply_operator(&self, op: &str, args: &[i64]) -> Result<String> {
         if args.is_empty() {
-            return Err(EvalError::SyntaxError(format!(
-                "Operator '{}' requires at least one argument",
-                op
-            )));
+            return Err(EvalError::SyntaxError {
+                msg: format!("Operator '{}' requires at least one argument", op),
+                pos: crate::eval::context::Position::start(),
+            });
         }
 
         match op {
@@ -218,14 +229,18 @@ impl LispEvaluator {
             }
             "/" => {
                 if args.len() == 1 {
-                    return Err(EvalError::RuntimeError(
-                        "Division requires at least two arguments".to_string(),
-                    ));
+                    return Err(EvalError::RuntimeError {
+                        msg: "Division requires at least two arguments".to_string(),
+                        pos: crate::eval::context::Position::start(),
+                    });
                 }
 
                 let result = args.iter().skip(1).try_fold(args[0], |acc, &x| {
                     if x == 0 {
-                        Err(EvalError::RuntimeError("Division by zero".to_string()))
+                        Err(EvalError::RuntimeError {
+                            msg: "Division by zero".to_string(),
+                            pos: crate::eval::context::Position::start(),
+                        })
                     } else {
                         Ok(acc / x)
                     }
@@ -233,10 +248,10 @@ impl LispEvaluator {
 
                 Ok(result.to_string())
             }
-            _ => Err(EvalError::UnsupportedOperation(format!(
-                "Unknown operator in calculator mode: {}",
-                op
-            ))),
+            _ => Err(EvalError::UnsupportedOperation {
+                msg: format!("Unknown operator in calculator mode: {}", op),
+                pos: crate::eval::context::Position::start(),
+            }),
         }
     }
 
@@ -247,8 +262,10 @@ impl LispEvaluator {
     pub fn parse(&mut self, code: impl AsRef<str>) -> Result<Vec<CoreForm>> {
         // Use oxur-lang Parser
         let mut parser = Parser::new(code.as_ref().to_string());
-        let surface_forms =
-            parser.parse().map_err(|e| EvalError::SyntaxError(format!("Parse error: {}", e)))?;
+        let surface_forms = parser.parse().map_err(|e| EvalError::SyntaxError {
+            msg: format!("Parse error: {}", e),
+            pos: crate::eval::context::Position::start(),
+        })?;
 
         // For now, convert to CoreForm manually
         // When Expander is ready, we'll use: expander.expand(surface_forms)

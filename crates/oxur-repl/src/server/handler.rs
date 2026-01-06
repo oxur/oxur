@@ -200,11 +200,11 @@ impl MessageHandler {
             SessionError::EvalFailed(eval_err) => {
                 use crate::eval::EvalError;
                 match eval_err {
-                    EvalError::SyntaxError(msg) => (ErrorKind::SyntaxError, msg),
-                    EvalError::TypeError(msg) => (ErrorKind::TypeError, msg),
-                    EvalError::RuntimeError(msg) => (ErrorKind::RuntimeError, msg),
-                    EvalError::CompilationError(msg) => (ErrorKind::CompilationError, msg),
-                    EvalError::UnsupportedOperation(msg) => (ErrorKind::RuntimeError, msg),
+                    EvalError::SyntaxError { msg, .. } => (ErrorKind::SyntaxError, msg),
+                    EvalError::TypeError { msg, .. } => (ErrorKind::TypeError, msg),
+                    EvalError::RuntimeError { msg, .. } => (ErrorKind::RuntimeError, msg),
+                    EvalError::CompilationError { msg, .. } => (ErrorKind::CompilationError, msg),
+                    EvalError::UnsupportedOperation { msg, .. } => (ErrorKind::RuntimeError, msg),
                 }
             }
         };
