@@ -204,7 +204,7 @@ mod tests {
 
         // Add test document
         let meta = DocMetadata {
-            number: 1,
+            number: 9999,
             title: "Test Doc".to_string(),
             author: "Test Author".to_string(),
             component: None,
@@ -217,7 +217,7 @@ mod tests {
             version: "1.0".to_string(),
         };
 
-        let doc_path = docs_dir.join("01-draft/0001-test-doc.md");
+        let doc_path = docs_dir.join("01-draft/9999-test-doc.md");
         fs::create_dir_all(doc_path.parent().unwrap()).unwrap();
 
         let content = format!(
@@ -240,10 +240,10 @@ mod tests {
             .unwrap();
 
         state_mgr.state_mut().upsert(
-            1,
+            9999,
             DocumentRecord {
                 metadata: meta,
-                path: "01-draft/0001-test-doc.md".to_string(),
+                path: "01-draft/9999-test-doc.md".to_string(),
                 checksum: "abc123".to_string(),
                 file_size: 100,
                 modified: chrono::Utc::now(),
@@ -260,11 +260,11 @@ mod tests {
         let _guard = DirGuard::new();
         _guard.change_to(temp.path());
 
-        let result = execute(&mut state_mgr, "1");
+        let result = execute(&mut state_mgr, "9999");
         assert!(result.is_ok());
 
         // Check that document state is updated
-        let doc = state_mgr.state().get(1).unwrap();
+        let doc = state_mgr.state().get(9999).unwrap();
         assert_eq!(doc.metadata.state, DocState::Removed);
     }
 
@@ -278,7 +278,7 @@ mod tests {
         let result = execute(&mut state_mgr, "test-doc");
         assert!(result.is_ok());
 
-        let doc = state_mgr.state().get(1).unwrap();
+        let doc = state_mgr.state().get(9999).unwrap();
         assert_eq!(doc.metadata.state, DocState::Removed);
     }
 
@@ -291,13 +291,13 @@ mod tests {
         _guard.change_to(temp.path());
 
         // Build the full path including docs_dir prefix
-        let full_path = temp.path().join("docs/01-draft/0001-test-doc.md");
+        let full_path = temp.path().join("docs/01-draft/9999-test-doc.md");
         let full_path_str = full_path.to_string_lossy().to_string();
 
         let result = execute(&mut state_mgr, &full_path_str);
         assert!(result.is_ok(), "Should be able to remove by full path");
 
-        let doc = state_mgr.state().get(1).unwrap();
+        let doc = state_mgr.state().get(9999).unwrap();
         assert_eq!(doc.metadata.state, DocState::Removed);
     }
 
@@ -327,10 +327,10 @@ mod tests {
         _guard.change_to(temp.path());
 
         // First removal
-        execute(&mut state_mgr, "1").unwrap();
+        execute(&mut state_mgr, "9999").unwrap();
 
         // Second removal should succeed but do nothing
-        let result = execute(&mut state_mgr, "1");
+        let result = execute(&mut state_mgr, "9999");
         assert!(result.is_ok());
 
         // Directory is automatically restored when _guard is dropped
@@ -343,7 +343,7 @@ mod tests {
         let _guard = DirGuard::new();
         _guard.change_to(temp.path());
 
-        execute(&mut state_mgr, "1").unwrap();
+        execute(&mut state_mgr, "9999").unwrap();
 
         let dustbin_dir = temp.path().join("docs/.dustbin/01-draft");
         assert!(dustbin_dir.exists());
@@ -356,7 +356,7 @@ mod tests {
         let _guard = DirGuard::new();
         _guard.change_to(temp.path());
 
-        execute(&mut state_mgr, "1").unwrap();
+        execute(&mut state_mgr, "9999").unwrap();
 
         let dustbin_dir = temp.path().join("docs/.dustbin/01-draft");
         let files: Vec<_> = fs::read_dir(&dustbin_dir).unwrap().collect();
@@ -367,7 +367,7 @@ mod tests {
         let filename_str = filename.to_string_lossy();
 
         // Should have UUID suffix
-        assert!(filename_str.starts_with("0001-test-doc-"));
+        assert!(filename_str.starts_with("9999-test-doc-"));
         assert!(filename_str.ends_with(".md"));
     }
 
@@ -383,7 +383,7 @@ mod tests {
 
         // Add document to state but not to disk
         let meta = DocMetadata {
-            number: 1,
+            number: 9999,
             title: "Missing Doc".to_string(),
             author: "Test Author".to_string(),
             component: None,
@@ -397,10 +397,10 @@ mod tests {
         };
 
         state_mgr.state_mut().upsert(
-            1,
+            9999,
             DocumentRecord {
                 metadata: meta,
-                path: "01-draft/0001-missing-doc.md".to_string(),
+                path: "01-draft/9999-missing-doc.md".to_string(),
                 checksum: "abc123".to_string(),
                 file_size: 100,
                 modified: chrono::Utc::now(),
@@ -408,7 +408,7 @@ mod tests {
         );
 
         // Should handle missing file gracefully
-        let result = execute(&mut state_mgr, "1");
+        let result = execute(&mut state_mgr, "9999");
         // This will fail because git mv requires the file to exist
         // But the code handles this case
         assert!(result.is_err() || result.is_ok());
@@ -422,13 +422,13 @@ mod tests {
         _guard.change_to(temp.path());
 
         // Change state to Overwritten (already in dustbin) by updating the record
-        let doc = state_mgr.state().get(1).unwrap().clone();
+        let doc = state_mgr.state().get(9999).unwrap().clone();
         let mut updated_doc = doc;
         updated_doc.metadata.state = DocState::Overwritten;
-        updated_doc.path = ".dustbin/overwritten/0001-test-doc.md".to_string();
+        updated_doc.path = ".dustbin/overwritten/9999-test-doc.md".to_string();
 
         // Create the overwritten file in dustbin
-        let overwritten_path = temp.path().join("docs/.dustbin/overwritten/0001-test-doc.md");
+        let overwritten_path = temp.path().join("docs/.dustbin/overwritten/9999-test-doc.md");
         fs::create_dir_all(overwritten_path.parent().unwrap()).unwrap();
 
         let content = format!(
@@ -437,9 +437,9 @@ mod tests {
         );
         fs::write(&overwritten_path, content).unwrap();
 
-        state_mgr.state_mut().upsert(1, updated_doc);
+        state_mgr.state_mut().upsert(9999, updated_doc);
 
-        let result = execute(&mut state_mgr, "1");
+        let result = execute(&mut state_mgr, "9999");
         // Should succeed (early return for already removed/overwritten)
         assert!(result.is_ok());
     }
@@ -451,7 +451,7 @@ mod tests {
         let _guard = DirGuard::new();
         _guard.change_to(temp.path());
 
-        execute(&mut state_mgr, "1").unwrap();
+        execute(&mut state_mgr, "9999").unwrap();
 
         // Find the moved file in dustbin
         let dustbin_dir = temp.path().join("docs/.dustbin/01-draft");
@@ -477,10 +477,10 @@ mod tests {
 
         let mut state_mgr = StateManager::new(&docs_dir).unwrap();
 
-        // Add multiple documents
-        for num in 1..=3 {
+        // Add multiple documents (9999, 9998, 9997)
+        for (idx, num) in [9999, 9998, 9997].iter().enumerate() {
             let meta = DocMetadata {
-                number: num,
+                number: *num,
                 title: format!("Doc {}", num),
                 author: "Test Author".to_string(),
                 component: None,
@@ -493,7 +493,7 @@ mod tests {
                 version: "1.0".to_string(),
             };
 
-            let doc_path = docs_dir.join(format!("01-draft/{:04}-doc-{}.md", num, num));
+            let doc_path = docs_dir.join(format!("01-draft/{:04}-doc-{}.md", num, idx + 1));
             fs::create_dir_all(doc_path.parent().unwrap()).unwrap();
 
             let content = format!(
@@ -503,10 +503,10 @@ mod tests {
             fs::write(&doc_path, content).unwrap();
 
             state_mgr.state_mut().upsert(
-                num,
+                *num,
                 DocumentRecord {
                     metadata: meta,
-                    path: format!("01-draft/{:04}-doc-{}.md", num, num),
+                    path: format!("01-draft/{:04}-doc-{}.md", num, idx + 1),
                     checksum: "abc123".to_string(),
                     file_size: 100,
                     modified: chrono::Utc::now(),
@@ -528,13 +528,13 @@ mod tests {
             .unwrap();
 
         // Remove all three
-        for num in 1..=3 {
+        for num in [9999, 9998, 9997] {
             let result = execute(&mut state_mgr, &num.to_string());
             assert!(result.is_ok());
         }
 
         // All should be removed
-        for num in 1..=3 {
+        for num in [9999, 9998, 9997] {
             let doc = state_mgr.state().get(num).unwrap();
             assert_eq!(doc.metadata.state, DocState::Removed);
         }
@@ -556,27 +556,27 @@ mod tests {
 
         // Add documents in different states
         let states = vec![
-            (1, DocState::Draft, "01-draft"),
-            (2, DocState::Active, "05-active"),
-            (3, DocState::Final, "06-final"),
+            (9999, DocState::Draft, "01-draft"),
+            (9998, DocState::Active, "05-active"),
+            (9997, DocState::Final, "06-final"),
         ];
 
-        for (num, state, dir) in states {
+        for (idx, (num, state, dir)) in states.iter().enumerate() {
             let meta = DocMetadata {
-                number: num,
+                number: *num,
                 title: format!("Doc {}", num),
                 author: "Test Author".to_string(),
                 component: None,
                 tags: Vec::new(),
                 created: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 updated: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                state,
+                state: *state,
                 supersedes: None,
                 superseded_by: None,
                 version: "1.0".to_string(),
             };
 
-            let doc_path = docs_dir.join(format!("{}/{:04}-doc-{}.md", dir, num, num));
+            let doc_path = docs_dir.join(format!("{}/{:04}-doc-{}.md", dir, num, idx + 1));
             fs::create_dir_all(doc_path.parent().unwrap()).unwrap();
 
             let content = format!(
@@ -586,10 +586,10 @@ mod tests {
             fs::write(&doc_path, content).unwrap();
 
             state_mgr.state_mut().upsert(
-                num,
+                *num,
                 DocumentRecord {
                     metadata: meta,
-                    path: format!("{}/{:04}-doc-{}.md", dir, num, num),
+                    path: format!("{}/{:04}-doc-{}.md", dir, num, idx + 1),
                     checksum: "abc123".to_string(),
                     file_size: 100,
                     modified: chrono::Utc::now(),
@@ -611,7 +611,7 @@ mod tests {
             .unwrap();
 
         // Remove all
-        for num in 1..=3 {
+        for num in [9999, 9998, 9997] {
             let result = execute(&mut state_mgr, &num.to_string());
             assert!(result.is_ok());
         }

@@ -95,6 +95,7 @@ pub fn get_updated_date(path: impl AsRef<Path>) -> NaiveDate {
 
 /// Move a file using git mv to preserve history
 /// Creates destination directory if needed
+/// Retries on index.lock errors with exponential backoff
 pub fn git_mv(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
     let src = src.as_ref();
     let dst = dst.as_ref();
@@ -104,20 +105,49 @@ pub fn git_mv(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
         fs::create_dir_all(parent).context("Failed to create destination directory")?;
     }
 
-    // Execute git mv
-    let output = Command::new("git")
-        .arg("mv")
-        .arg(src)
-        .arg(dst)
-        .output()
-        .context("Failed to execute git mv")?;
+    // Retry logic for index.lock race conditions
+    const MAX_RETRIES: u32 = 5;
+    const INITIAL_DELAY_MS: u64 = 50;
 
-    if !output.status.success() {
+    let mut last_error = None;
+    for attempt in 0..MAX_RETRIES {
+        if attempt > 0 {
+            // Exponential backoff: 50ms, 100ms, 200ms, 400ms, 800ms
+            let delay_ms = INITIAL_DELAY_MS * (1 << (attempt - 1));
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+        }
+
+        // Execute git mv
+        let output = Command::new("git")
+            .arg("mv")
+            .arg(src)
+            .arg(dst)
+            .output()
+            .context("Failed to execute git mv")?;
+
+        if output.status.success() {
+            return Ok(());
+        }
+
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("git mv failed: {}", stderr.trim());
+        let stderr_str = stderr.trim();
+
+        // Check if this is an index.lock error that we should retry
+        if stderr_str.contains("index.lock") || stderr_str.contains("unable to create") {
+            last_error = Some(stderr_str.to_string());
+            continue;
+        }
+
+        // For other errors, fail immediately
+        anyhow::bail!("git mv failed: {}", stderr_str);
     }
 
-    Ok(())
+    // All retries exhausted
+    anyhow::bail!(
+        "git mv failed after {} retries: {}",
+        MAX_RETRIES,
+        last_error.unwrap_or_else(|| "unknown error".to_string())
+    )
 }
 
 /// Stage a file with git add
