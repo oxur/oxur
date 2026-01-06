@@ -238,7 +238,8 @@ impl RustAstWrapper {
             proc_macro2::Span::call_site(),
         );
 
-        // Generate complete function
+        // Generate complete function (WITHOUT source map comments in AST)
+        // We'll add comments via string post-processing below
         let wrapped_fn = quote::quote! {
             #[no_mangle]
             pub extern "C" fn #fn_name() {
@@ -266,7 +267,14 @@ impl RustAstWrapper {
 
         output.push_str(&formatted);
 
-        Ok(output)
+        // Post-process: insert source map comments if source_map is provided
+        let final_output = if let Some(source_map) = _source_map {
+            self.insert_source_map_comments(&output, user_stmts.len(), source_map)
+        } else {
+            output
+        };
+
+        Ok(final_output)
     }
 
     /// Generate variable load statements
@@ -353,6 +361,111 @@ impl RustAstWrapper {
             .into_iter()
             .map(|(name, type_info)| (name, type_info.type_name.clone()))
             .collect()
+    }
+
+    /// Annotate statements with source map comments for error translation
+    ///
+    /// Adds /* oxur_node=N */ comments before each statement based on the
+    /// source map. This enables ErrorTranslator to map Rust compiler errors
+    /// back to original Oxur source positions.
+    ///
+    /// # Phase 4: Source Map Integration
+    ///
+    /// This method implements the core of Phase 4's error position translation.
+    /// The generated comments allow ErrorTranslator to:
+    /// 1. Parse rustc error with file position
+    /// 2. Extract /* oxur_node=N */ comment near error column
+    /// 3. Look up NodeId in SourceMap to find original Oxur position
+    ///
+    /// # Arguments
+    ///
+    /// * `stmts` - Original statements to annotate
+    /// * `source_map` - Source map containing NodeId → SourcePos mappings
+    ///
+    /// # Returns
+    ///
+    /// New list of statements with source map comments inserted
+    ///
+    /// # Note
+    ///
+    /// Currently uses a simple heuristic: assign sequential NodeIds to statements.
+    /// In a full implementation, the parser/lowerer would track which NodeId
+    /// corresponds to which AST node, and we'd look those up here.
+    /// Insert source map comments into generated code (string-based post-processing)
+    ///
+    /// Since syn/quote don't preserve comments, we post-process the generated string.
+    /// This inserts /* oxur_node=N */ comments before user code statements.
+    fn insert_source_map_comments(
+        &self,
+        generated_code: &str,
+        num_user_stmts: usize,
+        source_map: &oxur_smap::SourceMap,
+    ) -> String {
+        let stats = source_map.stats();
+        let mut lines: Vec<String> = generated_code.lines().map(|s| s.to_string()).collect();
+
+        // Find the function body (after the opening brace of the function)
+        let mut in_function_body = false;
+        let mut inserted_count = 0;
+
+        // We'll insert comments before user statements
+        // User statements start after variable loads and before variable stores
+        // Look for patterns like "let x: i32 = oxur_repl::subprocess::with_store"
+        // which are variable loads, and statements after those are user code
+
+        let mut insert_indices = Vec::new();
+
+        for (idx, line) in lines.iter().enumerate() {
+            // Skip until we're inside the function body
+            if line.contains("pub extern \"C\" fn") {
+                in_function_body = true;
+                continue;
+            }
+
+            if !in_function_body {
+                continue;
+            }
+
+            // Look for user code statements (not variable load/store)
+            // User statements are after all "let x: T = ... with_store" lines
+            // and before "oxur_repl::subprocess::with_store(|store| { store.set"
+            let is_var_load = line.contains("with_store(|store| {")
+                && line.contains("store.get");
+            let is_var_store = line.contains("with_store(|store| {")
+                && line.contains("store.set");
+
+            // If it's not a variable load/store and has actual code (not just braces/comments)
+            if !is_var_load
+                && !is_var_store
+                && !line.trim().is_empty()
+                && !line.trim().starts_with('}')
+                && !line.trim().starts_with("//")
+                && inserted_count < num_user_stmts
+            {
+                // Check if this looks like a user statement
+                // (contains let, or is an expression statement)
+                if line.trim().starts_with("let ")
+                    || (!line.contains("with_store") && line.trim().ends_with(';'))
+                {
+                    insert_indices.push(idx);
+                    inserted_count += 1;
+                }
+            }
+        }
+
+        // Insert comments at the identified positions (in reverse to maintain indices)
+        for (comment_idx, &line_idx) in insert_indices.iter().enumerate().rev() {
+            let offset = num_user_stmts.saturating_sub(comment_idx);
+            let node_id = stats.surface_nodes.saturating_sub(offset) as u32;
+            let comment = format!(
+                "{}/* oxur_node={} */",
+                " ".repeat(lines[line_idx].len() - lines[line_idx].trim_start().len()), // Match indentation
+                node_id
+            );
+            lines.insert(line_idx, comment);
+        }
+
+        lines.join("\n")
     }
 }
 
@@ -817,5 +930,128 @@ mod tests {
         let stmts = wrapper.parse_user_code(code).expect("Parse failed");
 
         assert_eq!(stmts.len(), 1);
+    }
+
+    // ===== Phase 4 Tests: Source Map Annotation =====
+
+    #[test]
+    fn test_wrap_with_store_and_source_map() {
+        use oxur_smap::{new_node_id, SourceMap, SourcePos};
+
+        let wrapper = RustAstWrapper::new();
+        let mut source_map = SourceMap::new();
+
+        // Simulate some surface nodes being added (would normally be done by parser)
+        // For testing, we just need a source map with some stats
+        let node1 = new_node_id();
+        source_map.record_surface_node(node1, SourcePos::repl(1, 1, 10));
+        let node2 = new_node_id();
+        source_map.record_surface_node(node2, SourcePos::repl(2, 1, 15));
+
+        let user_code = "let result = x + y;";
+        let variables = vec![
+            ("x".to_string(), "i32".to_string()),
+            ("y".to_string(), "i32".to_string()),
+        ];
+
+        // Wrap with source map
+        let wrapped = wrapper.wrap_with_store("smap_test", user_code, &variables, Some(&source_map))
+            .expect("Wrapping with source map failed");
+
+        // Should contain source map comments
+        assert!(wrapped.contains("/* oxur_node="), "Should have source map comments: {}", wrapped);
+
+        // Should still have all the normal wrapping
+        assert!(wrapped.contains("oxur_eval_smap_test"));
+        assert!(wrapped.contains("with_store"));
+
+        // Generated code should still parse
+        let parsed = syn::parse_file(&wrapped);
+        assert!(parsed.is_ok(), "Code with source map comments should parse: {}", wrapped);
+    }
+
+    #[test]
+    fn test_wrap_with_store_without_source_map() {
+        let wrapper = RustAstWrapper::new();
+
+        let user_code = "let z = 42;";
+        let variables = vec![];
+
+        // Wrap without source map (None)
+        let wrapped = wrapper.wrap_with_store("no_smap", user_code, &variables, None)
+            .expect("Wrapping without source map failed");
+
+        // Should NOT contain source map comments
+        assert!(!wrapped.contains("/* oxur_node="),
+            "Should not have source map comments when source_map is None");
+
+        // But should still be valid
+        assert!(wrapped.contains("oxur_eval_no_smap"));
+        let parsed = syn::parse_file(&wrapped);
+        assert!(parsed.is_ok());
+    }
+
+    #[test]
+    fn test_source_map_comments_format() {
+        use oxur_smap::{new_node_id, SourceMap, SourcePos};
+
+        let wrapper = RustAstWrapper::new();
+        let mut source_map = SourceMap::new();
+
+        // Add multiple nodes
+        for i in 0..5 {
+            let node = new_node_id();
+            source_map.record_surface_node(node, SourcePos::repl(i + 1, 1, 10));
+        }
+
+        let user_code = r#"
+            let a = 1;
+            let b = 2;
+            let c = a + b;
+        "#;
+
+        let wrapped = wrapper.wrap_with_store("format_test", user_code, &[], Some(&source_map))
+            .expect("Wrapping failed");
+
+        // Should have properly formatted comments
+        // Check that comments match the /* oxur_node=N */ pattern
+        assert!(wrapped.contains("/* oxur_node="));
+
+        // Comments should be followed by code
+        if let Some(idx) = wrapped.find("/* oxur_node=") {
+            let after_comment = &wrapped[idx..];
+            // After comment, there should be valid Rust code
+            assert!(after_comment.contains("let") || after_comment.contains("fn"),
+                "Comments should be followed by code");
+        }
+    }
+
+    #[test]
+    fn test_insert_source_map_comments_preserves_semantics() {
+        use oxur_smap::{new_node_id, SourceMap, SourcePos};
+
+        let wrapper = RustAstWrapper::new();
+        let mut source_map = SourceMap::new();
+
+        let node = new_node_id();
+        source_map.record_surface_node(node, SourcePos::repl(1, 1, 20));
+
+        let user_code = "let x: i32 = 42;";
+
+        // Generate wrapped code with source map
+        let wrapped = wrapper.wrap_with_store("semantics_test", user_code, &[], Some(&source_map))
+            .expect("Wrapping with source map failed");
+
+        // Should contain the original variable and value
+        assert!(wrapped.contains("x") && wrapped.contains("42"),
+            "Annotated code should preserve semantics");
+
+        // Should contain source map comments
+        assert!(wrapped.contains("/* oxur_node="),
+            "Should have source map comments");
+
+        // Code should still parse as valid Rust
+        let parsed = syn::parse_file(&wrapped);
+        assert!(parsed.is_ok(), "Code with comments should be valid Rust: {}", wrapped);
     }
 }
