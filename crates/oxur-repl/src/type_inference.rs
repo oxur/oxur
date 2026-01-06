@@ -645,7 +645,7 @@ fn test() {
         let inferred = inference.infer_from_code(code);
 
         // Should successfully parse by wrapping in function
-        assert!(inferred.len() >= 1); // May find variables
+        assert!(!inferred.is_empty()); // May find variables
     }
 
     #[test]
@@ -658,7 +658,7 @@ static mut COUNTER: i32 = 0;
 "#;
         let inferred = inference.infer_from_code(code);
 
-        assert!(inferred.len() >= 1);
+        assert!(!inferred.is_empty());
         // Should find at least the constant or static
     }
 
