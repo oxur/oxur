@@ -551,10 +551,14 @@ mod tests {
 
     #[test]
     fn test_insert_and_get() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+
         let (mut cache, test_dir) = setup_test_cache();
 
-        // Create a temporary artifact file
-        let temp_artifact = env::temp_dir().join("test_artifact.so");
+        // Create a temporary artifact file with unique name
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let temp_artifact = env::temp_dir().join(format!("test_artifact-{}.so", id));
         fs::write(&temp_artifact, b"fake dylib content").expect("Failed to create temp artifact");
 
         // Generate key and insert
@@ -585,9 +589,13 @@ mod tests {
 
     #[test]
     fn test_cache_stats() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+
         let (mut cache, test_dir) = setup_test_cache();
 
-        let temp_artifact = env::temp_dir().join("test_stats.so");
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let temp_artifact = env::temp_dir().join(format!("test_stats-{}.so", id));
         fs::write(&temp_artifact, b"test content").expect("Failed to create temp artifact");
 
         let key = cache.generate_key("test", &[], 0, "default");
@@ -603,9 +611,13 @@ mod tests {
 
     #[test]
     fn test_cache_clear() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+
         let (mut cache, test_dir) = setup_test_cache();
 
-        let temp_artifact = env::temp_dir().join("test_clear.so");
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let temp_artifact = env::temp_dir().join(format!("test_clear-{}.so", id));
         fs::write(&temp_artifact, b"test").expect("Failed to create temp artifact");
 
         let key = cache.generate_key("test", &[], 0, "default");
