@@ -597,6 +597,132 @@ mod tests {
         assert_eq!(wrapper1.debug, wrapper2.debug);
     }
 
+    // Task 2.5: Integration tests
+
+    #[test]
+    fn test_generated_code_parses_as_valid_rust() {
+        let wrapper = RustAstWrapper::new();
+
+        let user_code = "let result = x * 2 + y;";
+        let variables = vec![
+            ("x".to_string(), "i32".to_string()),
+            ("y".to_string(), "i32".to_string()),
+        ];
+
+        let wrapped = wrapper.wrap_with_store("test", user_code, &variables, None)
+            .expect("Wrapping failed");
+
+        // The generated code should parse as valid Rust
+        let parsed = syn::parse_file(&wrapped);
+        assert!(parsed.is_ok(), "Generated code should parse as valid Rust: {}", wrapped);
+
+        if let Ok(file) = parsed {
+            // Should have at least one item (the function)
+            assert!(!file.items.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_round_trip_wrap_and_parse() {
+        let wrapper = RustAstWrapper::new();
+
+        let user_code = r#"
+            let a = 10;
+            let b = 20;
+            let sum = a + b;
+        "#;
+
+        // Wrap without variables
+        let wrapped1 = wrapper.wrap("trip1", user_code).expect("Wrap failed");
+
+        // Parse the generated code
+        let parsed = syn::parse_file(&wrapped1);
+        assert!(parsed.is_ok());
+
+        // Wrap with variables
+        let vars = vec![("x".to_string(), "i32".to_string())];
+        let wrapped2 = wrapper.wrap_with_store("trip2", user_code, &vars, None)
+            .expect("Wrap with store failed");
+
+        let parsed2 = syn::parse_file(&wrapped2);
+        assert!(parsed2.is_ok());
+    }
+
+    #[test]
+    fn test_end_to_end_variable_flow() {
+        let wrapper = RustAstWrapper::new();
+
+        // Scenario: REPL session with multiple evaluations
+
+        // Evaluation 1: Create variables
+        let code1 = "let x: i32 = 42; let y: i32 = 100;";
+        let wrapped1 = wrapper.wrap_with_store("eval1", code1, &[], None)
+            .expect("Eval 1 failed");
+
+        // Should create and store x and y
+        assert!(wrapped1.contains("store.set"));
+        assert!(syn::parse_file(&wrapped1).is_ok());
+
+        // Extract variables from first evaluation
+        let vars_after_eval1 = wrapper.extract_variables(code1);
+        assert!(vars_after_eval1.len() >= 2);
+
+        // Evaluation 2: Use existing variables
+        let code2 = "let sum = x + y;";
+        let wrapped2 = wrapper.wrap_with_store("eval2", code2, &vars_after_eval1, None)
+            .expect("Eval 2 failed");
+
+        // Should load x and y, create sum
+        assert!(wrapped2.contains("with_store"));
+        assert!(wrapped2.contains("\"x\"") || wrapped2.contains("let x"));
+        assert!(wrapped2.contains("\"y\"") || wrapped2.contains("let y"));
+        assert!(syn::parse_file(&wrapped2).is_ok());
+
+        // Extract all variables after eval 2
+        let mut all_vars = vars_after_eval1.clone();
+        let new_vars = wrapper.extract_variables(code2);
+        for (name, ty) in new_vars {
+            if !all_vars.iter().any(|(n, _)| n == &name) {
+                all_vars.push((name, ty));
+            }
+        }
+
+        // Should now have x, y, and sum
+        assert!(all_vars.len() >= 3);
+
+        // Evaluation 3: Use all variables
+        let code3 = "let product = sum * x;";
+        let wrapped3 = wrapper.wrap_with_store("eval3", code3, &all_vars, None)
+            .expect("Eval 3 failed");
+
+        assert!(wrapped3.contains("with_store"));
+        assert!(syn::parse_file(&wrapped3).is_ok());
+    }
+
+    #[test]
+    fn test_complex_type_handling() {
+        let wrapper = RustAstWrapper::new();
+
+        // Test with various Rust types
+        let code = r#"
+            let s: String = String::from("hello");
+            let v: Vec<i32> = vec![1, 2, 3];
+            let opt: Option<i32> = Some(42);
+        "#;
+
+        let vars = vec![
+            ("existing_str".to_string(), "String".to_string()),
+            ("existing_vec".to_string(), "Vec<i32>".to_string()),
+        ];
+
+        let wrapped = wrapper.wrap_with_store("complex", code, &vars, None)
+            .expect("Complex types failed");
+
+        // Should handle complex types in variable loads/stores
+        assert!(wrapped.contains("with_store"));
+        assert!(syn::parse_file(&wrapped).is_ok());
+    }
+
     // New tests for AST-based wrapping (Task 2.1)
 
     #[test]
