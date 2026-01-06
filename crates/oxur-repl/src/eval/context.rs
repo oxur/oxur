@@ -345,21 +345,17 @@ impl EvalContext {
 
         // If executor exists, check if library is already loaded (Tier 2)
         if let Some(executor) = &self.executor {
-            let is_loaded = executor
-                .lock()
-                .expect("Executor mutex poisoned")
-                .is_loaded(&cache_key);
+            let is_loaded = executor.lock().expect("Executor mutex poisoned").is_loaded(&cache_key);
 
             if is_loaded {
                 // Tier 2: Library already loaded, just execute
-                let exec_result = executor
-                    .lock()
-                    .expect("Executor mutex poisoned")
-                    .execute(&cache_key)
-                    .map_err(|e| EvalError::RuntimeError {
-                        msg: format!("Execution failed: {}", e),
-                        pos: SourcePos::repl(1, 1, code.len() as u32),
-                    })?;
+                let exec_result =
+                    executor.lock().expect("Executor mutex poisoned").execute(&cache_key).map_err(
+                        |e| EvalError::RuntimeError {
+                            msg: format!("Execution failed: {}", e),
+                            pos: SourcePos::repl(1, 1, code.len() as u32),
+                        },
+                    )?;
 
                 let duration_ms = start.elapsed().as_millis() as u64;
                 self.stats.tier2_count += 1;
@@ -531,13 +527,12 @@ impl EvalContext {
             })?;
 
         // Step 6: Execute in subprocess
-        let exec_result = executor
-            .lock()
-            .expect("Executor mutex poisoned")
-            .execute(&cache_key)
-            .map_err(|e| EvalError::RuntimeError {
-                msg: format!("Execution failed: {}", e),
-                pos: SourcePos::repl(1, 1, code.len() as u32),
+        let exec_result =
+            executor.lock().expect("Executor mutex poisoned").execute(&cache_key).map_err(|e| {
+                EvalError::RuntimeError {
+                    msg: format!("Execution failed: {}", e),
+                    pos: SourcePos::repl(1, 1, code.len() as u32),
+                }
             })?;
 
         // Extract result and handle different execution outcomes

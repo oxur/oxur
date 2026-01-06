@@ -226,9 +226,8 @@ mod tests {
         let cache = ArtifactCache::with_directory(&test_dir).expect("Failed to create cache");
 
         let session_id = SessionId::new(format!("test-{}", id));
-        let session_dir = Arc::new(
-            SessionDir::new(&session_id).expect("Failed to create session dir"),
-        );
+        let session_dir =
+            Arc::new(SessionDir::new(&session_id).expect("Failed to create session dir"));
 
         let compiler = CachedCompiler::new(cache, session_dir);
 
