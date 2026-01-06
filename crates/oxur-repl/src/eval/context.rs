@@ -144,6 +144,12 @@ pub struct EvalContext {
 
     /// Type inference engine (Phase 7)
     type_inference: TypeInference,
+
+    /// Source map for error translation (Phase 4)
+    ///
+    /// Tracks transformations from original Oxur source through Surface Forms,
+    /// Core Forms, and Rust AST for precise error position mapping.
+    source_map: oxur_smap::SourceMap,
 }
 
 /// Execution statistics for the session
@@ -184,6 +190,7 @@ impl EvalContext {
             session_dir: None,
             wrapper: RustAstWrapper::new(),
             type_inference: TypeInference::new(),
+            source_map: oxur_smap::SourceMap::new(),
         }
     }
 
@@ -241,6 +248,7 @@ impl EvalContext {
             session_dir: Some(session_dir),
             wrapper: RustAstWrapper::new(),
             type_inference: TypeInference::new(),
+            source_map: oxur_smap::SourceMap::new(),
         })
     }
 
@@ -280,6 +288,7 @@ impl EvalContext {
             session_dir: self.session_dir.clone(),
             wrapper: RustAstWrapper::new(),
             type_inference: TypeInference::new(),
+            source_map: oxur_smap::SourceMap::new(), // Fresh source map for new session
         }
     }
 
@@ -300,6 +309,9 @@ impl EvalContext {
     pub async fn eval(&mut self, code: impl AsRef<str>) -> Result<EvalResult> {
         let code = code.as_ref();
         let start = Instant::now();
+
+        // Reset source map for this evaluation
+        self.source_map = oxur_smap::SourceMap::new();
 
         // Attempt Tier 1 (Calculator mode) first
         if let Some(result) = self.try_calculator(code) {
@@ -442,6 +454,7 @@ impl EvalContext {
         code: &str,
     ) -> Result<(String, Option<String>, Option<String>)> {
         // Step 1: Parse code to CoreForms using mode-specific parser
+        // Record surface nodes in source map during parsing
         let core_forms = match self.mode {
             ReplMode::Lisp => {
                 // Use Lisp parser to parse and convert to CoreForms
@@ -449,6 +462,18 @@ impl EvalContext {
                     msg: format!("Lisp parse error: {}", e),
                     pos: SourcePos::repl(1, 1, code.len() as u32),
                 })?;
+
+                // Record surface nodes (Phase 4 placeholder - will be done by parser in Phase 6+)
+                // For now, create one surface node per form
+                for (idx, _form) in forms.iter().enumerate() {
+                    let node = oxur_smap::new_node_id();
+                    let pos = oxur_smap::SourcePos::repl(1, 1, code.len() as u32);
+                    self.source_map.record_surface_node(node, pos);
+
+                    // In Phase 6+, the parser will provide actual NodeIds and positions
+                    // For now this is a placeholder to enable comment generation
+                    let _ = idx; // suppress unused warning
+                }
 
                 forms
             }
@@ -459,6 +484,11 @@ impl EvalContext {
                         msg: format!("S-expression parse error: {}", e),
                         pos: SourcePos::repl(1, 1, code.len() as u32),
                     })?;
+
+                // Record surface node (Phase 4 placeholder)
+                let node = oxur_smap::new_node_id();
+                let pos = oxur_smap::SourcePos::repl(1, 1, code.len() as u32);
+                self.source_map.record_surface_node(node, pos);
 
                 vec![form]
             }
@@ -500,9 +530,9 @@ impl EvalContext {
         let cache_key = self.hash_code(code);
 
         // Step 3: Wrap code with REPL scaffolding
-        // TODO Phase 4: Pass SourceMap here (currently None)
+        // Pass SourceMap for Phase 4 error translation
         let wrapped_code =
-            self.wrapper.wrap(&cache_key, code, None).map_err(|e| EvalError::CompilationError {
+            self.wrapper.wrap(&cache_key, code, Some(&self.source_map)).map_err(|e| EvalError::CompilationError {
                 msg: format!("Failed to wrap code: {}", e),
                 pos: SourcePos::repl(1, 1, code.len() as u32),
             })?;

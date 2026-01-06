@@ -128,7 +128,7 @@ use std::collections::HashMap;
 /// This design ensures thread-safety without runtime overhead:
 /// - Compilation is single-threaded (sequential: parse → expand → lower)
 /// - Error translation can be multi-threaded (read-only lookups)
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SourceMap {
     /// Surface Form positions (recorded during parsing)
     surface_positions: HashMap<NodeId, SourcePos>,
