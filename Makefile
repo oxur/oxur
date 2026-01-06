@@ -221,5 +221,5 @@ push:
 	@git push codeberg && git push codeberg --tags
 	@echo "$(GREEN)✓ Pushed$(RESET)"
 	@echo "$(CYAN)• Github:$(RESET)"
-	@git push origin && git push origin --tags
+	@git push github && git push github --tags
 	@echo "$(GREEN)✓ Pushed$(RESET)"
