@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0041 | Reimagining the REPL: A guide to modern terminal UX design | Final | 2026-01-06 |
 | 0040 | Oxur REPL Implementation Plan | Active | 2026-01-06 |
 | 0039 | oxur-smap Implementation Plan | Final | 2026-01-05 |
 | 0038 | Oxur REPL Architecture | Final | 2026-01-06 |
@@ -49,10 +50,6 @@ This index is automatically generated. Do not edit manually.
 
 ## Documents by State
 
-### Active
-
-- [0040 - Oxur REPL Implementation Plan](05-active/0040-oxur-repl-implementation-plan.md)
-
 ### Draft
 
 - [0025 - Oxur Syntax Addendum: Function Head Pattern Matching](01-draft/0025-oxur-syntax-addendum-function-head-pattern-matching.md)
@@ -60,8 +57,13 @@ This index is automatically generated. Do not edit manually.
 - [0013 - Oxur Compilation Chain Architecture](01-draft/0013-oxur-compilation-chain-architecture.md)
 - [0001 - Oxur: A Letter of Intent](01-draft/0001-oxur-a-letter-of-intent.md)
 
+### Active
+
+- [0040 - Oxur REPL Implementation Plan](05-active/0040-oxur-repl-implementation-plan.md)
+
 ### Final
 
+- [0041 - Reimagining the REPL: A guide to modern terminal UX design](06-final/0041-reimagining-the-repl-a-guide-to-modern-terminal-ux-design.md)
 - [0039 - oxur-smap Implementation Plan](06-final/0039-oxur-smap-implementation-plan.md)
 - [0038 - Oxur REPL Architecture](06-final/0038-oxur-repl-architecture.md)
 - [0037 - oxur-pretty Implementation Plan](06-final/0037-oxur-pretty-implementation-plan.md)
@@ -83,7 +85,7 @@ This index is automatically generated. Do not edit manually.
 - [0019 - oxur-ast Implementation Status Report](06-final/0019-oxur-ast-implementation-status-report.md)
 - [0018 - Oxur Remote REPL Protocol Design](06-final/0018-oxur-remote-repl-protocol-design.md)
 - [0017 - Recommendations for Future-proofing Multiple REPL Protocols](06-final/0017-recommendations-for-future-proofing-multiple-repl-protocols.md)
-- [0016 - Building a transport-agnostic REPL protocol in Rust](06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)
+- [0016 - Research: Building a transport-agnostic REPL protocol in Rust](06-final/0016-building-a-transport-agnostic-repl-protocol-in-rust.md)
 - [0015 - oxur-table API (re)Design](06-final/0015-phase-2-oxur-table-api-design.md)
 - [0014 - Rust AST Inventory for Oxur Lisp](06-final/0014-rust-ast-inventory-for-oxur-lisp.md)
 - [0012 - Implementation Plan: File-Based S-Expression Test Data](06-final/0012-implementation-plan-file-based-s-expression-test-data.md)
