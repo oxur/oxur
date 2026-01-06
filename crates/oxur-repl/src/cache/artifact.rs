@@ -322,6 +322,9 @@ impl ArtifactCache {
         self.index.entries.insert(key.to_string(), entry);
         self.save_index()?;
 
+        // Check if we need to evict old entries to stay under size limit
+        let _ = self.check_and_evict(); // Best effort, don't fail insert on eviction issues
+
         Ok(cached_artifact)
     }
 
@@ -376,6 +379,103 @@ impl ArtifactCache {
     /// List all cache keys
     pub fn keys(&self) -> Vec<String> {
         self.index.entries.keys().cloned().collect()
+    }
+
+    /// Evict least recently used cache entries
+    ///
+    /// Removes oldest entries until total cache size is below the limit.
+    /// Default limit is 1GB. Can be configured via `OXUR_CACHE_MAX_SIZE_MB` environment variable.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_size_bytes` - Maximum allowed cache size in bytes. If None, uses default (1GB)
+    ///
+    /// # Returns
+    ///
+    /// Number of entries evicted
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use oxur_repl::cache::ArtifactCache;
+    ///
+    /// let mut cache = ArtifactCache::new()?;
+    /// let evicted = cache.evict_lru(Some(100 * 1024 * 1024))?; // Limit to 100MB
+    /// println!("Evicted {} cache entries", evicted);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn evict_lru(&mut self, max_size_bytes: Option<u64>) -> Result<usize> {
+        // Get max size from parameter or environment, default to 1GB
+        let max_size = max_size_bytes.unwrap_or_else(|| {
+            std::env::var("OXUR_CACHE_MAX_SIZE_MB")
+                .ok()
+                .and_then(|s| s.parse::<u64>().ok())
+                .map(|mb| mb * 1024 * 1024)
+                .unwrap_or(1024 * 1024 * 1024) // 1GB default
+        });
+
+        let (_count, total_size) = self.stats();
+        if total_size <= max_size {
+            return Ok(0); // No eviction needed
+        }
+
+        // Sort entries by cached_at (oldest first) and collect keys to evict
+        let mut entries: Vec<_> =
+            self.index.entries.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        entries.sort_by_key(|(_, entry)| entry.cached_at);
+
+        let mut evicted = 0;
+        let mut current_size = total_size;
+        let mut keys_to_remove = Vec::new();
+
+        // Collect keys to evict until under limit
+        for (key, entry) in entries {
+            if current_size <= max_size {
+                break;
+            }
+
+            keys_to_remove.push(key.clone());
+            current_size -= entry.size_bytes;
+        }
+
+        // Remove artifacts and entries
+        for key in keys_to_remove {
+            if let Some(entry) = self.index.entries.get(&key) {
+                // Remove artifact directory (best effort, ignore errors)
+                let artifact_dir = self.cache_dir.join(&entry.key);
+                if artifact_dir.exists() {
+                    let _ = fs::remove_dir_all(&artifact_dir); // Ignore errors during eviction
+                }
+
+                // Remove from index
+                self.index.entries.remove(&key);
+                evicted += 1;
+            }
+        }
+
+        // Save updated index
+        if evicted > 0 {
+            self.save_index()?;
+        }
+
+        Ok(evicted)
+    }
+
+    /// Get total cache size in bytes
+    pub fn total_size_bytes(&self) -> u64 {
+        self.stats().1
+    }
+
+    /// Check if cache is over size limit and evict if needed
+    ///
+    /// This is automatically called after `insert()` operations.
+    /// Can also be called manually for periodic cleanup.
+    ///
+    /// # Returns
+    ///
+    /// Number of entries evicted
+    pub fn check_and_evict(&mut self) -> Result<usize> {
+        self.evict_lru(None)
     }
 }
 
