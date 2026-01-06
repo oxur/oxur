@@ -135,13 +135,14 @@ impl MessageHandler {
                 // Convert ExecutionTier to u8
                 let tier_num = match result.tier {
                     crate::eval::ExecutionTier::Calculator => 1,
-                    crate::eval::ExecutionTier::CachedCompilation => 2,
+                    crate::eval::ExecutionTier::CachedLoaded => 2,
+                    crate::eval::ExecutionTier::JustInTime => 3,
                 };
 
                 OperationResult::Success {
                     status: Status {
                         tier: tier_num,
-                        cached: tier_num == 2 && result.duration_ms < 10, // Heuristic for cached
+                        cached: result.cached, // Use actual cached flag from result
                         duration_ms: result.duration_ms,
                     },
                     value: Some(result.value),

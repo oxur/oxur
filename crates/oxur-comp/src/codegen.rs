@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn test_codegen_default() {
-        let gen = CodeGenerator::default();
+        let gen = CodeGenerator;
         let file = syn::File { shebang: None, attrs: vec![], items: vec![] };
         let result = gen.generate(&file);
         assert!(result.is_ok());

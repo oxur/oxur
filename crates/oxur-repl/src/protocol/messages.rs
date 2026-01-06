@@ -632,7 +632,7 @@ mod tests {
 
         for kind in error_kinds {
             let error_info = ErrorInfo {
-                kind: kind.clone(),
+                kind,
                 message: "Test error".to_string(),
                 location: Some(SourceLocation { offset: 10, line: 5, column: 10 }),
                 details: Some("Additional details".to_string()),

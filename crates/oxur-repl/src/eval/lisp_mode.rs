@@ -50,7 +50,7 @@ impl LispEvaluator {
         if trimmed.is_empty() {
             return Err(EvalError::SyntaxError {
                 msg: "Empty expression".to_string(),
-                pos: crate::eval::context::Position::start(),
+                pos: oxur_smap::SourcePos::repl(1, 1, 1),
             });
         }
 
@@ -145,7 +145,7 @@ impl LispEvaluator {
         if depth != 0 {
             return Err(EvalError::SyntaxError {
                 msg: "Mismatched parentheses".to_string(),
-                pos: crate::eval::context::Position::start(),
+                pos: oxur_smap::SourcePos::repl(1, 1, 1),
             });
         }
 
@@ -159,14 +159,14 @@ impl LispEvaluator {
 
             Expr::Symbol(s) => Err(EvalError::UnsupportedOperation {
                 msg: format!("Variables not supported in calculator mode: {}", s),
-                pos: crate::eval::context::Position::start(),
+                pos: oxur_smap::SourcePos::repl(1, 1, 1),
             }),
 
             Expr::List(elements) => {
                 if elements.is_empty() {
                     return Err(EvalError::SyntaxError {
                         msg: "Empty list".to_string(),
-                        pos: crate::eval::context::Position::start(),
+                        pos: oxur_smap::SourcePos::repl(1, 1, 1),
                     });
                 }
 
@@ -176,7 +176,7 @@ impl LispEvaluator {
                     _ => {
                         return Err(EvalError::SyntaxError {
                             msg: "First element must be an operator".to_string(),
-                            pos: crate::eval::context::Position::start(),
+                            pos: oxur_smap::SourcePos::repl(1, 1, 1),
                         })
                     }
                 };
@@ -188,7 +188,7 @@ impl LispEvaluator {
                         let result = self.eval_calculator_expr(e)?;
                         result.parse::<i64>().map_err(|_| EvalError::RuntimeError {
                             msg: format!("Not a number: {}", result),
-                            pos: crate::eval::context::Position::start(),
+                            pos: oxur_smap::SourcePos::repl(1, 1, 1),
                         })
                     })
                     .collect();
@@ -206,7 +206,7 @@ impl LispEvaluator {
         if args.is_empty() {
             return Err(EvalError::SyntaxError {
                 msg: format!("Operator '{}' requires at least one argument", op),
-                pos: crate::eval::context::Position::start(),
+                pos: oxur_smap::SourcePos::repl(1, 1, 1),
             });
         }
 
@@ -231,7 +231,7 @@ impl LispEvaluator {
                 if args.len() == 1 {
                     return Err(EvalError::RuntimeError {
                         msg: "Division requires at least two arguments".to_string(),
-                        pos: crate::eval::context::Position::start(),
+                        pos: oxur_smap::SourcePos::repl(1, 1, 1),
                     });
                 }
 
@@ -239,7 +239,7 @@ impl LispEvaluator {
                     if x == 0 {
                         Err(EvalError::RuntimeError {
                             msg: "Division by zero".to_string(),
-                            pos: crate::eval::context::Position::start(),
+                            pos: oxur_smap::SourcePos::repl(1, 1, 1),
                         })
                     } else {
                         Ok(acc / x)
@@ -250,7 +250,7 @@ impl LispEvaluator {
             }
             _ => Err(EvalError::UnsupportedOperation {
                 msg: format!("Unknown operator in calculator mode: {}", op),
-                pos: crate::eval::context::Position::start(),
+                pos: oxur_smap::SourcePos::repl(1, 1, 1),
             }),
         }
     }
@@ -264,7 +264,7 @@ impl LispEvaluator {
         let mut parser = Parser::new(code.as_ref().to_string());
         let surface_forms = parser.parse().map_err(|e| EvalError::SyntaxError {
             msg: format!("Parse error: {}", e),
-            pos: crate::eval::context::Position::start(),
+            pos: oxur_smap::SourcePos::repl(1, 1, 1),
         })?;
 
         // For now, convert to CoreForm manually

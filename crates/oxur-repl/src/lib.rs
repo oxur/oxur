@@ -1,16 +1,24 @@
 //! Oxur REPL
 //!
-//! Provides a Read-Eval-Print-Loop with two-tier execution:
-//! - Tier 1: Calculator mode (interpret simple arithmetic only)
-//! - Tier 2: Cached compilation (compile and cache everything else)
+//! Provides a Read-Eval-Print-Loop with three-tier execution:
+//! - Tier 1: Calculator mode (interpret simple arithmetic only) - <1ms
+//! - Tier 2: Cached & loaded (execute from already-loaded library) - ~1-5ms
+//! - Tier 3: Just-in-time (compile, cache, and load) - ~50-300ms
 //!
 //! Based on ODD-0018: Oxur Remote REPL Protocol Design
-//! and ODD-0026: Oxur REPL Evaluation Strategy
+//! and ODD-0026 v2.0: Oxur REPL Evaluation Strategy
 
+pub mod cache;
+pub mod compiler;
 pub mod eval;
+pub mod executor;
 pub mod protocol;
 pub mod server;
+pub mod session;
+pub mod subprocess;
 pub mod transport;
+pub mod type_inference;
+pub mod wrapper;
 
 // Stub client for backwards compatibility with oxur-cli
 mod client;
