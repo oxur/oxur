@@ -6,12 +6,11 @@ component: Compiler
 tags: [architecture, compiler, source maps]
 created: 2025-12-27
 updated: 2026-01-05
-state: Draft
+state: Overwritten
 supersedes: null
 superseded-by: null
-version: 1.1
+version: 1.0
 ---
-
 
 # Oxur Compilation Chain Architecture
 
@@ -55,14 +54,14 @@ Oxur is a Lisp dialect that compiles to Rust with 100% interoperability. This do
 3. **Node ID-based source mapping** - provenance tracking through all transformations
 4. **Phased macro system** - core macros (v1.0), user macros (v2.0)
 5. **No runtime library needed** - Rust's type system is powerful enough
-6. **Subprocess-based REPL** - isolated execution enables Ctrl-C interruption and crash recovery
-7. **Three-tier execution** - calculator mode for simple forms, persistent caching for compiled code
+6. **Simplified REPL** - no plugin memory leaks like Go, no supervised workers needed
+7. **Three-tier execution** - interpretation for simple forms, compilation for complex ones
 
 ### Benefits of This Architecture
 
 - ✅ **Stable intermediate representation** - experiment with syntax without breaking backend
 - ✅ **Accurate error reporting** - source maps track every transformation
-- ✅ **Fast REPL** - tiered execution with persistent artifact caching (50-200x speedup on cache hits)
+- ✅ **Fast REPL** - tiered execution optimizes common cases
 - ✅ **Native performance** - compiles to idiomatic Rust
 - ✅ **Language extensibility** - macro system designed from day one
 - ✅ **Clean separation** - each stage has clear responsibilities
@@ -416,8 +415,7 @@ pub enum SurfaceForm {
     node_id: NodeId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct NodeId(u32);
+pub type NodeId = u64;
 
 pub struct Symbol {
     pub name: String,
@@ -1324,8 +1322,6 @@ impl ErrorTranslator {
 
 ## Source Map Architecture
 
-> **Implementation Note:** Source mapping is implemented in `oxur-smap`, a dedicated foundation crate with no dependencies. All other Oxur crates depend on oxur-smap. See the Repository Structure section for details.
-
 ### Provenance Tracking Philosophy
 
 Borrowed from Zylisp's successful approach: instead of trying to maintain positions through transformations, we:
@@ -1340,10 +1336,9 @@ This is how TypeScript, ClojureScript, Elm, and other compile-to-X languages wor
 ### Core Types
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct NodeId(u32);
+pub type NodeId = u64;
 
-pub struct SourcePos {
+pub struct SourceLocation {
     pub file: PathBuf,
     pub start: SourcePosition,
     pub end: SourcePosition,
@@ -1356,33 +1351,17 @@ pub struct SourcePosition {
 }
 
 pub struct SourceMap {
-    /// Original source positions (from parsing)
-    surface_positions: HashMap<NodeId, SourcePos>,
+    /// Name of this transformation layer (for debugging)
+    layer: String,
 
-    /// Surface Form → Core Form mappings (from expansion)
-    surface_to_core: HashMap<NodeId, NodeId>,
+    /// Maps nodes in this layer to nodes in previous layer
+    parent_node: HashMap<NodeId, NodeId>,
 
-    /// Core Form → Rust AST mappings (from lowering)
-    core_to_rust: HashMap<NodeId, NodeId>,
-}
+    /// Original source positions (only populated at input layer)
+    original_pos: HashMap<NodeId, SourceLocation>,
 
-impl SourceMap {
-    pub fn new() -> Self;
-
-    /// Called by oxur-lang during parsing
-    pub fn record_surface_node(&mut self, node: NodeId, pos: SourcePos);
-
-    /// Called by oxur-lang during expansion
-    pub fn record_expansion(&mut self, surface: NodeId, core: NodeId);
-
-    /// Called by oxur-comp during lowering  
-    pub fn record_lowering(&mut self, core: NodeId, rust: NodeId);
-
-    /// Called by oxur-repl for error translation - traverses backwards
-    pub fn lookup(&self, rust_node: NodeId) -> Option<SourcePos>;
-
-    /// For cache key generation
-    pub fn content_hash(&self) -> String;
+    /// Link to previous transformation's source map
+    previous: Option<Arc<SourceMap>>,
 }
 ```
 
@@ -1652,23 +1631,24 @@ Error provenance:
 
 ## REPL Architecture
 
-### The Critical Constraint: Why Subprocess is Mandatory
+### The Key Advantage: No Plugin Memory Leak
 
-Unlike what might be expected from Rust's lack of Go's plugin memory leak problem, the Oxur REPL **requires subprocess execution**. This is not about memory—it's about interruptibility.
+Unlike Go, Rust doesn't have the plugin memory leak problem. This dramatically simplifies the REPL architecture:
 
-**The Problem:**
-- Rust threads cannot be forcibly stopped (by design, for safety)
-- `thread::spawn()` cannot be killed once started  
-- Infinite loops in user code would hang the REPL forever
-- No safe way to implement Ctrl-C with in-process execution
+**Zylisp REPL**:
 
-**The Solution:**
-- Subprocess can be killed via `SIGKILL` signal
-- User presses Ctrl-C → REPL kills subprocess → spawns new one
-- Session state preserved in server (variables, history)
-- Seamless recovery from hangs, crashes, infinite loops
+- Supervised worker processes
+- IPC communication
+- Memory monitoring
+- Restart workers when memory threshold hit
+- Complex but necessary
 
-This architecture is validated by evcxr (Rust REPL), which has used subprocess execution from day one with zero fundamental changes in 6+ years.
+**Oxur REPL**:
+
+- Single process
+- Direct function calls
+- Simple caching
+- No memory leaks!
 
 ### Three-Tier Execution Strategy
 
@@ -1676,168 +1656,255 @@ Optimize common cases while maintaining full compilation capability:
 
 ```
 ┌─────────────────────────────────────────┐
-│       Tier 1: Calculator Mode           │
+│         Tier 1: Interpreter             │
 │                                         │
-│  For simple expressions:                │
+│  For simple Core Forms:                 │
 │  • Literals                             │
-│  • Simple arithmetic (+, -, *, /)       │
-│  • No function definitions              │
+│  • Simple arithmetic                    │
+│  • Variable lookups                     │
 │                                         │
-│  Execution: Direct Rust evaluation      │
-│  Time: <1ms                             │
-│  Caching: N/A (no compilation)          │
+│  Time: ~1ms                             │
 └─────────────────────────────────────────┘
                  ↓ (if not simple)
 ┌─────────────────────────────────────────┐
-│       Tier 2: Cached Compilation        │
+│         Tier 2: Cached Compilation      │
 │                                         │
-│  For previously compiled code:          │
-│  • Content-based cache key match        │
-│  • Persistent across REPL sessions      │
-│  • Location: ~/.cache/oxur/artifacts/   │
+│  For function definitions:              │
+│  • Compile once to dynamic library      │
+│  • Keep loaded (no memory leak!)        │
+│  • Subsequent calls are instant         │
 │                                         │
-│  Execution: Load pre-compiled library   │
-│  Time: 1-5ms                            │
-│  Speedup: 50-200x vs fresh compilation  │
+│  Time: ~0ms after first compile         │
 └─────────────────────────────────────────┘
-                 ↓ (if cache miss)
+                 ↓ (if not cached)
 ┌─────────────────────────────────────────┐
-│       Tier 3: JIT Compilation           │
+│         Tier 3: JIT Compilation         │
 │                                         │
-│  For new code (cache miss):             │
-│  • Full 12-stage compilation pipeline   │
-│  • Stores result in ArtifactCache       │
-│  • Next eval becomes Tier 2             │
+│  For complex expressions:               │
+│  • Full compilation pipeline            │
+│  • Cache the result                     │
+│  • Show progress if >50ms               │
 │                                         │
-│  Time: 50-300ms (cargo dominates)       │
+│  Time: 50-200ms first time              │
 └─────────────────────────────────────────┘
 ```
 
-### Artifact Caching (Mandatory)
-
-Persistent artifact caching is a day-one requirement, not a future optimization. This is based on evcxr's experience—they waited 5 years to add caching and consider it their biggest regret.
+### Tier 1: Interpreter Implementation
 
 ```rust
-pub struct ArtifactCache {
-    cache_dir: PathBuf,  // ~/.cache/oxur/artifacts/
-    index: HashMap<CacheKey, PathBuf>,
-    max_size: u64,  // Default: 1GB
+pub struct Interpreter {
+    env: Environment,
 }
 
-impl ArtifactCache {
-    /// Generate content-based cache key
-    pub fn cache_key(
-        source: &str,
-        deps: &[Dependency],
-        opt_level: OptLevel,
-        source_map: &SourceMap,
-    ) -> CacheKey {
-        // SHA256(source + deps + opt_level + source_map.content_hash())
-    }
+impl Interpreter {
+    pub fn eval(&mut self, form: &CoreForm) -> Result<Value> {
+        match form {
+            CoreForm::Literal(lit) => Ok(Value::from(lit)),
 
-    /// Check for cached artifact
-    pub fn get(&self, key: &CacheKey) -> Option<PathBuf>;
+            CoreForm::VarRef(sym) => {
+                self.env.get(sym)
+                    .ok_or_else(|| Error::UndefinedVariable(sym.clone()))
+            }
 
-    /// Store compiled artifact
-    pub fn insert(&mut self, key: CacheKey, artifact: PathBuf) -> Result<PathBuf>;
+            CoreForm::BinaryOp { op, left, right, .. } => {
+                let left_val = self.eval(left)?;
+                let right_val = self.eval(right)?;
+                self.eval_binary_op(*op, left_val, right_val)
+            }
 
-    /// LRU eviction when cache exceeds max_size
-    fn evict_if_needed(&mut self);
-}
-```
-
-**Cache Persistence:**
-- Cache survives REPL restarts
-- First eval of each day benefits from yesterday's compilation
-- Shared across all REPL sessions
-
-### Subprocess Execution
-
-```rust
-pub struct SubprocessExecutor {
-    subprocess: Child,
-    stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
-}
-
-impl SubprocessExecutor {
-    /// Execute compiled code in isolated subprocess
-    pub fn execute(&mut self, lib_path: &Path, fn_name: &str) -> Result<Response> {
-        // Send command via stdin
-        writeln!(self.stdin, "LOAD_AND_RUN {} {}", lib_path.display(), fn_name)?;
-        self.stdin.flush()?;
-
-        // Read response via stdout
-        let mut line = String::new();
-        self.stdout.read_line(&mut line)?;
-
-        // Parse response
-        if line.starts_with("OXUR_EXECUTION_COMPLETE") {
-            Ok(Response::success())
-        } else if line.starts_with("OXUR_RUNTIME_ERROR:") {
-            Err(Response::runtime_error(&line))
-        } else {
-            Err(Response::protocol_error())
+            // For anything complex, return None to fall through to compilation
+            _ => Err(Error::NotInterpretable),
         }
     }
 
-    /// Kill current subprocess and spawn a new one
-    pub fn restart(&mut self) -> Result<()> {
-        self.subprocess.kill()?;
-        self.subprocess = Self::spawn_subprocess()?;
-        // ... reinitialize stdin/stdout
+    fn eval_binary_op(&self, op: BinOp, left: Value, right: Value) -> Result<Value> {
+        match (op, left, right) {
+            (BinOp::Add, Value::Int(l), Value::Int(r)) => Ok(Value::Int(l + r)),
+            (BinOp::Sub, Value::Int(l), Value::Int(r)) => Ok(Value::Int(l - r)),
+            (BinOp::Mul, Value::Int(l), Value::Int(r)) => Ok(Value::Int(l * r)),
+            (BinOp::Div, Value::Int(l), Value::Int(r)) => Ok(Value::Int(l / r)),
+            // ... more operations
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
+pub enum Value {
+    Int(i64),
+    Float(f64),
+    String(String),
+    Bool(bool),
+    // ... more value types
+}
+```
+
+### Tier 2: Compilation Cache
+
+```rust
+pub struct CompilationCache {
+    libraries: HashMap<FunctionId, CompiledFunction>,
+}
+
+pub struct CompiledFunction {
+    lib: Library,  // from libloading
+    func: Symbol<'static, unsafe extern "C" fn(*const Value) -> Value>,
+}
+
+impl CompilationCache {
+    pub fn get_or_compile(
+        &mut self,
+        id: &FunctionId,
+        form: &CoreForm,
+    ) -> Result<&CompiledFunction> {
+        if !self.libraries.contains_key(id) {
+            let compiled = self.compile_function(form)?;
+            self.libraries.insert(id.clone(), compiled);
+        }
+
+        Ok(&self.libraries[id])
+    }
+
+    fn compile_function(&self, form: &CoreForm) -> Result<CompiledFunction> {
+        // Full compilation pipeline
+        let rust_ast = lower(form)?;
+        let rust_code = generate(&rust_ast)?;
+
+        // Write to temporary file
+        let temp_file = self.temp_dir.join(format!("repl_{}.rs", uuid()));
+        std::fs::write(&temp_file, rust_code)?;
+
+        // Compile to dynamic library
+        let lib_path = rustc_compile_dylib(&temp_file)?;
+
+        // Load library
+        let lib = unsafe { Library::new(lib_path)? };
+        let func = unsafe { lib.get(b"repl_function")? };
+
+        Ok(CompiledFunction { lib, func })
     }
 }
 ```
 
-**Subprocess Protocol** (stdin/stdout text-based):
-
-```
-Commands (Server → Subprocess):
-  LOAD_AND_RUN <lib_path> <function_name>\n
-
-Responses (Subprocess → Server):
-  OXUR_EXECUTION_COMPLETE\n                    (success)
-  OXUR_RUNTIME_ERROR: <error_message>\n        (runtime error)
-```
-
-### Core REPL Components
+### REPL Server Architecture
 
 ```rust
 pub struct ReplServer {
-    session_dir: PathBuf,  // Temp dir for this session
-    cache: Arc<ArtifactCache>,  // Shared persistent cache
-    history: Vec<HistoryEntry>,
+    interpreter: Interpreter,
+    cache: CompilationCache,
+    source_map: Arc<SourceMap>,
 }
 
-pub struct CachedCompiler {
-    session_dir: PathBuf,
-    executor: SubprocessExecutor,  // Mandatory
-    source_map: SourceMap,
+impl ReplServer {
+    pub fn eval(&mut self, source: &str) -> Result<String> {
+        // Parse
+        let surface_forms = parse(source, PathBuf::from("<repl>"))?;
+
+        // Expand
+        let core_forms = expand(surface_forms)?;
+
+        // Try Tier 1: Interpretation
+        if let Ok(result) = self.interpreter.eval(&core_forms[0]) {
+            return Ok(format!("{:?}", result));
+        }
+
+        // Try Tier 2: Cached compilation
+        if let CoreForm::DefineFunc { name, .. } = &core_forms[0] {
+            let func = self.cache.get_or_compile(name, &core_forms[0])?;
+            // Store in environment for future use
+            self.interpreter.env.insert(name.clone(), func);
+            return Ok(format!("Defined function: {}", name));
+        }
+
+        // Tier 3: JIT compile and execute
+        let result = self.compile_and_run(&core_forms[0])?;
+        Ok(format!("{:?}", result))
+    }
 }
 ```
 
-### Performance Targets
+### No Supervision Needed
 
-| Tier | Time | Notes |
-|------|------|-------|
-| Tier 1 (Calculator) | <1ms | Direct evaluation, no compilation |
-| Tier 2 (Cached) | 1-5ms | Load library + execute |
-| Tier 3 (JIT) | 50-300ms | Full compilation (cargo dominates at ~280ms) |
+Because Rust doesn't have the plugin memory leak:
 
-**Cache Impact:**
-- Cold compilation: 50-300ms
-- Warm cache hit: 1-5ms  
-- Speedup: 50-200x
+```rust
+// Simple single-process REPL
+fn main() {
+    let mut repl = ReplServer::new();
 
-### REPL Client/Server Protocol
+    loop {
+        print!("> ");
+        let input = read_line();
 
-**Two separate protocols:**
+        match repl.eval(&input) {
+            Ok(result) => println!("{}", result),
+            Err(err) => eprintln!("Error: {}", err.with_context(&input)),
+        }
+    }
+}
+```
 
-1. **Client ↔ Server:** TCP + Postcard serialization (see ODD-0018)
-2. **Server ↔ Subprocess:** stdin/stdout + text protocol (described above)
+No need for:
 
-The client is a thin protocol endpoint with **no compilation logic**—all compilation happens on the server.
+- Worker processes
+- IPC communication
+- Memory monitoring
+- Process supervision
+- Complex restart logic
+
+**This is a huge simplification compared to Zylisp!**
+
+### REPL Client/Server (Optional)
+
+For remote REPL connections or multiple clients, we can still use an nREPL-style architecture:
+
+```rust
+pub struct ReplClient {
+    connection: TcpStream,
+}
+
+impl ReplClient {
+    pub fn eval(&mut self, source: &str) -> Result<String> {
+        // Send evaluation request
+        self.send_request(Request::Eval { source: source.to_string() })?;
+
+        // Receive response
+        let response = self.recv_response()?;
+
+        Ok(response)
+    }
+}
+
+pub struct ReplServer {
+    listener: TcpListener,
+    eval_server: ReplEvalServer,
+}
+
+impl ReplServer {
+    pub fn run(&mut self) -> Result<()> {
+        for stream in self.listener.incoming() {
+            let stream = stream?;
+            self.handle_client(stream)?;
+        }
+        Ok(())
+    }
+
+    fn handle_client(&mut self, mut stream: TcpStream) -> Result<()> {
+        loop {
+            let request: Request = serde_json::from_reader(&mut stream)?;
+
+            let response = match request {
+                Request::Eval { source } => {
+                    self.eval_server.eval(&source)?
+                }
+            };
+
+            serde_json::to_writer(&mut stream, &response)?;
+        }
+    }
+}
+```
+
+But for local development, a simple single-process REPL is sufficient!
 
 ---
 
@@ -2045,11 +2112,10 @@ fn compile_macro_layer(
 
 ```
 github.com/oxur/crates
-├── oxur-smap/          # Source mapping foundation (no dependencies)
 ├── oxur-ast/           # Rust AST ↔ Core Forms (Stage 3)
 ├── oxur-comp/          # Oxur compiler (Stages 1-2)
 ├── oxur-lang/          # Oxur lang. def., core forms/macros
-├── oxur-repl/          # REPL server/client + subprocess binary
+├── oxur-repl/          # REPL server/client
 ├── oxur-cli/           # CLI tool (oxur command)
 └── design/             # Design documents
 ```
@@ -2057,44 +2123,14 @@ github.com/oxur/crates
 ### Dependency Graph
 
 ```
-                    oxur-smap (foundation - no dependencies)
-                         ↑
-    ┌────────────────────┼────────────────────┐
-    ↑                    ↑                    ↑
-oxur-ast            oxur-lang            oxur-comp
-    ↑                    ↑                    ↑
-    └────────────────────┼────────────────────┘
-                         ↑
-                    oxur-repl
-                         ↑
-                    oxur-cli
+cli → repl → oxur-lang → oxur-comp → oxur-ast
+              ↓
+        (core-macros.so compiled from oxur-lang/core-macros/)
 ```
 
 **Key**: No circular dependencies!
 
 ### Repository Details
-
-#### `oxur/crates/oxur-smap`
-
-**Purpose**: Foundation crate for multi-stage source mapping
-
-**Structure**:
-```
-oxur-smap/
-├── Cargo.toml
-├── src/
-│   ├── lib.rs
-│   ├── node_id.rs      # NodeId type with atomic generation
-│   ├── source_pos.rs   # SourcePos type
-│   └── source_map.rs   # SourceMap with three-stage tracking
-└── tests/
-```
-
-**Key Characteristics**:
-- **No dependencies** (foundation crate)
-- All other crates depend on this
-- Phase 0 prerequisite
-- Enables rustc-quality error messages for Oxur code
 
 #### `oxur/crates/oxur-ast`
 
@@ -2199,17 +2235,15 @@ oxur-repl/
 ├── Cargo.toml
 ├── src/
 │   ├── lib.rs
-│   ├── bin/
-│   │   └── subprocess.rs   # Subprocess runtime binary
 │   ├── server/         # REPL server
 │   │   ├── mod.rs
 │   │   └── eval.rs
-│   ├── executor/       # SubprocessExecutor
+│   ├── interp/         # Tier 1 interpreter
 │   │   ├── mod.rs
-│   │   └── protocol.rs
-│   ├── cache/          # ArtifactCache
+│   │   └── eval.rs
+│   ├── cache/          # Tier 2 compilation cache
 │   │   ├── mod.rs
-│   │   └── persist.rs
+│   │   └── compile.rs
 │   └── client/         # REPL client library
 │       ├── mod.rs
 │       └── connection.rs
@@ -2530,23 +2564,13 @@ fn bench_repl_simple_expr(b: &mut Bencher) {
 
 ### REPL Responsiveness
 
+**Target**: <1ms for simple expressions, <50ms for compilation
+
 **Tier Performance**:
 
-| Tier | Time | Notes |
-|------|------|-------|
-| Tier 1 (Calculator) | <1ms | Direct evaluation |
-| Tier 2 (Cached) | 1-5ms | Load cached artifact + execute |
-| Tier 3 (JIT) | 50-300ms | Full compilation (cargo dominates) |
-
-**Performance Breakdown (Tier 3 cold compilation):**
-- Stages 0-7 (parse through write): ~15ms total
-- Stage 8 (cargo compilation): ~280ms (93% of total)
-- Stages 9-12 (post-compile): ~5ms total
-
-**Optimization Priority:**
-1. Cache hits (skip Stage 8) → 50-200x speedup
-2. Incremental compilation → 3-5x speedup on modifications
-3. tmpfs for temp files → 2-3% speedup
+- Tier 1 (Interpreter): <1ms
+- Tier 2 (Cached): ~0ms (just function call)
+- Tier 3 (JIT): 50-200ms first time, cached after
 
 ### Memory Usage
 
@@ -2573,13 +2597,17 @@ fn bench_repl_simple_expr(b: &mut Bencher) {
 
 ## Open Questions
 
-### 1. Type Inference (RESOLVED)
+### 1. Type Inference vs Explicit Types
 
-**Decision**: Use rust-analyzer for type inference from day one.
+**Question**: How much type inference should Oxur have?
 
-**Rationale**: evcxr spent 4 years (2018-2022) using a hack that parsed compiler errors to extract types. This was fragile and finally removed. Starting with rust-analyzer avoids this technical debt.
+**Options**:
 
-**Implementation**: `TypeInference` component in oxur-repl uses rust-analyzer as a library.
+- **Full inference**: Let rustc infer everything
+- **Function signatures only**: Require types on function params/returns
+- **Opt-in annotations**: Support type annotations but don't require them
+
+**Recommendation**: Start with function signatures required, inference everywhere else.
 
 ### 2. Error Message Philosophy
 
@@ -2638,14 +2666,15 @@ This architecture provides:
 ✅ **Clear separation of concerns** - each stage has one job
 ✅ **Stable intermediate representation** - Core Forms are the contract
 ✅ **Accurate error reporting** - source maps track every transformation
-✅ **Fast REPL** - tiered execution with persistent artifact caching (50-200x speedup on cache hits)
+✅ **Fast REPL** - tiered execution optimizes common cases
 ✅ **Native performance** - compiles to idiomatic Rust
 ✅ **Extensibility** - macro system designed from day one
 ✅ **No runtime overhead** - Rust's type system is powerful enough
+✅ **Simplified design** - no plugin memory leaks, no supervised workers
 
 ### Key Innovations Over Zylisp
 
-1. **No plugin memory leak** → Subprocess model is for interruptibility (Ctrl-C), not memory management
+1. **No plugin memory leak** → Simpler REPL (no workers needed)
 2. **Richer type system** → No runtime library needed
 3. **Better pattern matching** → More elegant lowering
 4. **Cleaner AST** → Easier to work with
@@ -2710,27 +2739,6 @@ This architecture provides:
 - *Let Over Lambda* by Doug Hoyte
 - Common Lisp HyperSpec
 - Zetalisp documentation
-
----
-
-## Version History
-
-### Version 1.1 (2026-01-05)
-
-Updated REPL Architecture section to align with ODD-0038 (Oxur REPL Architecture v1.2).
-
-**Major Changes:**
-
-1. **Subprocess Execution Mandatory** - Clarified that subprocess is required for Ctrl-C interrupt capability, not memory leak prevention
-2. **Artifact Caching** - Added ArtifactCache as day-one requirement with persistent storage
-3. **Source Map Foundation** - Added oxur-smap as foundation crate
-4. **Tier Naming** - Renamed Tier 1 from "Interpreter" to "Calculator Mode"
-5. **Performance Targets** - Updated to realistic timings based on evcxr research
-6. **Type Inference** - Moved from Open Questions to decided (rust-analyzer)
-
-### Version 1.0 (2025-12-27)
-
-Initial specification.
 
 ---
 

@@ -3,12 +3,14 @@ number: 26
 title: "Oxur REPL Evaluation Strategy"
 author: "Duncan McGreggor and Claude"
 created: 2026-01-02
-updated: 2026-01-04
+updated: 2026-01-05
 state: Draft
 supersedes: null
 superseded-by: null
-version: 1.1
+version: 1.2
 ---
+
+
 # Oxur REPL Evaluation Strategy
 
 ## Overview
@@ -41,7 +43,7 @@ This strategy builds upon:
 
 - [Design Doc 0013: Compilation Chain Architecture](./0013-oxur-compilation-chain-architecture.md) - Full compilation pipeline
 - [Design Doc 0018: REPL Protocol Design](./0018-oxur-remote-repl-protocol-design.md) - Network protocol and session management
-- **REPL Architecture Overview** - Complete system architecture with component locations and data flow
+- [Design Doc 0038: REPL Architecture Overview](./0038-oxur-repl-architecture.md) - Complete system architecture with component locations and data flow (v1.2)
 
 ---
 
@@ -140,6 +142,25 @@ This distinction is critical for user experience:
 
 The tier decision logic requires cache checking and affects whether we show compilation progress indicators.
 
+### 2.1 Component Placement
+
+The three-tier evaluation logic is distributed across components:
+
+```
+EvalContext (oxur-repl/src/eval/context.rs)
+  ├─ Tier 1 decision: is_simple_arithmetic()
+  ├─ Tier 1 execution: eval_calculator()
+  └─ Delegates to CachedCompiler for Tier 2/3
+       ↓
+CachedCompiler (oxur-repl/src/compiler/cached.rs)
+  ├─ Tier 2/3 decision: check ArtifactCache
+  ├─ Tier 2 execution: execute from loaded library
+  └─ Tier 3 execution: compile, cache, load, execute
+       ↓
+SubprocessExecutor (oxur-repl/src/executor/subprocess.rs)
+  └─ Executes all compiled code in isolated process
+```
+
 ### Tier 1: Calculator Mode
 
 **Only interpret literal arithmetic:**
@@ -178,6 +199,20 @@ impl EvalContext {
             }
             _ => false,
         }
+    }
+    
+    pub fn eval(&mut self, code: &str) -> Result<Value> {
+        // Parse code via oxur-lang
+        let surface_form = self.parse(code)?;
+        let core_form = self.expand(surface_form)?;
+        
+        // Tier 1: Try calculator mode first
+        if self.is_simple_arithmetic(&core_form) {
+            return self.eval_calculator(&core_form);
+        }
+        
+        // Tier 2/3: Delegate to compiler (cache check inside)
+        self.compiler.eval(core_form).await
     }
 }
 ```
@@ -226,381 +261,482 @@ oxur> (defn add [x y] (+ x y))
 // Component: CachedCompiler (owned by EvalContext)
 
 pub struct CachedCompiler {
-    cache: HashMap<CodeHash, CompiledCode>,
     session_dir: SessionDir,
     state: SessionState,
-    subprocess: Option<ChildProcess>,
-    code_gen: CodeGenerator,
-    source_map: Arc<SourceMap>,
+    executor: SubprocessExecutor,              // MANDATORY - not optional
+    rust_ast_wrapper: RustAstWrapper,          // RENAMED from CodeGenerator
+    source_map: Arc<SourceMap>,                // from oxur-smap crate
+    type_inference: TypeInference,             // NEW - uses rust-analyzer
+    cache: Arc<ArtifactCache>,                 // NEW - Phase 0 mandatory
 }
 
 impl CachedCompiler {
     pub async fn eval(&mut self, form: CoreForm) -> Result<Response> {
-        let code_hash = hash(&form);
+        // Generate cache key from form content
+        let cache_key = self.generate_cache_key(&form)?;
 
-        // Check cache (Tier 2 vs Tier 3 decision)
-        if let Some(compiled) = self.cache.get(&code_hash) {
-            // Tier 2: Library already loaded
-            return self.execute(compiled).await;
+        // Tier 2/3 decision: Check global artifact cache
+        if let Some(artifact_path) = self.cache.get(&cache_key).await? {
+            // Tier 2: Artifact exists on disk, load if not in subprocess
+            if !self.executor.is_loaded(&cache_key) {
+                self.executor.load_library(&artifact_path).await?;
+            }
+            return self.executor.execute(&cache_key).await;
         }
 
         // Tier 3: Compile from scratch
         // (with progress indicator for slow compiles >200ms)
-        let compiled = self.compile(form).await?;
-        self.cache.insert(code_hash, compiled.clone());
-
-        self.execute(&compiled).await
+        let artifact_path = self.compile(form, &cache_key).await?;
+        
+        // Store in global cache for future sessions
+        self.cache.insert(&cache_key, &artifact_path).await?;
+        
+        // Load into subprocess and execute
+        self.executor.load_library(&artifact_path).await?;
+        self.executor.execute(&cache_key).await
     }
 
-    async fn compile(&self, form: CoreForm) -> Result<CompiledCode> {
+    async fn compile(&self, form: CoreForm) -> Result<PathBuf> {
         // Full pipeline from compilation chain doc:
         // 1. Lower Core Forms → Rust AST (via oxur-comp)
-        // 2. Generate Rust source (via oxur-ast)
-        // 3. Compile to dynamic library (cargo)
-        // 4. Load with libloading (in subprocess)
-
-        let code = self.code_gen.generate(&form, &self.state)?;
-        let lib_path = self.compile_dylib(&code).await?;
-
-        Ok(CompiledCode { lib_path, fn_name: code.fn_name })
+        let rust_ast = oxur_comp::lower_to_rust(&form, &self.source_map)?;
+        
+        // 2. Wrap with REPL scaffolding (RustAstWrapper)
+        let wrapped_ast = self.rust_ast_wrapper.wrap(
+            rust_ast,
+            &self.state,
+            &self.source_map
+        )?;
+        
+        // 3. Generate Rust source (via oxur-ast)
+        let rust_source = oxur_ast::generate_source(&wrapped_ast)?;
+        
+        // 4. Write to session directory
+        let source_path = self.session_dir.write_source(&rust_source)?;
+        
+        // 5. Compile to dynamic library (cargo)
+        let artifact_path = self.invoke_cargo(&source_path).await?;
+        
+        Ok(artifact_path)
     }
-
-    async fn execute(&mut self, compiled: &CompiledCode) -> Result<Response> {
-        // Send LOAD command to subprocess
-        // Subprocess loads library and executes
-        // Returns result via VariableStore
-        todo!("See Architecture Overview, Section 4.1.2")
+    
+    fn generate_cache_key(&self, form: &CoreForm) -> Result<String> {
+        // Content-based addressing (ODD-0038 Decision 5)
+        // Cache key: SHA256(source + deps + opt_level + source_map)
+        let mut hasher = Sha256::new();
+        hasher.update(format!("{:?}", form).as_bytes());
+        hasher.update(self.get_dependencies()?.as_bytes());
+        hasher.update(b"opt-level=0");  // Current optimization level
+        hasher.update(format!("{:?}", self.source_map).as_bytes());
+        
+        Ok(format!("{:x}", hasher.finalize()))
     }
 }
 ```
-
-**Performance:**
-
-- **Tier 2 (Cached):** ~1-5ms (function call in loaded library)
-- **Tier 3 (First compile):** 50-300ms (cargo build + load)
-- **Tier 3 (Warm compile):** 50-100ms (incremental compilation)
 
 ---
 
-## 3. Component Placement in Architecture
+## 3. Integration with evcxr Patterns
 
-The evaluation strategy is implemented across these components:
+Based on completed audits (ODD-0027, ODD-0028, ODD-0029), we adopt these proven patterns:
 
-| Component | Location | Responsibility |
-|-----------|----------|----------------|
-| **EvalContext** | `oxur-repl/src/eval/context.rs` | Tier decision, Calculator mode, Coordination |
-| **CachedCompiler** | `oxur-repl/src/compiler/cached.rs` | Tier 2/3 execution, Compilation |
-| **CodeGenerator** | `oxur-repl/src/codegen/generator.rs` | Core Forms → Rust source |
-| **Subprocess** | `oxur-subprocess/src/main.rs` | Isolated code execution |
-| **VariableStore** | Embedded in generated code | Type-erased variable storage |
+### 3.1 VariableStore Pattern (Type-Erased Storage)
 
-**Ownership:**
-
-- CachedCompiler is owned by EvalContext
-- One EvalContext per session
-- Sessions managed by SessionManager
-
-**For complete architecture, see:** REPL Architecture Overview document.
-
-### Tier Decision Flow
-
-```
-User Input
-  ↓
-EvalContext.eval(code)
-  ↓
-Parse (via oxur-lang)
-  ↓
-decide_tier(core_forms)
-  ├─→ Tier 1? → eval_calculator() → Result
-  ├─→ Tier 2? → compiler.eval() → cached execution → Result
-  └─→ Tier 3? → compiler.eval() → compile + execute → Result
-```
-
-This tier logic lives entirely in **EvalContext**.
-
----
-
-## 4. Handling the Two REPL Modes
-
-**Component Location:** This logic lives in **EvalContext** (`oxur-repl/src/eval/context.rs`).
-
-**Called By:** MessageHandler → SessionManager → EvalContext
-
-### Lisp Syntax Mode (Default)
-
-For user-facing development:
+Variables are stored in a type-erased store that lives in the subprocess:
 
 ```rust
-// In EvalContext
-pub async fn eval(&mut self, code: &str) -> Result<Value> {
-    // Stage 1: Parse based on mode
-    let core_forms = match self.mode {
-        ReplMode::Lisp => {
-            let surface = oxur_lang::parse_lisp(code)?;
-            oxur_lang::expand(surface)?
-        }
-        ReplMode::Sexpr => {
-            oxur_lang::parse_core_forms(code)?
-        }
-    };
+// Location: oxur-repl/src/subprocess/variable_store.rs
+// Module: oxur_variable_store (rebranded from evcxr)
 
-    // Stage 2: Decide tier
-    let tier = self.decide_tier(&core_forms);
+use std::any::Any;
+use std::collections::HashMap;
 
-    // Stage 3: Execute
-    let result = match tier {
-        Tier::Calculator => self.eval_calculator(&core_forms),
-        Tier::Cached | Tier::Jit => {
-            self.compiler.eval(core_forms).await?
-        }
-    };
-
-    // Stage 4: Record history
-    self.record_history(code.to_string(), result.clone());
-
-    Ok(result)
-}
-
-fn decide_tier(&self, core_forms: &CoreForm) -> Tier {
-    // Check Tier 1: Calculator
-    if self.is_simple_arithmetic(core_forms) {
-        return Tier::Calculator;
-    }
-
-    // Check Tier 2: Cached
-    let hash = hash_core_forms(core_forms);
-    if self.compiler.is_cached(hash) {
-        return Tier::Cached;
-    }
-
-    // Default: Tier 3: JIT
-    Tier::Jit
-}
-```
-
-**Integration:** CachedCompiler is owned by EvalContext. See Architecture Overview for complete data flow.
-
-### S-expression Mode (Debug)
-
-For compiler debugging - **always compile**, never interpret:
-
-```rust
-// In EvalContext
-pub async fn eval(&mut self, code: &str) -> Result<Value> {
-    let core_forms = if self.mode == ReplMode::Sexpr {
-        // Parse Core Forms directly (skip macro expansion)
-        oxur_lang::parse_core_forms(code)?
-    } else {
-        // ... (Lisp mode logic above)
-    };
-
-    // In Sexpr mode: ALWAYS compile (no calculator fast path)
-    // This mode is for debugging the compiler itself
-    if self.mode == ReplMode::Sexpr {
-        return self.compiler.eval(core_forms).await;
-    }
-
-    // ... (normal tier decision)
-}
-```
-
-**Rationale:** S-expression mode is for inspecting what the compiler sees after macro expansion. It's a debugging tool, not a performance-critical feature. Users should rarely use it. Consistency with the compilation pipeline is more important than speed.
-
----
-
-## 5. Integration with evcxr Patterns
-
-### Patterns Adopted from evcxr Audits
-
-After comprehensive audits (see ODD-0027, ODD-0028, ODD-0029), we've adopted:
-
-#### 5.1 Type-Erased Variable Storage (From evcxr_repl)
-
-**Pattern:** Use `Box<dyn Any>` for variable persistence across evaluations.
-
-```rust
 pub struct VariableStore {
     variables: HashMap<String, Box<dyn Any + 'static>>,
 }
 
 impl VariableStore {
-    pub fn put_variable<T: 'static>(&mut self, name: &str, value: T) {
-        self.variables.insert(name.to_owned(), Box::new(value));
+    pub fn get<T: 'static>(&self, name: &str) -> Option<&T> {
+        self.variables
+            .get(name)
+            .and_then(|v| v.downcast_ref::<T>())
     }
 
-    pub fn check_variable<T: 'static>(&mut self, name: &str) -> bool {
-        if let Some(v) = self.variables.get(name) {
-            v.downcast_ref::<T>().is_some()
-        } else {
-            true  // Variable doesn't exist yet, that's ok
-        }
+    pub fn set<T: 'static>(&mut self, name: String, value: T) {
+        self.variables.insert(name, Box::new(value));
     }
+}
 
-    pub fn take_variable<T: 'static>(&mut self, name: &str) -> T {
-        *self.variables.remove(name)
-            .expect("Variable missing")
-            .downcast()
-            .expect("Variable type mismatch")
+// Global static store accessed by generated code
+static mut STORE: Option<VariableStore> = None;
+
+pub fn with_store<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut VariableStore) -> R,
+{
+    unsafe {
+        let store = STORE.get_or_insert_with(VariableStore::new);
+        f(store)
     }
 }
 ```
 
-**Benefits:**
+**Key constraints (ODD-0038 Decision 7):**
 
-- No serialization overhead
-- Supports arbitrary user types (no trait bounds)
-- Simple implementation (~50 lines)
-- Proven in production (evcxr)
+- `Box<dyn Any + 'static>` requires owned data
+- No inter-variable references possible
+- Aligns with Lisp semantics (immutable data structures)
 
-**Location:** Embedded in generated code, also in subprocess binary
+### 3.2 Subprocess Execution (Isolation)
 
-**How It Works:**
-
-Generated code integrates with VariableStore:
+All user code executes in an isolated subprocess for safety and interruption support:
 
 ```rust
-#[no_mangle]
-pub extern "C" fn run_user_code_5(
-    mut store_ptr: *mut VariableStore
-) -> *mut VariableStore {
-    let store = unsafe { &mut *store_ptr };
+// Location: oxur-repl/src/executor/subprocess.rs
+// Component: SubprocessExecutor (MANDATORY - ODD-0038 Decision 3)
 
-    // Load variables
-    if !store.check_variable::<i32>("x") { return store_ptr; }
-    let mut x = store.take_variable::<i32>("x");
+pub struct SubprocessExecutor {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    loaded_libraries: HashSet<String>,
+}
 
-    // User code
-    let result = x + 1;
-
-    // Store back
-    store.put_variable("x", x);
-    store.put_variable("result", result);
-
-    store_ptr
+impl SubprocessExecutor {
+    pub async fn load_library(&mut self, path: &Path) -> Result<()> {
+        // Send command to subprocess via stdin (ODD-0038 Decision 3a)
+        writeln!(self.stdin, "LOAD {}", path.display())?;
+        self.stdin.flush()?;
+        
+        // Wait for acknowledgment
+        let mut response = String::new();
+        self.stdout.read_line(&mut response)?;
+        
+        if response.trim() == "LOADED" {
+            Ok(())
+        } else {
+            Err(Error::LoadFailed(response))
+        }
+    }
+    
+    pub async fn execute(&mut self, cache_key: &str) -> Result<Response> {
+        // Send execution command
+        writeln!(self.stdin, "RUN {}", cache_key)?;
+        self.stdin.flush()?;
+        
+        // Collect output until completion marker
+        let mut output = String::new();
+        loop {
+            let mut line = String::new();
+            self.stdout.read_line(&mut line)?;
+            
+            if line.starts_with("OXUR_EXECUTION_COMPLETE") {
+                break;
+            } else if line.starts_with("OXUR_RUNTIME_ERROR") {
+                return Err(Error::RuntimeError(output));
+            } else if line.starts_with("OXUR_PANIC_LOCATION") {
+                // Parse panic location for better error messages
+                return Err(Error::Panic(line));
+            } else {
+                output.push_str(&line);
+            }
+        }
+        
+        Ok(Response::Success { output })
+    }
 }
 ```
 
-#### 5.2 Subprocess Isolation (From evcxr_repl)
+**Why subprocess is MANDATORY (ODD-0038 Decision 3):**
 
-**Pattern:** Execute user code in separate process via libloading.
+- Rust threads cannot be interrupted (no pthread_cancel equivalent)
+- Ctrl-C support requires process isolation
+- Crashes in user code don't corrupt REPL state
+- evcxr evidence: Subprocess from day one, unchanged for 6+ years
 
-**Architecture:**
+### 3.3 Subprocess Runtime Binary
 
-```
-CachedCompiler (server)
-  ↓ stdin: "LOAD /path/to/lib.so run_user_code_5"
-Subprocess (oxur-subprocess binary)
-  ↓ libloading::Library::new()
-Load library
-  ↓ Call run_user_code_5(variable_store_ptr)
-Execute user code
-  ↓ Mutate VariableStore
-Return
-  ↓ stdout: "EVCXR_EXECUTION_COMPLETE"
-CachedCompiler receives completion
-```
-
-**Benefits:**
-
-- User code crashes don't corrupt REPL state
-- Can restart subprocess on panic without losing session
-- Clean separation of concerns
-- Variable state persists in subprocess's VariableStore
-
-**Implementation:** See Architecture Overview, Section 4.2
-
-#### 5.3 Cargo-Based Compilation (From evcxr)
-
-**Pattern:** Use cargo as build orchestrator, parse JSON output.
-
-```bash
-cargo build \
-  --target x86_64-unknown-linux-gnu \
-  --message-format=json
-
-# Environment:
-CARGO_TARGET_DIR=/tmp/oxur-repl/session-abc/target
-RUSTFLAGS="-C link-arg=-fuse-ld=mold"  # Fast linker
-```
-
-**Benefits:**
-
-- Incremental compilation (3-5x speedup: 200ms → 50ms)
-- Dependency management "for free"
-- Standard tooling
-- Only 10-20ms overhead vs direct rustc
-
-**Cargo.toml per session:**
+The subprocess is a separate binary target within the `oxur-repl` crate:
 
 ```toml
+# Location: oxur-repl/Cargo.toml
+# Binary target configuration (ODD-0038 v1.2)
+
+[[bin]]
+name = "oxur-repl-subprocess"
+path = "src/bin/subprocess.rs"
+```
+
+```rust
+// Location: oxur-repl/src/bin/subprocess.rs
+// Binary: oxur-repl-subprocess
+
+use oxur_variable_store::VariableStore;
+use std::io::{BufRead, BufReader};
+
+fn main() {
+    let stdin = BufReader::new(std::io::stdin());
+    
+    for line in stdin.lines() {
+        let line = line.unwrap();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        
+        match parts[0] {
+            "LOAD" => {
+                // Load dynamic library using libloading
+                let path = parts[1];
+                unsafe {
+                    let lib = libloading::Library::new(path).unwrap();
+                    // Store lib handle...
+                }
+                println!("LOADED");
+            }
+            "RUN" => {
+                // Execute function from loaded library
+                let cache_key = parts[1];
+                let result = execute_function(cache_key);
+                println!("{}", result);
+                println!("OXUR_EXECUTION_COMPLETE");
+            }
+            _ => eprintln!("Unknown command: {}", parts[0]),
+        }
+    }
+}
+```
+
+**IPC Protocol (ODD-0038 Decision 3a):**
+
+- Uses stdin/stdout text protocol (proven stable in evcxr for 6+ years)
+- Simple commands: `LOAD <path>`, `RUN <cache_key>`
+- Response markers: `OXUR_EXECUTION_COMPLETE`, `OXUR_RUNTIME_ERROR`, `OXUR_PANIC_LOCATION`
+- Unix sockets deferred to v1.1+ (if needed for performance)
+
+### 3.4 Generated Code Structure
+
+Every evaluation generates a small Rust library:
+
+```rust
+// Generated by RustAstWrapper (oxur-repl/src/wrapper.rs)
+// Wraps lowered Rust AST with REPL scaffolding
+
+use oxur_variable_store::{self, VariableStore};
+
+// User's code (lowered from Core Forms)
+fn user_code() -> i32 {
+    let x = oxur_variable_store::with_store(|store| {
+        store.get::<i32>("x").cloned().unwrap_or(0)
+    });
+    
+    let result = x + 2;
+    
+    oxur_variable_store::with_store(|store| {
+        store.set("result".to_string(), result);
+    });
+    
+    result
+}
+
+// Entry point called by subprocess
+#[no_mangle]
+pub extern "C" fn oxur_eval() -> i32 {
+    user_code()
+}
+```
+
+**Compilation:**
+
+```toml
+# Generated Cargo.toml for each evaluation
+# Location: {session_dir}/eval_{N}/Cargo.toml
+
 [package]
-name = "ctx"
-version = "1.0.0"
-edition = "2024"
+name = "oxur_eval_42"
+version = "0.1.0"
+edition = "2021"  # Updated in ODD-0038 v1.2
 
 [lib]
 crate-type = ["cdylib"]
 
 [profile.dev]
-opt-level = 2        # Balance compile vs runtime perf
-incremental = true   # Enable incremental compilation
+opt-level = 0  # Fastest REPL iteration (ODD-0038 v1.2)
+
+[dependencies]
+oxur-variable-store = { path = "../../../oxur-variable-store" }
 ```
 
-**Implementation:** See ODD-0030, Section 5
-
-### Patterns We Will Build Differently
-
-#### 1. REPL Server (Our Protocol is Better)
-
-evcxr has no network protocol. Our design (ODD-0018) provides:
-
-- Multi-transport support (TCP, Unix sockets)
-- Session isolation with explicit session IDs
-- Dual-mode evaluation (Lisp syntax + s-expr AST)
-- Structured protocol with postcard serialization
-
-**Decision:** Use our protocol design, not evcxr's monolithic REPL.
-
-#### 2. Output Formatting (Simplified)
-
-**Discovery from ODD-0029:** evcxr_runtime is NOT a runtime - it's just 75 lines of MIME output formatting.
-
-We build our own simplified display system:
+**Compilation invocation:**
 
 ```rust
-pub enum DisplayValue {
-    Text(String),
-    Html(String),
-    Image { mime: String, data: Vec<u8> },
-    Custom { mime: String, content: Vec<u8> },
+async fn invoke_cargo(&self, source_path: &Path) -> Result<PathBuf> {
+    let output = Command::new("cargo")
+        .arg("build")
+        .arg("--release")  // Even with opt-level=0, release mode for cdylib
+        .current_dir(source_path.parent().unwrap())
+        .output()
+        .await?;
+    
+    if !output.status.success() {
+        // Translate rustc errors to Oxur source locations
+        let errors = self.translate_errors(&output.stderr)?;
+        return Err(Error::CompilationFailed(errors));
+    }
+    
+    Ok(source_path.with_extension("so"))  // Or .dylib on macOS, .dll on Windows
+}
+```
+
+---
+
+## 4. Handling REPL Modes
+
+The REPL supports two input modes, both using the three-tier strategy:
+
+```rust
+// Location: oxur-repl/src/eval/context.rs
+
+pub enum ReplMode {
+    Lisp,   // Full Lisp syntax
+    Sexpr,  // S-expression only (for testing)
 }
 
-pub struct Response {
-    pub value: Option<DisplayValue>,  // Rich display
-    pub out: String,                   // Captured stdout
-    pub err: String,                   // Captured stderr
-    pub status: Vec<Status>,
+impl EvalContext {
+    pub fn eval(&mut self, code: &str) -> Result<Value> {
+        // Parse according to mode
+        let surface_form = match self.mode {
+            ReplMode::Lisp => oxur_lang::parse_lisp(code)?,
+            ReplMode::Sexpr => oxur_lang::parse_sexpr(code)?,
+        };
+        
+        // Expand to Core Forms (mode-independent from here)
+        let core_form = oxur_lang::expand(surface_form)?;
+        
+        // Apply three-tier strategy (same for both modes)
+        if self.is_simple_arithmetic(&core_form) {
+            // Tier 1: Calculator
+            self.eval_calculator(&core_form)
+        } else {
+            // Tier 2/3: Check cache, compile if needed
+            self.compiler.eval(core_form).await
+        }
+    }
 }
 ```
 
-**Decision:** Build our own, don't depend on evcxr_runtime.
+**Both modes use same execution tiers:**
 
-#### 3. Source Map Integration (Our Innovation)
+- **Tier 1:** Literal arithmetic (mode-independent)
+- **Tier 2:** Cached execution (mode-independent)
+- **Tier 3:** Full compilation (mode-independent)
 
-evcxr shows generated Rust code in error messages. We translate errors back to original Oxur source positions.
+---
 
-**Our Approach:**
+## 5. Two-Level Caching Strategy
+
+The REPL uses two caches for optimal performance (ODD-0038 Decision 5):
+
+### 5.1 Global Artifact Cache (Disk-Based)
+
+Persistent cache shared across all sessions:
+
+```rust
+// Location: oxur-repl/src/cache/artifact.rs
+// Component: ArtifactCache (Phase 0 mandatory)
+
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+pub struct ArtifactCache {
+    cache_dir: PathBuf,  // Default: ~/.cache/oxur/artifacts/
+    index: HashMap<String, PathBuf>,
+}
+
+pub type SharedCache = Arc<Mutex<ArtifactCache>>;
+
+impl ArtifactCache {
+    pub fn new() -> Result<Self> {
+        let cache_dir = dirs::cache_dir()
+            .ok_or(Error::NoCacheDir)?
+            .join("oxur")
+            .join("artifacts");
+        
+        fs::create_dir_all(&cache_dir)?;
+        
+        // Load index from disk
+        let index = Self::load_index(&cache_dir)?;
+        
+        Ok(Self { cache_dir, index })
+    }
+    
+    pub async fn get(&self, key: &str) -> Result<Option<PathBuf>> {
+        Ok(self.index.get(key).cloned())
+    }
+    
+    pub async fn insert(&mut self, key: &str, artifact_path: &Path) -> Result<()> {
+        // Copy artifact to cache directory
+        let cache_path = self.cache_dir.join(key);
+        fs::create_dir_all(&cache_path)?;
+        fs::copy(artifact_path, cache_path.join("lib.so"))?;
+        
+        // Update index
+        self.index.insert(key.to_string(), cache_path);
+        self.save_index()?;
+        
+        Ok(())
+    }
+}
+```
+
+**Cache key algorithm (ODD-0038 Decision 5):**
 
 ```
-rustc error at lib.rs:42
-  ↓ Extract /* oxur_node=123 */ comment
-SourceMap lookup
-  ↓ Node 123 → test.ox:5:15
-Display: Error at test.ox:5:15: cannot find value `y`
+SHA256(
+    source_code +
+    dependencies +
+    optimization_level +
+    source_map_config
+)
 ```
 
-**Decision:** Implement source map translation (see Architecture Overview, Section 11).
+**Why disk-based cache matters:**
+
+- Persists across sessions (major performance win)
+- Shared between multiple REPL instances
+- evcxr's biggest regret: waited 5 years to add caching
+- Day-one requirement for Oxur (learn from evcxr's mistake)
+
+### 5.2 Session Library Cache (In-Memory)
+
+Tracks which libraries are loaded in the current subprocess:
+
+```rust
+// Location: oxur-repl/src/executor/subprocess.rs
+// Part of: SubprocessExecutor
+
+pub struct SubprocessExecutor {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    loaded_libraries: HashSet<String>,  // Cache keys of loaded libs
+}
+
+impl SubprocessExecutor {
+    pub fn is_loaded(&self, cache_key: &str) -> bool {
+        self.loaded_libraries.contains(cache_key)
+    }
+    
+    pub async fn load_library(&mut self, path: &Path) -> Result<()> {
+        // ... load library via subprocess protocol ...
+        self.loaded_libraries.insert(cache_key.to_string());
+        Ok(())
+    }
+}
+```
+
+**Performance impact:**
+
+- **Tier 2 (library loaded):** ~1-5ms (just function call)
+- **Tier 3 (cache hit, load needed):** ~10-20ms (load dylib)
+- **Tier 3 (cache miss):** ~50-300ms (compile + load)
 
 ---
 
@@ -625,7 +761,7 @@ Display: Error at test.ox:5:15: cannot find value `y`
 - Cargo-based compilation (adopted)
 - evcxr_runtime is minimal (build our own)
 
-**Results synthesized in:** ODD-0030 (REPL Implementation Specification)
+**Results synthesized in:** ODD-0030 (REPL Implementation Specification) and ODD-0038 (REPL Architecture)
 
 ### Remaining 🔧
 
@@ -730,84 +866,169 @@ Working code provides:
 
 These phases are **subject to revision** after remaining preparatory work:
 
-### Phase 0: Preparatory Work (Weeks 1-3)
+### Phase 0: Foundation (Weeks 1-4)
+
+**Prerequisites (must complete first):**
 
 - ✅ Audit evcxr projects (COMPLETE)
 - 🔧 Define prototype syntax (IN PROGRESS)
 - 🔧 Build prototype compiler (BLOCKED)
-- **Validate:** Can compile 3 test cases end-to-end
+- ⬜ Build oxur-smap crate (NEW - Phase 0 prerequisite per ODD-0038 Decision 2)
+- ⬜ Build ArtifactCache infrastructure (NEW - Phase 0 mandatory per ODD-0038 Decision 5)
 
-### Phase 1: Tier 3 Only (Weeks 4-5)
+**Core infrastructure:**
 
-- Implement compilation-only REPL (no cache, no calculator)
+- SessionDir with tmpfs strategy (ODD-0038 Decision 4)
+- VariableStore implementation
+- Subprocess binary target
+- Global artifact cache
+- Source mapping foundation
+
+**Validate:** Can compile 3 test cases end-to-end with caching
+
+**Timeline:** 3-4 weeks (was 2-3 weeks in v1.1, +1 week for caching infrastructure)
+
+### Phase 1: Tier 3 Only (Weeks 5-6)
+
+- Implement compilation-only REPL (no cache hit optimization, no calculator)
 - Integrate VariableStore pattern
 - Get output capture working
 - Get subprocess execution working
+- Add TypeInference with rust-analyzer (ODD-0038 Decision 6)
 - **Validate:** Can evaluate all test cases via compilation
 
-### Phase 2: Add Tier 2 (Week 6)
+### Phase 2: Add Tier 2 (Week 7)
 
-- Implement cache checking
-- Add compiled code cache (hash-based)
+- Implement session library tracking (is_loaded check)
+- Optimize cache hits (skip reload if already loaded)
+- Add global artifact cache integration
 - Measure cache hit rates
 - **Validate:** Repeat evaluations are instant
 
-### Phase 3: Add Tier 1 (Week 7)
+### Phase 3: Add Tier 1 (Week 8)
 
 - Implement calculator mode
 - Add fast path for literal arithmetic
 - Add tier decision logic to EvalContext
 - **Validate:** Calculator <1ms, Tier 3 <300ms, Tier 2 <5ms
 
-### Phase 4: Protocol Integration (Week 8)
+### Phase 4: Protocol Integration (Week 9)
 
 - Connect EvalContext to MessageHandler
 - Test via protocol (TCP clients)
 - Multi-session testing
 - **Validate:** Remote clients can connect and evaluate
 
-### Phase 5: Polish (Week 9)
+### Phase 5: Polish (Week 10)
 
-- Error translation with source maps
+- Error translation with source maps (oxur-smap)
 - Progress indicators for slow compiles (>200ms)
 - Comprehensive testing
 - Documentation
 - Performance tuning
 
+**Total Timeline:** 10 weeks (was 9 weeks in v1.1, adjusted for oxur-smap prerequisite)
+
 ---
 
-## 9. Success Criteria
+## 9. Temp Directory Strategy
+
+### Implementation (ODD-0038 Decision 4)
+
+Best-effort tmpfs with graceful fallback:
+
+```rust
+// Location: oxur-repl/src/session/dir.rs
+
+pub struct SessionDir {
+    path: PathBuf,
+    is_tmpfs: bool,
+}
+
+impl SessionDir {
+    pub fn new(session_id: &SessionId) -> Result<Self> {
+        // Try user override first
+        if let Ok(dir) = env::var("OXUR_REPL_TEMP_DIR") {
+            return Self::create_in(PathBuf::from(dir), session_id);
+        }
+        
+        // Try tmpfs on Linux
+        #[cfg(target_os = "linux")]
+        if let Ok(tmpfs) = Self::try_tmpfs(session_id) {
+            return Ok(tmpfs);
+        }
+        
+        // Fall back to OS temp directory
+        let temp_dir = env::temp_dir().join("oxur-repl").join(session_id.to_string());
+        Self::create_in(temp_dir, session_id)
+    }
+    
+    #[cfg(target_os = "linux")]
+    fn try_tmpfs(session_id: &SessionId) -> Result<Self> {
+        let tmpfs_dir = PathBuf::from("/dev/shm")
+            .join("oxur-repl")
+            .join(session_id.to_string());
+        
+        fs::create_dir_all(&tmpfs_dir)?;
+        
+        Ok(Self {
+            path: tmpfs_dir,
+            is_tmpfs: true,
+        })
+    }
+}
+```
+
+**Strategy details:**
+
+- **Linux:** Try `/dev/shm` (RAM-backed tmpfs, ~2-3% faster)
+- **macOS/Windows:** Use OS temp directory (good enough with OS caching)
+- **Override:** `OXUR_REPL_TEMP_DIR` environment variable
+- **Zero configuration:** Works everywhere, optimizes where possible
+
+**Performance impact:**
+
+- Compilation time: ~2-3% faster on tmpfs
+- Not dramatic, but free optimization
+- More important: Reduces disk wear on SSDs
+
+---
+
+## 10. Success Criteria
 
 The REPL evaluation strategy is successful when:
 
 1. ✅ Calculator mode handles literal arithmetic in <1ms
-2. ✅ Tier 2 (cached) execution is near-instant (<5ms)
-3. ✅ Tier 3 (compilation) completes in <300ms (cold), <100ms (warm)
+2. ✅ Tier 2 (cached, loaded) execution is near-instant (<5ms)
+3. ✅ Tier 3 (compilation) completes in <300ms (cold), <100ms (warm with cache hit)
 4. ✅ Compilation produces identical results to compiled code
-5. ✅ Error messages trace back to original Oxur source
+5. ✅ Error messages trace back to original Oxur source (via oxur-smap)
 6. ✅ Users never encounter "works in REPL but fails when compiled"
 7. ✅ Calculator code is <200 lines
 8. ✅ No divergent execution paths to maintain
 9. ✅ Cache hit rate >80% for typical REPL usage
 10. ✅ Subprocess crashes don't lose session state
+11. ✅ Global artifact cache persists across sessions
+12. ✅ Subprocess isolation enables Ctrl-C interruption
 
 ---
 
-## 10. Open Questions
+## 11. Open Questions
 
 These will be answered during remaining preparatory work and implementation:
 
-1. **Cache Size:** How many compiled libraries should we keep in memory?
-2. **Cache Eviction:** When should we evict compiled code from cache? (LRU? Size limit?)
+1. **Cache Size:** How many compiled libraries should we keep in memory per session?
+2. **Cache Eviction:** When should we evict compiled code from global cache? (LRU? Size limit? TTL?)
 3. **Progress Indicators:** At what threshold should we show "Compiling..."? (200ms? 500ms?)
-4. **Error Translation:** How accurate can we make rustc → Oxur error mapping?
+4. **Error Translation:** How accurate can we make rustc → Oxur error mapping with oxur-smap?
 5. **Memory Management:** How do we safely unload old dynamic libraries? (Or do we need to?)
 6. **Subprocess Restart:** When should we restart a crashed subprocess? (Immediate? After N failures?)
 7. **Incremental Compilation:** Can we measure the actual speedup in our use case?
+8. **Type Inference Accuracy:** How accurate is rust-analyzer for REPL variable types?
 
 ---
 
-## 11. References
+## 12. References
 
 - [Design Doc 0013: Compilation Chain Architecture](./0013-oxur-compilation-chain-architecture.md)
 - [Design Doc 0018: REPL Protocol Design](./0018-oxur-remote-repl-protocol-design.md)
@@ -815,7 +1036,7 @@ These will be answered during remaining preparatory work and implementation:
 - [Design Doc 0028: evcxr Compiler Audit](./0028-evcxr-compiler-audit.md)
 - [Design Doc 0029: evcxr_runtime Audit](./0029-evcxr-runtime-audit.md)
 - [Design Doc 0030: REPL Implementation Specification](./0030-oxur-repl-implementation-specification.md)
-- **REPL Architecture Overview** - Complete system architecture
+- [Design Doc 0038: REPL Architecture Overview](./0038-oxur-repl-architecture.md) - v1.2
 - [evcxr Project](https://github.com/evcxr/evcxr)
 
 ---
@@ -825,40 +1046,150 @@ These will be answered during remaining preparatory work and implementation:
 Oxur's REPL will succeed by **embracing Rust's strengths** rather than reimplementing them:
 
 - **Minimal interpretation** keeps code simple and safe
-- **Three-tier execution** optimizes for common patterns (calculator, cache, compile)
+- **Three-tier execution** optimizes for common patterns (calculator, cached, compile)
 - **Compilation through Rust** ensures consistency and correctness
-- **Caching** makes repeated compilation feel instant
+- **Two-level caching** (disk + memory) makes repeated compilation feel instant
 - **Subprocess isolation** protects session state from user code crashes
 - **VariableStore pattern** enables variable persistence without serialization
+- **Source mapping** (oxur-smap) enables rustc-quality error messages for Oxur code
+- **rust-analyzer integration** avoids 4 years of compiler error hacks
 
 The slippery slope of building a full interpreter is real and dangerous. By resisting it, we get a simpler, safer, more maintainable REPL that leverages Rust's guarantees instead of bypassing them.
 
+**Critical architectural decisions from ODD-0038 v1.2:**
+
+- ✅ Subprocess execution is MANDATORY (not optional)
+- ✅ ArtifactCache is MANDATORY Phase 0 (not deferred)
+- ✅ oxur-smap is Phase 0 prerequisite (foundation crate)
+- ✅ TypeInference uses rust-analyzer from day one (no compiler hacks)
+- ✅ RustAstWrapper clarifies component responsibility (wrapping, not lowering)
+- ✅ All protocol markers and modules use OXUR branding (not EVCXR)
+- ✅ Subprocess binary is a target within oxur-repl crate (not separate)
+- ✅ Rust edition 2021 (stable, widely supported)
+
 **Next Step:** Complete prototype syntax definition and build prototype compiler to validate these design decisions.
 
-## Changes from v1.0 to v1.1
+---
 
-**Date:** January 3, 2026
+## Version History
 
-### Critical Corrections
+### Version 2.0 (2026-01-05)
+
+**Major Update:** Complete alignment with ODD-0038 v1.2 architecture specification.
+
+**Critical Changes:**
+
+1. **Component Naming Updates**
+   - Renamed `CodeGenerator` → `RustAstWrapper` throughout (ODD-0038 Decision 1)
+   - Location: `oxur-repl/src/wrapper.rs` (was `src/codegen/generator.rs`)
+   - Clarifies responsibility: wraps Rust AST, doesn't do lowering
+
+2. **Protocol Branding Consistency**
+   - Updated all markers: `EVCXR_*` → `OXUR_*`
+   - `OXUR_EXECUTION_COMPLETE`, `OXUR_RUNTIME_ERROR`, `OXUR_PANIC_LOCATION`
+   - Updated module: `evcxr_variable_store` → `oxur_variable_store`
+
+3. **Missing Components Added**
+   - Added `cache: Arc<ArtifactCache>` to CachedCompiler (ODD-0038 Decision 5)
+   - Added `type_inference: TypeInference` to CachedCompiler (ODD-0038 Decision 6)
+   - Location: `oxur-repl/src/type_inference.rs`
+
+4. **Subprocess Architecture Clarified**
+   - Changed `subprocess: Option<ChildProcess>` → `executor: SubprocessExecutor`
+   - Emphasized MANDATORY status (ODD-0038 Decision 3)
+   - Reason: Rust threads cannot be interrupted, subprocess required for Ctrl-C
+
+5. **Rust Edition Updated**
+   - Changed `edition = "2024"` → `edition = "2021"`
+   - Rationale: Stable, widely supported (ODD-0038 v1.2)
+
+**Major Additions:**
+
+6. **Two-Level Caching Strategy**
+   - NEW Section 5: Disk-based artifact cache + session library cache
+   - Global cache: `~/.cache/oxur/artifacts/<sha256>/`
+   - Session cache: Tracks loaded libraries in subprocess
+   - Cache key: SHA256(source + deps + opt_level + source_map)
+
+7. **Temp Directory Strategy**
+   - NEW Section 9: Best-effort tmpfs with graceful fallback
+   - Linux: `/dev/shm` (RAM-backed)
+   - macOS/Windows: OS temp directory
+   - Override: `OXUR_REPL_TEMP_DIR` environment variable
+
+8. **Component Locations**
+   - Added explicit file paths throughout:
+   - EvalContext: `oxur-repl/src/eval/context.rs`
+   - CachedCompiler: `oxur-repl/src/compiler/cached.rs`
+   - RustAstWrapper: `oxur-repl/src/wrapper.rs`
+   - SubprocessExecutor: `oxur-repl/src/executor/subprocess.rs`
+   - TypeInference: `oxur-repl/src/type_inference.rs`
+   - VariableStore: `oxur-repl/src/subprocess/variable_store.rs`
+   - Subprocess binary: `oxur-repl/src/bin/subprocess.rs`
+
+9. **Source Mapping Integration**
+   - Added oxur-smap crate references (ODD-0038 Decision 2)
+   - Phase 0 prerequisite foundation crate
+   - Multi-stage tracking: Surface → Core → Rust → Error translation
+
+10. **Subprocess Binary Packaging**
+    - Added Cargo.toml `[[bin]]` configuration example
+    - Binary name: `oxur-repl-subprocess`
+    - Location: `src/bin/subprocess.rs`
+
+**Implementation Timeline Changes:**
+
+- Phase 0: 3-4 weeks (was 2-3 weeks)
+- Added oxur-smap as Phase 0 prerequisite
+- Added ArtifactCache as Phase 0 mandatory
+- Total: 10 weeks (was 9 weeks)
+
+**Updated Success Criteria:**
+
+- Added: Global artifact cache persists across sessions
+- Added: Subprocess isolation enables Ctrl-C interruption
+- Added: Error messages trace back via oxur-smap
+
+**Documentation:**
+
+- Updated all references to ODD-0038 (was referencing ODD-0030)
+- Added optimization level defaults: `opt-level = 0`
+- Clarified IPC protocol uses stdin/stdout text (ODD-0038 Decision 3a)
+
+**Impact:** Complete architectural alignment - evaluation strategy now accurately reflects implementation architecture from ODD-0038 v1.2.
+
+---
+
+### Version 1.1 (2026-01-04)
+
+**Date:** January 3-4, 2026
+
+#### Critical Corrections
 
 - **Section 3: Three-Tier Execution Model** - Corrected from two-tier to three-tier (Calculator, Cached, JIT), removed incorrect note claiming no distinction
 - **Section 8: Integration with evcxr Patterns** - Replaced evcxr_runtime usage with actual patterns: VariableStore + Subprocess isolation
 
-### Major Additions
+#### Major Additions
 
 - **Section 3.1: Component Placement (NEW)** - Shows where evaluation logic lives in architecture (EvalContext, CachedCompiler locations)
 - **Architecture integration** - Added context about component ownership and data flow
 
-### Updates
+#### Updates
 
 - **Section 4: Handling REPL Modes** - Added component location context, updated code to show tier decision logic
 - **Section 6: Preparatory Work Status** - Marked evcxr audits as complete (ODD-0027, 0028, 0029), updated remaining tasks
 
-### Key Improvements
+#### Key Improvements
 
 - Alignment with implemented architecture from REPL Architecture Overview
 - Corrected understanding of evcxr patterns based on completed audits
 - Clear component placement in codebase
+
+---
+
+### Version 1.0 (2026-01-02)
+
+Initial evaluation strategy specification.
 
 ---
 

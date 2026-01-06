@@ -5,13 +5,12 @@ author: "Duncan McGreggor"
 component: All
 tags: [vision, architecture]
 created: 2025-12-25
-updated: 2025-12-30
-state: Active
+updated: 2026-01-05
+state: Overwritten
 supersedes: null
 superseded-by: null
 version: 1.1
 ---
-
 
 # Oxur: A Letter of Intent
 

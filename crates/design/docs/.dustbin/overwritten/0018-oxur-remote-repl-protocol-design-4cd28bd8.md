@@ -6,7 +6,7 @@ component: REPL
 tags: [protocols, networking, sockets, tcp, ipc]
 created: 2025-12-28
 updated: 2026-01-05
-state: Final
+state: Overwritten
 supersedes: null
 superseded-by: null
 version: 1.0
