@@ -153,7 +153,8 @@ impl Default for OutputCapturer {
 ///
 /// This is a placeholder for when we actually execute compiled code.
 /// It demonstrates how output capture will work with real execution.
-pub fn simulate_execution(code: &str, capturer: &OutputCapturer) -> String {
+pub fn simulate_execution(code: impl AsRef<str>, capturer: &OutputCapturer) -> String {
+    let code = code.as_ref();
     // Simulate different types of code execution
 
     // Check for eprintln! (check this first since it contains "println")

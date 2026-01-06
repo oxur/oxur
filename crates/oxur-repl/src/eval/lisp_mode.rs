@@ -31,9 +31,9 @@ impl LispEvaluator {
     /// - Nested: `(+ (* 2 3) 4)` → `"10"`
     ///
     /// Returns `Some(result)` if successful, `None` if not calculator-eligible.
-    pub fn try_eval_calculator(&mut self, code: &str) -> Option<String> {
+    pub fn try_eval_calculator(&mut self, code: impl AsRef<str>) -> Option<String> {
         // Parse the code
-        let expr = self.parse_simple(code).ok()?;
+        let expr = self.parse_simple(code.as_ref()).ok()?;
 
         // Evaluate as calculator expression
         self.eval_calculator_expr(&expr).ok()
@@ -244,9 +244,9 @@ impl LispEvaluator {
     ///
     /// This integrates with the full oxur-lang compilation pipeline.
     /// Currently a placeholder until Parser is fully implemented.
-    pub fn parse(&mut self, code: &str) -> Result<Vec<CoreForm>> {
+    pub fn parse(&mut self, code: impl AsRef<str>) -> Result<Vec<CoreForm>> {
         // Use oxur-lang Parser
-        let mut parser = Parser::new(code.to_string());
+        let mut parser = Parser::new(code.as_ref().to_string());
         let surface_forms =
             parser.parse().map_err(|e| EvalError::SyntaxError(format!("Parse error: {}", e)))?;
 

@@ -167,7 +167,8 @@ impl EvalContext {
     /// # Errors
     ///
     /// Returns error if parsing, compilation, or execution fails.
-    pub async fn eval(&mut self, code: &str) -> Result<EvalResult> {
+    pub async fn eval(&mut self, code: impl AsRef<str>) -> Result<EvalResult> {
+        let code = code.as_ref();
         let start = Instant::now();
 
         // Attempt Tier 1 (Calculator mode) first

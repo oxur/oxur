@@ -97,7 +97,7 @@ impl SessionManager {
     pub async fn eval(
         &self,
         session_id: &SessionId,
-        code: &str,
+        code: impl AsRef<str>,
     ) -> Result<crate::eval::EvalResult> {
         // First, get a clone of the context to evaluate with
         let mut context = {
@@ -110,7 +110,7 @@ impl SessionManager {
         };
 
         // Evaluate the code
-        let result = context.eval(code).await?;
+        let result = context.eval(code.as_ref()).await?;
 
         // Update the session with the new state
         {

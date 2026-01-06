@@ -33,9 +33,9 @@ impl SexprEvaluator {
     /// - List construction
     ///
     /// Returns `Some(result)` if successful, `None` if not calculator-eligible.
-    pub fn try_eval_calculator(&mut self, code: &str) -> Option<String> {
+    pub fn try_eval_calculator(&mut self, code: impl AsRef<str>) -> Option<String> {
         // Parse and evaluate
-        match self.eval(code) {
+        match self.eval(code.as_ref()) {
             Ok(value) => Some(self.value_to_string(&value)),
             Err(_) => None,
         }
@@ -347,8 +347,8 @@ impl SexprEvaluator {
     }
 
     /// Parse code to CoreForm using oxur-lang
-    pub fn parse_to_core(&mut self, code: &str) -> Result<CoreForm> {
-        let expr = self.parse(code)?;
+    pub fn parse_to_core(&mut self, code: impl AsRef<str>) -> Result<CoreForm> {
+        let expr = self.parse(code.as_ref())?;
         self.expr_to_core(&expr)
     }
 
