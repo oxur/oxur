@@ -72,7 +72,12 @@ impl RustAstWrapper {
     /// # Errors
     ///
     /// Returns error if the user code contains invalid patterns
-    pub fn wrap(&self, cache_key: impl AsRef<str>, user_code: impl AsRef<str>) -> Result<String> {
+    pub fn wrap(
+        &self,
+        cache_key: impl AsRef<str>,
+        user_code: impl AsRef<str>,
+        source_map: Option<&oxur_smap::SourceMap>,
+    ) -> Result<String> {
         let cache_key = cache_key.as_ref();
         let user_code = user_code.as_ref();
 
@@ -119,7 +124,14 @@ impl RustAstWrapper {
 
         output.push_str(&formatted);
 
-        Ok(output)
+        // Post-process: insert source map comments if source_map is provided
+        let final_output = if let Some(smap) = source_map {
+            self.insert_source_map_comments(&output, user_stmts.len(), smap)
+        } else {
+            output
+        };
+
+        Ok(final_output)
     }
 
     /// Parse user code into a list of statements
@@ -515,7 +527,7 @@ mod tests {
         let wrapper = RustAstWrapper::new();
 
         let user_code = "let x = 42;";
-        let wrapped = wrapper.wrap("test", user_code).expect("Wrapping failed");
+        let wrapped = wrapper.wrap("test", user_code, None).expect("Wrapping failed");
 
         assert!(wrapped.contains("#[no_mangle]"));
         assert!(wrapped.contains("pub extern \"C\" fn oxur_eval_test()"));
@@ -527,7 +539,7 @@ mod tests {
         let wrapper = RustAstWrapper::new();
 
         let user_code = "let x = 42;\nlet y = 100;\nprintln!(\"sum = {}\", x + y);";
-        let wrapped = wrapper.wrap("multiline", user_code).expect("Wrapping failed");
+        let wrapped = wrapper.wrap("multiline", user_code, None).expect("Wrapping failed");
 
         assert!(wrapped.contains("let x = 42;"));
         assert!(wrapped.contains("let y = 100;"));
@@ -539,7 +551,7 @@ mod tests {
         let wrapper = RustAstWrapper::new().with_debug(true);
 
         let user_code = "let x = 1;";
-        let wrapped = wrapper.wrap("debug_test", user_code).expect("Wrapping failed");
+        let wrapped = wrapper.wrap("debug_test", user_code, None).expect("Wrapping failed");
 
         assert!(wrapped.contains("DEBUG MODE ENABLED"));
     }
@@ -551,9 +563,9 @@ mod tests {
         let user_code = "let x = 1;";
 
         // Invalid cache keys
-        assert!(wrapper.wrap("123invalid", user_code).is_err());
-        assert!(wrapper.wrap("invalid-key", user_code).is_err());
-        assert!(wrapper.wrap("", user_code).is_err());
+        assert!(wrapper.wrap("123invalid", user_code, None).is_err());
+        assert!(wrapper.wrap("invalid-key", user_code, None).is_err());
+        assert!(wrapper.wrap("", user_code, None).is_err());
     }
 
     #[test]
@@ -563,10 +575,10 @@ mod tests {
         let user_code = "let x = 1;";
 
         // Valid cache keys
-        assert!(wrapper.wrap("valid", user_code).is_ok());
-        assert!(wrapper.wrap("valid_key", user_code).is_ok());
-        assert!(wrapper.wrap("_valid", user_code).is_ok());
-        assert!(wrapper.wrap("valid123", user_code).is_ok());
+        assert!(wrapper.wrap("valid", user_code, None).is_ok());
+        assert!(wrapper.wrap("valid_key", user_code, None).is_ok());
+        assert!(wrapper.wrap("_valid", user_code, None).is_ok());
+        assert!(wrapper.wrap("valid123", user_code, None).is_ok());
     }
 
     #[test]
@@ -746,7 +758,7 @@ mod tests {
         "#;
 
         // Wrap without variables
-        let wrapped1 = wrapper.wrap("trip1", user_code).expect("Wrap failed");
+        let wrapped1 = wrapper.wrap("trip1", user_code, None).expect("Wrap failed");
 
         // Parse the generated code
         let parsed = syn::parse_file(&wrapped1);
@@ -844,7 +856,7 @@ mod tests {
 
         // Test wrapping a single expression
         let user_code = "42";
-        let wrapped = wrapper.wrap("expr_test", user_code).expect("Wrapping failed");
+        let wrapped = wrapper.wrap("expr_test", user_code, None).expect("Wrapping failed");
 
         assert!(wrapped.contains("#[no_mangle]"));
         assert!(wrapped.contains("pub extern \"C\" fn oxur_eval_expr_test()"));
@@ -860,7 +872,7 @@ mod tests {
             let y = 20;
             let z = x + y;
         "#;
-        let wrapped = wrapper.wrap("multi", user_code).expect("Wrapping failed");
+        let wrapped = wrapper.wrap("multi", user_code, None).expect("Wrapping failed");
 
         assert!(wrapped.contains("let x = 10;"));
         assert!(wrapped.contains("let y = 20;"));
@@ -877,7 +889,7 @@ mod tests {
                 a + b
             }
         "#;
-        let wrapped = wrapper.wrap("func_def", user_code).expect("Wrapping failed");
+        let wrapped = wrapper.wrap("func_def", user_code, None).expect("Wrapping failed");
 
         // The body expression gets wrapped
         assert!(wrapped.contains("oxur_eval_func_def"));
@@ -890,7 +902,7 @@ mod tests {
 
         // Invalid Rust code should return an error
         let user_code = "let x = ;";
-        let result = wrapper.wrap("invalid", user_code);
+        let result = wrapper.wrap("invalid", user_code, None);
 
         assert!(result.is_err());
         match result {

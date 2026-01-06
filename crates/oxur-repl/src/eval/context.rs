@@ -500,8 +500,9 @@ impl EvalContext {
         let cache_key = self.hash_code(code);
 
         // Step 3: Wrap code with REPL scaffolding
+        // TODO Phase 4: Pass SourceMap here (currently None)
         let wrapped_code =
-            self.wrapper.wrap(&cache_key, code).map_err(|e| EvalError::CompilationError {
+            self.wrapper.wrap(&cache_key, code, None).map_err(|e| EvalError::CompilationError {
                 msg: format!("Failed to wrap code: {}", e),
                 pos: SourcePos::repl(1, 1, code.len() as u32),
             })?;
