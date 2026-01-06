@@ -170,12 +170,14 @@ impl RustAstWrapper {
     /// 1. Loads specified variables from VariableStore
     /// 2. Executes user code
     /// 3. Stores variables back to VariableStore
+    /// 4. (Phase 4) Adds source map comments for error translation
     ///
     /// # Arguments
     ///
     /// * `cache_key` - Cache key for function naming
     /// * `user_code` - User's Rust code to wrap
     /// * `variables` - Variables to load/store (name, type) pairs
+    /// * `_source_map` - Optional source map for Phase 4 integration (currently unused)
     ///
     /// # Returns
     ///
@@ -190,7 +192,7 @@ impl RustAstWrapper {
     /// let code = "let z = x + y;";
     /// let vars = vec![("x".to_string(), "i32".to_string()),
     ///                 ("y".to_string(), "i32".to_string())];
-    /// let wrapped = wrapper.wrap_with_store("test", code, &vars).unwrap();
+    /// let wrapped = wrapper.wrap_with_store("test", code, &vars, None).unwrap();
     /// // Generated code will load x and y, execute code, store z back
     /// ```
     pub fn wrap_with_store(
@@ -198,6 +200,7 @@ impl RustAstWrapper {
         cache_key: impl AsRef<str>,
         user_code: impl AsRef<str>,
         variables: &[(String, String)],
+        _source_map: Option<&oxur_smap::SourceMap>,
     ) -> Result<String> {
         let cache_key = cache_key.as_ref();
         let user_code = user_code.as_ref();
@@ -524,7 +527,7 @@ mod tests {
         ];
 
         let wrapped =
-            wrapper.wrap_with_store("store_test", user_code, &variables).expect("Wrapping failed");
+            wrapper.wrap_with_store("store_test", user_code, &variables, None).expect("Wrapping failed");
 
         // Should have function declaration
         assert!(wrapped.contains("#[no_mangle]"));
@@ -550,7 +553,7 @@ mod tests {
         let variables = vec![]; // No existing variables
 
         let wrapped =
-            wrapper.wrap_with_store("no_vars", user_code, &variables).expect("Wrapping failed");
+            wrapper.wrap_with_store("no_vars", user_code, &variables, None).expect("Wrapping failed");
 
         // Should still generate function
         assert!(wrapped.contains("#[no_mangle]"));
@@ -575,7 +578,7 @@ mod tests {
         ];
 
         let wrapped =
-            wrapper.wrap_with_store("multi_vars", user_code, &variables).expect("Wrapping failed");
+            wrapper.wrap_with_store("multi_vars", user_code, &variables, None).expect("Wrapping failed");
 
         // Should load all three variables
         assert!(wrapped.contains("\"a\"") || wrapped.contains("let a"));
