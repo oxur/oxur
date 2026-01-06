@@ -8,6 +8,7 @@ use crate::cache::ArtifactCache;
 use crate::session::SessionDir;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Compilation errors
@@ -49,13 +50,14 @@ pub type Result<T> = std::result::Result<T, CompilerError>;
 /// use oxur_repl::cache::ArtifactCache;
 /// use oxur_repl::session::SessionDir;
 /// use oxur_repl::protocol::SessionId;
+/// use std::sync::Arc;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let cache = ArtifactCache::new()?;
 /// let session_id = SessionId::new("test");
-/// let session_dir = SessionDir::new(&session_id)?;
+/// let session_dir = Arc::new(SessionDir::new(&session_id)?);
 ///
-/// let mut compiler = CachedCompiler::new(cache, &session_dir);
+/// let mut compiler = CachedCompiler::new(cache, session_dir);
 ///
 /// let source = "pub extern \"C\" fn oxur_eval_test() { println!(\"Hello!\"); }";
 /// let lib_path = compiler.compile("test", source, 2)?;
@@ -64,23 +66,23 @@ pub type Result<T> = std::result::Result<T, CompilerError>;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug)]
-pub struct CachedCompiler<'a> {
+#[derive(Debug, Clone)]
+pub struct CachedCompiler {
     /// Artifact cache for storing compiled libraries
     cache: ArtifactCache,
 
-    /// Session directory for temporary files
-    session_dir: &'a SessionDir,
+    /// Session directory for temporary files (shared via Arc)
+    session_dir: Arc<SessionDir>,
 }
 
-impl<'a> CachedCompiler<'a> {
+impl CachedCompiler {
     /// Create a new cached compiler
     ///
     /// # Arguments
     ///
     /// * `cache` - Artifact cache for storing compiled libraries
-    /// * `session_dir` - Session directory for temporary compilation files
-    pub fn new(cache: ArtifactCache, session_dir: &'a SessionDir) -> Self {
+    /// * `session_dir` - Session directory for temporary compilation files (shared via Arc)
+    pub fn new(cache: ArtifactCache, session_dir: Arc<SessionDir>) -> Self {
         Self { cache, session_dir }
     }
 
@@ -209,7 +211,7 @@ mod tests {
     use crate::protocol::SessionId;
     use std::env;
 
-    fn setup_compiler() -> (CachedCompiler<'static>, SessionDir, PathBuf) {
+    fn setup_compiler() -> (CachedCompiler, PathBuf) {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -224,25 +226,25 @@ mod tests {
         let cache = ArtifactCache::with_directory(&test_dir).expect("Failed to create cache");
 
         let session_id = SessionId::new(format!("test-{}", id));
-        let session_dir = Box::leak(Box::new(
+        let session_dir = Arc::new(
             SessionDir::new(&session_id).expect("Failed to create session dir"),
-        ));
+        );
 
         let compiler = CachedCompiler::new(cache, session_dir);
 
-        (compiler, unsafe { std::ptr::read(session_dir as *const _) }, test_dir)
+        (compiler, test_dir)
     }
 
     #[test]
     fn test_compiler_creation() {
-        let (compiler, _session_dir, _test_dir) = setup_compiler();
+        let (compiler, _test_dir) = setup_compiler();
         let (count, _total_size) = compiler.cache().stats();
         assert_eq!(count, 0);
     }
 
     #[test]
     fn test_compile_simple_library() {
-        let (mut compiler, _session_dir, _test_dir) = setup_compiler();
+        let (mut compiler, _test_dir) = setup_compiler();
 
         let source = r#"
             #[no_mangle]
@@ -266,7 +268,7 @@ mod tests {
 
     #[test]
     fn test_compile_with_caching() {
-        let (mut compiler, _session_dir, _test_dir) = setup_compiler();
+        let (mut compiler, _test_dir) = setup_compiler();
 
         let source = r#"
             #[no_mangle]
@@ -288,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_compile_invalid_source() {
-        let (mut compiler, _session_dir, _test_dir) = setup_compiler();
+        let (mut compiler, _test_dir) = setup_compiler();
 
         let invalid_source = "this is not valid rust code {{{";
 
@@ -303,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_different_opt_levels() {
-        let (mut compiler, _session_dir, _test_dir) = setup_compiler();
+        let (mut compiler, _test_dir) = setup_compiler();
 
         let source = r#"
             #[no_mangle]

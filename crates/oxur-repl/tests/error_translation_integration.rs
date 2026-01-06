@@ -4,6 +4,7 @@ use oxur_repl::cache::ArtifactCache;
 use oxur_repl::compiler::CachedCompiler;
 use oxur_repl::protocol::SessionId;
 use oxur_repl::session::SessionDir;
+use std::sync::Arc;
 
 /// Test that compilation errors are properly formatted
 #[test]
@@ -21,9 +22,9 @@ fn test_compilation_error_formatting() {
 
     let cache = ArtifactCache::with_directory(&test_dir).expect("Failed to create cache");
     let session_id = SessionId::new(format!("error-test-{}", id));
-    let session_dir = SessionDir::new(&session_id).expect("Failed to create session dir");
+    let session_dir = Arc::new(SessionDir::new(&session_id).expect("Failed to create session dir"));
 
-    let mut compiler = CachedCompiler::new(cache, &session_dir);
+    let mut compiler = CachedCompiler::new(cache, session_dir);
 
     // Invalid Rust code that will trigger an error
     let invalid_source = r#"
@@ -74,9 +75,9 @@ fn test_valid_code_still_works() {
 
     let cache = ArtifactCache::with_directory(&test_dir).expect("Failed to create cache");
     let session_id = SessionId::new(format!("valid-test-{}", id));
-    let session_dir = SessionDir::new(&session_id).expect("Failed to create session dir");
+    let session_dir = Arc::new(SessionDir::new(&session_id).expect("Failed to create session dir"));
 
-    let mut compiler = CachedCompiler::new(cache, &session_dir);
+    let mut compiler = CachedCompiler::new(cache, session_dir);
 
     // Valid Rust code
     let valid_source = r#"
@@ -116,9 +117,9 @@ fn test_multiple_errors_reported() {
 
     let cache = ArtifactCache::with_directory(&test_dir).expect("Failed to create cache");
     let session_id = SessionId::new(format!("multi-error-{}", id));
-    let session_dir = SessionDir::new(&session_id).expect("Failed to create session dir");
+    let session_dir = Arc::new(SessionDir::new(&session_id).expect("Failed to create session dir"));
 
-    let mut compiler = CachedCompiler::new(cache, &session_dir);
+    let mut compiler = CachedCompiler::new(cache, session_dir);
 
     // Code with multiple errors
     let multi_error_source = r#"

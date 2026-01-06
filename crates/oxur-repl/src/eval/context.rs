@@ -131,7 +131,7 @@ pub struct EvalContext {
     artifact_cache: Option<Arc<Mutex<ArtifactCache>>>,
 
     /// Cached compiler (shared)
-    compiler: Option<Arc<Mutex<CachedCompiler<'static>>>>,
+    compiler: Option<Arc<Mutex<CachedCompiler>>>,
 
     /// Subprocess executor (shared, single instance per session)
     executor: Option<Arc<Mutex<SubprocessExecutor>>>,
@@ -213,13 +213,12 @@ impl EvalContext {
         })?;
         let artifact_cache = Arc::new(Mutex::new(artifact_cache));
 
-        // Create compiler
-        let session_dir_leaked: &'static SessionDir = Box::leak(Box::new((*session_dir).clone()));
+        // Create compiler with Arc<SessionDir>
         let cache_clone = {
-            let guard = artifact_cache.lock().unwrap();
+            let guard = artifact_cache.lock().expect("Artifact cache mutex poisoned");
             (*guard).clone()
         };
-        let compiler = CachedCompiler::new(cache_clone, session_dir_leaked);
+        let compiler = CachedCompiler::new(cache_clone, Arc::clone(&session_dir));
         let compiler = Arc::new(Mutex::new(compiler));
 
         // Create subprocess executor
@@ -346,16 +345,21 @@ impl EvalContext {
 
         // If executor exists, check if library is already loaded (Tier 2)
         if let Some(executor) = &self.executor {
-            let is_loaded = executor.lock().unwrap().is_loaded(&cache_key);
+            let is_loaded = executor
+                .lock()
+                .expect("Executor mutex poisoned")
+                .is_loaded(&cache_key);
 
             if is_loaded {
                 // Tier 2: Library already loaded, just execute
-                let exec_result = executor.lock().unwrap().execute(&cache_key).map_err(|e| {
-                    EvalError::RuntimeError {
+                let exec_result = executor
+                    .lock()
+                    .expect("Executor mutex poisoned")
+                    .execute(&cache_key)
+                    .map_err(|e| EvalError::RuntimeError {
                         msg: format!("Execution failed: {}", e),
                         pos: SourcePos::repl(1, 1, code.len() as u32),
-                    }
-                })?;
+                    })?;
 
                 let duration_ms = start.elapsed().as_millis() as u64;
                 self.stats.tier2_count += 1;
@@ -507,25 +511,31 @@ impl EvalContext {
             })?;
 
         // Step 4: Compile to dynamic library
-        let lib_path =
-            compiler.lock().unwrap().compile(&cache_key, &wrapped_code, 2).map_err(|e| {
-                EvalError::CompilationError {
-                    msg: format!("Compilation failed: {}", e),
-                    pos: SourcePos::repl(1, 1, code.len() as u32),
-                }
+        let lib_path = compiler
+            .lock()
+            .expect("Compiler mutex poisoned")
+            .compile(&cache_key, &wrapped_code, 2)
+            .map_err(|e| EvalError::CompilationError {
+                msg: format!("Compilation failed: {}", e),
+                pos: SourcePos::repl(1, 1, code.len() as u32),
             })?;
 
         // Step 5: Load library into subprocess
-        executor.lock().unwrap().load_library(&lib_path, &cache_key).map_err(|e| {
-            EvalError::CompilationError {
+        executor
+            .lock()
+            .expect("Executor mutex poisoned")
+            .load_library(&lib_path, &cache_key)
+            .map_err(|e| EvalError::CompilationError {
                 msg: format!("Failed to load library: {}", e),
                 pos: SourcePos::repl(1, 1, code.len() as u32),
-            }
-        })?;
+            })?;
 
         // Step 6: Execute in subprocess
-        let exec_result =
-            executor.lock().unwrap().execute(&cache_key).map_err(|e| EvalError::RuntimeError {
+        let exec_result = executor
+            .lock()
+            .expect("Executor mutex poisoned")
+            .execute(&cache_key)
+            .map_err(|e| EvalError::RuntimeError {
                 msg: format!("Execution failed: {}", e),
                 pos: SourcePos::repl(1, 1, code.len() as u32),
             })?;

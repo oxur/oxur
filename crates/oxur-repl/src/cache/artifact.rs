@@ -308,8 +308,10 @@ impl ArtifactCache {
         // Get artifact metadata
         let metadata = fs::metadata(&cached_artifact)?;
         let size_bytes = metadata.len();
-        let cached_at =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let cached_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("System time is before UNIX epoch")
+            .as_secs();
 
         // Update index
         let entry = CacheEntry {
