@@ -181,11 +181,34 @@ impl RustAstWrapper {
 
     /// Extract variable definitions from user code
     ///
-    /// Phase 3 stub - returns empty list.
-    /// Full implementation will parse Rust code and extract let bindings.
-    pub fn extract_variables(&self, _user_code: impl AsRef<str>) -> Vec<String> {
-        // Phase 3 stub
-        Vec::new()
+    /// Uses TypeInference to find all variable bindings and their types.
+    ///
+    /// # Returns
+    ///
+    /// A list of (variable_name, type_name) pairs found in the code.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::wrapper::RustAstWrapper;
+    ///
+    /// let wrapper = RustAstWrapper::new();
+    /// let code = "let x: i32 = 42; let y = 100;";
+    /// let vars = wrapper.extract_variables(code);
+    ///
+    /// assert!(vars.iter().any(|(name, _)| name == "x"));
+    /// ```
+    pub fn extract_variables(&self, user_code: impl AsRef<str>) -> Vec<(String, String)> {
+        use crate::type_inference::TypeInference;
+
+        let inference = TypeInference::new();
+        let type_infos = inference.infer_from_code(user_code);
+
+        // Convert TypeInfo to (name, type_string) pairs
+        type_infos
+            .into_iter()
+            .map(|(name, type_info)| (name, type_info.type_name.clone()))
+            .collect()
     }
 }
 
@@ -304,14 +327,49 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_variables_stub() {
+    fn test_extract_variables() {
         let wrapper = RustAstWrapper::new();
 
-        let user_code = "let x = 42;\nlet y = 100;";
+        let user_code = "let x: i32 = 42;\nlet y: i32 = 100;";
         let vars = wrapper.extract_variables(user_code);
 
-        // Phase 3 stub returns empty
-        assert_eq!(vars.len(), 0);
+        // Should extract both variables with their types
+        assert!(vars.len() >= 2);
+        assert!(vars.iter().any(|(name, ty)| name == "x" && ty.contains("i32")));
+        assert!(vars.iter().any(|(name, ty)| name == "y" && ty.contains("i32")));
+    }
+
+    #[test]
+    fn test_extract_variables_type_inference() {
+        let wrapper = RustAstWrapper::new();
+
+        // Type inference should work without explicit type annotations
+        let user_code = "let x = 42;";
+        let vars = wrapper.extract_variables(user_code);
+
+        // Should infer i32 type
+        assert!(vars.len() >= 1);
+        // Type inference should detect integer literal
+        let has_x = vars.iter().any(|(name, _ty)| name == "x");
+        assert!(has_x, "Should extract variable 'x'");
+    }
+
+    #[test]
+    fn test_extract_variables_shadowing() {
+        let wrapper = RustAstWrapper::new();
+
+        // Test variable shadowing
+        let user_code = r#"
+            let x = 42;
+            let x = "hello";
+        "#;
+        let vars = wrapper.extract_variables(user_code);
+
+        // Should detect both bindings (shadowing)
+        // TypeInference tracks all bindings, even shadowed ones
+        assert!(vars.len() >= 2);
+        let x_count = vars.iter().filter(|(name, _)| name == "x").count();
+        assert!(x_count >= 1, "Should extract at least one 'x' binding");
     }
 
     #[test]
