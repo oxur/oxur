@@ -4,8 +4,8 @@ title: "Oxur REPL Implementation Specification"
 author: "Claude Code & Duncan McGreggor"
 component: REPL
 created: 2026-01-03
-updated: 2026-01-05
-state: Draft
+updated: 2026-01-06
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.2

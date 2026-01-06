@@ -3,8 +3,8 @@ number: 26
 title: "Oxur REPL Evaluation Strategy"
 author: "Duncan McGreggor and Claude"
 created: 2026-01-02
-updated: 2026-01-05
-state: Draft
+updated: 2026-01-06
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.2

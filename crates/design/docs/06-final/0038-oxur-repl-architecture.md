@@ -5,8 +5,8 @@ author: "Duncan McGreggor & Claude"
 component: All
 tags: [repl, architecture, definitive]
 created: 2026-01-04
-updated: 2026-01-05
-state: Draft
+updated: 2026-01-06
+state: Final
 supersedes: null
 superseded-by: null
 version: 1.2
