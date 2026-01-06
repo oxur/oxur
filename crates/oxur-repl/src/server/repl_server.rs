@@ -21,6 +21,7 @@ use tokio::time::timeout;
 /// allowing sessions to be accessed from multiple clients.
 ///
 /// Supports graceful shutdown with configurable timeout for active connections.
+#[derive(Debug)]
 pub struct ReplServer {
     /// Address to bind to
     address: String,
@@ -39,7 +40,7 @@ pub struct ReplServer {
 ///
 /// Obtained via `ReplServer::shutdown_handle()`, this handle can be used
 /// to trigger graceful server shutdown from another task.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ShutdownHandle {
     tx: broadcast::Sender<()>,
 }

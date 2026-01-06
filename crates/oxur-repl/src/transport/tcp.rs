@@ -14,6 +14,7 @@ use tokio::net::{TcpListener, TcpStream};
 ///
 /// Wraps a `TcpStream` and implements the `Transport` trait for async
 /// message-based communication over TCP.
+#[derive(Debug)]
 pub struct TcpTransport {
     stream: TcpStream,
 }
@@ -95,6 +96,7 @@ impl SplitTransport for TcpTransport {
 }
 
 /// Reader half of a split TCP transport
+#[derive(Debug)]
 pub struct TcpTransportReader {
     reader: ReadHalf<TcpStream>,
 }
@@ -111,6 +113,7 @@ impl TransportReader for TcpTransportReader {
 }
 
 /// Writer half of a split TCP transport
+#[derive(Debug)]
 pub struct TcpTransportWriter {
     writer: WriteHalf<TcpStream>,
 }
@@ -135,6 +138,7 @@ impl TransportWriter for TcpTransportWriter {
 ///
 /// Server-side TCP listener that accepts incoming client connections
 /// and returns `TcpTransport` instances.
+#[derive(Debug)]
 pub struct TcpTransportListener {
     listener: TcpListener,
 }

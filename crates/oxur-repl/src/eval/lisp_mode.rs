@@ -12,7 +12,7 @@ use oxur_lang::{CoreForm, NodeId, Parser};
 ///
 /// Integrates with oxur-lang for parsing and evaluation.
 /// Provides fast-path calculator mode for simple arithmetic.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct LispEvaluator {}
 
 impl LispEvaluator {

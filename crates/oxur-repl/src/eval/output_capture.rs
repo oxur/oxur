@@ -52,6 +52,7 @@ impl CapturedOutput {
 ///
 /// Provides a simple interface for capturing output during code execution.
 /// Uses Arc<Mutex<String>> internally to allow sharing across threads.
+#[derive(Debug, Default)]
 pub struct OutputCapturer {
     /// Captured stdout
     stdout: Arc<Mutex<String>>,
@@ -143,11 +144,6 @@ impl OutputCapturer {
     }
 }
 
-impl Default for OutputCapturer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 /// Simulate compiled code execution with output
 ///

@@ -15,6 +15,7 @@ use crate::server::{SessionError, SessionManager};
 ///
 /// Bridges the protocol layer (Request/Response) with the
 /// session management layer (SessionManager).
+#[derive(Debug)]
 pub struct MessageHandler {
     /// Session manager
     session_manager: SessionManager,

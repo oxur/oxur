@@ -13,7 +13,7 @@ use std::collections::HashMap;
 ///
 /// Handles canonical s-expression format with keyword fields.
 /// Format: `(NodeType :field1 value1 :field2 value2)`
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SexprEvaluator {
     /// Symbol table for variable bindings
     symbols: HashMap<String, SexprValue>,

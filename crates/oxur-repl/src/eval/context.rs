@@ -72,7 +72,7 @@ pub struct EvalResult {
 /// Evaluation context for a REPL session
 ///
 /// Manages session state, execution tiers, and caching.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct EvalContext {
     /// Unique session identifier
     session_id: SessionId,
