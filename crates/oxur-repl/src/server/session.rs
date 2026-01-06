@@ -5,7 +5,7 @@
 //!
 //! Based on ODD-0018: Oxur Remote REPL Protocol Design
 
-use crate::eval::EvalContext;
+use crate::eval::{EvalContext, EvalError};
 use crate::protocol::{ReplMode, SessionId};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -22,6 +22,9 @@ pub enum SessionError {
 
     #[error("Lock poisoned")]
     LockPoisoned,
+
+    #[error("Evaluation failed")]
+    EvalFailed(#[from] EvalError),
 }
 
 pub type Result<T> = std::result::Result<T, SessionError>;
@@ -107,8 +110,7 @@ impl SessionManager {
         };
 
         // Evaluate the code
-        let result =
-            context.eval(code).await.map_err(|_| SessionError::NotFound(session_id.to_string()))?;
+        let result = context.eval(code).await?;
 
         // Update the session with the new state
         {
