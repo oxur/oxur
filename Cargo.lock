@@ -1081,6 +1081,8 @@ dependencies = [
  "oxur-lang",
  "oxur-smap",
  "postcard",
+ "prettyplease",
+ "proc-macro2",
  "quote",
  "serde",
  "serde_json",
