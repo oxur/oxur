@@ -166,7 +166,12 @@ impl EvalContext {
     ///
     /// # Errors
     ///
-    /// Returns error if parsing, compilation, or execution fails.
+    /// Returns `EvalError` if evaluation fails due to:
+    /// - `SyntaxError`: Invalid syntax in the input code
+    /// - `TypeError`: Type mismatch or invalid type operations
+    /// - `RuntimeError`: Runtime errors during execution
+    /// - `CompilationError`: Failed to compile to executable code
+    /// - `UnsupportedOperation`: Operation not supported in current tier
     pub async fn eval(&mut self, code: impl AsRef<str>) -> Result<EvalResult> {
         let code = code.as_ref();
         let start = Instant::now();

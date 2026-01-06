@@ -94,6 +94,18 @@ impl SessionManager {
     ///
     /// Takes ownership of the evaluation, executes it, and updates the session.
     /// This avoids lifetime issues with async closures.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::NotFound` if the session doesn't exist.
+    /// Returns `SessionError::EvalFailed` if evaluation fails due to:
+    /// - Syntax errors in the code
+    /// - Type errors during compilation
+    /// - Runtime errors during execution
+    /// - Compilation errors
+    /// - Unsupported operations for the current tier
+    ///
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
     pub async fn eval(
         &self,
         session_id: &SessionId,
@@ -167,6 +179,10 @@ impl SessionManager {
     /// List all active sessions
     ///
     /// Returns information about all currently active sessions.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
     pub fn list(&self) -> Result<Vec<SessionInfo>> {
         let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
@@ -212,6 +228,10 @@ impl SessionManager {
     }
 
     /// Get the number of active sessions
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
     pub fn count(&self) -> Result<usize> {
         let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
@@ -219,6 +239,10 @@ impl SessionManager {
     }
 
     /// Check if a session exists
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
     pub fn exists(&self, session_id: &SessionId) -> Result<bool> {
         let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
@@ -227,7 +251,11 @@ impl SessionManager {
 
     /// Close all sessions
     ///
-    /// Useful for server shutdown.
+    /// Useful for server shutdown. Returns the number of sessions that were closed.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
     pub fn close_all(&self) -> Result<usize> {
         let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
 
