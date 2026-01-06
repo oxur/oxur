@@ -178,14 +178,16 @@ impl PostcardCodec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{Operation, OperationResult, ReplMode, SessionInfo, Status};
+    use crate::protocol::{
+        MessageId, Operation, OperationResult, ReplMode, SessionId, SessionInfo, Status,
+    };
     use std::io::Cursor;
 
     #[test]
     fn test_encode_decode_request() {
         let request = Request {
-            id: 1,
-            session_id: "test-session".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-session"),
             operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
@@ -197,8 +199,8 @@ mod tests {
     #[test]
     fn test_encode_decode_response() {
         let response = Response {
-            request_id: 1,
-            session_id: "test-session".to_string(),
+            request_id: MessageId::new(1),
+            session_id: SessionId::new("test-session"),
             result: OperationResult::Success {
                 status: Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
@@ -215,8 +217,8 @@ mod tests {
     #[test]
     fn test_write_read_request() {
         let request = Request {
-            id: 42,
-            session_id: "write-read-test".to_string(),
+            id: MessageId::new(42),
+            session_id: SessionId::new("write-read-test"),
             operation: Operation::LsSessions,
         };
 
@@ -231,18 +233,18 @@ mod tests {
     #[test]
     fn test_write_read_response() {
         let response = Response {
-            request_id: 99,
-            session_id: "response-test".to_string(),
+            request_id: MessageId::new(99),
+            session_id: SessionId::new("response-test"),
             result: OperationResult::Sessions {
                 sessions: vec![
                     SessionInfo {
-                        id: "session1".to_string(),
+                        id: SessionId::new("session1"),
                         mode: ReplMode::Lisp,
                         eval_count: 0,
                         created_at: 0,
                     },
                     SessionInfo {
-                        id: "session2".to_string(),
+                        id: SessionId::new("session2"),
                         mode: ReplMode::Sexpr,
                         eval_count: 5,
                         created_at: 1000,
@@ -264,8 +266,8 @@ mod tests {
         // Create payload that exceeds MAX_MESSAGE_SIZE
         let huge_code = "x".repeat((MAX_MESSAGE_SIZE + 1) as usize);
         let request = Request {
-            id: 1,
-            session_id: "test".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test"),
             operation: Operation::Eval { code: huge_code, mode: ReplMode::Lisp },
         };
 
@@ -284,8 +286,11 @@ mod tests {
 
     #[test]
     fn test_framing_format() {
-        let request =
-            Request { id: 1, session_id: "test".to_string(), operation: Operation::Interrupt };
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test"),
+            operation: Operation::Interrupt,
+        };
 
         let encoded = PostcardCodec::encode_request(&request).unwrap();
 

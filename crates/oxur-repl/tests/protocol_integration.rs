@@ -3,8 +3,8 @@
 // Tests the full end-to-end flow: Protocol messages -> Postcard codec -> TCP transport
 
 use oxur_repl::protocol::{
-    ErrorInfo, ErrorKind, Operation, OperationResult, ReplMode, Request, Response, SourceLocation,
-    Status,
+    ErrorInfo, ErrorKind, MessageId, Operation, OperationResult, ReplMode, Request, Response,
+    SessionId, SourceLocation, Status,
 };
 use oxur_repl::transport::{
     SplitTransport, TcpTransport, TcpTransportListener, Transport, TransportReader, TransportWriter,
@@ -18,14 +18,14 @@ async fn test_basic_request_response() {
     let addr = listener.local_addr().expect("Failed to get address");
 
     let request = Request {
-        id: 1,
-        session_id: "test-session-1".to_string(),
+        id: MessageId::new(1),
+        session_id: SessionId::new("test-session-1"),
         operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
     };
 
     let response = Response {
-        request_id: 1,
-        session_id: "test-session-1".to_string(),
+        request_id: MessageId::new(1),
+        session_id: SessionId::new("test-session-1"),
         result: OperationResult::Success {
             status: Status { tier: 1, cached: false, duration_ms: 5 },
             value: Some("3".to_string()),
@@ -48,8 +48,8 @@ async fn test_basic_request_response() {
         // Receive response
         let recv_response = client.recv_response().await.expect("Failed to receive response");
 
-        assert_eq!(recv_response.request_id, 1);
-        assert_eq!(recv_response.session_id, "test-session-1");
+        assert_eq!(recv_response.request_id, MessageId::new(1));
+        assert_eq!(recv_response.session_id, SessionId::new("test-session-1"));
 
         if let OperationResult::Success { value, .. } = recv_response.result {
             assert_eq!(value, Some("3".to_string()));
@@ -65,8 +65,8 @@ async fn test_basic_request_response() {
         // Receive request
         let recv_request = server.recv_request().await.expect("Failed to receive request");
 
-        assert_eq!(recv_request.id, 1);
-        assert_eq!(recv_request.session_id, "test-session-1");
+        assert_eq!(recv_request.id, MessageId::new(1));
+        assert_eq!(recv_request.session_id, SessionId::new("test-session-1"));
 
         // Send response
         server.send_response(&response_clone).await.expect("Failed to send response");
@@ -87,8 +87,8 @@ async fn test_multiple_requests() {
 
         for i in 1..=3 {
             let request = Request {
-                id: i,
-                session_id: "multi-test".to_string(),
+                id: MessageId::new(i),
+                session_id: SessionId::new("multi-test"),
                 operation: Operation::Eval {
                     code: format!("(+ {} {})", i, i),
                     mode: ReplMode::Lisp,
@@ -99,7 +99,7 @@ async fn test_multiple_requests() {
 
             let response = client.recv_response().await.expect("Failed to receive response");
 
-            assert_eq!(response.request_id, i);
+            assert_eq!(response.request_id, MessageId::new(i));
         }
     });
 
@@ -110,11 +110,11 @@ async fn test_multiple_requests() {
         for i in 1..=3 {
             let request = server.recv_request().await.expect("Failed to receive request");
 
-            assert_eq!(request.id, i);
+            assert_eq!(request.id, MessageId::new(i));
 
             let response = Response {
-                request_id: i,
-                session_id: "multi-test".to_string(),
+                request_id: MessageId::new(i),
+                session_id: SessionId::new("multi-test"),
                 result: OperationResult::Success {
                     status: Status { tier: 1, cached: false, duration_ms: 5 },
                     value: Some((i * 2).to_string()),
@@ -137,8 +137,8 @@ async fn test_error_response() {
     let addr = listener.local_addr().expect("Failed to get address");
 
     let error_response = Response {
-        request_id: 1,
-        session_id: "error-test".to_string(),
+        request_id: MessageId::new(1),
+        session_id: SessionId::new("error-test"),
         result: OperationResult::Error {
             error: ErrorInfo {
                 kind: ErrorKind::RuntimeError,
@@ -157,8 +157,8 @@ async fn test_error_response() {
         let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         let request = Request {
-            id: 1,
-            session_id: "error-test".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("error-test"),
             operation: Operation::Eval { code: "(/ 1 0)".to_string(), mode: ReplMode::Lisp },
         };
 
@@ -195,7 +195,7 @@ async fn test_all_operations() {
     let operations = vec![
         Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         Operation::LoadFile { path: "test.ox".to_string(), mode: ReplMode::Sexpr },
-        Operation::Clone { source_session_id: "source-session".to_string() },
+        Operation::Clone { source_session_id: SessionId::new("source-session") },
         Operation::Interrupt,
         Operation::Close,
         Operation::LsSessions,
@@ -210,14 +210,17 @@ async fn test_all_operations() {
         let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         for (i, op) in ops_clone.into_iter().enumerate() {
-            let request =
-                Request { id: i as u64, session_id: "ops-test".to_string(), operation: op };
+            let request = Request {
+                id: MessageId::new(i as u64),
+                session_id: SessionId::new("ops-test"),
+                operation: op,
+            };
 
             client.send_request(&request).await.expect("Failed to send request");
 
             let response = client.recv_response().await.expect("Failed to receive response");
 
-            assert_eq!(response.request_id, i as u64);
+            assert_eq!(response.request_id, MessageId::new(i as u64));
         }
     });
 
@@ -227,11 +230,11 @@ async fn test_all_operations() {
         for i in 0..operations.len() {
             let request = server.recv_request().await.expect("Failed to receive request");
 
-            assert_eq!(request.id, i as u64);
+            assert_eq!(request.id, MessageId::new(i as u64));
 
             let response = Response {
-                request_id: i as u64,
-                session_id: "ops-test".to_string(),
+                request_id: MessageId::new(i as u64),
+                session_id: SessionId::new("ops-test"),
                 result: OperationResult::Success {
                     status: Status { tier: 1, cached: false, duration_ms: 1 },
                     value: Some("ok".to_string()),
@@ -263,8 +266,8 @@ async fn test_concurrent_split_transport() {
         let send_task = tokio::spawn(async move {
             for i in 1..=5 {
                 let request = Request {
-                    id: i,
-                    session_id: "concurrent".to_string(),
+                    id: MessageId::new(i),
+                    session_id: SessionId::new("concurrent"),
                     operation: Operation::Eval {
                         code: format!("request-{}", i),
                         mode: ReplMode::Lisp,
@@ -281,7 +284,7 @@ async fn test_concurrent_split_transport() {
         let recv_task = tokio::spawn(async move {
             for i in 1..=5 {
                 let response = reader.recv_response().await.expect("Failed to receive response");
-                assert_eq!(response.request_id, i);
+                assert_eq!(response.request_id, MessageId::new(i));
             }
         });
 
@@ -297,7 +300,7 @@ async fn test_concurrent_split_transport() {
         let recv_task = tokio::spawn(async move {
             for i in 1..=5 {
                 let request = reader.recv_request().await.expect("Failed to receive request");
-                assert_eq!(request.id, i);
+                assert_eq!(request.id, MessageId::new(i));
             }
         });
 
@@ -305,8 +308,8 @@ async fn test_concurrent_split_transport() {
         let send_task = tokio::spawn(async move {
             for i in 1..=5 {
                 let response = Response {
-                    request_id: i,
-                    session_id: "concurrent".to_string(),
+                    request_id: MessageId::new(i),
+                    session_id: SessionId::new("concurrent"),
                     result: OperationResult::Success {
                         status: Status { tier: 1, cached: false, duration_ms: 1 },
                         value: Some(format!("response-{}", i)),
@@ -340,8 +343,8 @@ async fn test_large_message() {
         let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
         let request = Request {
-            id: 1,
-            session_id: "large-msg".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("large-msg"),
             operation: Operation::Eval { code: large_code, mode: ReplMode::Lisp },
         };
 
@@ -349,7 +352,7 @@ async fn test_large_message() {
 
         let response = client.recv_response().await.expect("Failed to receive response");
 
-        assert_eq!(response.request_id, 1);
+        assert_eq!(response.request_id, MessageId::new(1));
     });
 
     let server_task = tokio::spawn(async move {
@@ -357,7 +360,7 @@ async fn test_large_message() {
 
         let request = server.recv_request().await.expect("Failed to receive large request");
 
-        assert_eq!(request.id, 1);
+        assert_eq!(request.id, MessageId::new(1));
 
         // Verify we received the large code
         if let Operation::Eval { code, .. } = request.operation {
@@ -365,8 +368,8 @@ async fn test_large_message() {
         }
 
         let response = Response {
-            request_id: 1,
-            session_id: "large-msg".to_string(),
+            request_id: MessageId::new(1),
+            session_id: SessionId::new("large-msg"),
             result: OperationResult::Success {
                 status: Status { tier: 2, cached: false, duration_ms: 100 },
                 value: Some("processed".to_string()),
@@ -390,8 +393,11 @@ async fn test_graceful_shutdown() {
     let client_task = tokio::spawn(async move {
         let mut client = TcpTransport::connect(addr.to_string()).await.expect("Failed to connect");
 
-        let request =
-            Request { id: 1, session_id: "shutdown-test".to_string(), operation: Operation::Close };
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("shutdown-test"),
+            operation: Operation::Close,
+        };
 
         client.send_request(&request).await.expect("Failed to send");
 
@@ -407,8 +413,8 @@ async fn test_graceful_shutdown() {
         let _request = server.recv_request().await.expect("Failed to receive");
 
         let response = Response {
-            request_id: 1,
-            session_id: "shutdown-test".to_string(),
+            request_id: MessageId::new(1),
+            session_id: SessionId::new("shutdown-test"),
             result: OperationResult::Success {
                 status: Status { tier: 1, cached: false, duration_ms: 0 },
                 value: None,

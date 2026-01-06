@@ -202,15 +202,15 @@ pub(crate) mod helpers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{Operation, ReplMode};
+    use crate::protocol::{MessageId, Operation, ReplMode, SessionId};
 
     #[tokio::test]
     async fn test_send_recv_request() {
         let (mut client, mut server) = tokio::io::duplex(1024);
 
         let request = Request {
-            id: 1,
-            session_id: "test-session".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-session"),
             operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
@@ -221,8 +221,8 @@ mod tests {
 
         let recv_handle = tokio::spawn(async move {
             let received = helpers::recv_request(&mut server).await.unwrap();
-            assert_eq!(received.id, 1);
-            assert_eq!(received.session_id, "test-session");
+            assert_eq!(received.id, MessageId::new(1));
+            assert_eq!(received.session_id, SessionId::new("test-session"));
         });
 
         send_handle.await.unwrap();
@@ -234,8 +234,8 @@ mod tests {
         let (mut client, mut server) = tokio::io::duplex(1024);
 
         let response = Response {
-            request_id: 42,
-            session_id: "test-session".to_string(),
+            request_id: MessageId::new(42),
+            session_id: SessionId::new("test-session"),
             result: crate::protocol::OperationResult::Success {
                 status: crate::protocol::Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
@@ -250,7 +250,7 @@ mod tests {
 
         let recv_handle = tokio::spawn(async move {
             let received = helpers::recv_response(&mut client).await.unwrap();
-            assert_eq!(received.request_id, 42);
+            assert_eq!(received.request_id, MessageId::new(42));
         });
 
         send_handle.await.unwrap();
@@ -274,8 +274,8 @@ mod tests {
         // Create a request with huge payload
         let huge_code = "x".repeat(11 * 1024 * 1024); // 11 MB
         let request = Request {
-            id: 1,
-            session_id: "test".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test"),
             operation: Operation::Eval { code: huge_code, mode: ReplMode::Lisp },
         };
 

@@ -318,7 +318,7 @@ impl ReplServer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{Operation, OperationResult, ReplMode, Request};
+    use crate::protocol::{MessageId, Operation, OperationResult, ReplMode, Request, SessionId};
     use crate::transport::Transport;
     use std::time::Duration;
     use tokio::time::timeout;
@@ -354,8 +354,8 @@ mod tests {
 
         // Send a request
         let request = Request {
-            id: 1,
-            session_id: "test".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test"),
             operation: Operation::CreateSession { mode: ReplMode::Lisp },
         };
 
@@ -364,7 +364,7 @@ mod tests {
         // Read response
         let response = client.recv_response().await.unwrap();
 
-        assert_eq!(response.request_id, 1);
+        assert_eq!(response.request_id, MessageId::new(1));
         assert!(matches!(response.result, OperationResult::Success { .. }));
 
         // Close client connection
@@ -393,25 +393,25 @@ mod tests {
 
         // Request 1: Create session
         let req1 = Request {
-            id: 1,
-            session_id: "test".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test"),
             operation: Operation::CreateSession { mode: ReplMode::Lisp },
         };
 
         client.send_request(&req1).await.unwrap();
         let resp1 = client.recv_response().await.unwrap();
-        assert_eq!(resp1.request_id, 1);
+        assert_eq!(resp1.request_id, MessageId::new(1));
 
         // Request 2: Eval
         let req2 = Request {
-            id: 2,
-            session_id: "test".to_string(),
+            id: MessageId::new(2),
+            session_id: SessionId::new("test"),
             operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
         client.send_request(&req2).await.unwrap();
         let resp2 = client.recv_response().await.unwrap();
-        assert_eq!(resp2.request_id, 2);
+        assert_eq!(resp2.request_id, MessageId::new(2));
 
         if let OperationResult::Success { value, .. } = resp2.result {
             assert_eq!(value, Some("3".to_string()));
@@ -420,11 +420,15 @@ mod tests {
         }
 
         // Request 3: Close session
-        let req3 = Request { id: 3, session_id: "test".to_string(), operation: Operation::Close };
+        let req3 = Request {
+            id: MessageId::new(3),
+            session_id: SessionId::new("test"),
+            operation: Operation::Close,
+        };
 
         client.send_request(&req3).await.unwrap();
         let resp3 = client.recv_response().await.unwrap();
-        assert_eq!(resp3.request_id, 3);
+        assert_eq!(resp3.request_id, MessageId::new(3));
 
         drop(client);
         timeout(Duration::from_secs(1), server_handle).await.ok();
@@ -457,24 +461,24 @@ mod tests {
         // Client 1
         let mut client1 = TcpTransport::connect(addr.to_string()).await.unwrap();
         let req1 = Request {
-            id: 1,
-            session_id: "session-1".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("session-1"),
             operation: Operation::CreateSession { mode: ReplMode::Lisp },
         };
         client1.send_request(&req1).await.unwrap();
         let resp1 = client1.recv_response().await.unwrap();
-        assert_eq!(resp1.request_id, 1);
+        assert_eq!(resp1.request_id, MessageId::new(1));
 
         // Client 2
         let mut client2 = TcpTransport::connect(addr.to_string()).await.unwrap();
         let req2 = Request {
-            id: 1,
-            session_id: "session-2".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("session-2"),
             operation: Operation::CreateSession { mode: ReplMode::Sexpr },
         };
         client2.send_request(&req2).await.unwrap();
         let resp2 = client2.recv_response().await.unwrap();
-        assert_eq!(resp2.request_id, 1);
+        assert_eq!(resp2.request_id, MessageId::new(1));
 
         // Both sessions should exist
         assert_eq!(session_manager.count().unwrap(), 2);

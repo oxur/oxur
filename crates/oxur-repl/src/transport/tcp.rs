@@ -186,7 +186,7 @@ impl TcpTransportListener {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{Operation, OperationResult, ReplMode, Status};
+    use crate::protocol::{MessageId, Operation, OperationResult, ReplMode, SessionId, Status};
 
     #[tokio::test]
     async fn test_tcp_connect_accept() {
@@ -214,8 +214,8 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         let request = Request {
-            id: 1,
-            session_id: "test-session".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-session"),
             operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
@@ -231,8 +231,8 @@ mod tests {
         let server_handle = tokio::spawn(async move {
             let mut server = listener.accept().await.unwrap();
             let received = server.recv_request().await.unwrap();
-            assert_eq!(received.id, 1);
-            assert_eq!(received.session_id, "test-session");
+            assert_eq!(received.id, MessageId::new(1));
+            assert_eq!(received.session_id, SessionId::new("test-session"));
         });
 
         client_handle.await.unwrap();
@@ -245,8 +245,8 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         let response = Response {
-            request_id: 42,
-            session_id: "test-session".to_string(),
+            request_id: MessageId::new(42),
+            session_id: SessionId::new("test-session"),
             result: OperationResult::Success {
                 status: Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
@@ -267,7 +267,7 @@ mod tests {
         let client_handle = tokio::spawn(async move {
             let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
             let received = client.recv_response().await.unwrap();
-            assert_eq!(received.request_id, 42);
+            assert_eq!(received.request_id, MessageId::new(42));
         });
 
         let _ = tokio::join!(server_handle, client_handle);
@@ -279,14 +279,14 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         let request = Request {
-            id: 1,
-            session_id: "session-1".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("session-1"),
             operation: Operation::Eval { code: "(+ 2 3)".to_string(), mode: ReplMode::Lisp },
         };
 
         let response = Response {
-            request_id: 1,
-            session_id: "session-1".to_string(),
+            request_id: MessageId::new(1),
+            session_id: SessionId::new("session-1"),
             result: OperationResult::Success {
                 status: Status { tier: 1, cached: false, duration_ms: 2 },
                 value: Some("5".to_string()),
@@ -303,15 +303,15 @@ mod tests {
             let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
             client.send_request(&request_clone).await.unwrap();
             let recv_response = client.recv_response().await.unwrap();
-            assert_eq!(recv_response.request_id, 1);
-            assert_eq!(recv_response.session_id, "session-1");
+            assert_eq!(recv_response.request_id, MessageId::new(1));
+            assert_eq!(recv_response.session_id, SessionId::new("session-1"));
         });
 
         // Server: receive request, send response
         let server_handle = tokio::spawn(async move {
             let mut server = listener.accept().await.unwrap();
             let recv_request = server.recv_request().await.unwrap();
-            assert_eq!(recv_request.id, 1);
+            assert_eq!(recv_request.id, MessageId::new(1));
             server.send_response(&response_clone).await.unwrap();
         });
 
@@ -324,8 +324,8 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         let request = Request {
-            id: 99,
-            session_id: "split-test".to_string(),
+            id: MessageId::new(99),
+            session_id: SessionId::new("split-test"),
             operation: Operation::LsSessions,
         };
 
@@ -344,8 +344,8 @@ mod tests {
             let server = listener.accept().await.unwrap();
             let (mut reader, _writer) = server.split();
             let received = reader.recv_request().await.unwrap();
-            assert_eq!(received.id, 99);
-            assert_eq!(received.session_id, "split-test");
+            assert_eq!(received.id, MessageId::new(99));
+            assert_eq!(received.session_id, SessionId::new("split-test"));
         });
 
         let _ = tokio::join!(client_handle, server_handle);

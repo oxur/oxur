@@ -113,9 +113,9 @@ impl EvalContext {
     ///
     /// ```
     /// use oxur_repl::eval::EvalContext;
-    /// use oxur_repl::protocol::ReplMode;
+    /// use oxur_repl::protocol::{ReplMode, SessionId};
     ///
-    /// let ctx = EvalContext::new("session-1".to_string(), ReplMode::Lisp);
+    /// let ctx = EvalContext::new(SessionId::new("session-1"), ReplMode::Lisp);
     /// ```
     pub fn new(session_id: SessionId, mode: ReplMode) -> Self {
         Self {
@@ -354,8 +354,8 @@ mod tests {
 
     #[test]
     fn test_new_context() {
-        let ctx = EvalContext::new("test-session".to_string(), ReplMode::Lisp);
-        assert_eq!(ctx.session_id(), "test-session");
+        let ctx = EvalContext::new(SessionId::new("test-session"), ReplMode::Lisp);
+        assert_eq!(ctx.session_id(), &SessionId::new("test-session"));
         assert_eq!(ctx.mode(), ReplMode::Lisp);
 
         let (tier1, tier2, hits) = ctx.stats();
@@ -366,12 +366,12 @@ mod tests {
 
     #[test]
     fn test_clone_to() {
-        let mut ctx = EvalContext::new("session-1".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("session-1"), ReplMode::Lisp);
         ctx.stats.tier1_count = 5;
         ctx.cache.insert("key".to_string(), "value".to_string());
 
-        let cloned = ctx.clone_to("session-2".to_string());
-        assert_eq!(cloned.session_id(), "session-2");
+        let cloned = ctx.clone_to(SessionId::new("session-2"));
+        assert_eq!(cloned.session_id(), &SessionId::new("session-2"));
         assert_eq!(cloned.cache.len(), 1);
 
         // Stats should be reset
@@ -383,7 +383,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_eval_tier1_calculator() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         let result = ctx.eval("(+ 1 2)").await.unwrap();
         assert_eq!(result.value, "3");
@@ -398,7 +398,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_eval_tier2_compilation() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         let result = ctx.eval("(defn foo [x] (* x 2))").await.unwrap();
         assert!(result.value.contains("compiled"));
@@ -412,7 +412,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_eval_caching() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         // First evaluation - not cached
         let result1 = ctx.eval("(defn bar [x] x)").await.unwrap();
@@ -430,7 +430,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cache_operations() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         ctx.eval("(+ x 1)").await.unwrap();
         assert_eq!(ctx.cache_size(), 1);
@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_calculator_mode() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         assert_eq!(ctx.try_calculator("(+ 1 2)"), Some("3".to_string()));
         assert_eq!(ctx.try_calculator("(+ 10 20)"), Some("30".to_string()));
@@ -451,7 +451,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tier2_lisp_mode() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         // Code that's not calculator-eligible goes to Tier 2
         let result = ctx.eval("(defn foo [x] x)").await.unwrap();
@@ -463,7 +463,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tier2_sexpr_mode() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Sexpr);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Sexpr);
 
         // Complex code goes to Tier 2 (not handled by calculator)
         // Using an invalid symbol that can't be evaluated in calculator
@@ -476,7 +476,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tier_fallback() {
-        let mut ctx = EvalContext::new("test".to_string(), ReplMode::Lisp);
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         // Tier 1 (calculator) - fast path
         let result1 = ctx.eval("(+ 1 2)").await.unwrap();
@@ -491,13 +491,13 @@ mod tests {
     #[tokio::test]
     async fn test_mode_specific_calculators() {
         // Test Lisp mode calculator
-        let mut lisp_ctx = EvalContext::new("lisp-test".to_string(), ReplMode::Lisp);
+        let mut lisp_ctx = EvalContext::new(SessionId::new("lisp-test"), ReplMode::Lisp);
         let lisp_result = lisp_ctx.eval("(* 3 4)").await.unwrap();
         assert_eq!(lisp_result.tier, ExecutionTier::Calculator);
         assert_eq!(lisp_result.value, "12");
 
         // Test Sexpr mode calculator
-        let mut sexpr_ctx = EvalContext::new("sexpr-test".to_string(), ReplMode::Sexpr);
+        let mut sexpr_ctx = EvalContext::new(SessionId::new("sexpr-test"), ReplMode::Sexpr);
         let sexpr_result = sexpr_ctx.eval("(/ 10 2)").await.unwrap();
         assert_eq!(sexpr_result.tier, ExecutionTier::Calculator);
         assert_eq!(sexpr_result.value, "5");

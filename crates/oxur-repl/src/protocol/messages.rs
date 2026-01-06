@@ -12,12 +12,186 @@ use std::fmt;
 ///
 /// Format: UUID v4 as string (36 characters with hyphens)
 /// Example: "550e8400-e29b-41d4-a716-446655440000"
-pub type SessionId = String;
+///
+/// # Examples
+///
+/// ```
+/// use oxur_repl::protocol::SessionId;
+///
+/// let id = SessionId::new("550e8400-e29b-41d4-a716-446655440000");
+/// assert_eq!(id.as_str(), "550e8400-e29b-41d4-a716-446655440000");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SessionId(String);
+
+impl SessionId {
+    /// Creates a new SessionId from any string-like value.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The session identifier (typically a UUID)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::protocol::SessionId;
+    ///
+    /// let id1 = SessionId::new("my-session");
+    /// let id2 = SessionId::new(String::from("my-session"));
+    /// assert_eq!(id1, id2);
+    /// ```
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+
+    /// Returns the session ID as a string slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::protocol::SessionId;
+    ///
+    /// let id = SessionId::new("test-session");
+    /// assert_eq!(id.as_str(), "test-session");
+    /// ```
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consumes the SessionId and returns the inner String.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::protocol::SessionId;
+    ///
+    /// let id = SessionId::new("test-session");
+    /// let inner: String = id.into_inner();
+    /// assert_eq!(inner, "test-session");
+    /// ```
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for SessionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for SessionId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for SessionId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
+impl From<&str> for SessionId {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
 
 /// Monotonic message correlation identifier
 ///
 /// Used to match responses to requests. Must be unique per session.
-pub type MessageId = u64;
+/// Typically starts at 1 and increments with each request.
+///
+/// # Examples
+///
+/// ```
+/// use oxur_repl::protocol::MessageId;
+///
+/// let id = MessageId::new(1);
+/// assert_eq!(id.as_u64(), 1);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct MessageId(u64);
+
+impl MessageId {
+    /// Creates a new MessageId from a u64 value.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The message identifier (monotonically increasing)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::protocol::MessageId;
+    ///
+    /// let id = MessageId::new(42);
+    /// assert_eq!(id.as_u64(), 42);
+    /// ```
+    pub fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    /// Returns the message ID as a u64.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::protocol::MessageId;
+    ///
+    /// let id = MessageId::new(100);
+    /// assert_eq!(id.as_u64(), 100);
+    /// ```
+    pub fn as_u64(&self) -> u64 {
+        self.0
+    }
+
+    /// Increments the message ID and returns the new value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::protocol::MessageId;
+    ///
+    /// let mut id = MessageId::new(1);
+    /// id.increment();
+    /// assert_eq!(id.as_u64(), 2);
+    /// ```
+    pub fn increment(&mut self) {
+        self.0 += 1;
+    }
+
+    /// Returns the next message ID without modifying this one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxur_repl::protocol::MessageId;
+    ///
+    /// let id = MessageId::new(5);
+    /// let next = id.next();
+    /// assert_eq!(id.as_u64(), 5);
+    /// assert_eq!(next.as_u64(), 6);
+    /// ```
+    pub fn next(&self) -> Self {
+        Self(self.0 + 1)
+    }
+}
+
+impl fmt::Display for MessageId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<u64> for MessageId {
+    fn from(n: u64) -> Self {
+        Self(n)
+    }
+}
 
 /// Source location in Oxur code
 ///
@@ -312,10 +486,60 @@ mod tests {
     }
 
     #[test]
+    fn test_session_id_new() {
+        let id1 = SessionId::new("test-session");
+        let id2 = SessionId::new(String::from("test-session"));
+        assert_eq!(id1, id2);
+        assert_eq!(id1.as_str(), "test-session");
+    }
+
+    #[test]
+    fn test_session_id_display() {
+        let id = SessionId::new("my-session");
+        assert_eq!(id.to_string(), "my-session");
+    }
+
+    #[test]
+    fn test_session_id_into_inner() {
+        let id = SessionId::new("test");
+        let inner: String = id.into_inner();
+        assert_eq!(inner, "test");
+    }
+
+    #[test]
+    fn test_message_id_new() {
+        let id = MessageId::new(42);
+        assert_eq!(id.as_u64(), 42);
+    }
+
+    #[test]
+    fn test_message_id_increment() {
+        let mut id = MessageId::new(1);
+        id.increment();
+        assert_eq!(id.as_u64(), 2);
+        id.increment();
+        assert_eq!(id.as_u64(), 3);
+    }
+
+    #[test]
+    fn test_message_id_next() {
+        let id = MessageId::new(5);
+        let next = id.next();
+        assert_eq!(id.as_u64(), 5); // Original unchanged
+        assert_eq!(next.as_u64(), 6);
+    }
+
+    #[test]
+    fn test_message_id_display() {
+        let id = MessageId::new(100);
+        assert_eq!(id.to_string(), "100");
+    }
+
+    #[test]
     fn test_request_roundtrip() {
         let request = Request {
-            id: 1,
-            session_id: "test-session".to_string(),
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-session"),
             operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
         };
 
@@ -328,8 +552,8 @@ mod tests {
     #[test]
     fn test_response_success_roundtrip() {
         let response = Response {
-            request_id: 1,
-            session_id: "test-session".to_string(),
+            request_id: MessageId::new(1),
+            session_id: SessionId::new("test-session"),
             result: OperationResult::Success {
                 status: Status { tier: 1, cached: false, duration_ms: 5 },
                 value: Some("3".to_string()),
@@ -346,8 +570,8 @@ mod tests {
     #[test]
     fn test_response_error_roundtrip() {
         let response = Response {
-            request_id: 2,
-            session_id: "test-session".to_string(),
+            request_id: MessageId::new(2),
+            session_id: SessionId::new("test-session"),
             result: OperationResult::Error {
                 error: ErrorInfo {
                     kind: ErrorKind::RuntimeError,
