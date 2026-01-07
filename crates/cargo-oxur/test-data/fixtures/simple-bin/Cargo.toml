@@ -1,0 +1,9 @@
+[package]
+name = "simple-bin"
+version = "0.1.0"
+edition = "2021"
+
+# This is a standalone package, not part of the parent workspace
+[workspace]
+
+[dependencies]

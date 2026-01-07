@@ -19,7 +19,7 @@ BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 RUST_VERSION := $(shell rustc --version 2>/dev/null || echo "unknown")
 
 # List of binaries to build and install
-BINARIES := aster oxd oxurfmt oxurc
+BINARIES := aster cargo-oxur oxd oxurfmt oxurc
 
 # Default target
 .DEFAULT_GOAL := help

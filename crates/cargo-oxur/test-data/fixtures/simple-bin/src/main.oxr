@@ -1,0 +1,2 @@
+(deffn main ()
+  (println! "Hello from cargo oxur!"))

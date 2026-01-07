@@ -9,7 +9,7 @@ members = [
     "crates/oxur-cli",
     "crates/oxur-pretty",
     "crates/oxur-smap",
-    "crates/oxur-testing",
+    "crates/oxur-testing", "crates/cargo-oxur",
 ]
 
 # Workspace-wide dependencies (shared versions)
