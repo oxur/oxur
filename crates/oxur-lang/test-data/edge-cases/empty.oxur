@@ -1,0 +1,3 @@
+;; Empty file
+;; Tests handling of empty input
+;; Expected: No output, no error

@@ -1,0 +1,32 @@
+;; Unicode handling
+;; Tests proper handling of Unicode characters in identifiers and strings
+
+;; Unicode in strings
+(def greeting:String "Hello, 世界! 🌍")
+;; Expected: variable greeting defined with Unicode string
+
+;; Unicode in identifiers (if supported)
+(def π:f64 3.14159)
+;; Expected: variable π defined
+
+;; Emoji in strings
+(def emoji:String "Rust 🦀 + Lisp 📦 = Oxur 🚀")
+;; Expected: variable emoji defined
+
+;; Mathematical symbols
+(def δ:f64 0.001)  ;; delta
+(def θ:f64 1.5708) ;; theta
+;; Expected: variables δ and θ defined
+
+;; Function with Unicode name
+(deffn 加法 (a:i32 b:i32) (:> i32)  ;; "addition" in Chinese
+  (+ a b))
+;; Expected: function 加法 defined
+
+;; Use Unicode function
+(加法 10 20)
+;; Expected: 30
+
+;; Combined Unicode
+(println (str greeting " " emoji))
+;; Expected: prints combined Unicode string

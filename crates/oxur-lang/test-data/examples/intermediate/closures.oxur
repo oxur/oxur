@@ -1,0 +1,42 @@
+;; Closures and higher-order functions
+;; Tests function closures and captured variables
+
+;; Function that returns a closure
+(deffn make-adder (x:i32) (:> (fn (i32) i32))
+  (fn (y:i32) (:> i32)
+    (+ x y)))
+;; Expected: function make-adder defined
+
+;; Create a closure
+(def add5 (make-adder 5))
+;; Expected: closure add5 defined
+
+;; Use the closure
+(add5 10)
+;; Expected: 15
+
+;; Map function
+(deffn map-list (f:(fn (i32) i32) lst:Vec<i32>) (:> Vec<i32>)
+  (let ((result (vec)))
+    (for x in lst
+      (vec-push result (f x)))
+    result))
+;; Expected: function map-list defined
+
+;; Use map with closure
+(map-list (make-adder 10) [1, 2, 3, 4, 5])
+;; Expected: [11, 12, 13, 14, 15]
+
+;; Counter closure with mutation
+(deffn make-counter () (:> (fn () i32))
+  (let ((mut count:i32 0))
+    (fn () (:> i32)
+      (set! count (+ count 1))
+      count)))
+;; Expected: function make-counter defined
+
+;; Create and use counter
+(def counter (make-counter))
+(counter)  ;; Expected: 1
+(counter)  ;; Expected: 2
+(counter)  ;; Expected: 3

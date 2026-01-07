@@ -1,0 +1,40 @@
+;; Type errors
+;; Tests that type errors are caught and reported correctly
+
+;; Type mismatch in function call
+(deffn square (x:i32) (:> i32)
+  (* x x))
+
+(square "not a number")
+;; Expected: Error: type mismatch, expected i32, found String
+
+;; Type mismatch in variable assignment
+(def x:i32 42)
+(set! x "string")
+;; Expected: Error: cannot assign String to i32 variable
+
+;; Type mismatch in arithmetic
+(+ 10 "20")
+;; Expected: Error: cannot add i32 and String
+
+;; Wrong return type
+(deffn get-number () (:> i32)
+  "not a number")
+;; Expected: Error: expected i32, found String
+
+;; Incompatible types in if branches
+(if true
+  42
+  "string")
+;; Expected: Error: if branches have incompatible types (i32 vs String)
+
+;; Undefined variable type
+(def x y)
+;; Expected: Error: cannot infer type for x, y is undefined
+
+;; Function arity mismatch
+(deffn add (a:i32 b:i32) (:> i32)
+  (+ a b))
+
+(add 1 2 3)
+;; Expected: Error: function expects 2 arguments, found 3

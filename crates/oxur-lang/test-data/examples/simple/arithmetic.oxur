@@ -1,0 +1,26 @@
+;; Simple arithmetic expressions
+;; Tests basic calculator functionality (Tier 1)
+
+;; Addition
+(+ 1 2)
+;; Expected: 3
+
+;; Subtraction
+(- 10 3)
+;; Expected: 7
+
+;; Multiplication
+(* 4 5)
+;; Expected: 20
+
+;; Division
+(/ 20 4)
+;; Expected: 5
+
+;; Nested arithmetic
+(+ (* 2 3) (/ 10 2))
+;; Expected: 11
+
+;; Complex expression
+(- (+ 10 (* 3 4)) (/ 20 2))
+;; Expected: 12

@@ -1,0 +1,54 @@
+;; Macro definitions and expansion
+;; Tests macro system and code generation
+
+;; Simple macro for unless
+(defmacro unless (condition body else-body)
+  `(if (not ~condition)
+     ~body
+     ~else-body))
+;; Expected: macro unless defined
+
+;; Use the unless macro
+(unless (< 5 3)
+  (println "5 is not less than 3")
+  (println "5 is less than 3"))
+;; Expected: prints "5 is not less than 3"
+
+;; Macro for when (one-armed if)
+(defmacro when (condition & body)
+  `(if ~condition
+     (do ~@body)
+     nil))
+;; Expected: macro when defined
+
+;; Use when macro
+(when (> 10 5)
+  (println "10 is greater than 5")
+  (println "This also prints"))
+;; Expected: prints both messages
+
+;; Macro for let*  (sequential let)
+(defmacro let* (bindings & body)
+  (if (empty? bindings)
+    `(do ~@body)
+    `(let ((~(first bindings) ~(second bindings)))
+       (let* ~(drop 2 bindings) ~@body))))
+;; Expected: macro let* defined
+
+;; Use let* macro
+(let* (x 10
+       y (+ x 5)
+       z (* y 2))
+  (+ x y z))
+;; Expected: 40 (10 + 15 + 30)
+
+;; Macro for debug logging
+(defmacro debug (expr)
+  `(let ((result ~expr))
+     (println (str "DEBUG: " (quote ~expr) " = " result))
+     result))
+;; Expected: macro debug defined
+
+;; Use debug macro
+(debug (+ 2 3))
+;; Expected: prints "DEBUG: (+ 2 3) = 5" and returns 5

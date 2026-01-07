@@ -1,0 +1,26 @@
+;; Mutable REPL variables
+;; Tests variable mutation and reassignment
+
+;; Define a mutable variable
+(def mut counter:i32 0)
+;; Expected: variable counter defined
+
+;; Increment the counter
+(set! counter (+ counter 1))
+;; Expected: counter = 1
+
+;; Increment again
+(set! counter (+ counter 1))
+;; Expected: counter = 2
+
+;; Use the counter
+(* counter 10)
+;; Expected: 20
+
+;; Reset the counter
+(set! counter 0)
+;; Expected: counter = 0
+
+;; Verify reset
+counter
+;; Expected: 0

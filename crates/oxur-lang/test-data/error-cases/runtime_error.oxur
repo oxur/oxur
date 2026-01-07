@@ -1,0 +1,36 @@
+;; Runtime errors
+;; Tests that runtime errors are caught and reported correctly
+
+;; Division by zero
+(/ 10 0)
+;; Expected: Runtime error: division by zero
+
+;; Stack overflow from infinite recursion
+(deffn infinite-loop (n:i32) (:> i32)
+  (infinite-loop (+ n 1)))
+
+(infinite-loop 0)
+;; Expected: Runtime error: stack overflow
+
+;; Array index out of bounds
+(def arr:Vec<i32> [1, 2, 3])
+(vec-get arr 10)
+;; Expected: Runtime error: index out of bounds
+
+;; Unwrap on None
+(def maybe-value:Option<i32> None)
+(unwrap maybe-value)
+;; Expected: Runtime error: called unwrap on None
+
+;; Integer overflow (if checked)
+(def big:i32 2147483647)
+(+ big 1)
+;; Expected: Runtime error: integer overflow (if checked)
+
+;; Panic
+(panic "Something went wrong!")
+;; Expected: Runtime error: panic: Something went wrong!
+
+;; Access undefined variable
+undefined-var
+;; Expected: Runtime error: undefined variable 'undefined-var'

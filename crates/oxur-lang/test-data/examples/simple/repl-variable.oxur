@@ -1,0 +1,26 @@
+;; REPL variable definition and usage
+;; Tests variable storage across evaluations (Tier 2/3)
+
+;; Define an integer variable
+(def x:i32 42)
+;; Expected: variable x defined
+
+;; Use the variable
+(+ x 10)
+;; Expected: 52
+
+;; Define another variable
+(def y:i32 100)
+;; Expected: variable y defined
+
+;; Use both variables
+(+ x y)
+;; Expected: 142
+
+;; Define a string variable
+(def name:String "Oxur")
+;; Expected: variable name defined
+
+;; Complex expression with variables
+(* (+ x 8) 2)
+;; Expected: 100

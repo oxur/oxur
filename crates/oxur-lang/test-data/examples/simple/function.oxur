@@ -1,0 +1,29 @@
+;; Function definition and calling
+;; Tests basic function functionality
+
+;; Define a simple function
+(deffn square (x:i32) (:> i32)
+  (* x x))
+;; Expected: function square defined
+
+;; Call the function
+(square 5)
+;; Expected: 25
+
+;; Define a function with multiple parameters
+(deffn add (a:i32 b:i32) (:> i32)
+  (+ a b))
+;; Expected: function add defined
+
+;; Call with arguments
+(add 10 20)
+;; Expected: 30
+
+;; Define a function that uses another function
+(deffn sum-of-squares (a:i32 b:i32) (:> i32)
+  (+ (square a) (square b)))
+;; Expected: function sum-of-squares defined
+
+;; Call composed function
+(sum-of-squares 3 4)
+;; Expected: 25 (9 + 16)

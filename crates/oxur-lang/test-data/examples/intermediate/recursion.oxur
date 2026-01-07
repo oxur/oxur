@@ -1,0 +1,35 @@
+;; Recursive functions
+;; Tests recursion and tail-call optimization
+
+;; Factorial function
+(deffn factorial (n:i32) (:> i32)
+  (if (<= n 1)
+    1
+    (* n (factorial (- n 1)))))
+;; Expected: function factorial defined
+
+;; Calculate factorial
+(factorial 5)
+;; Expected: 120
+
+;; Fibonacci function
+(deffn fibonacci (n:i32) (:> i32)
+  (if (<= n 1)
+    n
+    (+ (fibonacci (- n 1)) (fibonacci (- n 2)))))
+;; Expected: function fibonacci defined
+
+;; Calculate fibonacci
+(fibonacci 10)
+;; Expected: 55
+
+;; Tail-recursive sum
+(deffn sum-to (n:i32 acc:i32) (:> i32)
+  (if (<= n 0)
+    acc
+    (sum-to (- n 1) (+ acc n))))
+;; Expected: function sum-to defined
+
+;; Call tail-recursive function
+(sum-to 100 0)
+;; Expected: 5050

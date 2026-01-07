@@ -1,0 +1,30 @@
+;; Syntax errors
+;; Tests that syntax errors are caught and reported correctly
+
+;; Unclosed parenthesis
+(+ 1 2
+;; Expected: Error: unclosed parenthesis
+
+;; Extra closing parenthesis
+(+ 1 2))
+;; Expected: Error: unexpected closing parenthesis
+
+;; Invalid number literal
+(+ 1 2x)
+;; Expected: Error: invalid number literal
+
+;; Missing expression
+(+)
+;; Expected: Error: missing operands
+
+;; Invalid keyword
+(defn 123-invalid (x) x)
+;; Expected: Error: invalid identifier (starts with number)
+
+;; Mismatched brackets
+(def x [1, 2, 3})
+;; Expected: Error: mismatched brackets
+
+;; Invalid character
+(+ 1 @ 2)
+;; Expected: Error: unexpected character '@'
