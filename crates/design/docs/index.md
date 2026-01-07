@@ -6,6 +6,7 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0044 | cargo-oxur: Cargo Plugin Planning & Resources | Active | 2026-01-07 |
 | 0043 | Oxur REPL Storage Architecture: A Tiered Approach | Draft | 2026-01-06 |
 | 0042 | Towards a Rust VM for Oxur: A Pragmatic Approach | Final | 2026-01-06 |
 | 0041 | Reimagining the REPL: A guide to modern terminal UX design | Final | 2026-01-06 |
@@ -62,6 +63,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Active
 
+- [0044 - cargo-oxur: Cargo Plugin Planning & Resources](05-active/0044-cargo-oxur-cargo-plugin-planning-resources.md)
 - [0040 - Oxur REPL Implementation Plan](05-active/0040-oxur-repl-implementation-plan.md)
 
 ### Final
