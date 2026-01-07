@@ -9,7 +9,7 @@ updated: 2026-01-06
 state: Final
 supersedes: null
 superseded-by: null
-version: 1.2
+version: 1.3
 ---
 
 
@@ -313,6 +313,143 @@ External crates used by server:
 ```
 
 **Key Principle:** ALL compilation happens on the server. The client is a thin protocol endpoint with zero compilation logic.
+
+### 1.5 CLI Integration
+
+The REPL is accessed through the unified `oxur` CLI tool, specifically via `oxur repl`. When `oxur` is invoked without a subcommand, it defaults to `oxur repl`.
+
+#### Binary Location
+
+**Crate:** `oxur-cli`
+**Binary:** `./bin/oxur` (via `cargo build`)
+
+#### Command-Line Interface
+
+```
+oxur repl [FLAGS]
+
+FLAGS:
+  -i, --interactive              Start the default built-in REPL server and connect
+                                 to it with the built-in client. This is the default
+                                 behavior when no flags are specified.
+
+  -c, --connect [<HOST:PORT>]    Connect to a running REPL server with the built-in
+                                 client. Default: 127.0.0.1:5099
+
+  --no-color                     Disable ANSI colors in interactive or connect modes.
+                                 No effect otherwise.
+
+  -s, --serve <PATH|HOST:PORT>   Start a REPL server only (no client). If PATH is
+                                 given, binds to a Unix domain socket. If HOST:PORT
+                                 is given, binds to TCP/IP.
+
+  --ack <ACK-PORT>               Acknowledge the port of this server to another
+                                 nREPL server running on ACK-PORT. Used for tooling
+                                 integration (editor plugins, etc.).
+
+  -t, --transport <TRANSPORT>    The transport module to use.
+                                 Default: oxur_repl::transport::tcp
+
+  -h, --help                     Print help information
+```
+
+#### Default Behavior (`-i`/`--interactive`)
+
+When `oxur repl` is invoked without flags (or with `-i`):
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      oxur repl (default mode)                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                  Terminal Interface                      │    │
+│  │  - rustyline/reedline for line editing                  │    │
+│  │  - Command history (persistent across sessions)         │    │
+│  │  - Ctrl-C handling (interrupts evaluation)              │    │
+│  │  - Ctrl-D handling (exits REPL)                         │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                           │                                     │
+│                           ▼                                     │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │               InProcessTransport                         │    │
+│  │  - Zero-copy message passing via channels               │    │
+│  │  - No serialization overhead                            │    │
+│  │  - Fastest possible client-server communication         │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                     │                │                          │
+│                     ▼                ▼                          │
+│  ┌──────────────────────┐  ┌───────────────────────┐           │
+│  │     ReplClient       │  │      ReplServer       │           │
+│  │  (in-process)        │◄─►│  (in-process)         │           │
+│  └──────────────────────┘  └───────────────────────┘           │
+│                                      │                          │
+│                                      ▼                          │
+│                           ┌───────────────────┐                │
+│                           │  SubprocessExecutor│                │
+│                           │  (isolated process)│                │
+│                           └───────────────────┘                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+1. **Terminal Interface** spawns and manages user interaction
+2. **InProcessTransport** provides zero-overhead communication between client and server
+3. **ReplClient** and **ReplServer** run in the same process, communicating via channels
+4. **SubprocessExecutor** runs in a separate process for isolation and Ctrl-C support
+
+#### Server Mode (`-s`/`--serve`)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│               oxur repl --serve 127.0.0.1:5099                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    ReplServer                            │    │
+│  │  - Listens on TCP socket or Unix domain socket          │    │
+│  │  - Accepts multiple client connections                   │    │
+│  │  - Manages sessions per client                          │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                           │                                     │
+│              ┌────────────┴────────────┐                       │
+│              ▼                         ▼                       │
+│  ┌──────────────────────┐  ┌───────────────────────┐           │
+│  │  Session 1           │  │  Session 2            │           │
+│  │  (EvalContext +      │  │  (EvalContext +       │           │
+│  │   Subprocess)        │  │   Subprocess)         │           │
+│  └──────────────────────┘  └───────────────────────┘           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Standalone server for remote connections or tooling integration (e.g., editor plugins).
+
+#### Connect Mode (`-c`/`--connect`)
+
+```
+oxur repl --connect 127.0.0.1:5099
+```
+
+Connects to an existing REPL server. Useful for:
+
+- Connecting to a remote Oxur REPL
+- Connecting from an editor plugin
+- Multiple terminals sharing one REPL session
+
+#### ACK Protocol (`--ack`)
+
+The `--ack` flag implements nREPL-style acknowledgment:
+
+```
+oxur repl --serve 0.0.0.0:0 --ack 5099
+```
+
+1. Server binds to an ephemeral port (`:0`)
+2. Server connects to ACK-PORT and sends its actual bound port
+3. Tooling on ACK-PORT receives the port and can connect
+
+This enables editors to launch REPL servers and discover their ports programmatically.
 
 ---
 
@@ -5487,6 +5624,37 @@ This architecture provides:
 ---
 
 ## 15. Version History
+
+### Version 1.3 (2026-01-07)
+
+Added CLI integration architecture for `oxur repl` command.
+
+**Changes:**
+
+1. **New Section 1.5: CLI Integration**
+   - Documents `oxur repl` command-line interface
+   - Flags: `-i/--interactive`, `-c/--connect`, `-s/--serve`, `--ack`, `-t/--transport`, `--no-color`
+   - Default behavior: in-memory client/server via InProcessTransport
+   - Architecture diagrams for interactive, server, and connect modes
+
+2. **InProcessTransport Architecture**
+   - Zero-copy message passing via Tokio channels
+   - Fastest possible client-server communication for default mode
+   - No serialization overhead for local REPL usage
+
+3. **Server Mode Architecture**
+   - TCP and Unix domain socket support
+   - Multi-session support with session isolation
+   - ACK protocol for editor/tooling integration (nREPL-style)
+
+4. **Terminal Interface**
+   - rustyline/reedline for line editing
+   - Persistent command history across sessions
+   - Ctrl-C (interrupt) and Ctrl-D (exit) handling
+
+**Impact:** Architecture addition - defines how users interact with the REPL via CLI
+
+---
 
 ### Version 1.2 (2026-01-05)
 

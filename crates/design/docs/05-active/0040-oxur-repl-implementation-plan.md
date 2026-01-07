@@ -9,19 +9,37 @@ updated: 2026-01-06
 state: Active
 supersedes: null
 superseded-by: null
-version: 1.0
+version: 1.1
 ---
 
 # Oxur REPL Implementation Plan
 
-**Document Version:** 1.0
-**Date:** 2026-01-06
+**Document Version:** 1.1
+**Date:** 2026-01-07
 **Purpose:** Detailed implementation guide for completing oxur-repl based on ODD-0038 spec and code analysis
 **Audience:** Claude Code (implementation agent)
 
 ---
 
-## Executive Summary
+## Table of Contents
+
+1. [Executive Summary](#1-executive-summary)
+2. [Implementation Phases](#2-implementation-phases)
+3. [Phase 0: Immediate Quality Tasks](#3-phase-0-immediate-quality-tasks)
+4. [Phase 1: VariableStore + Subprocess Runtime](#4-phase-1-variablestore--subprocess-runtime)
+5. [Phase 2: RustAstWrapper](#5-phase-2-rustastawrapper)
+6. [Phase 3: EvalContext + Integration](#6-phase-3-evalcontext--integration)
+7. [Phase 4: SourceMap Integration](#7-phase-4-sourcemap-integration)
+8. [Phase 5: Testing & Polish](#8-phase-5-testing--polish)
+9. [Phase 6: CLI Integration](#9-phase-6-cli-integration)
+10. [Summary: Implementation Order](#10-summary-implementation-order)
+11. [Success Criteria](#11-success-criteria)
+12. [Notes for Claude Code](#12-notes-for-claude-code)
+13. [Version History](#13-version-history)
+
+---
+
+## 1. Executive Summary
 
 Based on comprehensive review of:
 
@@ -55,7 +73,7 @@ Based on comprehensive review of:
 
 ---
 
-## Implementation Phases
+## 2. Implementation Phases
 
 ### Overview
 
@@ -67,12 +85,13 @@ Based on comprehensive review of:
 | **Phase 3** | EvalContext + Integration | 1-2 weeks | CRITICAL |
 | **Phase 4** | SourceMap Integration | 1-2 weeks | HIGH |
 | **Phase 5** | Testing & Polish | 1-2 weeks | HIGH |
+| **Phase 6** | CLI Integration | 1-2 weeks | HIGH |
 
-**Total Estimated Time:** 7-11 weeks
+**Total Estimated Time:** 8-13 weeks
 
 ---
 
-## Phase 0: Immediate Quality Tasks
+## 3. Phase 0: Immediate Quality Tasks
 
 **Duration:** 1-2 days
 **Priority:** HIGH (do first before any implementation)
@@ -123,7 +142,7 @@ cargo test --all-features
 
 ---
 
-## Phase 1: VariableStore + Subprocess Runtime
+## 4. Phase 1: VariableStore + Subprocess Runtime
 
 **Duration:** 1-2 weeks
 **Priority:** CRITICAL
@@ -551,7 +570,7 @@ async fn test_subprocess_restart() {
 
 ---
 
-## Phase 2: RustAstWrapper
+## 5. Phase 2: RustAstWrapper
 
 **Duration:** 2-3 weeks
 **Priority:** CRITICAL
@@ -922,7 +941,7 @@ fn test_variable_loading() {
 
 ---
 
-## Phase 3: EvalContext + Integration
+## 6. Phase 3: EvalContext + Integration
 
 **Duration:** 1-2 weeks
 **Priority:** CRITICAL
@@ -1255,7 +1274,7 @@ impl MessageHandler {
 
 ---
 
-## Phase 4: SourceMap Integration
+## 7. Phase 4: SourceMap Integration
 
 **Duration:** 1-2 weeks
 **Priority:** HIGH
@@ -1417,7 +1436,7 @@ pub fn display_error(error: &TranslatedError, source: &str) {
 
 ---
 
-## Phase 5: Testing & Polish
+## 8. Phase 5: Testing & Polish
 
 **Duration:** 1-2 weeks
 **Priority:** HIGH
@@ -1660,7 +1679,396 @@ Update all doc comments and create user documentation:
 
 ---
 
-## Summary: Implementation Order
+## 9. Phase 6: CLI Integration
+
+**Duration:** 1-2 weeks
+**Priority:** HIGH
+**Depends on:** Phase 3 (working EvalContext)
+
+### Context from ODD-0038
+
+See **Section 1.5: CLI Integration** for the complete architectural specification of the CLI interface.
+
+The CLI provides user-facing access to the REPL through the unified `oxur` binary. When `oxur` is invoked without a subcommand, it defaults to `oxur repl`.
+
+### Task 6.1: Update oxur-cli Repl Command
+
+**File:** `oxur-cli/src/main.rs`
+
+Replace the stub `Commands::Repl` with full flag support:
+
+```rust
+use clap::{Parser, Subcommand, Args};
+
+#[derive(Subcommand)]
+enum Commands {
+    // ... other commands ...
+
+    /// Start the interactive REPL
+    Repl(ReplArgs),
+}
+
+#[derive(Args)]
+struct ReplArgs {
+    /// Start the default built-in REPL server and connect to it
+    /// with the built-in client. This is the default behavior.
+    #[arg(short = 'i', long = "interactive")]
+    interactive: bool,
+
+    /// Connect to a running REPL server with the built-in client.
+    /// Default: 127.0.0.1:5099
+    #[arg(short = 'c', long = "connect", value_name = "HOST:PORT")]
+    connect: Option<Option<String>>,
+
+    /// Disable ANSI colors in interactive or connect modes.
+    #[arg(long = "no-color")]
+    no_color: bool,
+
+    /// Start a REPL server only. PATH for Unix socket, HOST:PORT for TCP.
+    #[arg(short = 's', long = "serve", value_name = "PATH|HOST:PORT")]
+    serve: Option<String>,
+
+    /// Acknowledge port to another nREPL server on ACK-PORT.
+    #[arg(long = "ack", value_name = "ACK-PORT")]
+    ack: Option<u16>,
+
+    /// The transport module to use. Default: oxur_repl::transport::tcp
+    #[arg(short = 't', long = "transport", value_name = "TRANSPORT")]
+    transport: Option<String>,
+}
+```
+
+**Implementation:**
+
+```rust
+Commands::Repl(args) => {
+    let color_enabled = !args.no_color;
+
+    if let Some(addr) = args.serve {
+        // Server mode: start ReplServer and listen
+        run_server_mode(&addr, args.ack, color_enabled).await?;
+    } else if let Some(addr) = args.connect {
+        // Connect mode: connect to existing server
+        let addr = addr.unwrap_or_else(|| "127.0.0.1:5099".to_string());
+        run_connect_mode(&addr, color_enabled).await?;
+    } else {
+        // Interactive mode (default): in-memory server + client
+        run_interactive_mode(color_enabled).await?;
+    }
+}
+```
+
+### Task 6.2: Implement InProcessTransport
+
+**File:** `oxur-repl/src/transport/inprocess.rs`
+
+Zero-overhead transport using Tokio channels for in-memory client-server communication:
+
+```rust
+use tokio::sync::mpsc;
+use crate::protocol::{Request, Response};
+
+/// In-process transport for fastest possible REPL startup.
+///
+/// Uses unbounded channels - no serialization, no network overhead.
+pub struct InProcessTransport {
+    client_tx: mpsc::UnboundedSender<Request>,
+    client_rx: mpsc::UnboundedReceiver<Response>,
+    server_tx: mpsc::UnboundedSender<Response>,
+    server_rx: mpsc::UnboundedReceiver<Request>,
+}
+
+impl InProcessTransport {
+    /// Create a new in-process transport pair (client side, server side).
+    pub fn new() -> (InProcessClient, InProcessServer) {
+        let (client_to_server_tx, client_to_server_rx) = mpsc::unbounded_channel();
+        let (server_to_client_tx, server_to_client_rx) = mpsc::unbounded_channel();
+
+        let client = InProcessClient {
+            tx: client_to_server_tx,
+            rx: server_to_client_rx,
+        };
+
+        let server = InProcessServer {
+            tx: server_to_client_tx,
+            rx: client_to_server_rx,
+        };
+
+        (client, server)
+    }
+}
+
+pub struct InProcessClient {
+    tx: mpsc::UnboundedSender<Request>,
+    rx: mpsc::UnboundedReceiver<Response>,
+}
+
+pub struct InProcessServer {
+    tx: mpsc::UnboundedSender<Response>,
+    rx: mpsc::UnboundedReceiver<Request>,
+}
+```
+
+### Task 6.3: Implement Terminal Interface
+
+**File:** `oxur-cli/src/repl/terminal.rs`
+
+Interactive terminal with line editing and history:
+
+```rust
+use rustyline::{Editor, Config, EditMode};
+use rustyline::error::ReadlineError;
+
+pub struct ReplTerminal {
+    editor: Editor<()>,
+    history_path: PathBuf,
+    color_enabled: bool,
+}
+
+impl ReplTerminal {
+    pub fn new(color_enabled: bool) -> Result<Self> {
+        let config = Config::builder()
+            .edit_mode(EditMode::Emacs)
+            .auto_add_history(true)
+            .build();
+
+        let mut editor = Editor::<()>::with_config(config)?;
+
+        let history_path = dirs::data_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("oxur")
+            .join("repl_history");
+
+        if history_path.exists() {
+            let _ = editor.load_history(&history_path);
+        }
+
+        Ok(Self { editor, history_path, color_enabled })
+    }
+
+    pub fn read_line(&mut self, prompt: &str) -> Result<Option<String>, ReadlineError> {
+        match self.editor.readline(prompt) {
+            Ok(line) => Ok(Some(line)),
+            Err(ReadlineError::Interrupted) => Ok(None),  // Ctrl-C
+            Err(ReadlineError::Eof) => Err(ReadlineError::Eof),  // Ctrl-D
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn save_history(&mut self) -> Result<()> {
+        std::fs::create_dir_all(self.history_path.parent().unwrap())?;
+        self.editor.save_history(&self.history_path)?;
+        Ok(())
+    }
+}
+```
+
+### Task 6.4: Implement Interactive Mode
+
+**File:** `oxur-cli/src/repl/interactive.rs`
+
+The main REPL loop for interactive mode:
+
+```rust
+pub async fn run_interactive_mode(color_enabled: bool) -> Result<()> {
+    // 1. Create in-process transport
+    let (client_transport, server_transport) = InProcessTransport::new();
+
+    // 2. Start server in background task
+    let server = ReplServer::new(server_transport)?;
+    let server_handle = tokio::spawn(async move {
+        server.serve().await
+    });
+
+    // 3. Create client and establish session
+    let mut client = ReplClient::new(client_transport);
+    let session_id = client.clone_session().await?;
+
+    // 4. Create terminal interface
+    let mut terminal = ReplTerminal::new(color_enabled)?;
+
+    // 5. Print welcome banner
+    println!("Oxur REPL v{}", env!("CARGO_PKG_VERSION"));
+    println!("Type (help) for assistance, Ctrl-D to exit.\n");
+
+    // 6. Main REPL loop
+    loop {
+        let prompt = if color_enabled { "\x1b[32moxur>\x1b[0m " } else { "oxur> " };
+
+        match terminal.read_line(prompt) {
+            Ok(Some(line)) => {
+                if line.trim().is_empty() {
+                    continue;
+                }
+
+                match client.eval(&line).await {
+                    Ok(result) => {
+                        if !result.stdout.is_empty() {
+                            print!("{}", result.stdout);
+                        }
+                        if let Some(value) = result.value {
+                            println!("{}", value);
+                        }
+                        if !result.stderr.is_empty() {
+                            eprintln!("{}", result.stderr);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                    }
+                }
+            }
+            Ok(None) => {
+                // Ctrl-C - interrupt current evaluation
+                let _ = client.interrupt().await;
+                println!();
+            }
+            Err(ReadlineError::Eof) => {
+                // Ctrl-D - exit
+                break;
+            }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                break;
+            }
+        }
+    }
+
+    // 7. Cleanup
+    terminal.save_history()?;
+    client.close().await?;
+    server_handle.abort();
+
+    Ok(())
+}
+```
+
+### Task 6.5: Implement Server and Connect Modes
+
+**File:** `oxur-cli/src/repl/server.rs`
+
+Server mode implementation:
+
+```rust
+pub async fn run_server_mode(
+    addr: &str,
+    ack_port: Option<u16>,
+    _color_enabled: bool,
+) -> Result<()> {
+    // Parse address to determine transport type
+    let is_unix_socket = addr.starts_with('/') || addr.starts_with("./");
+
+    let server = if is_unix_socket {
+        // Unix domain socket
+        let transport = UnixTransport::bind(PathBuf::from(addr)).await?;
+        eprintln!("REPL server listening on {}", addr);
+        ReplServer::new(transport)?
+    } else {
+        // TCP
+        let socket_addr: SocketAddr = addr.parse()?;
+        let transport = TcpTransport::bind(socket_addr).await?;
+        let actual_addr = transport.local_addr()?;
+        eprintln!("REPL server listening on {}", actual_addr);
+
+        // ACK protocol if requested
+        if let Some(ack_port) = ack_port {
+            ack_port_to_server(ack_port, &actual_addr).await?;
+        }
+
+        ReplServer::new(transport)?
+    };
+
+    server.serve().await?;
+    Ok(())
+}
+```
+
+**File:** `oxur-cli/src/repl/connect.rs`
+
+Connect mode implementation:
+
+```rust
+pub async fn run_connect_mode(addr: &str, color_enabled: bool) -> Result<()> {
+    // Connect to existing server
+    let transport = TcpTransport::connect(addr).await?;
+    let mut client = ReplClient::new(transport);
+    let _session_id = client.clone_session().await?;
+
+    // Create terminal and run same loop as interactive mode
+    let mut terminal = ReplTerminal::new(color_enabled)?;
+
+    println!("Connected to REPL server at {}", addr);
+
+    // ... same REPL loop as interactive mode ...
+
+    Ok(())
+}
+```
+
+### Task 6.6: Add Dependencies to oxur-cli
+
+**File:** `oxur-cli/Cargo.toml`
+
+```toml
+[dependencies]
+# ... existing deps ...
+
+# For REPL terminal
+rustyline = "14.0"
+dirs = "5.0"
+
+# For async runtime
+tokio = { version = "1.0", features = ["full"] }
+```
+
+### Task 6.7: Default Command Behavior
+
+**File:** `oxur-cli/src/main.rs`
+
+Make `oxur` default to `oxur repl`:
+
+```rust
+#[derive(Parser)]
+#[command(name = "oxur")]
+#[command(about = "Oxur - A Lisp that compiles to Rust", long_about = None)]
+#[command(version)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,  // Make optional
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(cmd) => handle_command(cmd),
+        None => {
+            // Default to interactive REPL
+            handle_command(Commands::Repl(ReplArgs::default()))
+        }
+    }
+}
+```
+
+### Phase 6 Completion Criteria
+
+- [ ] `oxur` (no args) starts interactive REPL
+- [ ] `oxur repl` starts interactive REPL
+- [ ] `oxur repl -i` starts interactive REPL (explicit)
+- [ ] `oxur repl -s 127.0.0.1:5099` starts server only
+- [ ] `oxur repl -s /tmp/oxur.sock` starts server on Unix socket
+- [ ] `oxur repl -c` connects to 127.0.0.1:5099
+- [ ] `oxur repl -c localhost:5099` connects to specified address
+- [ ] `oxur repl --no-color` disables colors
+- [ ] `oxur repl -s 0.0.0.0:0 --ack 5099` ACK protocol works
+- [ ] Ctrl-C interrupts evaluation
+- [ ] Ctrl-D exits REPL
+- [ ] Command history persists across sessions
+- [ ] Line editing works (arrow keys, home/end, etc.)
+
+---
+
+## 10. Summary: Implementation Order
 
 ```
 Phase 0: Quality Tasks (1-2 days)
@@ -1695,11 +2103,20 @@ Phase 5: Testing & Polish (1-2 weeks)
     ├── Task 5.2: E2E tests
     ├── Task 5.3: Benchmarks
     └── Task 5.4: Documentation
+
+Phase 6: CLI Integration (1-2 weeks)
+    ├── Task 6.1: Update oxur-cli Repl command
+    ├── Task 6.2: Implement InProcessTransport
+    ├── Task 6.3: Implement Terminal Interface
+    ├── Task 6.4: Implement Interactive Mode
+    ├── Task 6.5: Implement Server/Connect Modes
+    ├── Task 6.6: Add dependencies
+    └── Task 6.7: Default command behavior
 ```
 
 ---
 
-## Success Criteria
+## 11. Success Criteria
 
 ### Minimum Viable REPL (End of Phase 3)
 
@@ -1721,9 +2138,20 @@ Phase 5: Testing & Polish (1-2 weeks)
 - [ ] Documentation complete
 - [ ] Zero clippy warnings
 
+### User-Ready Release (End of Phase 6)
+
+- [ ] `oxur` command starts interactive REPL by default
+- [ ] Server mode (`-s`) works with TCP and Unix sockets
+- [ ] Connect mode (`-c`) works with running servers
+- [ ] ACK protocol enables editor integration
+- [ ] Command history persists across sessions
+- [ ] Line editing provides familiar UX
+- [ ] Ctrl-C/Ctrl-D behavior matches user expectations
+- [ ] `--no-color` works for accessibility/scripting
+
 ---
 
-## Notes for Claude Code
+## 12. Notes for Claude Code
 
 1. **Start with Phase 0** - Don't skip the quality tasks. They establish a clean baseline.
 
@@ -1738,6 +2166,46 @@ Phase 5: Testing & Polish (1-2 weeks)
 6. **Track progress** - Check off items as you complete them. Report blockers immediately.
 
 7. **Commit often** - Make small, focused commits with clear messages.
+
+---
+
+## 13. Version History
+
+### Version 1.1 (2026-01-07)
+
+Added CLI integration phase and improved document organization.
+
+**Changes:**
+
+1. **New Phase 6: CLI Integration**
+   - Added complete implementation plan for `oxur repl` CLI command
+   - 7 tasks covering: command flags, InProcessTransport, terminal interface, interactive/server/connect modes
+   - 13 completion criteria for CLI functionality
+   - References ODD-0038 Section 1.5 for architecture
+
+2. **Document Organization**
+   - Added Table of Contents with section links
+   - Numbered all major sections (1-13)
+   - Added "User-Ready Release (End of Phase 6)" success criteria
+
+3. **Updated Estimates**
+   - Total time updated from 7-11 weeks to 8-13 weeks (includes Phase 6)
+   - Updated overview table to include Phase 6
+
+**Impact:** Plan now covers full user-facing REPL experience, not just backend implementation
+
+---
+
+### Version 1.0 (2026-01-06)
+
+Initial implementation plan based on ODD-0038 v1.2 and code analysis.
+
+**Contents:**
+
+- Phases 0-5 covering core REPL implementation
+- Task breakdown for VariableStore, RustAstWrapper, EvalContext, SourceMap
+- Success criteria for Minimum Viable REPL and Production Quality
+- Notes for Claude Code implementation agent
 
 ---
 
