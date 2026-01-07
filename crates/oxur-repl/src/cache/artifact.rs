@@ -484,25 +484,33 @@ impl ArtifactCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oxur_testing::env_lock::with_env_lock;
     use std::env;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    // Shared counter for generating unique cache directories
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn setup_test_cache() -> (ArtifactCache, PathBuf) {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
         let test_dir =
             env::temp_dir().join(format!("oxur-test-cache-{}-{}", std::process::id(), id));
-        env::set_var("OXUR_CACHE_DIR", &test_dir);
 
-        let mut cache = ArtifactCache::new().expect("Failed to create cache");
-        cache.clear().expect("Failed to clear cache");
-        (cache, test_dir)
+        // Use env_lock to prevent race conditions when parallel tests modify OXUR_CACHE_DIR
+        with_env_lock(|| {
+            env::set_var("OXUR_CACHE_DIR", &test_dir);
+
+            let mut cache = ArtifactCache::new().expect("Failed to create cache");
+            cache.clear().expect("Failed to clear cache");
+            (cache, test_dir)
+        })
     }
 
     fn cleanup_test_cache(test_dir: PathBuf) {
-        env::remove_var("OXUR_CACHE_DIR");
-        let _ = fs::remove_dir_all(&test_dir);
+        with_env_lock(|| {
+            env::remove_var("OXUR_CACHE_DIR");
+            let _ = fs::remove_dir_all(&test_dir);
+        });
     }
 
     #[test]
@@ -551,9 +559,6 @@ mod tests {
 
     #[test]
     fn test_insert_and_get() {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-
         let (mut cache, test_dir) = setup_test_cache();
 
         // Create a temporary artifact file with unique name
@@ -589,9 +594,6 @@ mod tests {
 
     #[test]
     fn test_cache_stats() {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-
         let (mut cache, test_dir) = setup_test_cache();
 
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -611,9 +613,6 @@ mod tests {
 
     #[test]
     fn test_cache_clear() {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-
         let (mut cache, test_dir) = setup_test_cache();
 
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -637,9 +636,6 @@ mod tests {
 
     #[test]
     fn test_cache_persistence() {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static COUNTER: AtomicU64 = AtomicU64::new(1000);
-
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
         let test_dir =
             env::temp_dir().join(format!("oxur-test-persist-{}-{}", std::process::id(), id));

@@ -33,7 +33,7 @@ pub type Result<T> = std::result::Result<T, WrapperError>;
 /// let wrapper = RustAstWrapper::new();
 ///
 /// let user_code = "let x = 42;\nprintln!(\"x = {}\", x);";
-/// let wrapped = wrapper.wrap("test_key", user_code).unwrap();
+/// let wrapped = wrapper.wrap("test_key", user_code, None).unwrap();
 ///
 /// // wrapped contains:
 /// // - #[no_mangle]
@@ -90,25 +90,87 @@ impl RustAstWrapper {
         }
 
         // Parse user code into AST
-        let user_stmts = self.parse_user_code(user_code)?;
+        let mut user_stmts = self.parse_user_code(user_code)?;
+
+        // Check if last statement is an expression (needs result capture)
+        let needs_result_capture = if let Some(last_stmt) = user_stmts.last() {
+            matches!(last_stmt, syn::Stmt::Expr(_, None))
+        } else {
+            false
+        };
+
+        // If last statement is an expression, wrap it to capture the result
+        if needs_result_capture {
+            if let Some(syn::Stmt::Expr(expr, None)) = user_stmts.pop() {
+                // Generate code to capture result in a global static
+                // The subprocess will export a function to read this after execution
+                let result_capture = quote::quote! {
+                    {
+                        let __result_value = #expr;
+                        let __result_string = format!("{:?}", __result_value);
+                        // Store in a global variable that subprocess can read
+                        unsafe {
+                            OXUR_RESULT_BUFFER = Some(__result_string);
+                        }
+                    }
+                };
+
+                // Parse the generated code into a statement
+                let result_stmt: syn::Stmt = syn::parse2(result_capture).map_err(|e| {
+                    WrapperError::InvalidCode(format!("Failed to parse result capture: {}", e))
+                })?;
+
+                user_stmts.push(result_stmt);
+            }
+        }
 
         // Generate function name identifier
-        let fn_name = syn::Ident::new(
-            &format!("oxur_eval_{}", cache_key),
-            proc_macro2::Span::call_site(),
-        );
+        let fn_name =
+            syn::Ident::new(&format!("oxur_eval_{}", cache_key), proc_macro2::Span::call_site());
 
-        // Generate wrapper function using quote!
-        let wrapped_fn = quote::quote! {
-            #[no_mangle]
-            pub extern "C" fn #fn_name() {
-                #(#user_stmts)*
+        // Generate wrapper function with global result buffer
+        let wrapped_fn = if needs_result_capture {
+            quote::quote! {
+                // Global buffer for storing expression results
+                static mut OXUR_RESULT_BUFFER: Option<String> = None;
+
+                #[no_mangle]
+                pub extern "C" fn #fn_name() {
+                    #(#user_stmts)*
+                }
+
+                // Export function to read the result buffer
+                #[no_mangle]
+                pub extern "C" fn oxur_get_result() -> *const u8 {
+                    unsafe {
+                        if let Some(ref s) = OXUR_RESULT_BUFFER {
+                            s.as_ptr()
+                        } else {
+                            std::ptr::null()
+                        }
+                    }
+                }
+
+                #[no_mangle]
+                pub extern "C" fn oxur_get_result_len() -> usize {
+                    unsafe {
+                        OXUR_RESULT_BUFFER.as_ref().map(|s| s.len()).unwrap_or(0)
+                    }
+                }
+            }
+        } else {
+            quote::quote! {
+                #[no_mangle]
+                pub extern "C" fn #fn_name() {
+                    #(#user_stmts)*
+                }
             }
         };
 
         // Parse back into syn::File for proper formatting
-        let file: syn::File = syn::parse2(wrapped_fn)
-            .map_err(|e| WrapperError::InvalidCode(format!("Failed to parse generated code: {}", e)))?;
+        let file: syn::File = syn::parse2(wrapped_fn).map_err(|e| {
+            WrapperError::InvalidCode(format!("Failed to parse generated code: {}", e))
+        })?;
 
         // Format with prettyplease
         let formatted = prettyplease::unparse(&file);
@@ -140,19 +202,11 @@ impl RustAstWrapper {
     fn parse_user_code(&self, code: &str) -> Result<Vec<syn::Stmt>> {
         // Try parsing as a file first
         if let Ok(file) = syn::parse_str::<syn::File>(code) {
-            // Extract statements from items (typically from main fn or bare statements)
+            // Convert all items to statements
             let mut stmts = Vec::new();
             for item in file.items {
-                match item {
-                    syn::Item::Fn(func) => {
-                        // Extract statements from function body
-                        stmts.extend(func.block.stmts);
-                    }
-                    _ => {
-                        // Convert other items to statements
-                        stmts.push(syn::Stmt::Item(item));
-                    }
-                }
+                // Keep all items as statements, including function definitions
+                stmts.push(syn::Stmt::Item(item));
             }
             return Ok(stmts);
         }
@@ -170,10 +224,7 @@ impl RustAstWrapper {
         }
 
         // Failed to parse
-        Err(WrapperError::InvalidCode(format!(
-            "Could not parse user code as valid Rust: {}",
-            code
-        )))
+        Err(WrapperError::InvalidCode(format!("Could not parse user code as valid Rust: {}", code)))
     }
 
     /// Wrap code with variable store access
@@ -245,10 +296,8 @@ impl RustAstWrapper {
         let var_stores = self.generate_var_stores(&all_vars)?;
 
         // Generate function name
-        let fn_name = syn::Ident::new(
-            &format!("oxur_eval_{}", cache_key),
-            proc_macro2::Span::call_site(),
-        );
+        let fn_name =
+            syn::Ident::new(&format!("oxur_eval_{}", cache_key), proc_macro2::Span::call_site());
 
         // Generate complete function (WITHOUT source map comments in AST)
         // We'll add comments via string post-processing below
@@ -264,8 +313,9 @@ impl RustAstWrapper {
         };
 
         // Parse and format
-        let file: syn::File = syn::parse2(wrapped_fn)
-            .map_err(|e| WrapperError::InvalidCode(format!("Failed to parse generated code: {}", e)))?;
+        let file: syn::File = syn::parse2(wrapped_fn).map_err(|e| {
+            WrapperError::InvalidCode(format!("Failed to parse generated code: {}", e))
+        })?;
         let formatted = prettyplease::unparse(&file);
 
         // Add header
@@ -297,8 +347,9 @@ impl RustAstWrapper {
 
         for (var_name, var_type) in variables {
             // Parse the type
-            let ty: syn::Type = syn::parse_str(var_type)
-                .map_err(|e| WrapperError::InvalidCode(format!("Invalid type '{}': {}", var_type, e)))?;
+            let ty: syn::Type = syn::parse_str(var_type).map_err(|e| {
+                WrapperError::InvalidCode(format!("Invalid type '{}': {}", var_type, e))
+            })?;
 
             let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
 
@@ -311,8 +362,9 @@ impl RustAstWrapper {
                 });
             };
 
-            let parsed_stmt: syn::Stmt = syn::parse2(stmt)
-                .map_err(|e| WrapperError::InvalidCode(format!("Failed to parse load statement: {}", e)))?;
+            let parsed_stmt: syn::Stmt = syn::parse2(stmt).map_err(|e| {
+                WrapperError::InvalidCode(format!("Failed to parse load statement: {}", e))
+            })?;
             stmts.push(parsed_stmt);
         }
 
@@ -335,8 +387,9 @@ impl RustAstWrapper {
                 });
             };
 
-            let parsed_stmt: syn::Stmt = syn::parse2(stmt)
-                .map_err(|e| WrapperError::InvalidCode(format!("Failed to parse store statement: {}", e)))?;
+            let parsed_stmt: syn::Stmt = syn::parse2(stmt).map_err(|e| {
+                WrapperError::InvalidCode(format!("Failed to parse store statement: {}", e))
+            })?;
             stmts.push(parsed_stmt);
         }
 
@@ -441,10 +494,8 @@ impl RustAstWrapper {
             // Look for user code statements (not variable load/store)
             // User statements are after all "let x: T = ... with_store" lines
             // and before "oxur_repl::subprocess::with_store(|store| { store.set"
-            let is_var_load = line.contains("with_store(|store| {")
-                && line.contains("store.get");
-            let is_var_store = line.contains("with_store(|store| {")
-                && line.contains("store.set");
+            let is_var_load = line.contains("with_store(|store| {") && line.contains("store.get");
+            let is_var_store = line.contains("with_store(|store| {") && line.contains("store.set");
 
             // If it's not a variable load/store and has actual code (not just braces/comments)
             if !is_var_load
@@ -646,13 +697,12 @@ mod tests {
         let wrapper = RustAstWrapper::new();
 
         let user_code = "let z = x + y;";
-        let variables = vec![
-            ("x".to_string(), "i32".to_string()),
-            ("y".to_string(), "i32".to_string()),
-        ];
+        let variables =
+            vec![("x".to_string(), "i32".to_string()), ("y".to_string(), "i32".to_string())];
 
-        let wrapped =
-            wrapper.wrap_with_store("store_test", user_code, &variables, None).expect("Wrapping failed");
+        let wrapped = wrapper
+            .wrap_with_store("store_test", user_code, &variables, None)
+            .expect("Wrapping failed");
 
         // Should have function declaration
         assert!(wrapped.contains("#[no_mangle]"));
@@ -677,8 +727,9 @@ mod tests {
         let user_code = "let x = 42;";
         let variables = vec![]; // No existing variables
 
-        let wrapped =
-            wrapper.wrap_with_store("no_vars", user_code, &variables, None).expect("Wrapping failed");
+        let wrapped = wrapper
+            .wrap_with_store("no_vars", user_code, &variables, None)
+            .expect("Wrapping failed");
 
         // Should still generate function
         assert!(wrapped.contains("#[no_mangle]"));
@@ -702,8 +753,9 @@ mod tests {
             ("c".to_string(), "i32".to_string()),
         ];
 
-        let wrapped =
-            wrapper.wrap_with_store("multi_vars", user_code, &variables, None).expect("Wrapping failed");
+        let wrapped = wrapper
+            .wrap_with_store("multi_vars", user_code, &variables, None)
+            .expect("Wrapping failed");
 
         // Should load all three variables
         assert!(wrapped.contains("\"a\"") || wrapped.contains("let a"));
@@ -729,13 +781,11 @@ mod tests {
         let wrapper = RustAstWrapper::new();
 
         let user_code = "let result = x * 2 + y;";
-        let variables = vec![
-            ("x".to_string(), "i32".to_string()),
-            ("y".to_string(), "i32".to_string()),
-        ];
+        let variables =
+            vec![("x".to_string(), "i32".to_string()), ("y".to_string(), "i32".to_string())];
 
-        let wrapped = wrapper.wrap_with_store("test", user_code, &variables, None)
-            .expect("Wrapping failed");
+        let wrapped =
+            wrapper.wrap_with_store("test", user_code, &variables, None).expect("Wrapping failed");
 
         // The generated code should parse as valid Rust
         let parsed = syn::parse_file(&wrapped);
@@ -766,7 +816,8 @@ mod tests {
 
         // Wrap with variables
         let vars = vec![("x".to_string(), "i32".to_string())];
-        let wrapped2 = wrapper.wrap_with_store("trip2", user_code, &vars, None)
+        let wrapped2 = wrapper
+            .wrap_with_store("trip2", user_code, &vars, None)
             .expect("Wrap with store failed");
 
         let parsed2 = syn::parse_file(&wrapped2);
@@ -781,8 +832,7 @@ mod tests {
 
         // Evaluation 1: Create variables
         let code1 = "let x: i32 = 42; let y: i32 = 100;";
-        let wrapped1 = wrapper.wrap_with_store("eval1", code1, &[], None)
-            .expect("Eval 1 failed");
+        let wrapped1 = wrapper.wrap_with_store("eval1", code1, &[], None).expect("Eval 1 failed");
 
         // Should create and store x and y
         assert!(wrapped1.contains("store.set"));
@@ -794,7 +844,8 @@ mod tests {
 
         // Evaluation 2: Use existing variables
         let code2 = "let sum = x + y;";
-        let wrapped2 = wrapper.wrap_with_store("eval2", code2, &vars_after_eval1, None)
+        let wrapped2 = wrapper
+            .wrap_with_store("eval2", code2, &vars_after_eval1, None)
             .expect("Eval 2 failed");
 
         // Should load x and y, create sum
@@ -817,8 +868,8 @@ mod tests {
 
         // Evaluation 3: Use all variables
         let code3 = "let product = sum * x;";
-        let wrapped3 = wrapper.wrap_with_store("eval3", code3, &all_vars, None)
-            .expect("Eval 3 failed");
+        let wrapped3 =
+            wrapper.wrap_with_store("eval3", code3, &all_vars, None).expect("Eval 3 failed");
 
         assert!(wrapped3.contains("with_store"));
         assert!(syn::parse_file(&wrapped3).is_ok());
@@ -840,8 +891,8 @@ mod tests {
             ("existing_vec".to_string(), "Vec<i32>".to_string()),
         ];
 
-        let wrapped = wrapper.wrap_with_store("complex", code, &vars, None)
-            .expect("Complex types failed");
+        let wrapped =
+            wrapper.wrap_with_store("complex", code, &vars, None).expect("Complex types failed");
 
         // Should handle complex types in variable loads/stores
         assert!(wrapped.contains("with_store"));
@@ -961,13 +1012,12 @@ mod tests {
         source_map.record_surface_node(node2, SourcePos::repl(2, 1, 15));
 
         let user_code = "let result = x + y;";
-        let variables = vec![
-            ("x".to_string(), "i32".to_string()),
-            ("y".to_string(), "i32".to_string()),
-        ];
+        let variables =
+            vec![("x".to_string(), "i32".to_string()), ("y".to_string(), "i32".to_string())];
 
         // Wrap with source map
-        let wrapped = wrapper.wrap_with_store("smap_test", user_code, &variables, Some(&source_map))
+        let wrapped = wrapper
+            .wrap_with_store("smap_test", user_code, &variables, Some(&source_map))
             .expect("Wrapping with source map failed");
 
         // Should contain source map comments
@@ -990,12 +1040,15 @@ mod tests {
         let variables = vec![];
 
         // Wrap without source map (None)
-        let wrapped = wrapper.wrap_with_store("no_smap", user_code, &variables, None)
+        let wrapped = wrapper
+            .wrap_with_store("no_smap", user_code, &variables, None)
             .expect("Wrapping without source map failed");
 
         // Should NOT contain source map comments
-        assert!(!wrapped.contains("/* oxur_node="),
-            "Should not have source map comments when source_map is None");
+        assert!(
+            !wrapped.contains("/* oxur_node="),
+            "Should not have source map comments when source_map is None"
+        );
 
         // But should still be valid
         assert!(wrapped.contains("oxur_eval_no_smap"));
@@ -1022,7 +1075,8 @@ mod tests {
             let c = a + b;
         "#;
 
-        let wrapped = wrapper.wrap_with_store("format_test", user_code, &[], Some(&source_map))
+        let wrapped = wrapper
+            .wrap_with_store("format_test", user_code, &[], Some(&source_map))
             .expect("Wrapping failed");
 
         // Should have properly formatted comments
@@ -1033,8 +1087,10 @@ mod tests {
         if let Some(idx) = wrapped.find("/* oxur_node=") {
             let after_comment = &wrapped[idx..];
             // After comment, there should be valid Rust code
-            assert!(after_comment.contains("let") || after_comment.contains("fn"),
-                "Comments should be followed by code");
+            assert!(
+                after_comment.contains("let") || after_comment.contains("fn"),
+                "Comments should be followed by code"
+            );
         }
     }
 
@@ -1051,16 +1107,18 @@ mod tests {
         let user_code = "let x: i32 = 42;";
 
         // Generate wrapped code with source map
-        let wrapped = wrapper.wrap_with_store("semantics_test", user_code, &[], Some(&source_map))
+        let wrapped = wrapper
+            .wrap_with_store("semantics_test", user_code, &[], Some(&source_map))
             .expect("Wrapping with source map failed");
 
         // Should contain the original variable and value
-        assert!(wrapped.contains("x") && wrapped.contains("42"),
-            "Annotated code should preserve semantics");
+        assert!(
+            wrapped.contains("x") && wrapped.contains("42"),
+            "Annotated code should preserve semantics"
+        );
 
         // Should contain source map comments
-        assert!(wrapped.contains("/* oxur_node="),
-            "Should have source map comments");
+        assert!(wrapped.contains("/* oxur_node="), "Should have source map comments");
 
         // Code should still parse as valid Rust
         let parsed = syn::parse_file(&wrapped);

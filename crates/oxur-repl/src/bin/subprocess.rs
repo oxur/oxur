@@ -31,7 +31,7 @@
 //! - Variable isolation and cleanup on crash
 
 use libloading::{Library, Symbol};
-use oxur_repl::subprocess::init_global_store;
+use oxur_repl::subprocess::{init_global_store, set_result, take_result};
 use std::collections::HashMap;
 use std::io::{self, BufRead, BufReader, Write};
 use std::panic;
@@ -41,8 +41,12 @@ use std::path::PathBuf;
 ///
 /// All generated functions follow this signature:
 /// - No arguments (variables accessed via global store)
-/// - No return value (results stored in global store)
+/// - No return value (results stored in global static)
 type ReplFunction = unsafe extern "C" fn();
+
+/// Type signatures for result retrieval functions exported by dynamic libraries
+type GetResultFn = unsafe extern "C" fn() -> *const u8;
+type GetResultLenFn = unsafe extern "C" fn() -> usize;
 
 /// Library manager for tracking loaded dynamic libraries
 struct LibraryManager {
@@ -98,7 +102,25 @@ impl LibraryManager {
             }));
 
             match result {
-                Ok(()) => Ok(()),
+                Ok(()) => {
+                    // Try to retrieve result from global buffer
+                    if let Ok(get_result_fn) = library.get::<GetResultFn>(b"oxur_get_result") {
+                        if let Ok(get_len_fn) =
+                            library.get::<GetResultLenFn>(b"oxur_get_result_len")
+                        {
+                            let ptr = get_result_fn();
+                            let len = get_len_fn();
+
+                            if !ptr.is_null() && len > 0 {
+                                let slice = std::slice::from_raw_parts(ptr, len);
+                                if let Ok(s) = std::str::from_utf8(slice) {
+                                    set_result(s.to_string());
+                                }
+                            }
+                        }
+                    }
+                    Ok(())
+                }
                 Err(panic_info) => {
                     // Extract panic message
                     let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
@@ -177,6 +199,10 @@ fn run_protocol() {
                 } else if let Some(args) = cmd.strip_prefix("RUN ") {
                     match handle_run(&manager, args) {
                         Ok(()) => {
+                            // Send result value if one was captured
+                            if let Some(result_value) = take_result() {
+                                writeln!(stdout, "OXUR_RESULT {}", result_value).ok();
+                            }
                             writeln!(stdout, "OXUR_EXECUTION_COMPLETE").ok();
                         }
                         Err(e) => {

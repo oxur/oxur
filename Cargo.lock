@@ -1016,6 +1016,7 @@ dependencies = [
  "colored",
  "criterion",
  "oxur-cli",
+ "oxur-testing",
  "prettyplease",
  "quote",
  "syn 2.0.111",
@@ -1091,6 +1092,7 @@ dependencies = [
  "oxur-comp",
  "oxur-lang",
  "oxur-smap",
+ "oxur-testing",
  "postcard",
  "prettyplease",
  "proc-macro2",
@@ -1110,6 +1112,18 @@ name = "oxur-smap"
 version = "0.1.0"
 dependencies = [
  "criterion",
+]
+
+[[package]]
+name = "oxur-testing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "walkdir",
 ]
 
 [[package]]

@@ -258,15 +258,19 @@ mod tests {
 
     #[test]
     fn test_session_dir_respects_env_var() {
-        let test_dir = env::temp_dir().join("oxur-test-custom");
-        env::set_var("OXUR_REPL_TEMP_DIR", &test_dir);
+        use oxur_testing::env_lock::with_env_lock;
 
-        let session_id = SessionId::new("test-env");
-        let dir = SessionDir::new(&session_id).expect("Failed to create session dir");
+        with_env_lock(|| {
+            let test_dir = env::temp_dir().join("oxur-test-custom");
+            env::set_var("OXUR_REPL_TEMP_DIR", &test_dir);
 
-        assert!(dir.path().starts_with(&test_dir));
+            let session_id = SessionId::new("test-env");
+            let dir = SessionDir::new(&session_id).expect("Failed to create session dir");
 
-        env::remove_var("OXUR_REPL_TEMP_DIR");
+            assert!(dir.path().starts_with(&test_dir));
+
+            env::remove_var("OXUR_REPL_TEMP_DIR");
+        });
     }
 
     #[cfg(target_os = "linux")]

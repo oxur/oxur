@@ -219,7 +219,11 @@ impl ErrorTranslator {
         // If we have a source map, try to look up the original position
         let pos = if let Some(source_map) = &self.source_map {
             // Try to extract NodeId from generated source
-            match self.extract_node_id_from_file(&span.file_name, span.line_start, span.column_start) {
+            match self.extract_node_id_from_file(
+                &span.file_name,
+                span.line_start,
+                span.column_start,
+            ) {
                 Ok(node_id) => {
                     // Look up original position in source map
                     source_map.lookup(&node_id).unwrap_or_else(|| {
@@ -263,14 +267,14 @@ impl ErrorTranslator {
         column: usize,
     ) -> Result<oxur_smap::NodeId> {
         // Read the source file
-        let source = std::fs::read_to_string(file_path)
-            .map_err(|e| TranslationError::LookupFailed(format!("Failed to read {}: {}", file_path, e)))?;
+        let source = std::fs::read_to_string(file_path).map_err(|e| {
+            TranslationError::LookupFailed(format!("Failed to read {}: {}", file_path, e))
+        })?;
 
         // Get the specific line (line numbers are 1-based)
-        let line_content = source
-            .lines()
-            .nth(line.saturating_sub(1))
-            .ok_or_else(|| TranslationError::LookupFailed(format!("Line {} not found in {}", line, file_path)))?;
+        let line_content = source.lines().nth(line.saturating_sub(1)).ok_or_else(|| {
+            TranslationError::LookupFailed(format!("Line {} not found in {}", line, file_path))
+        })?;
 
         // Extract NodeId from the line
         self.extract_node_id_from_line(line_content, column)
@@ -284,8 +288,9 @@ impl ErrorTranslator {
         use regex::Regex;
 
         // Pattern to match /* oxur_node=123 */ comments
-        let pattern = Regex::new(r"/\*\s*oxur_node=(\d+)\s*\*/")
-            .map_err(|e| TranslationError::LookupFailed(format!("Regex compilation failed: {}", e)))?;
+        let pattern = Regex::new(r"/\*\s*oxur_node=(\d+)\s*\*/").map_err(|e| {
+            TranslationError::LookupFailed(format!("Regex compilation failed: {}", e))
+        })?;
 
         // Find all matches and pick the one closest to the column
         let mut best_match: Option<(usize, u32)> = None;
@@ -294,13 +299,13 @@ impl ErrorTranslator {
             if let Some(whole_match) = capture.get(0) {
                 if let Some(node_id_str) = capture.get(1) {
                     let match_start = whole_match.start();
-                    let node_id: u32 = node_id_str
-                        .as_str()
-                        .parse()
-                        .map_err(|e| TranslationError::LookupFailed(format!("Invalid node_id: {}", e)))?;
+                    let node_id: u32 = node_id_str.as_str().parse().map_err(|e| {
+                        TranslationError::LookupFailed(format!("Invalid node_id: {}", e))
+                    })?;
 
                     // Calculate distance from column (columns are 1-based)
-                    let distance = (match_start as i32 - column.saturating_sub(1) as i32).abs() as usize;
+                    let distance = (match_start as i32 - column.saturating_sub(1) as i32)
+                        .unsigned_abs() as usize;
 
                     // Keep the closest match
                     if best_match.is_none() || distance < best_match.unwrap().0 {
@@ -311,9 +316,9 @@ impl ErrorTranslator {
         }
 
         // Return the NodeId of the closest match
-        best_match
-            .map(|(_, id)| oxur_smap::NodeId::from_raw(id))
-            .ok_or_else(|| TranslationError::LookupFailed("No oxur_node comment found in line".to_string()))
+        best_match.map(|(_, id)| oxur_smap::NodeId::from_raw(id)).ok_or_else(|| {
+            TranslationError::LookupFailed("No oxur_node comment found in line".to_string())
+        })
     }
 }
 
@@ -408,7 +413,9 @@ impl TranslatedDiagnostic {
             DiagnosticLevel::Error => ReportKind::Error,
             DiagnosticLevel::Warning => ReportKind::Warning,
             DiagnosticLevel::Note | DiagnosticLevel::Help => ReportKind::Advice,
-            DiagnosticLevel::FailureNote | DiagnosticLevel::Other => ReportKind::Custom("note", Color::Cyan),
+            DiagnosticLevel::FailureNote | DiagnosticLevel::Other => {
+                ReportKind::Custom("note", Color::Cyan)
+            }
         };
 
         // Build the report
@@ -439,7 +446,8 @@ impl TranslatedDiagnostic {
             let byte_offset = self.calculate_byte_offset(source, &secondary.pos);
             let end_offset = byte_offset + secondary.pos.length as usize;
 
-            let mut label = Label::new(("<repl>", byte_offset..end_offset)).with_color(Color::Yellow);
+            let mut label =
+                Label::new(("<repl>", byte_offset..end_offset)).with_color(Color::Yellow);
 
             if let Some(msg) = &secondary.label {
                 label = label.with_message(msg);
@@ -658,17 +666,15 @@ mod tests {
                 source_text: None,
             }),
             secondary_spans: vec![],
-            children: vec![
-                TranslatedDiagnostic {
-                    message: "consider using .parse()".to_string(),
-                    level: DiagnosticLevel::Help,
-                    code: None,
-                    primary_span: None,
-                    secondary_spans: vec![],
-                    children: vec![],
-                    suggestion: None,
-                },
-            ],
+            children: vec![TranslatedDiagnostic {
+                message: "consider using .parse()".to_string(),
+                level: DiagnosticLevel::Help,
+                code: None,
+                primary_span: None,
+                secondary_spans: vec![],
+                children: vec![],
+                suggestion: None,
+            }],
             suggestion: None,
         };
 
@@ -840,10 +846,7 @@ pub extern "C" fn oxur_eval_test() {{
             }
         }
 
-        assert!(
-            node_id_result.is_some(),
-            "Should extract NodeId from comment in generated code"
-        );
+        assert!(node_id_result.is_some(), "Should extract NodeId from comment in generated code");
 
         let extracted_node = node_id_result.unwrap();
         assert_eq!(
@@ -878,10 +881,7 @@ pub extern "C" fn oxur_eval_test() {{
             ariadne_output.contains("mismatched types"),
             "Ariadne output should contain error message"
         );
-        assert!(
-            ariadne_output.contains("Error"),
-            "Ariadne output should show error severity"
-        );
+        assert!(ariadne_output.contains("Error"), "Ariadne output should show error severity");
 
         // Success! Full pipeline works:
         // Oxur source → SourceMap → Rust + comments → rustc error → NodeId extraction
@@ -1022,4 +1022,3 @@ pub extern "C" fn test() {{
         assert_ne!(pos1.line, pos2.line);
     }
 }
-

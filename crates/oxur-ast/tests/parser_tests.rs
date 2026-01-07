@@ -1,26 +1,25 @@
 use oxur_ast::sexp::{Parser, SExp};
 use oxur_ast::ParseError;
-use std::path::PathBuf;
+use oxur_testing::test_file;
 
 /// Helper function to parse an example file from test-data/examples/
 fn parse_example(path: &str) -> SExp {
-    let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/examples").join(path);
-    Parser::parse_file(&full_path)
+    let test_file = test_file!(format!("examples/{}", path).as_str());
+    Parser::parse_str(&test_file.content)
         .unwrap_or_else(|e| panic!("Failed to parse example {}: {}", path, e))
 }
 
 /// Helper function to parse a fixture file from test-data/fixtures/
 fn parse_fixture(path: &str) -> SExp {
-    let full_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/fixtures").join(path);
-    Parser::parse_file(&full_path)
+    let test_file = test_file!(format!("fixtures/{}", path).as_str());
+    Parser::parse_str(&test_file.content)
         .unwrap_or_else(|e| panic!("Failed to parse fixture {}: {}", path, e))
 }
 
 /// Helper function to attempt parsing an error case from test-data/error-cases/
 fn parse_error_case(path: &str) -> Result<SExp, ParseError> {
-    let full_path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/error-cases").join(path);
-    Parser::parse_file(&full_path)
+    let test_file = test_file!(format!("error-cases/{}", path).as_str());
+    Parser::parse_str(&test_file.content)
 }
 
 #[test]

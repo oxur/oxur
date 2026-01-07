@@ -5,4 +5,4 @@
 
 mod variable_store;
 
-pub use variable_store::{init_global_store, with_store, VariableStore};
+pub use variable_store::{init_global_store, set_result, take_result, with_store, VariableStore};

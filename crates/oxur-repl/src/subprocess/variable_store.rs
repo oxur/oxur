@@ -143,6 +143,12 @@ impl VariableStore {
 #[allow(dead_code)] // Used in Phase 2 subprocess implementation
 static GLOBAL_STORE: Mutex<Option<VariableStore>> = Mutex::new(None);
 
+/// Global result value storage
+///
+/// Stores the result of the last expression evaluation for retrieval
+/// by the subprocess IPC protocol.
+static GLOBAL_RESULT: Mutex<Option<String>> = Mutex::new(None);
+
 /// Initialize the global variable store
 ///
 /// Should be called once when the subprocess starts.
@@ -189,6 +195,38 @@ where
     let store =
         guard.as_mut().expect("Global store not initialized - call init_global_store() first");
     f(store)
+}
+
+/// Store the result of the last expression evaluation
+///
+/// Called by generated wrapper code to store the result value.
+/// The result is formatted as a Debug string for transmission.
+///
+/// # Examples
+///
+/// ```
+/// use oxur_repl::subprocess::set_result;
+///
+/// // Typically called by generated code:
+/// let value = 42;
+/// set_result(format!("{:?}", value));
+/// ```
+pub fn set_result(value: String) {
+    let mut result = GLOBAL_RESULT.lock().unwrap();
+    *result = Some(value);
+}
+
+/// Retrieve and clear the result of the last expression evaluation
+///
+/// Called by the subprocess IPC protocol after executing user code.
+/// Returns the result value and clears the global storage.
+///
+/// # Returns
+///
+/// The stored result string, or None if no result was stored.
+pub fn take_result() -> Option<String> {
+    let mut result = GLOBAL_RESULT.lock().unwrap();
+    result.take()
 }
 
 #[cfg(test)]

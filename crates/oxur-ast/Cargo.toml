@@ -27,6 +27,7 @@ colored.workspace = true
 
 [dev-dependencies]
 tempfile = "3.8"
+oxur-testing = { version = "0.1.0", path = "../oxur-testing" }
 # Phase 3: Benchmarking
 criterion = "0.5"
 

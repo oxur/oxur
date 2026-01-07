@@ -532,9 +532,11 @@ impl EvalContext {
         // Step 3: Wrap code with REPL scaffolding
         // Pass SourceMap for Phase 4 error translation
         let wrapped_code =
-            self.wrapper.wrap(&cache_key, code, Some(&self.source_map)).map_err(|e| EvalError::CompilationError {
-                msg: format!("Failed to wrap code: {}", e),
-                pos: SourcePos::repl(1, 1, code.len() as u32),
+            self.wrapper.wrap(&cache_key, code, Some(&self.source_map)).map_err(|e| {
+                EvalError::CompilationError {
+                    msg: format!("Failed to wrap code: {}", e),
+                    pos: SourcePos::repl(1, 1, code.len() as u32),
+                }
             })?;
 
         // Step 4: Compile to dynamic library

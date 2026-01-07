@@ -34,6 +34,7 @@ regex = "1.10"           # Parse /* oxur_node=N */ comments
 [dev-dependencies]
 anyhow.workspace = true
 tokio = { version = "1.0", features = ["rt", "macros", "time"] }
+oxur-testing = { version = "0.1.0", path = "../oxur-testing" }
 
 # Binary target for subprocess execution (ODD-0026 Section 3.3)
 [[bin]]

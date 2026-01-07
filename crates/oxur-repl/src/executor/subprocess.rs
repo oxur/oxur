@@ -251,8 +251,13 @@ impl SubprocessExecutor {
         let command = format!("LOAD {} {}\n", cache_key, path.display());
         self.send_command(&command)?;
 
-        // Wait for response
-        let response = self.read_line()?;
+        // Wait for response, skipping empty lines
+        let response = loop {
+            let line = self.read_line()?;
+            if !line.trim().is_empty() {
+                break line;
+            }
+        };
 
         if response == "LOADED" {
             // Mark as loaded
@@ -290,29 +295,50 @@ impl SubprocessExecutor {
         let command = format!("RUN {}\n", cache_key);
         self.send_command(&command)?;
 
-        // Read response
-        let response = self.read_line()?;
+        // Read responses (may include OXUR_RESULT before OXUR_EXECUTION_COMPLETE)
+        let mut result_value = String::new();
 
-        match response.as_str() {
-            "OXUR_EXECUTION_COMPLETE" => Ok(ExecutionResult::Success { output: String::new() }),
-            line if line.starts_with("OXUR_RUNTIME_ERROR ") => {
-                let message = line.strip_prefix("OXUR_RUNTIME_ERROR ").unwrap_or("").to_string();
-                Ok(ExecutionResult::RuntimeError { message })
+        loop {
+            let response = self.read_line()?;
+
+            // Skip empty lines (can happen with subprocess stdout flushing)
+            if response.trim().is_empty() {
+                continue;
             }
-            line if line.starts_with("OXUR_PANIC_LOCATION ") => {
-                let location =
-                    line.strip_prefix("OXUR_PANIC_LOCATION ").unwrap_or("unknown").to_string();
 
-                // Read next line for panic message
-                let message_line = self.read_line()?;
-                let message = message_line
-                    .strip_prefix("OXUR_PANIC_MESSAGE ")
-                    .unwrap_or("Unknown panic")
-                    .to_string();
+            match response.as_str() {
+                "OXUR_EXECUTION_COMPLETE" => {
+                    return Ok(ExecutionResult::Success { output: result_value });
+                }
+                line if line.starts_with("OXUR_RESULT ") => {
+                    result_value = line.strip_prefix("OXUR_RESULT ").unwrap_or("").to_string();
+                    // Continue reading to get OXUR_EXECUTION_COMPLETE
+                }
+                line if line.starts_with("OXUR_RUNTIME_ERROR ") => {
+                    let message =
+                        line.strip_prefix("OXUR_RUNTIME_ERROR ").unwrap_or("").to_string();
+                    return Ok(ExecutionResult::RuntimeError { message });
+                }
+                line if line.starts_with("OXUR_PANIC_LOCATION ") => {
+                    let location =
+                        line.strip_prefix("OXUR_PANIC_LOCATION ").unwrap_or("unknown").to_string();
 
-                Ok(ExecutionResult::Panic { location, message })
+                    // Read next line for panic message
+                    let message_line = self.read_line()?;
+                    let message = message_line
+                        .strip_prefix("OXUR_PANIC_MESSAGE ")
+                        .unwrap_or("Unknown panic")
+                        .to_string();
+
+                    return Ok(ExecutionResult::Panic { location, message });
+                }
+                _ => {
+                    return Err(ExecutorError::ExecutionFailed(format!(
+                        "Unexpected response: {}",
+                        response
+                    )));
+                }
             }
-            _ => Err(ExecutorError::ExecutionFailed(format!("Unexpected response: {}", response))),
         }
     }
 
