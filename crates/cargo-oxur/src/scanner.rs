@@ -12,9 +12,7 @@ pub struct OxurScanner {
 impl OxurScanner {
     /// Create a new scanner for the given project root
     pub fn new(root: &Path) -> Self {
-        Self {
-            root: root.to_path_buf(),
-        }
+        Self { root: root.to_path_buf() }
     }
 
     /// Find all Oxur files in the project

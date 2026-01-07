@@ -81,22 +81,15 @@ fn main() -> Result<()> {
 
     match command {
         CargoCommands::Oxur(args) => match args.command {
-            OxurCommands::Build {
-                release,
-                manifest_path,
-                verbose,
-            } => handle_build(release, manifest_path, verbose),
+            OxurCommands::Build { release, manifest_path, verbose } => {
+                handle_build(release, manifest_path, verbose)
+            }
 
-            OxurCommands::Run {
-                release,
-                manifest_path,
-                args,
-            } => handle_run(release, manifest_path, args),
+            OxurCommands::Run { release, manifest_path, args } => {
+                handle_run(release, manifest_path, args)
+            }
 
-            OxurCommands::Check {
-                manifest_path,
-                verbose,
-            } => handle_check(manifest_path, verbose),
+            OxurCommands::Check { manifest_path, verbose } => handle_check(manifest_path, verbose),
         },
     }
 }
@@ -130,10 +123,8 @@ fn handle_build(release: bool, manifest_path: Option<PathBuf>, verbose: bool) ->
     let oxur_gen_dir = target_dir.join("oxur-gen");
     let cache_dir = target_dir.join("oxur-cache");
 
-    std::fs::create_dir_all(&oxur_gen_dir)
-        .context("Failed to create oxur-gen directory")?;
-    std::fs::create_dir_all(&cache_dir)
-        .context("Failed to create oxur-cache directory")?;
+    std::fs::create_dir_all(&oxur_gen_dir).context("Failed to create oxur-gen directory")?;
+    std::fs::create_dir_all(&cache_dir).context("Failed to create oxur-cache directory")?;
 
     // Step 3: Load cache
     let cache_file = cache_dir.join("hashes.json");
@@ -282,17 +273,17 @@ fn compile_oxur_file(
 
     // Parse
     let mut parser = oxur_lang::Parser::new(source);
-    let surface_forms = parser.parse()
-        .with_context(|| format!("Failed to parse {}", oxur_file.display()))?;
+    let surface_forms =
+        parser.parse().with_context(|| format!("Failed to parse {}", oxur_file.display()))?;
 
     // Expand
     let mut expander = oxur_lang::Expander::new();
-    let core_forms = expander.expand(surface_forms)
+    let core_forms = expander
+        .expand(surface_forms)
         .with_context(|| format!("Failed to expand {}", oxur_file.display()))?;
 
     // Determine output path
-    let relative_path = oxur_file.strip_prefix(project_root)
-        .unwrap_or(oxur_file);
+    let relative_path = oxur_file.strip_prefix(project_root).unwrap_or(oxur_file);
 
     let output_path = oxur_gen_dir.join(relative_path).with_extension("rs");
 
@@ -309,11 +300,13 @@ fn compile_oxur_file(
     // We don't actually need a binary, just the Rust source
     // So we'll use the lowering and codegen directly
     let mut lowerer = oxur_comp::lowering::Lowerer::new();
-    let file = lowerer.lower(core_forms)
+    let file = lowerer
+        .lower(core_forms)
         .with_context(|| format!("Failed to lower {}", oxur_file.display()))?;
 
     let codegen = oxur_comp::codegen::CodeGenerator::new();
-    let rust_source = codegen.generate(&file)
+    let rust_source = codegen
+        .generate(&file)
         .with_context(|| format!("Failed to generate Rust for {}", oxur_file.display()))?;
 
     // Write Rust source to oxur-gen

@@ -41,8 +41,7 @@ impl CompilationCache {
 
     /// Save cache to file
     pub fn save(&self, path: &Path) -> Result<()> {
-        let contents = serde_json::to_string_pretty(&self)
-            .context("Failed to serialize cache")?;
+        let contents = serde_json::to_string_pretty(&self).context("Failed to serialize cache")?;
 
         fs::write(path, contents)
             .with_context(|| format!("Failed to write cache file: {}", path.display()))?;
@@ -74,13 +73,7 @@ impl CompilationCache {
         let content_hash = Self::compute_hash(file)?;
         let timestamp = Self::get_timestamp(file)?;
 
-        self.entries.insert(
-            file.to_path_buf(),
-            CacheEntry {
-                content_hash,
-                timestamp,
-            },
-        );
+        self.entries.insert(file.to_path_buf(), CacheEntry { content_hash, timestamp });
 
         Ok(())
     }
@@ -102,13 +95,9 @@ impl CompilationCache {
         let metadata = fs::metadata(file)
             .with_context(|| format!("Failed to get metadata for: {}", file.display()))?;
 
-        let modified = metadata.modified()
-            .context("Failed to get modification time")?;
+        let modified = metadata.modified().context("Failed to get modification time")?;
 
-        Ok(modified
-            .duration_since(std::time::UNIX_EPOCH)
-            .context("Invalid timestamp")?
-            .as_secs())
+        Ok(modified.duration_since(std::time::UNIX_EPOCH).context("Invalid timestamp")?.as_secs())
     }
 }
 
