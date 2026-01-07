@@ -6,7 +6,7 @@
 //! Based on ODD-0026: Oxur REPL Evaluation Strategy
 
 use crate::eval::{EvalError, Result};
-use oxur_lang::{CoreForm, NodeId, Parser};
+use oxur_lang::{CoreForm, Expander, Parser};
 
 /// Lisp mode evaluator
 ///
@@ -255,56 +255,26 @@ impl LispEvaluator {
         }
     }
 
-    /// Parse code using oxur-lang Parser
+    /// Parse code using the full oxur-lang compilation pipeline
     ///
-    /// This integrates with the full oxur-lang compilation pipeline.
-    /// Currently a placeholder until Parser is fully implemented.
+    /// This integrates with oxur-lang's Parser (Stage 1) and Expander (Stage 2)
+    /// to convert Oxur source code into Core Forms (IR).
     pub fn parse(&mut self, code: impl AsRef<str>) -> Result<Vec<CoreForm>> {
-        // Use oxur-lang Parser
+        // Stage 1: Parse source → SurfaceForm
         let mut parser = Parser::new(code.as_ref().to_string());
         let surface_forms = parser.parse().map_err(|e| EvalError::SyntaxError {
             msg: format!("Parse error: {}", e),
             pos: oxur_smap::SourcePos::repl(1, 1, 1),
         })?;
 
-        // For now, convert to CoreForm manually
-        // When Expander is ready, we'll use: expander.expand(surface_forms)
-        self.surface_to_core(surface_forms)
+        // Stage 2: Expand SurfaceForm → CoreForm (macro expansion, deffn, etc.)
+        let mut expander = Expander::new();
+        expander.expand(surface_forms).map_err(|e| EvalError::SyntaxError {
+            msg: format!("Expansion error: {}", e),
+            pos: oxur_smap::SourcePos::repl(1, 1, 1),
+        })
     }
 
-    /// Convert surface forms to core forms
-    ///
-    /// Temporary implementation until Expander is ready.
-    fn surface_to_core(
-        &mut self,
-        forms: Vec<oxur_lang::parser::SurfaceForm>,
-    ) -> Result<Vec<CoreForm>> {
-        forms.into_iter().map(|f| self.convert_form(f)).collect()
-    }
-
-    /// Convert a single surface form to core form
-    fn convert_form(&mut self, form: oxur_lang::parser::SurfaceForm) -> Result<CoreForm> {
-        use oxur_lang::parser::SurfaceForm;
-
-        let id = self.next_node_id();
-
-        match form {
-            SurfaceForm::Symbol(name) => Ok(CoreForm::Symbol { id, name }),
-            SurfaceForm::Number(value) => Ok(CoreForm::Number { id, value }),
-            SurfaceForm::String(value) => Ok(CoreForm::String { id, value }),
-            SurfaceForm::List(elements) => {
-                let elements: Result<Vec<_>> =
-                    elements.into_iter().map(|e| self.convert_form(e)).collect();
-                Ok(CoreForm::List { id, elements: elements? })
-            }
-        }
-    }
-
-    /// Generate next node ID
-    fn next_node_id(&mut self) -> NodeId {
-        use oxur_smap::new_node_id;
-        new_node_id()
-    }
 }
 
 impl Default for LispEvaluator {
@@ -483,59 +453,97 @@ mod tests {
     }
 
     #[test]
-    fn test_surface_to_core_conversion() {
-        use oxur_lang::parser::SurfaceForm;
-
+    fn test_parse_simple_expression() {
         let mut eval = LispEvaluator::new();
-        let surface = vec![SurfaceForm::Number(42)];
-        let core = eval.surface_to_core(surface).unwrap();
+        let forms = eval.parse("42").unwrap();
 
-        assert_eq!(core.len(), 1);
-        match &core[0] {
+        assert_eq!(forms.len(), 1);
+        match &forms[0] {
             CoreForm::Number { value, .. } => assert_eq!(value, &42),
             _ => panic!("Expected Number"),
         }
     }
 
     #[test]
-    fn test_convert_form_symbol() {
-        use oxur_lang::parser::SurfaceForm;
-
+    fn test_parse_symbol() {
         let mut eval = LispEvaluator::new();
-        let form = SurfaceForm::Symbol("test".to_string());
-        let core = eval.convert_form(form).unwrap();
+        let forms = eval.parse("test-symbol").unwrap();
 
-        match core {
-            CoreForm::Symbol { name, .. } => assert_eq!(name, "test"),
+        assert_eq!(forms.len(), 1);
+        match &forms[0] {
+            CoreForm::Symbol { name, .. } => assert_eq!(name, "test-symbol"),
             _ => panic!("Expected Symbol"),
         }
     }
 
     #[test]
-    fn test_convert_form_list() {
-        use oxur_lang::parser::SurfaceForm;
-
+    fn test_parse_string() {
         let mut eval = LispEvaluator::new();
-        let form = SurfaceForm::List(vec![
-            SurfaceForm::Symbol("+".to_string()),
-            SurfaceForm::Number(1),
-            SurfaceForm::Number(2),
-        ]);
-        let core = eval.convert_form(form).unwrap();
+        let forms = eval.parse(r#""hello world""#).unwrap();
 
-        match core {
+        assert_eq!(forms.len(), 1);
+        match &forms[0] {
+            CoreForm::String { value, .. } => assert_eq!(value, "hello world"),
+            _ => panic!("Expected String"),
+        }
+    }
+
+    #[test]
+    fn test_parse_list() {
+        let mut eval = LispEvaluator::new();
+        let forms = eval.parse("(+ 1 2)").unwrap();
+
+        assert_eq!(forms.len(), 1);
+        match &forms[0] {
             CoreForm::List { elements, .. } => assert_eq!(elements.len(), 3),
             _ => panic!("Expected List"),
         }
     }
 
     #[test]
-    fn test_node_id_generation() {
+    fn test_parse_deffn_expands_to_define_func() {
         let mut eval = LispEvaluator::new();
-        let id1 = eval.next_node_id();
-        let id2 = eval.next_node_id();
-        // NodeIds are generated globally, so we can't assert specific values
-        // Just verify they're different
-        assert_ne!(id1, id2);
+        let forms = eval.parse(r#"(deffn main () (println! "Hello"))"#).unwrap();
+
+        assert_eq!(forms.len(), 1);
+
+        // deffn should expand to DefineFunc, not remain as List
+        match &forms[0] {
+            CoreForm::DefineFunc { name, params, body, .. } => {
+                assert_eq!(name, "main");
+                assert!(params.is_empty());
+
+                // Body should be the (println! "Hello") list
+                match &**body {
+                    CoreForm::List { elements, .. } => {
+                        assert_eq!(elements.len(), 2);
+                        match &elements[0] {
+                            CoreForm::Symbol { name, .. } => assert_eq!(name, "println!"),
+                            _ => panic!("Expected println! symbol"),
+                        }
+                    }
+                    _ => panic!("Expected List as body"),
+                }
+            }
+            other => panic!("Expected DefineFunc, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_parse_deffn_with_params() {
+        let mut eval = LispEvaluator::new();
+        let forms = eval.parse("(deffn add (a b) (+ a b))").unwrap();
+
+        assert_eq!(forms.len(), 1);
+
+        match &forms[0] {
+            CoreForm::DefineFunc { name, params, .. } => {
+                assert_eq!(name, "add");
+                assert_eq!(params.len(), 2);
+                assert_eq!(params[0], "a");
+                assert_eq!(params[1], "b");
+            }
+            other => panic!("Expected DefineFunc, got {:?}", other),
+        }
     }
 }
