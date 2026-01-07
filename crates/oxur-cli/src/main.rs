@@ -213,36 +213,25 @@ fn run_interactive_mode(color_enabled: bool) -> Result<()> {
 fn run_server_mode(addr: &str, ack_port: Option<u16>, _color_enabled: bool) -> Result<()> {
     output::info(&format!("Starting REPL server on {}...", addr));
 
-    if let Some(port) = ack_port {
-        output::info(&format!("Will acknowledge to port {}", port));
-    }
+    // Create tokio runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
 
-    output::warning("Server mode not yet implemented");
-
-    // TODO: Task 6.5 will implement this
-    // 1. Parse address (Unix socket vs TCP)
-    // 2. Create appropriate transport listener
-    // 3. Start ReplServer
-    // 4. Handle ACK protocol if requested
-
-    Ok(())
+    // Run the server
+    rt.block_on(repl::server::run(addr, ack_port))
 }
 
 /// Run the REPL in connect mode
 ///
 /// Connects to an existing REPL server and provides terminal interface.
 #[cfg(feature = "binary")]
-fn run_connect_mode(addr: &str, _color_enabled: bool) -> Result<()> {
+fn run_connect_mode(addr: &str, color_enabled: bool) -> Result<()> {
     output::info(&format!("Connecting to REPL server at {}...", addr));
 
-    output::warning("Connect mode not yet implemented");
+    // Create tokio runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
 
-    // TODO: Task 6.5 will implement this
-    // 1. Connect to server via TcpTransport
-    // 2. Create terminal interface
-    // 3. Run REPL loop
-
-    Ok(())
+    // Run the connect mode client
+    rt.block_on(repl::connect::run(addr, color_enabled))
 }
 
 #[cfg(not(feature = "binary"))]
