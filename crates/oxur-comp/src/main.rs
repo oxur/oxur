@@ -34,11 +34,24 @@ struct Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Validate input file extension
+    if let Some(ext) = cli.input.extension() {
+        let ext_str = ext.to_string_lossy();
+        if !matches!(ext_str.as_ref(), "oxr" | "oxur" | "ox" | "lisp") {
+            eprintln!(
+                "Warning: Input file has extension '.{}', expected .oxr, .oxur, .ox, or .lisp",
+                ext_str
+            );
+        }
+    } else {
+        eprintln!("Warning: Input file has no extension, expected .oxr, .oxur, .ox, or .lisp");
+    }
+
     if cli.verbose {
         println!("Compiling: {}", cli.input.display());
     }
 
-    // Placeholder: Read input file
+    // Read input file
     let source = std::fs::read_to_string(&cli.input)?;
 
     if cli.verbose {
@@ -64,6 +77,9 @@ fn main() -> Result<()> {
         println!("Stage 3-5: Lowering, generating, and compiling...");
     }
     let output = cli.output.unwrap_or_else(|| cli.input.with_extension(""));
+
+    // Create build directory if it doesn't exist
+    std::fs::create_dir_all(&cli.build_dir)?;
 
     let mut compiler = oxur_comp::Compiler::new(cli.build_dir.clone());
     compiler.compile(core_forms, &output)?;

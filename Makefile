@@ -18,6 +18,9 @@ GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unkno
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 RUST_VERSION := $(shell rustc --version 2>/dev/null || echo "unknown")
 
+# List of binaries to build and install
+BINARIES := aster oxd oxurfmt oxurc
+
 # Default target
 .DEFAULT_GOAL := help
 
@@ -30,8 +33,9 @@ help:
 	@echo "$(CYAN)╚══════════════════════════════════════════════════════════╝$(RESET)"
 	@echo ""
 	@echo "$(GREEN)Building:$(RESET)"
-	@echo "  $(YELLOW)make build$(RESET)            - Build all binaries (aster, oxd, oxurfmt)"
+	@echo "  $(YELLOW)make build$(RESET)            - Build all binaries ($(BINARIES))"
 	@echo "  $(YELLOW)make build-release$(RESET)    - Build optimized release binaries"
+	@echo "  $(YELLOW)make build MODE=release$(RESET) - Build with custom mode"
 	@echo ""
 	@echo "$(GREEN)Testing & Quality:$(RESET)"
 	@echo "  $(YELLOW)make test$(RESET)             - Run all tests"
@@ -86,9 +90,13 @@ info:
 	@echo "  Clippy:         $$(cargo clippy --version 2>/dev/null || echo 'not found')"
 	@echo ""
 	@echo "$(GREEN)Binaries:$(RESET)"
-	@echo "  aster:          $$(test -f $(BIN_DIR)/aster && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
-	@echo "  oxd:            $$(test -f $(BIN_DIR)/oxd && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
-	@echo "  oxurfmt:        $$(test -f $(BIN_DIR)/oxurfmt && echo '$(GREEN)✓ installed$(RESET)' || echo '$(RED)✗ not built$(RESET)')"
+	@for bin in $(BINARIES); do \
+		if [ -f $(BIN_DIR)/$$bin ]; then \
+			echo "  $$bin:          $(GREEN)✓ installed$(RESET)"; \
+		else \
+			echo "  $$bin:          $(RED)✗ not built$(RESET)"; \
+		fi; \
+	done
 	@echo ""
 
 # Check tools target
@@ -114,11 +122,20 @@ $(BIN_DIR):
 build: clean $(BIN_DIR)
 	@echo "$(BLUE)Building $(PROJECT_NAME) in $(MODE) mode...$(RESET)"
 	@echo "$(CYAN)• Compiling workspace...$(RESET)"
-	@cargo build
+	@if [ "$(MODE)" = "release" ]; then \
+		cargo build --release; \
+	else \
+		cargo build; \
+	fi
 	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
-	@cp $(TARGET)/aster $(BIN_DIR)/aster
-	@cp $(TARGET)/oxd $(BIN_DIR)/oxd
-	@cp $(TARGET)/oxurfmt $(BIN_DIR)/oxurfmt
+	@for bin in $(BINARIES); do \
+		if [ -f $(TARGET)/$$bin ]; then \
+			cp $(TARGET)/$$bin $(BIN_DIR)/$$bin; \
+			echo "  $(GREEN)✓$(RESET) $$bin"; \
+		else \
+			echo "  $(YELLOW)⚠$(RESET) $$bin not found, skipping"; \
+		fi; \
+	done
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 	@echo "$(CYAN)→ Binaries available in $(BIN_DIR)/$(RESET)"
 
@@ -130,14 +147,16 @@ build-release: clean $(BIN_DIR)
 	@echo "$(CYAN)• Compiling optimized workspace...$(RESET)"
 	@cargo build --release
 	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
-	@cp $(TARGET)/aster $(BIN_DIR)/aster
-	@cp $(TARGET)/oxd $(BIN_DIR)/oxd
-	@cp $(TARGET)/oxurfmt $(BIN_DIR)/oxurfmt
+	@for bin in $(BINARIES); do \
+		if [ -f $(TARGET)/$$bin ]; then \
+			cp $(TARGET)/$$bin $(BIN_DIR)/$$bin; \
+			echo "  $(GREEN)✓$(RESET) $$bin (size: $$(du -h $(BIN_DIR)/$$bin | cut -f1))"; \
+		else \
+			echo "  $(YELLOW)⚠$(RESET) $$bin not found, skipping"; \
+		fi; \
+	done
 	@echo "$(GREEN)✓ Release build complete$(RESET)"
 	@echo "$(CYAN)→ Optimized binaries in $(BIN_DIR)/$(RESET)"
-	@echo "$(CYAN)• aster size: $$(du -h $(BIN_DIR)/aster | cut -f1)$(RESET)"
-	@echo "$(CYAN)• oxd size: $$(du -h $(BIN_DIR)/oxd | cut -f1)$(RESET)"
-	@echo "$(CYAN)• oxurfmt size: $$(du -h $(BIN_DIR)/oxurfmt | cut -f1)$(RESET)"
 
 # Cleaning targets
 .PHONY: clean
