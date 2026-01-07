@@ -6,6 +6,8 @@ This index is automatically generated. Do not edit manually.
 
 | Number | Title | State | Updated |
 |--------|-------|-------|----------|
+| 0043 | Oxur REPL Storage Architecture: A Tiered Approach | Draft | 2026-01-06 |
+| 0042 | Towards a Rust VM for Oxur: A Pragmatic Approach | Final | 2026-01-06 |
 | 0041 | Reimagining the REPL: A guide to modern terminal UX design | Final | 2026-01-06 |
 | 0040 | Oxur REPL Implementation Plan | Active | 2026-01-06 |
 | 0039 | oxur-smap Implementation Plan | Final | 2026-01-05 |
@@ -52,6 +54,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Draft
 
+- [0043 - Oxur REPL Storage Architecture: A Tiered Approach](01-draft/0043-oxur-repl-storage-architecture-a-tiered-approach.md)
 - [0025 - Oxur Syntax Addendum: Function Head Pattern Matching](01-draft/0025-oxur-syntax-addendum-function-head-pattern-matching.md)
 - [0021 - Oxur Syntax Design Proposal](01-draft/0021-oxur-syntax-design-proposal.md)
 - [0013 - Oxur Compilation Chain Architecture](01-draft/0013-oxur-compilation-chain-architecture.md)
@@ -63,6 +66,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Final
 
+- [0042 - Towards a Rust VM for Oxur: A Pragmatic Approach](06-final/0042-towards-a-rust-vm-for-oxur-a-pragmatic-approach.md)
 - [0041 - Reimagining the REPL: A guide to modern terminal UX design](06-final/0041-reimagining-the-repl-a-guide-to-modern-terminal-ux-design.md)
 - [0039 - oxur-smap Implementation Plan](06-final/0039-oxur-smap-implementation-plan.md)
 - [0038 - Oxur REPL Architecture](06-final/0038-oxur-repl-architecture.md)
