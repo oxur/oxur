@@ -19,9 +19,97 @@ impl Expander {
     }
 
     /// Expand Surface Forms into Core Forms
-    pub fn expand(&mut self, _forms: Vec<SurfaceForm>) -> Result<Vec<CoreForm>> {
-        // Placeholder implementation
-        Ok(vec![])
+    pub fn expand(&mut self, forms: Vec<SurfaceForm>) -> Result<Vec<CoreForm>> {
+        let mut core_forms = Vec::new();
+
+        for form in forms {
+            core_forms.push(self.expand_form(form)?);
+        }
+
+        Ok(core_forms)
+    }
+
+    fn expand_form(&mut self, form: SurfaceForm) -> Result<CoreForm> {
+        match form {
+            SurfaceForm::Symbol(name) => {
+                let id = oxur_smap::new_node_id();
+                Ok(CoreForm::Symbol { id, name })
+            }
+            SurfaceForm::Number(value) => {
+                let id = oxur_smap::new_node_id();
+                Ok(CoreForm::Number { id, value })
+            }
+            SurfaceForm::String(value) => {
+                let id = oxur_smap::new_node_id();
+                Ok(CoreForm::String { id, value })
+            }
+            SurfaceForm::List(elements) => {
+                // Check if this is a special form (like deffn)
+                if !elements.is_empty() {
+                    if let SurfaceForm::Symbol(ref first) = elements[0] {
+                        if first == "deffn" {
+                            return self.expand_deffn(elements);
+                        }
+                    }
+                }
+
+                // Otherwise, expand as a regular list
+                self.expand_list(elements)
+            }
+        }
+    }
+
+    fn expand_deffn(&mut self, elements: Vec<SurfaceForm>) -> Result<CoreForm> {
+        // (deffn name params body...)
+        if elements.len() < 4 {
+            return Err(crate::Error::Syntax(
+                "deffn requires at least name, params, and body".to_string(),
+            ));
+        }
+
+        let id = oxur_smap::new_node_id();
+
+        // Extract function name
+        let name = match &elements[1] {
+            SurfaceForm::Symbol(n) => n.clone(),
+            _ => return Err(crate::Error::Syntax("deffn name must be a symbol".to_string())),
+        };
+
+        // Extract parameters (empty list for now, we'll handle typed params later)
+        let params = match &elements[2] {
+            SurfaceForm::List(param_list) => {
+                let mut params = Vec::new();
+                for param in param_list {
+                    if let SurfaceForm::Symbol(p) = param {
+                        params.push(p.clone());
+                    } else {
+                        return Err(crate::Error::Syntax("Parameter must be a symbol".to_string()));
+                    }
+                }
+                params
+            }
+            _ => return Err(crate::Error::Syntax("deffn params must be a list".to_string())),
+        };
+
+        // Body is the remaining forms (for now, just take the first body form)
+        let body = if elements.len() > 3 {
+            Box::new(self.expand_form(elements[3].clone())?)
+        } else {
+            return Err(crate::Error::Syntax("deffn requires a body".to_string()));
+        };
+
+        Ok(CoreForm::DefineFunc { id, name, params, body })
+    }
+
+    fn expand_list(&mut self, elements: Vec<SurfaceForm>) -> Result<CoreForm> {
+        let id = oxur_smap::new_node_id();
+        let mut expanded_elements = Vec::new();
+
+        for element in elements {
+            expanded_elements.push(self.expand_form(element)?);
+        }
+
+        Ok(CoreForm::List { id, elements: expanded_elements })
     }
 
     /// Get the source map after expansion
@@ -71,5 +159,89 @@ mod tests {
         let expander = Expander::new();
         let _map = expander.source_map();
         assert!(expander.is_empty());
+    }
+
+    #[test]
+    fn test_expand_deffn_hello_world() {
+        use crate::parser::Parser;
+
+        let source = r#"(deffn main ()
+  (println! "Hello, world!"))"#;
+
+        let mut parser = Parser::new(source.to_string());
+        let surface_forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let core_forms = expander.expand(surface_forms).unwrap();
+
+        assert_eq!(core_forms.len(), 1);
+
+        // Should be a DefineFunc
+        if let CoreForm::DefineFunc { name, params, body, .. } = &core_forms[0] {
+            assert_eq!(name, "main");
+            assert_eq!(params.len(), 0); // No parameters
+
+            // Body should be a list (println! "Hello, world!")
+            if let CoreForm::List { elements, .. } = &**body {
+                assert_eq!(elements.len(), 2);
+
+                // First element should be println! symbol
+                if let CoreForm::Symbol { name, .. } = &elements[0] {
+                    assert_eq!(name, "println!");
+                } else {
+                    panic!("Expected Symbol(println!)");
+                }
+
+                // Second element should be the string
+                if let CoreForm::String { value, .. } = &elements[1] {
+                    assert_eq!(value, "Hello, world!");
+                } else {
+                    panic!("Expected String");
+                }
+            } else {
+                panic!("Expected List as body");
+            }
+        } else {
+            panic!("Expected DefineFunc");
+        }
+    }
+
+    #[test]
+    fn test_expand_symbol() {
+        let mut expander = Expander::new();
+        let surface = SurfaceForm::Symbol("test".to_string());
+        let result = expander.expand_form(surface).unwrap();
+
+        if let CoreForm::Symbol { name, .. } = result {
+            assert_eq!(name, "test");
+        } else {
+            panic!("Expected Symbol");
+        }
+    }
+
+    #[test]
+    fn test_expand_number() {
+        let mut expander = Expander::new();
+        let surface = SurfaceForm::Number(42);
+        let result = expander.expand_form(surface).unwrap();
+
+        if let CoreForm::Number { value, .. } = result {
+            assert_eq!(value, 42);
+        } else {
+            panic!("Expected Number");
+        }
+    }
+
+    #[test]
+    fn test_expand_string() {
+        let mut expander = Expander::new();
+        let surface = SurfaceForm::String("hello".to_string());
+        let result = expander.expand_form(surface).unwrap();
+
+        if let CoreForm::String { value, .. } = result {
+            assert_eq!(value, "hello");
+        } else {
+            panic!("Expected String");
+        }
     }
 }

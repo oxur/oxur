@@ -100,4 +100,43 @@ mod tests {
         // but the important thing is that it attempts compilation
         assert!(result.is_ok() || result.is_err());
     }
+
+    #[test]
+    fn test_compile_hello_world() {
+        use oxur_lang::{Expander, Parser};
+        use tempfile::TempDir;
+
+        // Parse and expand hello world
+        let source = r#"(deffn main ()
+  (println! "Hello, world!"))"#;
+
+        let mut parser = Parser::new(source.to_string());
+        let surface_forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let core_forms = expander.expand(surface_forms).unwrap();
+
+        // Compile to binary
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = temp_dir.path().join("build");
+        std::fs::create_dir_all(&output_dir).unwrap();
+
+        let mut compiler = Compiler::new(output_dir);
+        let binary_path = temp_dir.path().join("hello_world");
+
+        let result = compiler.compile(core_forms, &binary_path);
+        assert!(result.is_ok(), "Compilation failed: {:?}", result.err());
+
+        // Verify binary exists
+        assert!(binary_path.exists(), "Binary was not created");
+
+        // Run the binary and check output
+        let output = Command::new(&binary_path).output().unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        eprintln!("Binary output:\n{}", stdout);
+
+        assert!(output.status.success(), "Binary execution failed");
+        assert!(stdout.contains("Hello, world!"), "Output doesn't contain expected text");
+    }
 }
