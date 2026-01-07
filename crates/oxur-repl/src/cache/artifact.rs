@@ -486,7 +486,9 @@ mod tests {
     use super::*;
     use oxur_testing::env_lock::with_env_lock;
     use std::env;
+    use std::io::Write;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use tempfile::NamedTempFile;
 
     // Shared counter for generating unique cache directories
     static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -561,14 +563,14 @@ mod tests {
     fn test_insert_and_get() {
         let (mut cache, test_dir) = setup_test_cache();
 
-        // Create a temporary artifact file with unique name
-        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let temp_artifact = env::temp_dir().join(format!("test_artifact-{}.so", id));
-        fs::write(&temp_artifact, b"fake dylib content").expect("Failed to create temp artifact");
+        // Create a temporary artifact file (auto-cleanup on drop)
+        let mut temp_artifact = NamedTempFile::new().expect("Failed to create temp file");
+        temp_artifact.write_all(b"fake dylib content").expect("Failed to write to temp file");
 
         // Generate key and insert
         let key = cache.generate_key("(+ 1 2)", &[], 0, "default");
-        let cached_path = cache.insert(&key, &temp_artifact).expect("Failed to insert artifact");
+        let cached_path =
+            cache.insert(&key, temp_artifact.path()).expect("Failed to insert artifact");
 
         assert!(cached_path.exists());
 
@@ -577,9 +579,8 @@ mod tests {
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap(), cached_path);
 
-        // Cleanup
-        fs::remove_file(&temp_artifact).ok();
         cleanup_test_cache(test_dir);
+        // temp_artifact automatically cleaned up on drop
     }
 
     #[test]
@@ -596,31 +597,29 @@ mod tests {
     fn test_cache_stats() {
         let (mut cache, test_dir) = setup_test_cache();
 
-        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let temp_artifact = env::temp_dir().join(format!("test_stats-{}.so", id));
-        fs::write(&temp_artifact, b"test content").expect("Failed to create temp artifact");
+        let mut temp_artifact = NamedTempFile::new().expect("Failed to create temp file");
+        temp_artifact.write_all(b"test content").expect("Failed to write to temp file");
 
         let key = cache.generate_key("test", &[], 0, "default");
-        cache.insert(&key, &temp_artifact).expect("Failed to insert");
+        cache.insert(&key, temp_artifact.path()).expect("Failed to insert");
 
         let (count, size) = cache.stats();
         assert_eq!(count, 1);
         assert!(size > 0);
 
-        fs::remove_file(&temp_artifact).ok();
         cleanup_test_cache(test_dir);
+        // temp_artifact automatically cleaned up on drop
     }
 
     #[test]
     fn test_cache_clear() {
         let (mut cache, test_dir) = setup_test_cache();
 
-        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let temp_artifact = env::temp_dir().join(format!("test_clear-{}.so", id));
-        fs::write(&temp_artifact, b"test").expect("Failed to create temp artifact");
+        let mut temp_artifact = NamedTempFile::new().expect("Failed to create temp file");
+        temp_artifact.write_all(b"test").expect("Failed to write to temp file");
 
         let key = cache.generate_key("test", &[], 0, "default");
-        cache.insert(&key, &temp_artifact).expect("Failed to insert");
+        cache.insert(&key, temp_artifact.path()).expect("Failed to insert");
 
         let (count_before, _) = cache.stats();
         assert_eq!(count_before, 1);
@@ -630,8 +629,8 @@ mod tests {
         let (count_after, _) = cache.stats();
         assert_eq!(count_after, 0);
 
-        fs::remove_file(&temp_artifact).ok();
         cleanup_test_cache(test_dir);
+        // temp_artifact automatically cleaned up on drop
     }
 
     #[test]
@@ -640,8 +639,8 @@ mod tests {
         let test_dir =
             env::temp_dir().join(format!("oxur-test-persist-{}-{}", std::process::id(), id));
 
-        let temp_artifact = env::temp_dir().join(format!("test_persist_{}.so", id));
-        fs::write(&temp_artifact, b"persist test").expect("Failed to create temp artifact");
+        let mut temp_artifact = NamedTempFile::new().expect("Failed to create temp file");
+        temp_artifact.write_all(b"persist test").expect("Failed to write to temp file");
 
         let (key, cached_path) = {
             // Use with_directory for isolated test cache (no environment variable needed)
@@ -649,7 +648,7 @@ mod tests {
                 ArtifactCache::with_directory(&test_dir).expect("Failed to create cache");
 
             let key = cache.generate_key("persist", &[], 0, "default");
-            let cached_path = cache.insert(&key, &temp_artifact).expect("Failed to insert");
+            let cached_path = cache.insert(&key, temp_artifact.path()).expect("Failed to insert");
 
             (key, cached_path)
         }; // cache dropped here - index should be persisted to disk
@@ -666,8 +665,7 @@ mod tests {
             assert_eq!(path, cached_path, "Retrieved path should match cached path");
         }
 
-        // Cleanup
-        fs::remove_file(&temp_artifact).ok();
         cleanup_test_cache(test_dir);
+        // temp_artifact automatically cleaned up on drop
     }
 }
