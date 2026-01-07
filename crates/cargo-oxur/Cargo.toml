@@ -5,6 +5,9 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Cargo subcommand for building Oxur Lisp projects"
+keywords = ["cargo-subcommand", "lisp", "oxur", "compiler"]
+categories = ["development-tools::cargo-plugins", "compilers"]
 
 [dependencies]
 anyhow.workspace = true
@@ -15,8 +18,8 @@ serde_json.workspace = true
 sha2 = "0.10"
 walkdir = "2.4"
 
-oxur-comp = { path = "../oxur-comp" }
-oxur-lang = { path = "../oxur-lang" }
+oxur-comp = { version = "0.1.0", path = "../oxur-comp" }
+oxur-lang = { version = "0.1.0", path = "../oxur-lang" }
 
 [dev-dependencies]
 tempfile.workspace = true
