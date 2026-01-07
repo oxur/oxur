@@ -274,7 +274,6 @@ impl LispEvaluator {
             pos: oxur_smap::SourcePos::repl(1, 1, 1),
         })
     }
-
 }
 
 impl Default for LispEvaluator {

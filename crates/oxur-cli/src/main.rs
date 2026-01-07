@@ -3,9 +3,12 @@
 //! Main command-line interface for Oxur projects.
 
 #[cfg(feature = "binary")]
+mod repl;
+
+#[cfg(feature = "binary")]
 use anyhow::Result;
 #[cfg(feature = "binary")]
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 #[cfg(feature = "binary")]
 use oxur_cli::common::output;
 #[cfg(feature = "binary")]
@@ -18,7 +21,7 @@ use std::path::PathBuf;
 #[command(version)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[cfg(feature = "binary")]
@@ -43,8 +46,8 @@ enum Commands {
         args: Vec<String>,
     },
 
-    /// Start the interactive REPL
-    Repl,
+    /// Start the interactive REPL (default command)
+    Repl(ReplArgs),
 
     /// Create a new Oxur project
     New {
@@ -63,11 +66,48 @@ enum Commands {
     Test,
 }
 
+/// REPL command arguments
+#[cfg(feature = "binary")]
+#[derive(Args, Debug, Default, Clone)]
+pub struct ReplArgs {
+    /// Start the default built-in REPL server and connect to it
+    /// with the built-in client. This is the default behavior.
+    #[arg(short = 'i', long = "interactive")]
+    pub interactive: bool,
+
+    /// Connect to a running REPL server with the built-in client.
+    /// If no address given, connects to 127.0.0.1:5099
+    #[arg(short = 'c', long = "connect", value_name = "HOST:PORT")]
+    pub connect: Option<Option<String>>,
+
+    /// Disable ANSI colors in interactive or connect modes.
+    #[arg(long = "no-color")]
+    pub no_color: bool,
+
+    /// Start a REPL server only (no client).
+    /// Use a path for Unix socket, or HOST:PORT for TCP.
+    #[arg(short = 's', long = "serve", value_name = "PATH|HOST:PORT")]
+    pub serve: Option<String>,
+
+    /// Acknowledge the port of this server to another nREPL server
+    /// running on ACK-PORT. Used for tooling integration.
+    #[arg(long = "ack", value_name = "ACK-PORT")]
+    pub ack: Option<u16>,
+
+    /// The transport module to use.
+    /// Default: oxur_repl::transport::tcp
+    #[arg(short = 't', long = "transport", value_name = "TRANSPORT")]
+    pub transport: Option<String>,
+}
+
 #[cfg(feature = "binary")]
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    match cli.command {
+    // Default to REPL if no command given
+    let command = cli.command.unwrap_or(Commands::Repl(ReplArgs::default()));
+
+    match command {
         Commands::Compile { input, output } => {
             output::info(&format!("Compiling: {}", input.display()));
 
@@ -102,10 +142,8 @@ fn main() -> Result<()> {
             output::warning("Not yet implemented");
         }
 
-        Commands::Repl => {
-            output::info("Starting REPL...");
-            let mut client = oxur_repl::ReplClient::new();
-            client.run()?;
+        Commands::Repl(args) => {
+            handle_repl(args)?;
         }
 
         Commands::New { name } => {
@@ -132,6 +170,77 @@ fn main() -> Result<()> {
             output::warning("Not yet implemented");
         }
     }
+
+    Ok(())
+}
+
+/// Handle the REPL command with its various modes
+#[cfg(feature = "binary")]
+fn handle_repl(args: ReplArgs) -> Result<()> {
+    let color_enabled = !args.no_color;
+
+    if let Some(addr) = args.serve {
+        // Server mode: start ReplServer and listen
+        run_server_mode(&addr, args.ack, color_enabled)
+    } else if let Some(addr) = args.connect {
+        // Connect mode: connect to existing server
+        let addr = addr.unwrap_or_else(|| "127.0.0.1:5099".to_string());
+        run_connect_mode(&addr, color_enabled)
+    } else {
+        // Interactive mode (default): in-memory server + client
+        run_interactive_mode(color_enabled)
+    }
+}
+
+/// Run the default interactive REPL mode
+///
+/// Creates an in-process server and client connected via channels,
+/// providing the fastest possible REPL experience.
+#[cfg(feature = "binary")]
+fn run_interactive_mode(color_enabled: bool) -> Result<()> {
+    // Create tokio runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    // Run the interactive REPL
+    rt.block_on(repl::interactive::run(color_enabled))
+}
+
+/// Run the REPL in server-only mode
+///
+/// Starts a REPL server listening on the specified address.
+/// Use a path for Unix socket, or HOST:PORT for TCP.
+#[cfg(feature = "binary")]
+fn run_server_mode(addr: &str, ack_port: Option<u16>, _color_enabled: bool) -> Result<()> {
+    output::info(&format!("Starting REPL server on {}...", addr));
+
+    if let Some(port) = ack_port {
+        output::info(&format!("Will acknowledge to port {}", port));
+    }
+
+    output::warning("Server mode not yet implemented");
+
+    // TODO: Task 6.5 will implement this
+    // 1. Parse address (Unix socket vs TCP)
+    // 2. Create appropriate transport listener
+    // 3. Start ReplServer
+    // 4. Handle ACK protocol if requested
+
+    Ok(())
+}
+
+/// Run the REPL in connect mode
+///
+/// Connects to an existing REPL server and provides terminal interface.
+#[cfg(feature = "binary")]
+fn run_connect_mode(addr: &str, _color_enabled: bool) -> Result<()> {
+    output::info(&format!("Connecting to REPL server at {}...", addr));
+
+    output::warning("Connect mode not yet implemented");
+
+    // TODO: Task 6.5 will implement this
+    // 1. Connect to server via TcpTransport
+    // 2. Create terminal interface
+    // 3. Run REPL loop
 
     Ok(())
 }
