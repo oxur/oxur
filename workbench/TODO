@@ -1,0 +1,8 @@
+- change prompt so that oxur is orange and bracket is green
+- change banner so that versions are formatted and pulled from tools
+- update oxur CLI so that it records its execution path/script name, process ID, and versions when it starts up
+- create a metadata struct for that
+- create a formal abstraction for the collection of things that has become the REPL
+- create a stats struct
+- when subprocess starts up, record _its_ information to a struct
+- figure out how to instrument the subprocess
