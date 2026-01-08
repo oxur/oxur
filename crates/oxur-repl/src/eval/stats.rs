@@ -4,6 +4,7 @@
 //! This module focuses on data collection only; display formatting is in oxur-cli.
 
 use super::ExecutionTier;
+use metrics::{counter, histogram};
 use std::collections::VecDeque;
 use std::time::Duration;
 use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
@@ -61,6 +62,11 @@ impl StatsCollector {
     ///
     /// Adds a timing sample to the appropriate tier and updates cache metrics.
     /// Uses a circular buffer pattern - oldest samples are evicted when MAX_SAMPLES is reached.
+    ///
+    /// Also emits metrics via the `metrics` crate facade:
+    /// - `repl.eval.total` (counter, labeled by tier)
+    /// - `repl.eval.duration_ms` (histogram, labeled by tier)
+    /// - `repl.cache.hits` / `repl.cache.misses` (counters)
     pub fn record(&mut self, tier: ExecutionTier, cached: bool, duration: Duration) {
         self.total_evals += 1;
 
@@ -81,6 +87,23 @@ impl StatsCollector {
             samples.pop_front();
         }
         samples.push_back(duration);
+
+        // Emit metrics via facade
+        let tier_label = match tier {
+            ExecutionTier::Calculator => "calculator",
+            ExecutionTier::CachedLoaded => "cached",
+            ExecutionTier::JustInTime => "jit",
+        };
+
+        counter!("repl.eval.total", "tier" => tier_label).increment(1);
+        histogram!("repl.eval.duration_ms", "tier" => tier_label)
+            .record(duration.as_millis() as f64);
+
+        if cached {
+            counter!("repl.cache.hits").increment(1);
+        } else {
+            counter!("repl.cache.misses").increment(1);
+        }
     }
 
     /// Calculate percentiles for a given tier

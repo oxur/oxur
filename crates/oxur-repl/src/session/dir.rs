@@ -178,7 +178,11 @@ impl SessionDir {
         let mut file_count = 0;
         let mut total_bytes = 0;
 
-        fn walk_dir(path: &Path, file_count: &mut usize, total_bytes: &mut u64) -> std::io::Result<()> {
+        fn walk_dir(
+            path: &Path,
+            file_count: &mut usize,
+            total_bytes: &mut u64,
+        ) -> std::io::Result<()> {
             for entry in fs::read_dir(path)? {
                 let entry = entry?;
                 let path = entry.path();
@@ -196,12 +200,7 @@ impl SessionDir {
 
         walk_dir(&self.path, &mut file_count, &mut total_bytes)?;
 
-        Ok(DirStats {
-            file_count,
-            total_bytes,
-            is_tmpfs: self.is_tmpfs,
-            path: self.path.clone(),
-        })
+        Ok(DirStats { file_count, total_bytes, is_tmpfs: self.is_tmpfs, path: self.path.clone() })
     }
 }
 

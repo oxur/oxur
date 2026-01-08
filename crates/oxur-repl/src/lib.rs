@@ -12,6 +12,7 @@ pub mod cache;
 pub mod compiler;
 pub mod eval;
 pub mod executor;
+pub mod metrics;
 pub mod protocol;
 pub mod server;
 pub mod session;

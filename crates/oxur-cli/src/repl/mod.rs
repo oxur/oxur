@@ -5,6 +5,7 @@
 pub mod connect;
 pub mod help;
 pub mod interactive;
+pub mod metrics;
 pub mod runner;
 pub mod server;
 pub mod stats;

@@ -37,11 +37,13 @@ rustyline = { version = "14.0", optional = true }
 dirs = { version = "5.0", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
 async-trait = { version = "0.1", optional = true }
+# Metrics system (ODD-pending: REPL Metrics)
+metrics = { version = "0.24", optional = true }
 
 [features]
 default = ["binary"]
 # Feature for the binary (not needed by library users)
-binary = ["clap", "oxur-lang", "oxur-comp", "oxur-repl", "rustyline", "dirs", "tokio", "async-trait"]
+binary = ["clap", "oxur-lang", "oxur-comp", "oxur-repl", "rustyline", "dirs", "tokio", "async-trait", "metrics"]
 
 [dev-dependencies]
 tempfile.workspace = true

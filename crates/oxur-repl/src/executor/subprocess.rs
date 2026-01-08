@@ -5,10 +5,11 @@
 //!
 //! Based on ODD-0026 Section 3.2 (SubprocessExecutor)
 
+use crate::metrics::{RestartReason, SubprocessMetrics};
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
 use thiserror::Error;
 
 /// Subprocess execution errors
@@ -121,6 +122,9 @@ pub struct SubprocessExecutor {
 
     /// Path to subprocess binary
     subprocess_binary: PathBuf,
+
+    /// Metrics for tracking subprocess lifecycle
+    metrics: SubprocessMetrics,
 }
 
 impl SubprocessExecutor {
@@ -140,6 +144,7 @@ impl SubprocessExecutor {
             stdout: None,
             loaded_libraries: HashSet::new(),
             subprocess_binary,
+            metrics: SubprocessMetrics::new(),
         };
 
         executor.spawn()?;
@@ -214,6 +219,9 @@ impl SubprocessExecutor {
         self.child = Some(child);
         self.stdin = Some(stdin);
         self.stdout = Some(BufReader::new(stdout));
+
+        // Record process start for metrics
+        self.metrics.process_started();
 
         Ok(())
     }
@@ -368,26 +376,44 @@ impl SubprocessExecutor {
     /// Shutdown the subprocess
     ///
     /// Closes stdin and waits for subprocess to exit.
-    pub fn shutdown(&mut self) -> Result<()> {
+    ///
+    /// Returns the exit status if the subprocess was running, None otherwise.
+    pub fn shutdown(&mut self) -> Result<Option<ExitStatus>> {
         // Close stdin to signal subprocess to exit
         self.stdin.take();
 
-        // Wait for child to exit
-        if let Some(mut child) = self.child.take() {
-            let _ = child.wait(); // Best-effort wait
-        }
+        // Wait for child to exit and capture exit status
+        let exit_status =
+            if let Some(mut child) = self.child.take() { child.wait().ok() } else { None };
 
         self.stdout.take();
         self.loaded_libraries.clear();
 
-        Ok(())
+        Ok(exit_status)
     }
 
     /// Restart the subprocess
     ///
     /// Useful for recovering from crashes or clearing state.
-    pub fn restart(&mut self) -> Result<()> {
-        self.shutdown()?;
+    /// Records the restart reason in metrics based on exit status.
+    ///
+    /// Returns the restart reason determined from exit status.
+    pub fn restart(&mut self) -> Result<RestartReason> {
+        let exit_status = self.shutdown()?;
+        let reason =
+            exit_status.map(RestartReason::from_exit_status).unwrap_or(RestartReason::Unknown);
+
+        self.metrics.record_restart(reason);
+        self.spawn()?;
+        Ok(reason)
+    }
+
+    /// Restart the subprocess due to user request
+    ///
+    /// Records the restart as user-requested in metrics.
+    pub fn restart_user_requested(&mut self) -> Result<()> {
+        let _ = self.shutdown()?;
+        self.metrics.record_restart(RestartReason::UserRequested);
         self.spawn()?;
         Ok(())
     }
@@ -400,6 +426,28 @@ impl SubprocessExecutor {
     /// Check if subprocess is running
     pub fn is_running(&self) -> bool {
         self.child.is_some()
+    }
+
+    /// Get the current subprocess uptime in seconds
+    pub fn uptime_seconds(&self) -> f64 {
+        self.metrics.uptime_seconds()
+    }
+
+    /// Get the total restart count
+    pub fn restart_count(&self) -> u64 {
+        self.metrics.restart_count()
+    }
+
+    /// Update the uptime gauge in metrics
+    ///
+    /// Should be called periodically to keep the metrics current.
+    pub fn update_metrics(&self) {
+        self.metrics.update_uptime_gauge();
+    }
+
+    /// Get a reference to the subprocess metrics
+    pub fn metrics(&self) -> &SubprocessMetrics {
+        &self.metrics
     }
 }
 
@@ -472,13 +520,39 @@ mod tests {
             // Verify executor starts with no loaded libraries
             assert_eq!(executor.loaded_count(), 0);
             assert!(executor.is_running());
+            assert_eq!(executor.restart_count(), 0);
 
-            // Restart should succeed and maintain clean state
-            executor.restart().expect("Restart failed");
+            // Restart should succeed and return a reason
+            let reason = executor.restart().expect("Restart failed");
+            // First restart from clean process should be CleanShutdown
+            assert!(reason.is_clean(), "Expected clean restart, got {:?}", reason);
 
-            // After restart, state should still be clean
+            // After restart, state should still be clean but restart count incremented
             assert_eq!(executor.loaded_count(), 0);
             assert!(executor.is_running());
+            assert_eq!(executor.restart_count(), 1);
+        }
+    }
+
+    #[test]
+    fn test_executor_restart_user_requested() {
+        if let Ok(mut executor) = SubprocessExecutor::new() {
+            assert_eq!(executor.restart_count(), 0);
+
+            // User-requested restart
+            executor.restart_user_requested().expect("Restart failed");
+
+            assert!(executor.is_running());
+            assert_eq!(executor.restart_count(), 1);
+        }
+    }
+
+    #[test]
+    fn test_executor_uptime() {
+        if let Ok(executor) = SubprocessExecutor::new() {
+            // Uptime should be non-negative
+            let uptime = executor.uptime_seconds();
+            assert!(uptime >= 0.0, "Uptime should be non-negative");
         }
     }
 

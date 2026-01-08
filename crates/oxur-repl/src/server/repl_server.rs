@@ -5,6 +5,7 @@
 //!
 //! Based on ODD-0018: Oxur Remote REPL Protocol Design
 
+use crate::metrics::ServerMetrics;
 use crate::server::{MessageHandler, SessionManager};
 use crate::transport::{TcpTransport, TcpTransportListener};
 use std::io;
@@ -34,6 +35,9 @@ pub struct ReplServer {
 
     /// Graceful shutdown timeout (how long to wait for connections to finish)
     shutdown_timeout: Duration,
+
+    /// Optional server metrics for observability
+    metrics: Option<ServerMetrics>,
 }
 
 /// Handle for triggering server shutdown
@@ -79,7 +83,30 @@ impl ReplServer {
             session_manager: Arc::new(SessionManager::new()),
             shutdown_tx,
             shutdown_timeout: Duration::from_secs(30), // Default 30 second timeout
+            metrics: None,
         }
+    }
+
+    /// Enable metrics collection for the server
+    ///
+    /// When enabled, the server records:
+    /// - Connection counts (total and active)
+    /// - Session counts (total and active)
+    /// - Request/response counts by type and status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use oxur_repl::server::ReplServer;
+    ///
+    /// # async fn example() {
+    /// let server = ReplServer::new("127.0.0.1:5555")
+    ///     .with_metrics();
+    /// # }
+    /// ```
+    pub fn with_metrics(mut self) -> Self {
+        self.metrics = Some(ServerMetrics::new());
+        self
     }
 
     /// Set the graceful shutdown timeout
@@ -198,14 +225,20 @@ impl ReplServer {
 
                             eprintln!("[INFO] Accepted connection from {}", peer_addr);
 
+                            // Record connection accepted metric
+                            if let Some(ref metrics) = self.metrics {
+                                metrics.connection_accepted();
+                            }
+
                             // Spawn handler for this connection
                             let session_manager = Arc::clone(&self.session_manager);
                             let mut shutdown_rx = self.shutdown_tx.subscribe();
+                            let metrics = self.metrics.clone();
 
                             active_connections.spawn(async move {
                                 // Run connection handler, but cancel if shutdown is triggered
                                 tokio::select! {
-                                    result = Self::handle_connection(transport, session_manager) => {
+                                    result = Self::handle_connection(transport, session_manager, metrics.as_ref()) => {
                                         match result {
                                             Ok(_) => {
                                                 eprintln!("[INFO] Connection closed ({})", peer_addr);
@@ -218,6 +251,10 @@ impl ReplServer {
                                     _ = shutdown_rx.recv() => {
                                         eprintln!("[INFO] Connection interrupted by shutdown ({})", peer_addr);
                                     }
+                                }
+                                // Record connection closed metric
+                                if let Some(ref metrics) = metrics {
+                                    metrics.connection_closed();
                                 }
                             });
                         }
@@ -274,7 +311,9 @@ impl ReplServer {
     async fn handle_connection(
         mut transport: TcpTransport,
         session_manager: Arc<SessionManager>,
+        metrics: Option<&ServerMetrics>,
     ) -> io::Result<()> {
+        use crate::protocol::{Operation, OperationResult};
         use crate::transport::{Transport, TransportError};
 
         let handler = MessageHandler::new((*session_manager).clone());
@@ -295,8 +334,43 @@ impl ReplServer {
                 }
             };
 
+            // Record request metric
+            if let Some(m) = metrics {
+                let operation_name = match &request.operation {
+                    Operation::CreateSession { .. } => "create_session",
+                    Operation::Clone { .. } => "clone",
+                    Operation::Eval { .. } => "eval",
+                    Operation::Close => "close",
+                    Operation::LsSessions => "ls_sessions",
+                    Operation::LoadFile { .. } => "load_file",
+                    Operation::Interrupt => "interrupt",
+                    Operation::Describe { .. } => "describe",
+                    Operation::History { .. } => "history",
+                    Operation::ClearOutput => "clear_output",
+                };
+                m.request_received(operation_name);
+
+                // Track session creation/close for session metrics
+                match &request.operation {
+                    Operation::CreateSession { .. } => m.session_created(),
+                    Operation::Close => m.session_closed(),
+                    _ => {}
+                }
+            }
+
             // Process request
             let response = handler.handle(request).await;
+
+            // Record response metric
+            if let Some(m) = metrics {
+                let status = match &response.result {
+                    OperationResult::Success { .. } => "success",
+                    OperationResult::Error { .. } => "error",
+                    OperationResult::Sessions { .. } => "success",
+                    OperationResult::HistoryEntries { .. } => "success",
+                };
+                m.response_sent(status);
+            }
 
             // Write response using Transport trait
             if let Err(e) = transport.send_response(&response).await {
@@ -344,7 +418,7 @@ mod tests {
             // Accept one connection then stop
             let transport = listener.accept().await.unwrap();
             let session_manager = Arc::new(SessionManager::new());
-            ReplServer::handle_connection(transport, session_manager).await.unwrap();
+            ReplServer::handle_connection(transport, session_manager, None).await.unwrap();
         });
 
         // Give server time to start
@@ -384,7 +458,7 @@ mod tests {
         let server_handle = tokio::spawn(async move {
             let transport = listener.accept().await.unwrap();
             let session_manager = Arc::new(SessionManager::new());
-            ReplServer::handle_connection(transport, session_manager).await.ok();
+            ReplServer::handle_connection(transport, session_manager, None).await.ok();
         });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -449,12 +523,12 @@ mod tests {
             let transport1 = listener.accept().await.unwrap();
             let sm1 = Arc::clone(&sm);
             tokio::spawn(async move {
-                ReplServer::handle_connection(transport1, sm1).await.ok();
+                ReplServer::handle_connection(transport1, sm1, None).await.ok();
             });
 
             // Accept and handle second connection
             let transport2 = listener.accept().await.unwrap();
-            ReplServer::handle_connection(transport2, sm).await.ok();
+            ReplServer::handle_connection(transport2, sm, None).await.ok();
         });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -498,7 +572,7 @@ mod tests {
         let server_handle = tokio::spawn(async move {
             let transport = listener.accept().await.unwrap();
             let session_manager = Arc::new(SessionManager::new());
-            ReplServer::handle_connection(transport, session_manager).await
+            ReplServer::handle_connection(transport, session_manager, None).await
         });
 
         tokio::time::sleep(Duration::from_millis(50)).await;

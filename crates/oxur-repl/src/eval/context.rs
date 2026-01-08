@@ -328,10 +328,7 @@ impl EvalContext {
             let duration_ms = duration.as_millis() as u64;
 
             // Record stats
-            self.stats_collector
-                .lock()
-                .unwrap()
-                .record(ExecutionTier::Calculator, false, duration);
+            self.stats_collector.lock().unwrap().record(ExecutionTier::Calculator, false, duration);
 
             return Ok(EvalResult {
                 value: result,
@@ -388,10 +385,11 @@ impl EvalContext {
                 let duration_ms = duration.as_millis() as u64;
 
                 // Record stats
-                self.stats_collector
-                    .lock()
-                    .unwrap()
-                    .record(ExecutionTier::CachedLoaded, true, duration);
+                self.stats_collector.lock().unwrap().record(
+                    ExecutionTier::CachedLoaded,
+                    true,
+                    duration,
+                );
 
                 let result_value = match exec_result {
                     crate::executor::ExecutionResult::Success { output } => output,
@@ -428,10 +426,11 @@ impl EvalContext {
                 let duration_ms = duration.as_millis() as u64;
 
                 // Record stats
-                self.stats_collector
-                    .lock()
-                    .unwrap()
-                    .record(ExecutionTier::CachedLoaded, true, duration);
+                self.stats_collector.lock().unwrap().record(
+                    ExecutionTier::CachedLoaded,
+                    true,
+                    duration,
+                );
 
                 return Ok(EvalResult {
                     value: cached_result.clone(),
@@ -451,10 +450,7 @@ impl EvalContext {
         let duration_ms = duration.as_millis() as u64;
 
         // Record stats
-        self.stats_collector
-            .lock()
-            .unwrap()
-            .record(ExecutionTier::JustInTime, false, duration);
+        self.stats_collector.lock().unwrap().record(ExecutionTier::JustInTime, false, duration);
 
         // Cache the result
         self.cache.insert(cache_key, result.clone());
@@ -842,10 +838,11 @@ mod tests {
         let mut ctx = EvalContext::new(SessionId::new("session-1"), ReplMode::Lisp);
 
         // Record some stats in the original context
-        ctx.stats_collector
-            .lock()
-            .unwrap()
-            .record(ExecutionTier::Calculator, false, Duration::from_millis(1));
+        ctx.stats_collector.lock().unwrap().record(
+            ExecutionTier::Calculator,
+            false,
+            Duration::from_millis(1),
+        );
 
         ctx.cache.insert("key".to_string(), "value".to_string());
 

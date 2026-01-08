@@ -7,7 +7,9 @@ use crate::repl::help::HelpSystem;
 use crate::repl::terminal::ReplTerminal;
 use anyhow::Result;
 use async_trait::async_trait;
-use oxur_repl::protocol::{MessageId, Operation, OperationResult, ReplMode, Request, Response, SessionId};
+use oxur_repl::protocol::{
+    MessageId, Operation, OperationResult, ReplMode, Request, Response, SessionId,
+};
 use rustyline::error::ReadlineError;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -49,11 +51,7 @@ pub struct ReplRunner {
 impl ReplRunner {
     /// Create a new REPL runner
     pub fn new(terminal: ReplTerminal, session_id: SessionId) -> Self {
-        Self {
-            terminal,
-            session_id,
-            msg_counter: AtomicU64::new(1),
-        }
+        Self { terminal, session_id, msg_counter: AtomicU64::new(1) }
     }
 
     /// Get the next message ID
@@ -124,10 +122,7 @@ impl ReplRunner {
             let eval_req = Request {
                 id: self.next_message_id(),
                 session_id: self.session_id.clone(),
-                operation: Operation::Eval {
-                    code: trimmed.to_string(),
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::Eval { code: trimmed.to_string(), mode: ReplMode::Lisp },
             };
 
             // Send request to server
@@ -253,10 +248,7 @@ pub fn parse_help_command(input: &str, color_enabled: bool) -> Option<String> {
     if input.starts_with("(help ") && input.ends_with(')') {
         let topic = &input[6..input.len() - 1].trim();
         return help_system.show_topic(topic).or_else(|| {
-            Some(format!(
-                "Unknown help topic: {}. Try (help) for available topics.",
-                topic
-            ))
+            Some(format!("Unknown help topic: {}. Try (help) for available topics.", topic))
         });
     }
 

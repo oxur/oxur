@@ -443,7 +443,8 @@ impl HelpSystem {
 
         output.push_str(&help.section("STATISTICS"));
         output.push_str(&help.command("(stats)", "Show session summary (tiers, cache hit rate)"));
-        output.push_str(&help.command("(stats execution)", "Show detailed tier performance metrics"));
+        output
+            .push_str(&help.command("(stats execution)", "Show detailed tier performance metrics"));
         output.push_str(&help.command("(stats cache)", "Show cache hit/miss statistics"));
         output.push_str(&help.command("(stats resources)", "Show memory, disk, and file usage"));
         output.push('\n');
@@ -668,7 +669,8 @@ impl HelpSystem {
         output.push_str(&help.cmd_text("p99"));
         output.push_str(": 99% of evaluations are faster (includes most samples)\n\n");
         output.push_str("If p50 and p95 are close, performance is consistent.\n");
-        output.push_str("If p99 is much higher than p95, you have occasional slow evaluations.\n\n");
+        output
+            .push_str("If p99 is much higher than p95, you have occasional slow evaluations.\n\n");
 
         output.push_str(&help.section("UNDERSTANDING THE TIERS"));
         output.push_str("The stats show performance across three execution tiers:\n\n");

@@ -472,21 +472,9 @@ impl ArtifactCache {
         let count = self.index.entries.len();
         let total_size = self.index.entries.values().map(|e| e.size_bytes).sum();
 
-        let oldest_entry_secs = self
-            .index
-            .entries
-            .values()
-            .map(|e| e.cached_at)
-            .min()
-            .unwrap_or(0);
+        let oldest_entry_secs = self.index.entries.values().map(|e| e.cached_at).min().unwrap_or(0);
 
-        let newest_entry_secs = self
-            .index
-            .entries
-            .values()
-            .map(|e| e.cached_at)
-            .max()
-            .unwrap_or(0);
+        let newest_entry_secs = self.index.entries.values().map(|e| e.cached_at).max().unwrap_or(0);
 
         CacheStats {
             entry_count: count,

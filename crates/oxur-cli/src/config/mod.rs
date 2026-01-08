@@ -23,11 +23,13 @@
 
 mod history;
 mod loader;
+mod metrics;
 pub mod paths;
 mod terminal;
 
 pub use history::{HistoryConfig, HistoryConfigBuilder};
 pub use loader::{load_config, ConfigLoader};
+pub use metrics::{MetricsConfig, MetricsConfigBuilder};
 pub use terminal::{EditMode, TerminalConfig, TerminalConfigBuilder};
 
 use serde::{Deserialize, Serialize};
@@ -42,6 +44,8 @@ pub struct ReplConfig {
     pub terminal: TerminalConfig,
     /// Command history settings
     pub history: HistoryConfig,
+    /// Metrics collection and export settings
+    pub metrics: MetricsConfig,
 }
 
 impl ReplConfig {
@@ -75,6 +79,7 @@ impl ReplConfig {
     pub fn merge(&mut self, other: ReplConfig) {
         self.terminal.merge(other.terminal);
         self.history.merge(other.history);
+        self.metrics.merge(other.metrics);
     }
 }
 
@@ -99,6 +104,12 @@ impl ReplConfigBuilder {
     /// Set history configuration
     pub fn history(mut self, config: HistoryConfig) -> Self {
         self.config.history = config;
+        self
+    }
+
+    /// Set metrics configuration
+    pub fn metrics(mut self, config: MetricsConfig) -> Self {
+        self.config.metrics = config;
         self
     }
 

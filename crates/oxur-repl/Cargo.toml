@@ -32,6 +32,10 @@ prettyplease = "0.2"
 # Required for Phase 4: Source Map Integration
 ariadne = "0.4"          # Beautiful error display (rustc-style)
 regex = "1.10"           # Parse /* oxur_node=N */ comments
+# Metrics system (ODD-pending: REPL Metrics)
+metrics = "0.24"                 # Metrics facade (counter!, gauge!, histogram!)
+metrics-exporter-tcp = "0.11"    # TCP exporter for external monitoring
+metrics-process = "2.1"          # Process-level metrics (memory, CPU, FDs)
 
 [dev-dependencies]
 anyhow.workspace = true

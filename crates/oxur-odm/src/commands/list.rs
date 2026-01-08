@@ -59,20 +59,18 @@ pub struct ListFilters {
 
 impl Default for ListFilters {
     fn default() -> Self {
-        Self {
-            state: None,
-            component: None,
-            tags: Vec::new(),
-            limit: DEFAULT_LIMIT,
-            all: false,
-        }
+        Self { state: None, component: None, tags: Vec::new(), limit: DEFAULT_LIMIT, all: false }
     }
 }
 
 impl ListFilters {
     /// Get effective limit (None if --all, otherwise the limit value)
     pub fn effective_limit(&self) -> Option<usize> {
-        if self.all { None } else { Some(self.limit) }
+        if self.all {
+            None
+        } else {
+            Some(self.limit)
+        }
     }
 }
 
@@ -173,8 +171,7 @@ fn list_documents_impl(
     // Calculate total before applying limit
     let total_count = docs.len();
     let effective_limit = filters.effective_limit();
-    let is_truncated =
-        effective_limit.map(|limit| total_count > limit).unwrap_or(false);
+    let is_truncated = effective_limit.map(|limit| total_count > limit).unwrap_or(false);
 
     // Apply limit if not showing all
     if let Some(limit) = effective_limit {
@@ -353,18 +350,9 @@ fn list_removed_documents(
 
     // Last row: Footer with total count - PLAIN TEXT
     let total_text = if is_truncated {
-        format!(
-            "{} of {} (--all for more)",
-            removed_docs.len(),
-            total_count
-        )
+        format!("{} of {} (--all for more)", removed_docs.len(), total_count)
     } else {
-        format!(
-            "{} removed ({} in dustbin, {} deleted)",
-            total_count,
-            in_dustbin,
-            deleted
-        )
+        format!("{} removed ({} in dustbin, {} deleted)", total_count, in_dustbin, deleted)
     };
     builder.push_record(["Total:", &total_text, "", "", ""]);
 
@@ -529,7 +517,11 @@ fn print_dev_table(
 
     // Apply limit if specified
     let display_docs: &[(PathBuf, fs::Metadata)] = if let Some(l) = limit {
-        if docs.len() > l { &docs[..l] } else { docs }
+        if docs.len() > l {
+            &docs[..l]
+        } else {
+            docs
+        }
     } else {
         docs
     };

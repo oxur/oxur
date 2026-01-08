@@ -97,11 +97,8 @@ pub fn show_execution_details(collector: &StatsCollector, color_enabled: bool) -
     output.push_str(&header("Execution Statistics", color_enabled));
     output.push('\n');
 
-    for tier in [
-        ExecutionTier::Calculator,
-        ExecutionTier::CachedLoaded,
-        ExecutionTier::JustInTime,
-    ] {
+    for tier in [ExecutionTier::Calculator, ExecutionTier::CachedLoaded, ExecutionTier::JustInTime]
+    {
         if let Some(p) = collector.percentiles(tier) {
             output.push_str(&section(&tier_name(tier), color_enabled));
 
@@ -222,10 +219,7 @@ pub fn show_resource_stats(
                 metric: "Location".to_string(),
                 value: format!("{}{}", dir_stats.path.display(), location_type),
             },
-            DirMetric {
-                metric: "Files".to_string(),
-                value: dir_stats.file_count.to_string(),
-            },
+            DirMetric { metric: "Files".to_string(), value: dir_stats.file_count.to_string() },
             DirMetric {
                 metric: "Disk Usage".to_string(),
                 value: format_bytes(dir_stats.total_bytes),

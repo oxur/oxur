@@ -33,13 +33,7 @@ impl InProcessAdapter {
         session_manager: Arc<SessionManager>,
         session_id: SessionId,
     ) -> Self {
-        Self {
-            client,
-            server,
-            handler,
-            session_manager,
-            session_id,
-        }
+        Self { client, server, handler, session_manager, session_id }
     }
 }
 
