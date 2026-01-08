@@ -35,12 +35,14 @@ use std::time::Instant;
 /// ```
 #[cfg(feature = "binary")]
 #[derive(Debug)]
+#[allow(dead_code)] // Optional infrastructure - not yet wired into connect.rs
 pub struct MetricsClientAdapter<C: ReplClientAdapter> {
     inner: C,
     request_start: Option<Instant>,
 }
 
 #[cfg(feature = "binary")]
+#[allow(dead_code)] // Optional infrastructure - not yet wired into connect.rs
 impl<C: ReplClientAdapter> MetricsClientAdapter<C> {
     /// Create a new metrics-enabled adapter wrapping an inner adapter.
     pub fn new(inner: C) -> Self {
