@@ -227,6 +227,48 @@ impl SessionManager {
         })
     }
 
+    /// Get the statistics collector for a session
+    ///
+    /// Returns a shared reference to the session's StatsCollector for detailed metrics access.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::NotFound` if the session doesn't exist.
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
+    pub fn get_stats_collector(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Arc<std::sync::Mutex<crate::eval::stats::StatsCollector>>> {
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
+
+        let ctx = sessions
+            .get(session_id)
+            .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
+
+        Ok(ctx.stats_collector())
+    }
+
+    /// Get resource statistics for a session
+    ///
+    /// Returns (session_dir_stats, artifact_cache_stats) for the given session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::NotFound` if the session doesn't exist.
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
+    pub fn get_resource_stats(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<(Option<crate::session::DirStats>, Option<crate::cache::CacheStats>)> {
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
+
+        let ctx = sessions
+            .get(session_id)
+            .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
+
+        Ok((ctx.session_dir_stats(), ctx.artifact_cache_stats()))
+    }
+
     /// Get the number of active sessions
     ///
     /// # Errors

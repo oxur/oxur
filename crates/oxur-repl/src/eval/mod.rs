@@ -6,9 +6,11 @@ mod context;
 mod lisp_mode;
 pub mod output_capture;
 mod sexpr_mode;
+pub mod stats;
 
 // Re-export public types
 pub use context::{EvalContext, EvalError, EvalResult, ExecutionTier, Result};
 pub use lisp_mode::LispEvaluator;
 pub use output_capture::{CapturedOutput, OutputCapturer};
 pub use sexpr_mode::SexprEvaluator;
+pub use stats::{get_resource_stats, CacheStats, Percentiles, ResourceStats, StatsCollector};

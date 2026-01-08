@@ -5,7 +5,9 @@
 
 use crate::cache::ArtifactCache;
 use crate::compiler::CachedCompiler;
-use crate::eval::{output_capture::OutputCapturer, LispEvaluator, SexprEvaluator};
+use crate::eval::{
+    output_capture::OutputCapturer, stats::StatsCollector, LispEvaluator, SexprEvaluator,
+};
 use crate::executor::SubprocessExecutor;
 use crate::protocol::{ReplMode, SessionId};
 use crate::session::SessionDir;
@@ -124,8 +126,8 @@ pub struct EvalContext {
     /// Cached compiled code (hash -> result)
     cache: HashMap<String, String>,
 
-    /// Execution statistics
-    stats: ExecutionStats,
+    /// Statistics collector for tracking execution metrics (shared)
+    stats_collector: Arc<Mutex<StatsCollector>>,
 
     /// Artifact cache for compiled libraries (shared)
     artifact_cache: Option<Arc<Mutex<ArtifactCache>>>,
@@ -152,19 +154,6 @@ pub struct EvalContext {
     source_map: oxur_smap::SourceMap,
 }
 
-/// Execution statistics for the session
-#[derive(Debug, Clone, Default)]
-struct ExecutionStats {
-    /// Number of Tier 1 (calculator) evaluations
-    tier1_count: u64,
-
-    /// Number of Tier 2 (compiled) evaluations
-    tier2_count: u64,
-
-    /// Number of cache hits
-    cache_hits: u64,
-}
-
 impl EvalContext {
     /// Create a new evaluation context
     ///
@@ -178,12 +167,12 @@ impl EvalContext {
     /// ```
     pub fn new(session_id: SessionId, mode: ReplMode) -> Self {
         Self {
-            session_id,
+            session_id: session_id.clone(),
             mode,
             lisp_eval: LispEvaluator::new(),
             sexpr_eval: SexprEvaluator::new(),
             cache: HashMap::new(),
-            stats: ExecutionStats::default(),
+            stats_collector: Arc::new(Mutex::new(StatsCollector::new(session_id.as_str()))),
             artifact_cache: None,
             compiler: None,
             executor: None,
@@ -236,12 +225,12 @@ impl EvalContext {
         let executor = Arc::new(Mutex::new(executor));
 
         Ok(Self {
-            session_id,
+            session_id: session_id.clone(),
             mode,
             lisp_eval: LispEvaluator::new(),
             sexpr_eval: SexprEvaluator::new(),
             cache: HashMap::new(),
-            stats: ExecutionStats::default(),
+            stats_collector: Arc::new(Mutex::new(StatsCollector::new(session_id.as_str()))),
             artifact_cache: Some(artifact_cache),
             compiler: Some(compiler),
             executor: Some(executor),
@@ -262,9 +251,29 @@ impl EvalContext {
         self.mode
     }
 
-    /// Get execution statistics
+    /// Get execution statistics (legacy method for backward compatibility)
+    ///
+    /// Returns (tier1_count, tier2_count, cache_hits)
+    /// Note: tier2_count includes both CachedLoaded and JustInTime tiers for backward compatibility
     pub fn stats(&self) -> (u64, u64, u64) {
-        (self.stats.tier1_count, self.stats.tier2_count, self.stats.cache_hits)
+        let collector = self.stats_collector.lock().unwrap();
+        let cache_stats = collector.cache_stats();
+        // Approximate tier counts from percentiles
+        let tier1_count =
+            collector.percentiles(ExecutionTier::Calculator).map(|p| p.count as u64).unwrap_or(0);
+        let tier2_count =
+            collector.percentiles(ExecutionTier::CachedLoaded).map(|p| p.count as u64).unwrap_or(0);
+        let tier3_count =
+            collector.percentiles(ExecutionTier::JustInTime).map(|p| p.count as u64).unwrap_or(0);
+        // Combine tier2 and tier3 for backward compatibility with old ExecutionStats
+        (tier1_count, tier2_count + tier3_count, cache_stats.hits)
+    }
+
+    /// Get the statistics collector
+    ///
+    /// Returns a shared reference to the stats collector for detailed metrics access.
+    pub fn stats_collector(&self) -> Arc<Mutex<StatsCollector>> {
+        Arc::clone(&self.stats_collector)
     }
 
     /// Clone this context into a new session
@@ -276,12 +285,12 @@ impl EvalContext {
     /// so they share state across clones.
     pub fn clone_to(&self, new_session_id: SessionId) -> Self {
         Self {
-            session_id: new_session_id,
+            session_id: new_session_id.clone(),
             mode: self.mode,
             lisp_eval: LispEvaluator::new(),
             sexpr_eval: SexprEvaluator::new(),
             cache: self.cache.clone(),
-            stats: ExecutionStats::default(),
+            stats_collector: Arc::new(Mutex::new(StatsCollector::new(new_session_id.as_str()))),
             artifact_cache: self.artifact_cache.clone(),
             compiler: self.compiler.clone(),
             executor: self.executor.clone(),
@@ -315,8 +324,14 @@ impl EvalContext {
 
         // Attempt Tier 1 (Calculator mode) first
         if let Some(result) = self.try_calculator(code) {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            self.stats.tier1_count += 1;
+            let duration = start.elapsed();
+            let duration_ms = duration.as_millis() as u64;
+
+            // Record stats
+            self.stats_collector
+                .lock()
+                .unwrap()
+                .record(ExecutionTier::Calculator, false, duration);
 
             return Ok(EvalResult {
                 value: result,
@@ -369,9 +384,14 @@ impl EvalContext {
                         },
                     )?;
 
-                let duration_ms = start.elapsed().as_millis() as u64;
-                self.stats.tier2_count += 1;
-                self.stats.cache_hits += 1;
+                let duration = start.elapsed();
+                let duration_ms = duration.as_millis() as u64;
+
+                // Record stats
+                self.stats_collector
+                    .lock()
+                    .unwrap()
+                    .record(ExecutionTier::CachedLoaded, true, duration);
 
                 let result_value = match exec_result {
                     crate::executor::ExecutionResult::Success { output } => output,
@@ -404,9 +424,14 @@ impl EvalContext {
         } else {
             // No executor - check string cache for simple caching (backward compatibility)
             if let Some(cached_result) = self.cache.get(&cache_key) {
-                let duration_ms = start.elapsed().as_millis() as u64;
-                self.stats.tier2_count += 1;
-                self.stats.cache_hits += 1;
+                let duration = start.elapsed();
+                let duration_ms = duration.as_millis() as u64;
+
+                // Record stats
+                self.stats_collector
+                    .lock()
+                    .unwrap()
+                    .record(ExecutionTier::CachedLoaded, true, duration);
 
                 return Ok(EvalResult {
                     value: cached_result.clone(),
@@ -422,11 +447,17 @@ impl EvalContext {
         // Tier 3: Need to compile and/or load library
         // Full compilation pipeline: parse, expand, wrap, compile, load, execute
         let (result, stdout, stderr) = self.compile_and_execute(code).await?;
-        let duration_ms = start.elapsed().as_millis() as u64;
+        let duration = start.elapsed();
+        let duration_ms = duration.as_millis() as u64;
+
+        // Record stats
+        self.stats_collector
+            .lock()
+            .unwrap()
+            .record(ExecutionTier::JustInTime, false, duration);
 
         // Cache the result
         self.cache.insert(cache_key, result.clone());
-        self.stats.tier2_count += 1; // Track as tier2 (compiled) in stats
 
         Ok(EvalResult {
             value: result,
@@ -611,6 +642,26 @@ impl EvalContext {
     }
 
     // ========================================================================
+    // Resource Statistics Methods
+    // ========================================================================
+
+    /// Get session directory statistics
+    ///
+    /// Returns information about files and disk usage in the session's temporary directory.
+    /// Returns None if the session directory is not initialized.
+    pub fn session_dir_stats(&self) -> Option<crate::session::DirStats> {
+        self.session_dir.as_ref().and_then(|dir| dir.get_stats().ok())
+    }
+
+    /// Get artifact cache statistics
+    ///
+    /// Returns detailed statistics about the global artifact cache including entry count,
+    /// total size, and oldest/newest entries. Returns None if artifact cache is not initialized.
+    pub fn artifact_cache_stats(&self) -> Option<crate::cache::CacheStats> {
+        self.artifact_cache.as_ref().map(|cache| cache.lock().unwrap().detailed_stats())
+    }
+
+    // ========================================================================
     // Type Inference Methods (Phase 7)
     // ========================================================================
 
@@ -786,8 +837,16 @@ mod tests {
 
     #[test]
     fn test_clone_to() {
+        use std::time::Duration;
+
         let mut ctx = EvalContext::new(SessionId::new("session-1"), ReplMode::Lisp);
-        ctx.stats.tier1_count = 5;
+
+        // Record some stats in the original context
+        ctx.stats_collector
+            .lock()
+            .unwrap()
+            .record(ExecutionTier::Calculator, false, Duration::from_millis(1));
+
         ctx.cache.insert("key".to_string(), "value".to_string());
 
         let cloned = ctx.clone_to(SessionId::new("session-2"));

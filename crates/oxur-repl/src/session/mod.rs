@@ -5,4 +5,4 @@
 
 mod dir;
 
-pub use dir::{SessionDir, SessionDirError};
+pub use dir::{DirStats, SessionDir, SessionDirError};

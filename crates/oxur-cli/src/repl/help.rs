@@ -32,6 +32,7 @@ impl HelpSystem {
         topics.insert("commands".to_string(), Self::generate_commands_topic(color_enabled));
         topics.insert("modes".to_string(), Self::generate_modes_topic(color_enabled));
         topics.insert("performance".to_string(), Self::generate_performance_topic(color_enabled));
+        topics.insert("stats".to_string(), Self::generate_stats_topic(color_enabled));
 
         Self { topics, color_enabled }
     }
@@ -57,6 +58,8 @@ impl HelpSystem {
         output.push_str(&self.command("(quit), (q), (exit)", "Exit the REPL"));
         output.push_str(&self.command("(help)", "Show this help overview"));
         output.push_str(&self.command("(help <topic>)", "Show detailed help for a topic"));
+        output.push_str(&self.command("(stats)", "Show session statistics"));
+        output.push_str(&self.command("(stats <view>)", "Show specific stats view"));
         output.push_str(&self.command("Ctrl-D", "Exit the REPL (EOF)"));
         output.push_str(&self.command("Ctrl-C", "Cancel current input line"));
         output.push('\n');
@@ -90,6 +93,7 @@ impl HelpSystem {
         output.push_str(&self.command("commands", "All special commands reference"));
         output.push_str(&self.command("modes", "Lisp vs Sexpr evaluation modes"));
         output.push_str(&self.command("performance", "Understanding execution tiers"));
+        output.push_str(&self.command("stats", "Statistics and instrumentation"));
         output.push('\n');
         output.push_str("Type ");
         output.push_str(&self.cmd_text("(help <topic>)"));
@@ -437,6 +441,13 @@ impl HelpSystem {
         output.push_str(&help.command("(help <topic>)", "Show detailed help for a specific topic"));
         output.push('\n');
 
+        output.push_str(&help.section("STATISTICS"));
+        output.push_str(&help.command("(stats)", "Show session summary (tiers, cache hit rate)"));
+        output.push_str(&help.command("(stats execution)", "Show detailed tier performance metrics"));
+        output.push_str(&help.command("(stats cache)", "Show cache hit/miss statistics"));
+        output.push_str(&help.command("(stats resources)", "Show memory, disk, and file usage"));
+        output.push('\n');
+
         output.push_str(&help.section("KEYBOARD SHORTCUTS"));
         output.push_str(&help.command("Ctrl-D", "Exit REPL if line is empty"));
         output.push_str(&help.command("Ctrl-C", "Cancel current input and start fresh"));
@@ -457,6 +468,8 @@ impl HelpSystem {
         output.push_str(&help.cmd_text("(help keyboard)"));
         output.push_str(", ");
         output.push_str(&help.cmd_text("(help evaluation)"));
+        output.push_str(", ");
+        output.push_str(&help.cmd_text("(help stats)"));
         output.push('\n');
 
         output
@@ -578,6 +591,115 @@ impl HelpSystem {
 
         output
     }
+
+    fn generate_stats_topic(color_enabled: bool) -> String {
+        let help = Self { topics: HashMap::new(), color_enabled };
+        let mut output = String::new();
+
+        output.push_str(&help.header("Statistics and Instrumentation"));
+        output.push('\n');
+
+        output.push_str(&help.section("OVERVIEW"));
+        output.push_str("The REPL provides comprehensive statistics and instrumentation to help\n");
+        output.push_str("you understand performance, resource usage, and execution patterns.\n");
+        output.push_str("All statistics use styled tables for clear presentation.\n\n");
+
+        output.push_str(&help.section("AVAILABLE VIEWS"));
+        output.push('\n');
+
+        output.push_str(&help.cmd_text("(stats)"));
+        output.push_str(" - Session Summary\n");
+        output.push_str(&help.divider());
+        output.push_str("Shows a high-level overview of your REPL session:\n");
+        output.push_str("  • Total evaluations performed\n");
+        output.push_str("  • Cache hit rate (hits, misses, percentage)\n");
+        output.push_str("  • Execution tier summary with percentiles (p50, p95, p99)\n\n");
+        output.push_str("Use this view to get a quick snapshot of session performance.\n\n");
+
+        output.push_str(&help.cmd_text("(stats execution)"));
+        output.push_str(" - Detailed Tier Breakdown\n");
+        output.push_str(&help.divider());
+        output.push_str("Shows detailed performance metrics for each execution tier:\n");
+        output.push_str("  • Count: Number of evaluations at this tier\n");
+        output.push_str("  • Min: Fastest evaluation time\n");
+        output.push_str("  • p50 (median): Typical evaluation time\n");
+        output.push_str("  • p95: 95th percentile (outliers excluded)\n");
+        output.push_str("  • p99: 99th percentile (almost all samples)\n");
+        output.push_str("  • Max: Slowest evaluation time\n\n");
+        output.push_str("Use this view to understand tier-specific performance patterns.\n\n");
+
+        output.push_str(&help.cmd_text("(stats cache)"));
+        output.push_str(" - Cache Metrics\n");
+        output.push_str(&help.divider());
+        output.push_str("Shows caching effectiveness:\n");
+        output.push_str("  • Hits: Number of cache hits (fast path)\n");
+        output.push_str("  • Misses: Number of cache misses (compilation required)\n");
+        output.push_str("  • Hit Rate: Percentage of evaluations served from cache\n\n");
+        output.push_str("A high hit rate (>70%) indicates good code reuse patterns.\n\n");
+
+        output.push_str(&help.cmd_text("(stats resources)"));
+        output.push_str(" - Resource Usage\n");
+        output.push_str(&help.divider());
+        output.push_str("Shows system resource consumption:\n\n");
+        output.push_str("Memory:\n");
+        output.push_str("  • Process RSS: Resident memory (actual RAM used)\n");
+        output.push_str("  • Virtual Memory: Total address space\n");
+        output.push_str("  • Process ID: Operating system PID\n\n");
+        output.push_str("Session Directory:\n");
+        output.push_str("  • Location: Path to session temp directory\n");
+        output.push_str("  • Files: Count of compiled artifacts\n");
+        output.push_str("  • Disk Usage: Total space consumed\n\n");
+        output.push_str("Artifact Cache (Global):\n");
+        output.push_str("  • Entries: Number of cached artifacts\n");
+        output.push_str("  • Total Size: Disk space used by cache\n");
+        output.push_str("  • Oldest Entry: Age of oldest cached item\n");
+        output.push_str("  • Cache Directory: Path to global cache\n\n");
+
+        output.push_str(&help.section("PERCENTILES EXPLAINED"));
+        output.push_str("Percentiles give you a better understanding of typical performance\n");
+        output.push_str("than simple averages:\n\n");
+        output.push_str("  • ");
+        output.push_str(&help.cmd_text("p50 (median)"));
+        output.push_str(": Half of evaluations are faster\n");
+        output.push_str("  • ");
+        output.push_str(&help.cmd_text("p95"));
+        output.push_str(": 95% of evaluations are faster (excludes slow outliers)\n");
+        output.push_str("  • ");
+        output.push_str(&help.cmd_text("p99"));
+        output.push_str(": 99% of evaluations are faster (includes most samples)\n\n");
+        output.push_str("If p50 and p95 are close, performance is consistent.\n");
+        output.push_str("If p99 is much higher than p95, you have occasional slow evaluations.\n\n");
+
+        output.push_str(&help.section("UNDERSTANDING THE TIERS"));
+        output.push_str("The stats show performance across three execution tiers:\n\n");
+        output.push_str(&help.cmd_text("Calculator"));
+        output.push_str(": Simple arithmetic (~1ms)\n");
+        output.push_str("  Fast, no compilation, direct evaluation\n\n");
+        output.push_str(&help.cmd_text("Cached"));
+        output.push_str(": Previously compiled (~1-5ms)\n");
+        output.push_str("  Near-instant, uses cached compilation\n\n");
+        output.push_str(&help.cmd_text("JIT"));
+        output.push_str(": Fresh compilation (~50-300ms)\n");
+        output.push_str("  Slower first time, then cached\n\n");
+
+        output.push_str(&help.section("OPTIMIZATION TIPS"));
+        output.push_str("Use stats to guide optimization:\n\n");
+        output.push_str("⚡ Low cache hit rate? Reuse more code patterns\n");
+        output.push_str("⚡ High p99 on Calculator tier? Simplify expressions\n");
+        output.push_str("⚡ Many JIT evaluations? Define functions for reuse\n");
+        output.push_str("⚡ High memory usage? Consider restarting REPL session\n\n");
+
+        output.push_str(&help.note("💡 TIP: Track stats over time to see performance trends"));
+        output.push('\n');
+
+        output.push_str("See also: ");
+        output.push_str(&help.cmd_text("(help performance)"));
+        output.push_str(", ");
+        output.push_str(&help.cmd_text("(help evaluation)"));
+        output.push('\n');
+
+        output
+    }
 }
 
 #[cfg(test)]
@@ -587,7 +709,7 @@ mod tests {
     #[test]
     fn test_help_system_creation() {
         let help = HelpSystem::new(true);
-        assert_eq!(help.list_topics().len(), 7);
+        assert_eq!(help.list_topics().len(), 8);
     }
 
     #[test]
@@ -612,6 +734,7 @@ mod tests {
             "commands",
             "modes",
             "performance",
+            "stats",
         ];
         for topic in topics {
             assert!(help.show_topic(topic).is_some(), "Topic {} should exist", topic);

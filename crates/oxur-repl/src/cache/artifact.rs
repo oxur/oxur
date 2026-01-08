@@ -63,6 +63,25 @@ struct CacheIndex {
     version: u32,
 }
 
+/// Detailed cache statistics
+#[derive(Debug, Clone)]
+pub struct CacheStats {
+    /// Number of entries in cache
+    pub entry_count: usize,
+
+    /// Total size of all cached artifacts in bytes
+    pub total_size_bytes: u64,
+
+    /// Timestamp of oldest entry (seconds since epoch)
+    pub oldest_entry_secs: u64,
+
+    /// Timestamp of newest entry (seconds since epoch)
+    pub newest_entry_secs: u64,
+
+    /// Cache directory path
+    pub cache_dir: PathBuf,
+}
+
 /// Global artifact cache
 ///
 /// Provides persistent caching of compiled dynamic libraries using
@@ -444,6 +463,38 @@ impl ArtifactCache {
         let count = self.index.entries.len();
         let total_size = self.index.entries.values().map(|e| e.size_bytes).sum();
         (count, total_size)
+    }
+
+    /// Get detailed cache statistics
+    ///
+    /// Returns comprehensive statistics including oldest/newest entries
+    pub fn detailed_stats(&self) -> CacheStats {
+        let count = self.index.entries.len();
+        let total_size = self.index.entries.values().map(|e| e.size_bytes).sum();
+
+        let oldest_entry_secs = self
+            .index
+            .entries
+            .values()
+            .map(|e| e.cached_at)
+            .min()
+            .unwrap_or(0);
+
+        let newest_entry_secs = self
+            .index
+            .entries
+            .values()
+            .map(|e| e.cached_at)
+            .max()
+            .unwrap_or(0);
+
+        CacheStats {
+            entry_count: count,
+            total_size_bytes: total_size,
+            oldest_entry_secs,
+            newest_entry_secs,
+            cache_dir: self.cache_dir.clone(),
+        }
     }
 
     /// List all cache keys

@@ -3,6 +3,7 @@
 //! Provides the default REPL experience with in-memory client/server.
 
 use crate::repl::help::HelpSystem;
+use crate::repl::stats::parse_stats_command_with_resources;
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use oxur_cli::config::ReplConfig;
@@ -93,6 +94,34 @@ pub async fn run(config: ReplConfig) -> Result<()> {
         if let Some(help_output) = parse_help_command(trimmed, terminal.config().color_enabled) {
             terminal.print_help(&help_output);
             continue;
+        }
+
+        // Check for stats commands
+        if trimmed.starts_with("(stats") {
+            // Get the stats collector from the session manager
+            match session_manager.get_stats_collector(&session_id) {
+                Ok(stats_collector) => {
+                    // Also get resource stats
+                    let (dir_stats, cache_stats) =
+                        session_manager.get_resource_stats(&session_id).unwrap_or((None, None));
+
+                    let collector = stats_collector.lock().unwrap();
+                    if let Some(stats_output) = parse_stats_command_with_resources(
+                        trimmed,
+                        &collector,
+                        dir_stats.as_ref(),
+                        cache_stats.as_ref(),
+                        terminal.config().color_enabled,
+                    ) {
+                        terminal.print_help(&stats_output);
+                        continue;
+                    }
+                }
+                Err(e) => {
+                    terminal.print_error(&format!("Failed to get stats: {}", e));
+                    continue;
+                }
+            }
         }
 
         // Create eval request

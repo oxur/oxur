@@ -169,6 +169,56 @@ impl SessionDir {
 
         Ok(files)
     }
+
+    /// Get directory statistics
+    ///
+    /// Returns (file_count, total_bytes) for all files in the session directory.
+    /// This recursively walks subdirectories.
+    pub fn get_stats(&self) -> Result<DirStats> {
+        let mut file_count = 0;
+        let mut total_bytes = 0;
+
+        fn walk_dir(path: &Path, file_count: &mut usize, total_bytes: &mut u64) -> std::io::Result<()> {
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let path = entry.path();
+                let metadata = entry.metadata()?;
+
+                if metadata.is_file() {
+                    *file_count += 1;
+                    *total_bytes += metadata.len();
+                } else if metadata.is_dir() {
+                    walk_dir(&path, file_count, total_bytes)?;
+                }
+            }
+            Ok(())
+        }
+
+        walk_dir(&self.path, &mut file_count, &mut total_bytes)?;
+
+        Ok(DirStats {
+            file_count,
+            total_bytes,
+            is_tmpfs: self.is_tmpfs,
+            path: self.path.clone(),
+        })
+    }
+}
+
+/// Directory statistics
+#[derive(Debug, Clone)]
+pub struct DirStats {
+    /// Number of files in directory (recursive)
+    pub file_count: usize,
+
+    /// Total bytes used by all files
+    pub total_bytes: u64,
+
+    /// Whether directory is on tmpfs
+    pub is_tmpfs: bool,
+
+    /// Directory path
+    pub path: PathBuf,
 }
 
 impl Drop for SessionDir {

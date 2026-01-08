@@ -5,4 +5,4 @@
 
 mod artifact;
 
-pub use artifact::ArtifactCache;
+pub use artifact::{ArtifactCache, CacheStats};
