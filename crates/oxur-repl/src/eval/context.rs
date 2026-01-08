@@ -556,13 +556,8 @@ impl EvalContext {
             return Ok((result, output.stdout_option(), output.stderr_option()));
         }
 
-        // Step 2: Expand macros (when Expander is ready)
-        // TODO: Use oxur_lang::Expander to expand macros
-        // let mut expander = Expander::new();
-        // let expanded = expander.expand(core_forms)?;
-
-        // Step 3-6: Compile and execute with output capture
-        // Check if compilation pipeline is available
+        // Step 2: Check if compilation pipeline is available BEFORE lowering
+        // This allows fallback to placeholder mode for tests/contexts without full pipeline
         let (compiler, executor) = match (&self.compiler, &self.executor) {
             (Some(c), Some(e)) => (c, e),
             _ => {
@@ -574,13 +569,40 @@ impl EvalContext {
             }
         };
 
+        // Step 3: Convert CoreForms to Rust source code
+        // For Lisp mode: Lower CoreForms → Rust AST → Rust source
+        // For Sexpr mode: The input is expected to be raw Rust code, pass through
+        let rust_source = match self.mode {
+            ReplMode::Lisp => {
+                // Use a block scope to ensure syn::File (not Send) is dropped before any await
+                let mut lowerer = oxur_comp::lowering::Lowerer::new();
+                let rust_ast =
+                    lowerer.lower(core_forms).map_err(|e| EvalError::CompilationError {
+                        msg: format!("Lowering error: {}", e),
+                        pos: SourcePos::repl(1, 1, code.len() as u32),
+                    })?;
+
+                let codegen = oxur_comp::codegen::CodeGenerator::new();
+                codegen.generate(&rust_ast).map_err(|e| EvalError::CompilationError {
+                    msg: format!("Code generation error: {}", e),
+                    pos: SourcePos::repl(1, 1, code.len() as u32),
+                })?
+            }
+            ReplMode::Sexpr => {
+                // Sexpr mode passes raw Rust code directly to compilation
+                code.to_string()
+            }
+        };
+
         // Generate cache key
         let cache_key = self.hash_code(code);
 
-        // Step 3: Wrap code with REPL scaffolding
+        // Step 3: Wrap generated Rust code with REPL scaffolding
         // Pass SourceMap for Phase 4 error translation
-        let wrapped_code =
-            self.wrapper.wrap(&cache_key, code, Some(&self.source_map)).map_err(|e| {
+        let wrapped_code = self
+            .wrapper
+            .wrap(&cache_key, &rust_source, Some(&self.source_map))
+            .map_err(|e| {
                 EvalError::CompilationError {
                     msg: format!("Failed to wrap code: {}", e),
                     pos: SourcePos::repl(1, 1, code.len() as u32),

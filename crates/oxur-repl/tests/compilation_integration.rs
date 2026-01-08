@@ -148,15 +148,18 @@ async fn test_fallback_without_pipeline() {
 /// Test different REPL modes
 #[tokio::test]
 async fn test_different_modes() {
-    // Test Lisp mode
+    // Test Lisp mode - uses the full Lisp→Rust compilation pipeline
+    // The Lowerer currently only supports deffn with println! macro calls
     let lisp_id = SessionId::new("compile-test-lisp");
     let mut lisp_ctx = EvalContext::with_compilation(lisp_id, ReplMode::Lisp)
         .expect("Failed to create Lisp context");
 
-    let lisp_result = lisp_ctx.eval(&test_code("lisp")).await.expect("Lisp evaluation failed");
+    // Valid Lisp code that the Lowerer can handle
+    let lisp_code = r#"(deffn main () (println! "Hello from Lisp mode"))"#;
+    let lisp_result = lisp_ctx.eval(lisp_code).await.expect("Lisp evaluation failed");
     assert_eq!(lisp_result.tier, ExecutionTier::JustInTime);
 
-    // Test Sexpr mode
+    // Test Sexpr mode - passes raw Rust code directly to compilation
     let sexpr_id = SessionId::new("compile-test-sexpr");
     let mut sexpr_ctx = EvalContext::with_compilation(sexpr_id, ReplMode::Sexpr)
         .expect("Failed to create Sexpr context");
