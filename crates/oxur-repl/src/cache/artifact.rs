@@ -252,6 +252,7 @@ impl ArtifactCache {
         let file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&index_path)
             .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to open index: {}", e)))?;
 
