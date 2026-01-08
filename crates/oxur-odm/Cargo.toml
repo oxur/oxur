@@ -33,7 +33,7 @@ unicode-normalization.workspace = true
 glob.workspace = true
 uuid = { version = "1.10", features = ["v4"] }
 tabled.workspace = true
-oxur-cli = { path = "../oxur-cli" }
+oxur-cli = { version = "0.1.0", path = "../oxur-cli" }
 
 [dev-dependencies]
 assert_cmd.workspace = true
