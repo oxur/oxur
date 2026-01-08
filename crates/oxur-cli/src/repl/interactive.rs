@@ -3,7 +3,7 @@
 //! Provides the default REPL experience with in-memory client/server.
 
 use crate::repl::runner::{ReplClientAdapter, ReplRunner};
-use crate::repl::stats::parse_stats_command_with_resources;
+use crate::repl::stats::{parse_stats_command_with_resources, show_subprocess_stats};
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -61,31 +61,49 @@ impl ReplClientAdapter for InProcessAdapter {
         Ok(())
     }
 
-    fn handle_special_command(&mut self, input: &str, color_enabled: bool) -> Option<String> {
+    async fn handle_special_command(&mut self, input: &str, color_enabled: bool) -> Option<String> {
         // Handle stats commands
-        if input.starts_with("(stats") {
-            match self.session_manager.get_stats_collector(&self.session_id) {
-                Ok(stats_collector) => {
-                    let (dir_stats, cache_stats) = self
-                        .session_manager
-                        .get_resource_stats(&self.session_id)
-                        .unwrap_or((None, None));
-
-                    let collector = stats_collector.lock().unwrap();
-                    return parse_stats_command_with_resources(
-                        input,
-                        &collector,
-                        dir_stats.as_ref(),
-                        cache_stats.as_ref(),
-                        color_enabled,
-                    );
-                }
-                Err(e) => {
-                    return Some(format!("Failed to get stats: {}", e));
-                }
-            }
+        if !input.starts_with("(stats") {
+            return None;
         }
-        None
+
+        // Handle server stats - not available in interactive mode (no dedicated server)
+        if input == "(stats server)" {
+            return Some(
+                "Server stats not available in interactive mode.\n\
+                 Use 'oxur repl serve' and connect with 'oxur repl connect' for server mode."
+                    .to_string(),
+            );
+        }
+
+        // Handle subprocess stats
+        if input == "(stats subprocess)" {
+            return match self.session_manager.get_subprocess_stats(&self.session_id) {
+                Ok(Some(snapshot)) => Some(show_subprocess_stats(&snapshot, color_enabled)),
+                Ok(None) => Some("Subprocess not running".to_string()),
+                Err(e) => Some(format!("Failed to get subprocess stats: {}", e)),
+            };
+        }
+
+        // Handle other stats commands that use the stats collector
+        match self.session_manager.get_stats_collector(&self.session_id) {
+            Ok(stats_collector) => {
+                let (dir_stats, cache_stats) = self
+                    .session_manager
+                    .get_resource_stats(&self.session_id)
+                    .unwrap_or((None, None));
+
+                let collector = stats_collector.lock().unwrap();
+                parse_stats_command_with_resources(
+                    input,
+                    &collector,
+                    dir_stats.as_ref(),
+                    cache_stats.as_ref(),
+                    color_enabled,
+                )
+            }
+            Err(e) => Some(format!("Failed to get stats: {}", e)),
+        }
     }
 }
 

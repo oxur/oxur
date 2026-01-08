@@ -33,7 +33,13 @@ pub trait ReplClientAdapter: Send {
     ///
     /// Returns `Some(output)` if the command was handled, `None` to continue normal eval.
     /// Default implementation returns `None` (no special handling).
-    fn handle_special_command(&mut self, _input: &str, _color_enabled: bool) -> Option<String> {
+    ///
+    /// Made async to support protocol-level stats requests in remote mode.
+    async fn handle_special_command(
+        &mut self,
+        _input: &str,
+        _color_enabled: bool,
+    ) -> Option<String> {
         None
     }
 }
@@ -113,7 +119,7 @@ impl ReplRunner {
             }
 
             // Check for adapter-specific special commands (e.g., stats)
-            if let Some(output) = client.handle_special_command(trimmed, color_enabled) {
+            if let Some(output) = client.handle_special_command(trimmed, color_enabled).await {
                 self.terminal.print_help(&output);
                 continue;
             }

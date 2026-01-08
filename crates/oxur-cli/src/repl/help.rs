@@ -447,6 +447,8 @@ impl HelpSystem {
             .push_str(&help.command("(stats execution)", "Show detailed tier performance metrics"));
         output.push_str(&help.command("(stats cache)", "Show cache hit/miss statistics"));
         output.push_str(&help.command("(stats resources)", "Show memory, disk, and file usage"));
+        output.push_str(&help.command("(stats server)", "Show server metrics (connect mode only)"));
+        output.push_str(&help.command("(stats subprocess)", "Show subprocess lifecycle stats"));
         output.push('\n');
 
         output.push_str(&help.section("KEYBOARD SHORTCUTS"));
@@ -655,6 +657,40 @@ impl HelpSystem {
         output.push_str("  • Total Size: Disk space used by cache\n");
         output.push_str("  • Oldest Entry: Age of oldest cached item\n");
         output.push_str("  • Cache Directory: Path to global cache\n\n");
+
+        output.push_str(&help.cmd_text("(stats server)"));
+        output.push_str(" - Server Metrics (Connect Mode Only)\n");
+        output.push_str(&help.divider());
+        output.push_str("Shows server-wide metrics when connected to a remote server:\n\n");
+        output.push_str("Connections:\n");
+        output.push_str("  • Total Connections: All-time connection count\n");
+        output.push_str("  • Active Connections: Currently connected clients\n\n");
+        output.push_str("Sessions:\n");
+        output.push_str("  • Total Sessions: All-time session count\n");
+        output.push_str("  • Active Sessions: Currently running sessions\n\n");
+        output.push_str("Requests & Responses:\n");
+        output.push_str("  • Total Requests/Responses: Message counts\n");
+        output.push_str("  • Successful/Errors: Response status breakdown\n");
+        output.push_str("  • Success Rate: Percentage of successful operations\n\n");
+        output.push_str("Note: Only available in 'connect' mode (remote server).\n");
+        output.push_str("In interactive mode, use 'oxur repl serve' to run a server.\n\n");
+
+        output.push_str(&help.cmd_text("(stats subprocess)"));
+        output.push_str(" - Subprocess Lifecycle\n");
+        output.push_str(&help.divider());
+        output.push_str("Shows subprocess lifecycle metrics (for forked execution):\n\n");
+        output.push_str("Status:\n");
+        output.push_str("  • Status: Running or Stopped\n");
+        output.push_str("  • Uptime: How long the subprocess has been running\n");
+        output.push_str("  • Restart Count: Number of restarts since session start\n");
+        output.push_str("  • Last Restart Reason: Why the subprocess last restarted\n\n");
+        output.push_str("Restart reasons include:\n");
+        output.push_str("  • Clean shutdown: Normal exit (code 0)\n");
+        output.push_str("  • Error exit: Non-zero exit code\n");
+        output.push_str("  • Segfault: Memory access violation (SIGSEGV)\n");
+        output.push_str("  • Killed: Process killed (SIGKILL, possibly OOM)\n");
+        output.push_str("  • Aborted: Assertion failure (SIGABRT)\n");
+        output.push_str("  • User requested: Manual restart command\n\n");
 
         output.push_str(&help.section("PERCENTILES EXPLAINED"));
         output.push_str("Percentiles give you a better understanding of typical performance\n");

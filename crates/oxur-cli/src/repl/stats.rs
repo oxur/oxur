@@ -6,6 +6,7 @@
 use oxur_cli::table::{OxurTable, Tabled};
 use oxur_repl::cache::CacheStats as ArtifactCacheStats;
 use oxur_repl::eval::{get_resource_stats, EvalMetrics, ExecutionTier};
+use oxur_repl::metrics::SessionStatsSnapshot;
 use oxur_repl::session::DirStats;
 
 // Display functions
@@ -29,8 +30,6 @@ pub fn show_session_summary(collector: &EvalMetrics, color_enabled: bool) -> Str
     ));
 
     // Execution tiers table
-    output.push_str(&section("EXECUTION TIERS", color_enabled));
-
     #[derive(Tabled)]
     struct TierMetric {
         #[tabled(rename = "Tier")]
@@ -81,7 +80,9 @@ pub fn show_session_summary(collector: &EvalMetrics, color_enabled: bool) -> Str
     }
 
     if !metrics.is_empty() {
-        output.push_str(&OxurTable::new(metrics).render());
+        output.push_str(
+            &OxurTable::new(metrics).with_title("EXECUTION TIERS").with_footer().render(),
+        );
         output.push('\n');
     } else {
         output.push_str("No execution data yet.\n\n");
@@ -100,8 +101,6 @@ pub fn show_execution_details(collector: &EvalMetrics, color_enabled: bool) -> S
     for tier in [ExecutionTier::Calculator, ExecutionTier::CachedLoaded, ExecutionTier::JustInTime]
     {
         if let Some(p) = collector.percentiles(tier) {
-            output.push_str(&section(&tier_name(tier), color_enabled));
-
             #[derive(Tabled)]
             struct Metric {
                 #[tabled(rename = "Metric")]
@@ -119,8 +118,10 @@ pub fn show_execution_details(collector: &EvalMetrics, color_enabled: bool) -> S
                 Metric { metric: "Max".to_string(), value: format!("{:.2}", p.max) },
             ];
 
-            output.push_str(&OxurTable::new(metrics).render());
-            output.push('\n');
+            output.push_str(
+                &OxurTable::new(metrics).with_title(tier_name(tier)).with_footer().render(),
+            );
+            output.push_str("\n\n");
         }
     }
 
@@ -135,7 +136,6 @@ pub fn show_cache_stats(collector: &EvalMetrics, color_enabled: bool) -> String 
     output.push('\n');
 
     // Evaluation cache
-    output.push_str(&section("EVALUATION CACHE", color_enabled));
     let cache = collector.cache_stats();
 
     #[derive(Tabled)]
@@ -152,7 +152,7 @@ pub fn show_cache_stats(collector: &EvalMetrics, color_enabled: bool) -> String 
         CacheMetric { metric: "Hit Rate".to_string(), value: format!("{:.1}%", cache.hit_rate) },
     ];
 
-    output.push_str(&OxurTable::new(metrics).render());
+    output.push_str(&OxurTable::new(metrics).with_title("EVALUATION CACHE").with_footer().render());
     output.push('\n');
 
     output
@@ -170,7 +170,6 @@ pub fn show_resource_stats(
     output.push('\n');
 
     // Memory section
-    output.push_str(&section("MEMORY", color_enabled));
     if let Some(resource_stats) = get_resource_stats() {
         #[derive(Tabled)]
         struct MemoryMetric {
@@ -195,14 +194,13 @@ pub fn show_resource_stats(
             },
         ];
 
-        output.push_str(&OxurTable::new(metrics).render());
-        output.push('\n');
+        output.push_str(&OxurTable::new(metrics).with_title("MEMORY").with_footer().render());
+        output.push_str("\n\n");
     } else {
         output.push_str("Memory stats unavailable\n\n");
     }
 
     // Session directory section
-    output.push_str(&section("SESSION DIRECTORY", color_enabled));
     if let Some(dir_stats) = dir_stats {
         let location_type = if dir_stats.is_tmpfs { " (tmpfs)" } else { "" };
 
@@ -226,14 +224,15 @@ pub fn show_resource_stats(
             },
         ];
 
-        output.push_str(&OxurTable::new(metrics).render());
-        output.push('\n');
+        output.push_str(
+            &OxurTable::new(metrics).with_title("SESSION DIRECTORY").with_footer().render(),
+        );
+        output.push_str("\n\n");
     } else {
         output.push_str("Session directory not initialized\n\n");
     }
 
     // Artifact cache section
-    output.push_str(&section("ARTIFACT CACHE (Global)", color_enabled));
     if let Some(cache_stats) = cache_stats {
         #[derive(Tabled)]
         struct ArtifactMetric {
@@ -276,8 +275,10 @@ pub fn show_resource_stats(
             },
         ];
 
-        output.push_str(&OxurTable::new(metrics).render());
-        output.push('\n');
+        output.push_str(
+            &OxurTable::new(metrics).with_title("ARTIFACT CACHE (Global)").with_footer().render(),
+        );
+        output.push_str("\n\n");
     } else {
         output.push_str("Artifact cache not initialized\n\n");
     }
@@ -286,7 +287,6 @@ pub fn show_resource_stats(
 }
 
 /// Show server metrics
-#[allow(dead_code)] // Infrastructure ready for (stats server) command
 pub fn show_server_stats(
     server_snapshot: &oxur_repl::metrics::ServerMetricsSnapshot,
     color_enabled: bool,
@@ -296,9 +296,6 @@ pub fn show_server_stats(
     output.push_str(&header("Server Statistics", color_enabled));
     output.push('\n');
 
-    // Connection stats
-    output.push_str(&section("CONNECTIONS", color_enabled));
-
     #[derive(Tabled)]
     struct ConnectionMetric {
         #[tabled(rename = "Metric")]
@@ -307,6 +304,7 @@ pub fn show_server_stats(
         value: String,
     }
 
+    // Connection stats
     let metrics = vec![
         ConnectionMetric {
             metric: "Total Connections".to_string(),
@@ -318,12 +316,10 @@ pub fn show_server_stats(
         },
     ];
 
-    output.push_str(&OxurTable::new(metrics).render());
+    output.push_str(&OxurTable::new(metrics).with_title("CONNECTIONS").with_footer().render());
     output.push('\n');
 
     // Session stats
-    output.push_str(&section("SESSIONS", color_enabled));
-
     let metrics = vec![
         ConnectionMetric {
             metric: "Total Sessions".to_string(),
@@ -335,12 +331,10 @@ pub fn show_server_stats(
         },
     ];
 
-    output.push_str(&OxurTable::new(metrics).render());
+    output.push_str(&OxurTable::new(metrics).with_title("SESSIONS").with_footer().render());
     output.push('\n');
 
     // Request/Response stats
-    output.push_str(&section("REQUESTS & RESPONSES", color_enabled));
-
     let success_rate = if server_snapshot.responses_total > 0 {
         (server_snapshot.responses_success as f64 / server_snapshot.responses_total as f64) * 100.0
     } else {
@@ -370,14 +364,15 @@ pub fn show_server_stats(
         },
     ];
 
-    output.push_str(&OxurTable::new(metrics).render());
+    output.push_str(
+        &OxurTable::new(metrics).with_title("REQUESTS & RESPONSES").with_footer().render(),
+    );
     output.push('\n');
 
     output
 }
 
 /// Show subprocess metrics
-#[allow(dead_code)] // Infrastructure ready for (stats subprocess) command
 pub fn show_subprocess_stats(
     subprocess_snapshot: &oxur_repl::metrics::SubprocessMetricsSnapshot,
     color_enabled: bool,
@@ -386,8 +381,6 @@ pub fn show_subprocess_stats(
 
     output.push_str(&header("Subprocess Statistics", color_enabled));
     output.push('\n');
-
-    output.push_str(&section("STATUS", color_enabled));
 
     #[derive(Tabled)]
     struct SubprocessMetric {
@@ -414,11 +407,176 @@ pub fn show_subprocess_stats(
         SubprocessMetric { metric: "Last Restart Reason".to_string(), value: last_reason },
     ];
 
-    output.push_str(&OxurTable::new(metrics).render());
+    output.push_str(&OxurTable::new(metrics).with_title("STATUS").with_footer().render());
     output.push('\n');
 
     output
 }
+
+// ============================================================================
+// Snapshot-based display functions (for remote/protocol mode)
+// ============================================================================
+
+/// Show session summary from snapshot (for remote mode)
+///
+/// Uses the serialized SessionStatsSnapshot instead of direct EvalMetrics access.
+pub fn show_session_summary_from_snapshot(
+    snapshot: &SessionStatsSnapshot,
+    color_enabled: bool,
+) -> String {
+    let mut output = String::new();
+
+    // Header
+    output.push_str(&header("Session Statistics", color_enabled));
+    output.push('\n');
+
+    // Overall summary
+    output.push_str(&section("SUMMARY", color_enabled));
+    output.push_str(&format!("Total Evaluations: {}\n", snapshot.total_evaluations));
+    output.push_str(&format!(
+        "Cache Hit Rate: {:.1}% ({} hits, {} misses)\n\n",
+        snapshot.cache.hit_rate, snapshot.cache.hits, snapshot.cache.misses
+    ));
+
+    // Execution tiers table
+    #[derive(Tabled)]
+    struct TierMetric {
+        #[tabled(rename = "Tier")]
+        tier: String,
+        #[tabled(rename = "Count")]
+        count: String,
+        #[tabled(rename = "P50 (ms)")]
+        p50: String,
+        #[tabled(rename = "P95 (ms)")]
+        p95: String,
+        #[tabled(rename = "P99 (ms)")]
+        p99: String,
+    }
+
+    let mut metrics = Vec::new();
+
+    // Tier 1
+    if let Some(ref p) = snapshot.tier1_percentiles {
+        metrics.push(TierMetric {
+            tier: "Calculator".to_string(),
+            count: p.count.to_string(),
+            p50: format!("{:.2}", p.p50),
+            p95: format!("{:.2}", p.p95),
+            p99: format!("{:.2}", p.p99),
+        });
+    }
+
+    // Tier 2
+    if let Some(ref p) = snapshot.tier2_percentiles {
+        metrics.push(TierMetric {
+            tier: "Cached".to_string(),
+            count: p.count.to_string(),
+            p50: format!("{:.2}", p.p50),
+            p95: format!("{:.2}", p.p95),
+            p99: format!("{:.2}", p.p99),
+        });
+    }
+
+    // Tier 3
+    if let Some(ref p) = snapshot.tier3_percentiles {
+        metrics.push(TierMetric {
+            tier: "JIT".to_string(),
+            count: p.count.to_string(),
+            p50: format!("{:.2}", p.p50),
+            p95: format!("{:.2}", p.p95),
+            p99: format!("{:.2}", p.p99),
+        });
+    }
+
+    if !metrics.is_empty() {
+        output.push_str(
+            &OxurTable::new(metrics).with_title("EXECUTION TIERS").with_footer().render(),
+        );
+        output.push('\n');
+    } else {
+        output.push_str("No execution data yet.\n\n");
+    }
+
+    output
+}
+
+/// Show detailed execution breakdown from snapshot (for remote mode)
+pub fn show_execution_from_snapshot(
+    snapshot: &SessionStatsSnapshot,
+    color_enabled: bool,
+) -> String {
+    let mut output = String::new();
+
+    output.push_str(&header("Execution Statistics", color_enabled));
+    output.push('\n');
+
+    // Helper to display a tier's percentiles
+    let display_tier =
+        |output: &mut String, name: &str, percentiles: &Option<oxur_repl::metrics::Percentiles>| {
+            if let Some(ref p) = percentiles {
+                #[derive(Tabled)]
+                struct Metric {
+                    #[tabled(rename = "Metric")]
+                    metric: String,
+                    #[tabled(rename = "Value (ms)")]
+                    value: String,
+                }
+
+                let metrics = vec![
+                    Metric { metric: "Count".to_string(), value: p.count.to_string() },
+                    Metric { metric: "Min".to_string(), value: format!("{:.2}", p.min) },
+                    Metric { metric: "p50 (median)".to_string(), value: format!("{:.2}", p.p50) },
+                    Metric { metric: "p95".to_string(), value: format!("{:.2}", p.p95) },
+                    Metric { metric: "p99".to_string(), value: format!("{:.2}", p.p99) },
+                    Metric { metric: "Max".to_string(), value: format!("{:.2}", p.max) },
+                ];
+
+                output.push_str(&OxurTable::new(metrics).with_title(name).with_footer().render());
+                output.push_str("\n\n");
+            }
+        };
+
+    display_tier(&mut output, "TIER 1: CALCULATOR (~1ms)", &snapshot.tier1_percentiles);
+    display_tier(&mut output, "TIER 2: CACHED LOADED (~1-5ms)", &snapshot.tier2_percentiles);
+    display_tier(&mut output, "TIER 3: JUST-IN-TIME (~50-300ms)", &snapshot.tier3_percentiles);
+
+    output
+}
+
+/// Show cache statistics from snapshot (for remote mode)
+pub fn show_cache_from_snapshot(snapshot: &SessionStatsSnapshot, color_enabled: bool) -> String {
+    let mut output = String::new();
+
+    output.push_str(&header("Cache Statistics", color_enabled));
+    output.push('\n');
+
+    // Evaluation cache
+    #[derive(Tabled)]
+    struct CacheMetric {
+        #[tabled(rename = "Metric")]
+        metric: String,
+        #[tabled(rename = "Value")]
+        value: String,
+    }
+
+    let metrics = vec![
+        CacheMetric { metric: "Hits".to_string(), value: snapshot.cache.hits.to_string() },
+        CacheMetric { metric: "Misses".to_string(), value: snapshot.cache.misses.to_string() },
+        CacheMetric {
+            metric: "Hit Rate".to_string(),
+            value: format!("{:.1}%", snapshot.cache.hit_rate),
+        },
+    ];
+
+    output.push_str(&OxurTable::new(metrics).with_title("EVALUATION CACHE").with_footer().render());
+    output.push('\n');
+
+    output
+}
+
+// ============================================================================
+// Stats command parsing
+// ============================================================================
 
 /// Parse stats commands
 ///
@@ -523,7 +681,6 @@ fn format_duration(seconds: u64) -> String {
     }
 }
 
-#[allow(dead_code)]
 fn format_uptime_seconds(seconds: f64) -> String {
     let secs = seconds as u64;
     const MINUTE: u64 = 60;
