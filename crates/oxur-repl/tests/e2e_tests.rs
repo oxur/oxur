@@ -25,15 +25,14 @@ static TEST_CACHE_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Uses atomic counter to ensure unique directories even in parallel test runs.
 fn create_isolated_context(session_id: SessionId, mode: ReplMode) -> EvalContext {
     let id = TEST_CACHE_COUNTER.fetch_add(1, Ordering::SeqCst);
-    let cache_dir = env::temp_dir()
-        .join(format!("oxur-e2e-cache-{}-{}", std::process::id(), id));
+    let cache_dir = env::temp_dir().join(format!("oxur-e2e-cache-{}-{}", std::process::id(), id));
 
     // Set env var temporarily for this context creation
     let original = env::var("OXUR_CACHE_DIR").ok();
     env::set_var("OXUR_CACHE_DIR", &cache_dir);
 
-    let ctx = EvalContext::with_compilation(session_id, mode)
-        .expect("Failed to create isolated context");
+    let ctx =
+        EvalContext::with_compilation(session_id, mode).expect("Failed to create isolated context");
 
     // Restore original env var state
     match original {

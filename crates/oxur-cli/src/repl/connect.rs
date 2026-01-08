@@ -41,10 +41,15 @@ pub async fn run(addr: &str, config: ReplConfig) -> Result<()> {
     let mut terminal = ReplTerminal::with_config(config.terminal, config.history)
         .context("Failed to create terminal")?;
 
-    // Print welcome banner with connection info
-    println!("Oxur REPL v{} (connected to {})", env!("CARGO_PKG_VERSION"), addr);
-    println!("Type (help) for assistance, Ctrl-D to exit.");
-    println!();
+    // Print welcome banner (respects terminal configuration)
+    terminal.print_banner();
+
+    // Show connection info
+    if terminal.config().color_enabled {
+        println!("\x1b[36mConnected to {}\x1b[0m\n", addr);
+    } else {
+        println!("Connected to {}\n", addr);
+    }
 
     // Main REPL loop
     loop {

@@ -5,6 +5,16 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Default ASCII art banner for the REPL
+///
+/// Embedded from oxur-repl/assets/banners/banner0.1.0.txt at compile time.
+/// Contains ANSI color codes and ASCII art.
+///
+/// Users can override this banner via:
+/// - Config file: `[terminal]` section, `banner` field
+/// - Environment variable: `OXUR_REPL_BANNER`
+const DEFAULT_BANNER: &str = include_str!("../../../oxur-repl/assets/banners/banner0.1.0.txt");
+
 /// Terminal configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -35,7 +45,7 @@ pub enum EditMode {
 impl Default for TerminalConfig {
     fn default() -> Self {
         Self {
-            banner: None,
+            banner: Some(DEFAULT_BANNER.to_string()),
             prompt: "oxur> ".to_string(),
             continuation_prompt: "....> ".to_string(),
             color_enabled: true,
@@ -147,7 +157,7 @@ mod tests {
         assert_eq!(config.continuation_prompt, "....> ");
         assert!(config.color_enabled);
         assert_eq!(config.edit_mode, EditMode::Emacs);
-        assert!(config.banner.is_none());
+        assert!(config.banner.is_some());
     }
 
     #[test]
@@ -209,5 +219,22 @@ mod tests {
 
         assert_eq!(emacs.mode, EditMode::Emacs);
         assert_eq!(vi.mode, EditMode::Vi);
+    }
+
+    #[test]
+    fn test_default_banner_embedded() {
+        let config = TerminalConfig::default();
+        let banner = config.banner.expect("Default config should have banner");
+
+        // Verify banner contains expected elements
+        assert!(banner.contains("Welcome to"));
+        assert!(banner.contains("oxur:"));
+        assert!(banner.contains("http://oxur.li/"));
+        assert!(banner.contains("(help)"));
+        assert!(banner.contains("(quit)"));
+
+        // Verify banner is non-empty and reasonable size
+        assert!(banner.len() > 1000);
+        assert!(banner.len() < 10000);
     }
 }

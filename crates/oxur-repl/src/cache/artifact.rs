@@ -206,8 +206,9 @@ impl ArtifactCache {
             .map_err(|e| CacheError::IndexLoadFailed(format!("Failed to read index: {}", e)))?;
 
         // Parse JSON
-        let index = serde_json::from_str(&content)
-            .map_err(|e| CacheError::IndexLoadFailed(format!("Failed to parse index JSON: {}", e)))?;
+        let index = serde_json::from_str(&content).map_err(|e| {
+            CacheError::IndexLoadFailed(format!("Failed to parse index JSON: {}", e))
+        })?;
 
         // Lock is automatically released when file is dropped
         Ok(index)
@@ -243,8 +244,9 @@ impl ArtifactCache {
         })?;
 
         // Write to temporary file first (no lock needed for temp file)
-        fs::write(&temp_path, &content)
-            .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to write temp file: {}", e)))?;
+        fs::write(&temp_path, &content).map_err(|e| {
+            CacheError::IndexSaveFailed(format!("Failed to write temp file: {}", e))
+        })?;
 
         // Open (or create) the final index file with write permission
         let file = OpenOptions::new()
@@ -259,8 +261,9 @@ impl ArtifactCache {
 
         // Atomically replace the index file with the temp file
         // This is atomic on Unix and mostly-atomic on Windows
-        fs::rename(&temp_path, &index_path)
-            .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to rename temp file: {}", e)))?;
+        fs::rename(&temp_path, &index_path).map_err(|e| {
+            CacheError::IndexSaveFailed(format!("Failed to rename temp file: {}", e))
+        })?;
 
         // Lock is automatically released when file is dropped
         Ok(())

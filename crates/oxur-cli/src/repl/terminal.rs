@@ -163,7 +163,6 @@ impl ReplTerminal {
     }
 
     /// Get the terminal configuration
-    #[allow(dead_code)]
     pub fn config(&self) -> &TerminalConfig {
         &self.terminal_config
     }
