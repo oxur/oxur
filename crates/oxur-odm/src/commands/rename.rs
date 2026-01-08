@@ -47,7 +47,7 @@ To change document state/location, use: {}",
             "Number mismatch!".red().bold(),
             format!("{:04}", old_number).yellow(),
             format!("{:04}", new_number).yellow(),
-            "oxd transition <doc> <state>".cyan()
+            "odm transition <doc> <state>".cyan()
         );
     }
 
@@ -56,7 +56,7 @@ To change document state/location, use: {}",
 
     // Step 3: Verify document exists in state
     let _doc_record = state_mgr.state().get(old_number).ok_or_else(|| {
-        anyhow::anyhow!("Document {} not found in state. Run 'oxd scan' to sync.", old_number)
+        anyhow::anyhow!("Document {} not found in state. Run 'odm scan' to sync.", old_number)
     })?;
 
     // Step 4: Perform git mv
@@ -72,7 +72,7 @@ To change document state/location, use: {}",
 
     println!();
     println!("{}", "Rename complete!".green().bold());
-    println!("  View with: {}", format!("oxd show {}", old_number).yellow());
+    println!("  View with: {}", format!("odm show {}", old_number).yellow());
     println!();
 
     // Step 7: Update the index to reflect the rename
@@ -83,7 +83,7 @@ To change document state/location, use: {}",
         use colored::Colorize;
         println!("{} Failed to update index", "Warning:".yellow());
         println!("  {}", e);
-        println!("  Run 'oxd update-index' manually to sync the index");
+        println!("  Run 'odm update-index' manually to sync the index");
     }
 
     Ok(())
@@ -230,7 +230,7 @@ mod tests {
         let docs_dir = temp.path();
 
         // Create necessary directory structure
-        fs::create_dir_all(docs_dir.join(".oxd")).unwrap();
+        fs::create_dir_all(docs_dir.join(".odm")).unwrap();
         fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
 
         // Initialize git repo (required for StateManager)

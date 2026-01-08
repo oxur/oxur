@@ -251,7 +251,7 @@ pub fn show_checksums(state_mgr: &StateManager, verbose: bool) -> Result<()> {
     println!();
 
     if dirty > 0 {
-        println!("{} Run 'oxd scan' to update checksums", "→".cyan());
+        println!("{} Run 'odm scan' to update checksums", "→".cyan());
     }
 
     Ok(())
@@ -434,7 +434,7 @@ pub fn show_diff(state_mgr: &StateManager) -> Result<()> {
     if !issues_found {
         println!("{} State and filesystem are in sync", "✓".green().bold());
     } else {
-        println!("{} Run 'oxd scan' to synchronize", "→".cyan());
+        println!("{} Run 'odm scan' to synchronize", "→".cyan());
     }
 
     Ok(())
@@ -497,7 +497,7 @@ pub fn show_orphans(state_mgr: &StateManager) -> Result<()> {
     if !found_orphans {
         println!("{} No orphans found", "✓".green().bold());
     } else {
-        println!("{} Run 'oxd scan' to clean up", "→".cyan());
+        println!("{} Run 'odm scan' to clean up", "→".cyan());
     }
 
     Ok(())

@@ -502,35 +502,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "design"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "cargo-llvm-cov",
- "chrono",
- "clap",
- "colored",
- "glob",
- "oxur-cli",
- "predicates",
- "proptest",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml",
- "serial_test",
- "sha2",
- "tabled",
- "tempfile",
- "thiserror 1.0.69",
- "toml 0.8.23",
- "unicode-normalization",
- "uuid",
- "walkdir",
-]
-
-[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1180,6 +1151,35 @@ dependencies = [
  "serde",
  "syn 2.0.111",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "oxur-odm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "cargo-llvm-cov",
+ "chrono",
+ "clap",
+ "colored",
+ "glob",
+ "oxur-cli",
+ "predicates",
+ "proptest",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "serial_test",
+ "sha2",
+ "tabled",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml 0.8.23",
+ "unicode-normalization",
+ "uuid",
+ "walkdir",
 ]
 
 [[package]]

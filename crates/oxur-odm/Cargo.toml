@@ -1,15 +1,15 @@
 [package]
-name = "design"
+name = "oxur-odm"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Design documentation and management tools for Oxur"
+description = "An odd document manager - CLI tool for managing design documentation"
 
 # This is both a library and a binary
 [[bin]]
-name = "oxd"
+name = "odm"
 path = "src/main.rs"
 
 [lib]

@@ -3,9 +3,9 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "oxd")]
-#[command(about = "Oxur Design Documentation Manager", long_about = None)]
-#[command(after_help = "Use 'oxd <command> --help' for more information about a command.")]
+#[command(name = "odm")]
+#[command(about = "An odd document manager", long_about = None)]
+#[command(after_help = "Use 'odm <command> --help' for more information about a command.")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -79,6 +79,14 @@ pub enum Commands {
         /// Filter by tags (comma-separated, matches ANY tag)
         #[arg(short, long, value_delimiter = ',')]
         tags: Vec<String>,
+
+        /// Maximum number of documents to display per table (default: 20)
+        #[arg(short, long, default_value = "20")]
+        limit: usize,
+
+        /// Show all documents (no limit)
+        #[arg(long)]
+        all: bool,
     },
 
     /// Show a specific document

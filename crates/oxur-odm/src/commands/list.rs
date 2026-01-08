@@ -43,12 +43,37 @@ struct DevDocRow {
     updated: String,
 }
 
+/// Default number of documents to display per table
+pub const DEFAULT_LIMIT: usize = 20;
+
 /// Filter options for listing documents
-#[derive(Default)]
 pub struct ListFilters {
     pub state: Option<String>,
     pub component: Option<String>,
     pub tags: Vec<String>,
+    /// Maximum documents per table (default: 20)
+    pub limit: usize,
+    /// Show all documents (ignores limit)
+    pub all: bool,
+}
+
+impl Default for ListFilters {
+    fn default() -> Self {
+        Self {
+            state: None,
+            component: None,
+            tags: Vec::new(),
+            limit: DEFAULT_LIMIT,
+            all: false,
+        }
+    }
+}
+
+impl ListFilters {
+    /// Get effective limit (None if --all, otherwise the limit value)
+    pub fn effective_limit(&self) -> Option<usize> {
+        if self.all { None } else { Some(self.limit) }
+    }
 }
 
 /// Apply cell-specific colors to the state column while preserving theme backgrounds
@@ -102,13 +127,13 @@ fn list_documents_impl(
 ) -> Result<()> {
     // If showing dev documents, use special handling
     if dev {
-        return list_dev_documents(verbose);
+        return list_dev_documents(verbose, filters.effective_limit());
     }
 
     // If showing removed documents, we need special handling
     if removed {
         if let Some(mgr) = state_mgr {
-            return list_removed_documents(mgr, verbose);
+            return list_removed_documents(mgr, verbose, filters.effective_limit());
         } else {
             eprintln!(
                 "{} Cannot list removed documents without state manager",
@@ -145,6 +170,17 @@ fn list_documents_impl(
         });
     }
 
+    // Calculate total before applying limit
+    let total_count = docs.len();
+    let effective_limit = filters.effective_limit();
+    let is_truncated =
+        effective_limit.map(|limit| total_count > limit).unwrap_or(false);
+
+    // Apply limit if not showing all
+    if let Some(limit) = effective_limit {
+        docs.truncate(limit);
+    }
+
     if verbose {
         // Verbose mode: keep the detailed multi-line format with separate title
         println!("\n{}", "Design Documents".bold().underline());
@@ -169,7 +205,15 @@ fn list_documents_impl(
             println!();
         }
 
-        println!("Total: {} documents\n", docs.len());
+        if is_truncated {
+            println!(
+                "Showing {} of {} documents (use --all to see all)\n",
+                docs.len(),
+                total_count
+            );
+        } else {
+            println!("Total: {} documents\n", total_count);
+        }
     } else {
         // Normal mode: use table format with Builder (like the sample code)
         let mut builder = Builder::default();
@@ -190,7 +234,11 @@ fn list_documents_impl(
         }
 
         // Last row: Footer with total count - PLAIN TEXT
-        let total_text = format!("{} documents", docs.len());
+        let total_text = if is_truncated {
+            format!("{} of {} (--all for more)", docs.len(), total_count)
+        } else {
+            format!("{} documents", total_count)
+        };
         builder.push_record(["Total:", &total_text, ""]);
 
         // Build the table structure (width calculation happens here with plain text)
@@ -211,9 +259,13 @@ fn list_documents_impl(
 }
 
 /// List documents that have been removed to the dustbin
-fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()> {
+fn list_removed_documents(
+    state_mgr: &StateManager,
+    verbose: bool,
+    limit: Option<usize>,
+) -> Result<()> {
     // Filter for removed documents
-    let removed_docs: Vec<_> = state_mgr
+    let mut removed_docs: Vec<_> = state_mgr
         .state()
         .all()
         .into_iter()
@@ -231,6 +283,27 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         return Ok(());
     }
 
+    // Calculate total before applying limit
+    let total_count = removed_docs.len();
+    let is_truncated = limit.map(|l| total_count > l).unwrap_or(false);
+
+    // Count files in dustbin vs deleted (before truncation for accurate stats)
+    let mut in_dustbin = 0;
+    let mut deleted = 0;
+    for doc in &removed_docs {
+        let file_path = state_mgr.docs_dir().join(&doc.path);
+        if file_path.exists() {
+            in_dustbin += 1;
+        } else {
+            deleted += 1;
+        }
+    }
+
+    // Apply limit if specified
+    if let Some(l) = limit {
+        removed_docs.truncate(l);
+    }
+
     // Build table with Builder (like the sample code)
     let mut builder = Builder::default();
 
@@ -242,18 +315,6 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
         builder.push_record(["Number", "Title", "Removed", "Deleted", "Dustbin Location"]);
     } else {
         builder.push_record(["Number", "Title", "Removed", "Deleted", ""]);
-    }
-
-    // Count files in dustbin vs deleted (do this first so we can use in footer)
-    let mut in_dustbin = 0;
-    let mut deleted = 0;
-    for doc in &removed_docs {
-        let file_path = state_mgr.docs_dir().join(&doc.path);
-        if file_path.exists() {
-            in_dustbin += 1;
-        } else {
-            deleted += 1;
-        }
     }
 
     // Data rows - PLAIN TEXT (no ANSI codes, formatting applied later)
@@ -291,13 +352,21 @@ fn list_removed_documents(state_mgr: &StateManager, verbose: bool) -> Result<()>
     }
 
     // Last row: Footer with total count - PLAIN TEXT
-    let total_text = format!(
-        "Total: {} removed ({} in dustbin, {} deleted)",
-        removed_docs.len(),
-        in_dustbin,
-        deleted
-    );
-    builder.push_record([&total_text, "", "", "", ""]);
+    let total_text = if is_truncated {
+        format!(
+            "{} of {} (--all for more)",
+            removed_docs.len(),
+            total_count
+        )
+    } else {
+        format!(
+            "{} removed ({} in dustbin, {} deleted)",
+            total_count,
+            in_dustbin,
+            deleted
+        )
+    };
+    builder.push_record(["Total:", &total_text, "", "", ""]);
 
     // Build the table structure (width calculation happens here with plain text)
     let mut table = builder.build();
@@ -452,7 +521,19 @@ fn print_dev_table(
     docs: &[(PathBuf, fs::Metadata)],
     invocation_dir: &Path,
     _verbose: bool,
+    limit: Option<usize>,
 ) -> Result<()> {
+    // Calculate total before applying limit
+    let total_count = docs.len();
+    let is_truncated = limit.map(|l| total_count > l).unwrap_or(false);
+
+    // Apply limit if specified
+    let display_docs: &[(PathBuf, fs::Metadata)] = if let Some(l) = limit {
+        if docs.len() > l { &docs[..l] } else { docs }
+    } else {
+        docs
+    };
+
     let mut builder = Builder::default();
 
     // Row 0: Title (uppercase directory name)
@@ -463,7 +544,7 @@ fn print_dev_table(
     builder.push_record(["Filename", "Updated"]);
 
     // Data rows (sorted, descending by prefix)
-    for (path, metadata) in docs {
+    for (path, metadata) in display_docs {
         let rel_path = get_relative_path_from(path, invocation_dir);
 
         // Format mtime
@@ -473,12 +554,14 @@ fn print_dev_table(
     }
 
     // Footer: Total count
-    let total_text = if docs.len() == 1 {
-        "Total: 1 document".to_string()
+    let total_text = if is_truncated {
+        format!("{} of {} (--all for more)", display_docs.len(), total_count)
+    } else if total_count == 1 {
+        "1 document".to_string()
     } else {
-        format!("Total: {} documents", docs.len())
+        format!("{} documents", total_count)
     };
-    builder.push_record([&total_text, ""]);
+    builder.push_record(["Total:", &total_text]);
 
     // Build and style
     let mut table = builder.build();
@@ -493,7 +576,7 @@ fn print_dev_table(
 }
 
 /// List untracked development documents in crates/design/dev
-fn list_dev_documents(_verbose: bool) -> Result<()> {
+fn list_dev_documents(_verbose: bool, limit: Option<usize>) -> Result<()> {
     // Determine base path (from CLI invocation point)
     let invocation_dir = env::current_dir()?;
 
@@ -516,7 +599,7 @@ fn list_dev_documents(_verbose: bool) -> Result<()> {
 
     // Print dev/ root table (non-recursive)
     if !dev_root_docs.is_empty() {
-        print_dev_table("dev", &dev_root_docs, &invocation_dir, _verbose)?;
+        print_dev_table("dev", &dev_root_docs, &invocation_dir, _verbose, limit)?;
     }
 
     // Print table for each subdirectory (recursive)
@@ -525,7 +608,7 @@ fn list_dev_documents(_verbose: bool) -> Result<()> {
         let docs = collect_dev_docs(&subdir_path, true)?;
 
         if !docs.is_empty() {
-            print_dev_table(&subdir_name, &docs, &invocation_dir, _verbose)?;
+            print_dev_table(&subdir_name, &docs, &invocation_dir, _verbose, limit)?;
         }
     }
 
@@ -811,7 +894,7 @@ mod tests {
         let state_mgr = StateManager::new(&docs_dir).unwrap();
 
         // No removed documents
-        let result = list_removed_documents(&state_mgr, false);
+        let result = list_removed_documents(&state_mgr, false, None);
         assert!(result.is_ok());
     }
 
@@ -856,7 +939,7 @@ mod tests {
         );
 
         // Should show file exists (deleted=false)
-        let result = list_removed_documents(&state_mgr, false);
+        let result = list_removed_documents(&state_mgr, false, None);
         assert!(result.is_ok());
     }
 
@@ -897,7 +980,7 @@ mod tests {
         );
 
         // Should show file doesn't exist (deleted=true)
-        let result = list_removed_documents(&state_mgr, false);
+        let result = list_removed_documents(&state_mgr, false, None);
         assert!(result.is_ok());
     }
 
@@ -941,7 +1024,7 @@ mod tests {
         );
 
         // Verbose mode should show location
-        let result = list_removed_documents(&state_mgr, true);
+        let result = list_removed_documents(&state_mgr, true, None);
         assert!(result.is_ok());
     }
 
@@ -991,7 +1074,7 @@ mod tests {
         }
 
         // Should show both types
-        let result = list_removed_documents(&state_mgr, false);
+        let result = list_removed_documents(&state_mgr, false, None);
         assert!(result.is_ok());
     }
 
@@ -1033,7 +1116,7 @@ mod tests {
         );
 
         // Should handle truncation without panic
-        let result = list_removed_documents(&state_mgr, false);
+        let result = list_removed_documents(&state_mgr, false, None);
         assert!(result.is_ok());
     }
 

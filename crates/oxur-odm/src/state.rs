@@ -232,7 +232,7 @@ impl StateManager {
     /// Initialize state manager
     pub fn new(docs_dir: impl AsRef<Path>) -> Result<Self> {
         let docs_dir = docs_dir.as_ref().to_path_buf();
-        let state_dir = docs_dir.join(".oxd");
+        let state_dir = docs_dir.join(".odm");
 
         // Load existing state or create new
         let state = DocumentState::load(&state_dir)?;
@@ -894,7 +894,7 @@ mod document_state_tests {
     #[test]
     fn test_save_and_load() {
         let temp = TempDir::new().unwrap();
-        let state_dir = temp.path().join(".oxd");
+        let state_dir = temp.path().join(".odm");
 
         let mut state = DocumentState::new();
         state.upsert(1, create_test_record(1));
@@ -918,7 +918,7 @@ mod document_state_tests {
     #[test]
     fn test_load_nonexistent() {
         let temp = TempDir::new().unwrap();
-        let state_dir = temp.path().join(".oxd");
+        let state_dir = temp.path().join(".odm");
 
         let state = DocumentState::load(&state_dir).unwrap();
         assert_eq!(state.version, 1);
@@ -929,7 +929,7 @@ mod document_state_tests {
     #[test]
     fn test_save_creates_gitignore() {
         let temp = TempDir::new().unwrap();
-        let state_dir = temp.path().join(".oxd");
+        let state_dir = temp.path().join(".odm");
 
         let state = DocumentState::new();
         state.save(&state_dir).unwrap();
@@ -944,7 +944,7 @@ mod document_state_tests {
     #[test]
     fn test_save_atomic() {
         let temp = TempDir::new().unwrap();
-        let state_dir = temp.path().join(".oxd");
+        let state_dir = temp.path().join(".odm");
 
         let state = DocumentState::new();
         state.save(&state_dir).unwrap();
@@ -1201,7 +1201,7 @@ mod property_tests {
         #[test]
         fn save_load_round_trip(nums in prop::collection::vec(1u32..100, 0..10)) {
             let temp = tempfile::TempDir::new().unwrap();
-            let state_dir = temp.path().join(".oxd");
+            let state_dir = temp.path().join(".odm");
 
             let mut state = DocumentState::new();
             for num in &nums {
@@ -1297,7 +1297,7 @@ This is test content for document {}.
         let (_temp, docs_dir, _draft_dir) = setup_test_env();
         let manager = StateManager::new(&docs_dir).unwrap();
 
-        let state_dir = docs_dir.join(".oxd");
+        let state_dir = docs_dir.join(".odm");
         assert!(!state_dir.exists());
 
         // State directory is created when we save
@@ -1553,7 +1553,7 @@ This is test content for document {}.
         let mut manager = StateManager::new(&docs_dir).unwrap();
         manager.quick_scan().unwrap();
 
-        let state_file = docs_dir.join(".oxd/state.json");
+        let state_file = docs_dir.join(".odm/state.json");
         let modified_before = fs::metadata(&state_file).unwrap().modified().unwrap();
 
         sleep(Duration::from_millis(100));
@@ -1740,7 +1740,7 @@ mod error_handling_tests {
     #[test]
     fn test_load_corrupted_state_file() {
         let temp = TempDir::new().unwrap();
-        let state_dir = temp.path().join(".oxd");
+        let state_dir = temp.path().join(".odm");
         fs::create_dir_all(&state_dir).unwrap();
 
         let state_file = state_dir.join("state.json");
@@ -2003,7 +2003,7 @@ state: draft
     #[test]
     fn test_gitignore_not_created_twice() {
         let temp = TempDir::new().unwrap();
-        let state_dir = temp.path().join(".oxd");
+        let state_dir = temp.path().join(".odm");
 
         let state = DocumentState::new();
         state.save(&state_dir).unwrap();
@@ -2024,7 +2024,7 @@ state: draft
     #[test]
     fn test_state_version_is_persisted() {
         let temp = TempDir::new().unwrap();
-        let state_dir = temp.path().join(".oxd");
+        let state_dir = temp.path().join(".odm");
 
         let state = DocumentState::new();
         assert_eq!(state.version, 1);

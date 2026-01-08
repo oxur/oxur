@@ -54,7 +54,7 @@ fn show_overview(state_mgr: &StateManager) -> Result<()> {
     println!();
     println!(
         "{} {}",
-        "Oxur Design Documentation Tool (oxd)".cyan().bold(),
+        "Oxur Design Documentation Manager (odm)".cyan().bold(),
         format!("v{}", version).yellow()
     );
     println!();
@@ -97,13 +97,13 @@ fn show_overview(state_mgr: &StateManager) -> Result<()> {
 
     // Quick help
     println!("{}", "Quick Help:".cyan().bold());
-    println!("  {}  Full command reference", "oxd help".yellow());
-    println!("  {}  Valid document states", "oxd info states".yellow());
-    println!("  {}  Frontmatter fields", "oxd info fields".yellow());
-    println!("  {}  Configuration values", "oxd info config".yellow());
-    println!("  {}  Project statistics", "oxd info stats".yellow());
-    println!("  {}  List all tags", "oxd info tags".yellow());
-    println!("  {}  List all components", "oxd info components".yellow());
+    println!("  {}  Full command reference", "odm help".yellow());
+    println!("  {}  Valid document states", "odm info states".yellow());
+    println!("  {}  Frontmatter fields", "odm info fields".yellow());
+    println!("  {}  Configuration values", "odm info config".yellow());
+    println!("  {}  Project statistics", "odm info stats".yellow());
+    println!("  {}  List all tags", "odm info tags".yellow());
+    println!("  {}  List all components", "odm info components".yellow());
     println!();
 
     println!("{}", "Documentation:".cyan().bold());
@@ -134,8 +134,8 @@ fn show_states() -> Result<()> {
     }
 
     println!("{}", "Usage:".cyan().bold());
-    println!("  Transition a document: {}", "oxd transition <doc> <state>".yellow());
-    println!("  List by state: {}", "oxd list --state <state>".yellow());
+    println!("  Transition a document: {}", "odm transition <doc> <state>".yellow());
+    println!("  List by state: {}", "odm list --state <state>".yellow());
     println!();
 
     Ok(())
@@ -153,7 +153,7 @@ fn show_fields() -> Result<()> {
     print_field("number", "Document number (4-digit integer)", Some("42"));
     print_field("title", "Document title", Some("\"Feature Design: Advanced Caching\""));
     print_field("state", "Current document state", Some("draft"));
-    println!("         {} {}", "Note:".dimmed(), "Valid states: oxd info states".dimmed());
+    println!("         {} {}", "Note:".dimmed(), "Valid states: odm info states".dimmed());
     println!();
     print_field("created", "Creation date (YYYY-MM-DD)", Some("2025-01-15"));
     println!("         {} {}", "Note:".dimmed(), "Auto-extracted from git if missing".dimmed());
@@ -191,8 +191,8 @@ fn show_fields() -> Result<()> {
 
     // Commands
     println!("{}", "Related Commands:".cyan().bold());
-    println!("  {}  Add missing headers to a document", "oxd add-headers <doc>".yellow());
-    println!("  {}  Check all documents for valid headers", "oxd validate".yellow());
+    println!("  {}  Add missing headers to a document", "odm add-headers <doc>".yellow());
+    println!("  {}  Check all documents for valid headers", "odm validate".yellow());
     println!();
 
     Ok(())
@@ -281,16 +281,16 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
     println!("{}", "Configuration Sources:".green().bold());
     println!("  1. {} (always present)", "Built-in defaults".dimmed());
 
-    if std::path::PathBuf::from(".oxd/config.toml").exists() {
-        println!("  2. {} (if exists)", ".oxd/config.toml".cyan());
+    if std::path::PathBuf::from(".odm/config.toml").exists() {
+        println!("  2. {} (if exists)", ".odm/config.toml".cyan());
     } else {
-        println!("  2. {} (not found)", ".oxd/config.toml".dimmed());
+        println!("  2. {} (not found)", ".odm/config.toml".dimmed());
     }
     println!();
 
     // Modification help
     println!("{}", "Modify Configuration:".yellow().bold());
-    println!("  Create: {}", ".oxd/config.toml".cyan());
+    println!("  Create: {}", ".odm/config.toml".cyan());
     println!("  Reload: Configuration is read on each command");
     println!();
 
@@ -413,7 +413,7 @@ fn show_dirs(state_mgr: &StateManager) -> Result<()> {
     // Display tree
     let docs_dir = state_mgr.docs_dir();
     println!("{}/", docs_dir.file_name().unwrap().to_string_lossy());
-    println!("├── {}  {}", ".oxd/".cyan(), "(state tracking)".dimmed());
+    println!("├── {}  {}", ".odm/".cyan(), "(state tracking)".dimmed());
     println!("│   └── {}  {}", "state.json".cyan(), "(document state)".dimmed());
 
     // Dustbin
@@ -621,7 +621,7 @@ mod tests {
         let docs_dir = temp.path();
 
         // Create necessary directory structure
-        fs::create_dir_all(docs_dir.join(".oxd")).unwrap();
+        fs::create_dir_all(docs_dir.join(".odm")).unwrap();
         fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
 
         // Initialize git repo (required for StateManager)

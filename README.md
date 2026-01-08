@@ -57,14 +57,14 @@ cargo build --release
 The build includes several command-line tools:
 
 - **`aster`** - AST manipulation (Rust ↔ S-expression conversions)
-- **`oxd`** - Design documentation manager
+- **`odm`** - Design documentation manager
 - **`oxurfmt`** - S-expression formatter
 
 Which you can also build individually:
 
 ```bash
 cargo build --release --bin aster
-cargo build --release --bin oxd
+cargo build --release --bin odm
 cargo build --release --bin oxurfmt
 ```
 
@@ -201,14 +201,14 @@ To explore Oxur's design decisions, you probably want to [start here](crates/des
 
 ### Design Documentation CLI
 
-Current `oxd` help text:
+Current `odm` help text:
 
 ```bash
-./bin/oxd --help
+./bin/odm --help
 
-Oxur Design Documentation Manager
+An odd document manager
 
-Usage: oxd [OPTIONS] <COMMAND>
+Usage: odm [OPTIONS] <COMMAND>
 
 Commands:
   add            Add a new document with full processing
@@ -235,16 +235,16 @@ Options:
   -d, --docs-dir <DOCS_DIR>  Path to docs directory (defaults to ./docs) [default: docs]
   -h, --help                 Print help
 
-Use 'oxd <command> --help' for more information about a command.
+Use 'odm <command> --help' for more information about a command.
 ```
 
 List all design documents:
 
 ```bash
-./bin/oxd list
+./bin/odm list
 ```
 
-[![oxd cli tool screenshot of list command][oxd-list-screenshot]][oxd-list-screenshot]
+[![odm cli tool screenshot of list command][odm-list-screenshot]][odm-list-screenshot]
 
 ## License
 
@@ -258,4 +258,4 @@ Copyright © 2020-2026, Oxur Group
 [gh-actions]: https://github.com/oxur/oxur/actions
 [github-tags]: https://github.com/oxur/oxur/tags
 [github-tags-badge]: https://img.shields.io/github/tag/oxur/oxur.svg
-[oxd-list-screenshot]: assets/images/screenshots/oxd-list.png
+[odm-list-screenshot]: assets/images/screenshots/odm-list.png

@@ -21,7 +21,7 @@ pub fn update_index(index: &DocumentIndex) -> Result<()> {
     // Check if index exists
     if !index_path.exists() {
         println!(
-            "{} Index file not found. Use 'oxd index' to generate it first.",
+            "{} Index file not found. Use 'odm index' to generate it first.",
             "Warning:".yellow().bold()
         );
         return Ok(());

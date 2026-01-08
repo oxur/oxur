@@ -122,8 +122,8 @@ pub(crate) fn execute_command(
     state_mgr: &mut StateManager,
 ) -> Result<()> {
     match command {
-        Commands::List { state, verbose, removed, dev, component, tags } => {
-            let filters = commands::list::ListFilters { state, component, tags };
+        Commands::List { state, verbose, removed, dev, component, tags, limit, all } => {
+            let filters = commands::list::ListFilters { state, component, tags, limit, all };
             list_documents_with_state(index, Some(state_mgr), &filters, verbose, removed, dev)
         }
         Commands::Show { number, metadata_only } => show_document(index, number, metadata_only),
@@ -186,7 +186,7 @@ mod tests {
 
         // Create directory structure
         fs::create_dir_all(docs_dir.join("01-draft")).unwrap();
-        fs::create_dir_all(docs_dir.join(".oxd")).unwrap();
+        fs::create_dir_all(docs_dir.join(".odm")).unwrap();
 
         // Create a sample document
         let doc_path = docs_dir.join("01-draft/0001-test-document.md");
@@ -238,6 +238,8 @@ This is a test document.
                 dev: false,
                 component: None,
                 tags: Vec::new(),
+                limit: 20,
+                all: false,
             },
         };
 
@@ -273,6 +275,8 @@ This is a test document.
             dev: false,
             component: None,
             tags: Vec::new(),
+            limit: 20,
+            all: false,
         };
 
         let result = scan_on_startup(&mut state_mgr, &command);
@@ -312,6 +316,8 @@ updated: 2024-01-02
             dev: false,
             component: None,
             tags: Vec::new(),
+            limit: 20,
+            all: false,
         };
 
         // This should detect the new file
@@ -356,6 +362,8 @@ updated: 2024-01-02
             dev: false,
             component: None,
             tags: Vec::new(),
+            limit: 20,
+            all: false,
         };
 
         let result = execute_command(command, &index, &mut state_mgr);
@@ -398,6 +406,8 @@ updated: 2024-01-02
                 dev: false,
                 component: None,
                 tags: Vec::new(),
+                limit: 20,
+                all: false,
             },
         };
 
@@ -422,6 +432,8 @@ updated: 2024-01-02
                 dev: false,
                 component: None,
                 tags: Vec::new(),
+                limit: 20,
+                all: false,
             },
         };
 

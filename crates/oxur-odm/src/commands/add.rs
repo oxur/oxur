@@ -200,7 +200,7 @@ pub fn add_document(
     if let Err(e) = crate::commands::update_index::update_index(&index) {
         println!("{} Failed to update index", "Warning:".yellow());
         println!("  {}", e);
-        println!("  Run 'oxd update-index' manually to sync the index");
+        println!("  Run 'odm update-index' manually to sync the index");
     }
 
     println!("\n{} Successfully added: {}", "✓".green().bold(), new_filename.bold());

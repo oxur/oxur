@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/design",
+    "crates/oxur-odm",
     "crates/oxur-ast",
     "crates/oxur-lang",
     "crates/oxur-comp",
@@ -9,7 +9,8 @@ members = [
     "crates/oxur-cli",
     "crates/oxur-pretty",
     "crates/oxur-smap",
-    "crates/oxur-testing", "crates/cargo-oxur",
+    "crates/oxur-testing",
+    "crates/cargo-oxur",
 ]
 
 # Workspace-wide dependencies (shared versions)

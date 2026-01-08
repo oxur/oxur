@@ -90,13 +90,13 @@ impl ValidationIssue {
     fn fix_description(&self) -> Option<String> {
         match self {
             ValidationIssue::StateDirectoryMismatch { .. } => {
-                Some("Run 'oxd sync-location <file>' to fix".to_string())
+                Some("Run 'odm sync-location <file>' to fix".to_string())
             }
             ValidationIssue::NotInIndex { .. } => {
-                Some("Run 'oxd update-index' to add to index".to_string())
+                Some("Run 'odm update-index' to add to index".to_string())
             }
             ValidationIssue::MissingHeaders { .. } => {
-                Some("Run 'oxd add-headers <file>' to add headers".to_string())
+                Some("Run 'odm add-headers <file>' to add headers".to_string())
             }
             _ => None,
         }
@@ -645,7 +645,7 @@ mod tests {
             path: "test.md".to_string(),
         };
         let fix = issue.fix_description().unwrap();
-        assert!(fix.contains("oxd sync-location"));
+        assert!(fix.contains("odm sync-location"));
     }
 
     #[test]
@@ -656,14 +656,14 @@ mod tests {
             path: "test.md".to_string(),
         };
         let fix = issue.fix_description().unwrap();
-        assert!(fix.contains("oxd update-index"));
+        assert!(fix.contains("odm update-index"));
     }
 
     #[test]
     fn test_missing_headers_fix_description() {
         let issue = ValidationIssue::MissingHeaders { path: "test.md".to_string() };
         let fix = issue.fix_description().unwrap();
-        assert!(fix.contains("oxd add-headers"));
+        assert!(fix.contains("odm add-headers"));
     }
 
     #[test]

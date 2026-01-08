@@ -90,7 +90,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 ```
 /Users/oubiwann/lab/oxur/oxur/
 ├── crates/
-│   ├── design/          # Design documentation management (oxd CLI)
+│   ├── design/          # Design documentation management (odm CLI)
 │   ├── oxur-ast/        # Rust AST ↔ S-expression (aster CLI) [IN PROGRESS]
 │   ├── oxur-cli/        # CLI infrastructure & unified tool [EARLY STAGE]
 │   ├── oxur-lang/       # Oxur Lisp compiler [PLANNING]
@@ -122,7 +122,7 @@ The project is organized as a Cargo workspace with 6 main crates:
 
 #### design (Active - Feature Complete)
 
-**Binary:** `oxd`
+**Binary:** `odm`
 **Purpose:** Manage Oxur Design Documents (ODDs) with state tracking
 
 - Document lifecycle: draft → under-review → revised → accepted → active → final
@@ -402,7 +402,7 @@ info("Processing files...");         // Cyan
 warning("Deprecated API usage");     // Yellow
 ```
 
-**Consistency across all Oxur CLIs (aster, oxd, oxur).**
+**Consistency across all Oxur CLIs (aster, odm, oxur).**
 
 ### S-Expression Format (ODD-0003)
 
@@ -641,8 +641,8 @@ state: Active
 
 **Before implementing a feature:**
 
-1. Check if design doc exists: `./bin/oxd list`
-2. Read relevant docs: `./bin/oxd show 0003`
+1. Check if design doc exists: `./bin/odm list`
+2. Read relevant docs: `./bin/odm show 0003`
 3. If no doc exists and feature is non-trivial, create one
 
 **When making architectural changes:**
@@ -666,8 +666,8 @@ pub fn parse_item(sexp: &SExp) -> Result<Item> {
 
 ### Adding a New Feature
 
-1. **Check for design doc:** `./bin/oxd list | grep -i "feature"`
-2. **Read relevant docs:** `./bin/oxd show <number>`
+1. **Check for design doc:** `./bin/odm list | grep -i "feature"`
+2. **Read relevant docs:** `./bin/odm show <number>`
 3. **Load Rust skill guides:** Based on what you're building (see skill workflow)
 4. **Write tests first (TDD)**
 5. **Implement feature following guidelines**
@@ -814,7 +814,7 @@ Avoid:
 
 **For Oxur issues:**
 
-- Check design docs: `./bin/oxd list` and `./bin/oxd show <number>`
+- Check design docs: `./bin/odm list` and `./bin/odm show <number>`
 - Look for similar implementations in the codebase
 - Ask clarifying questions
 
@@ -917,9 +917,9 @@ make format                    # Format all code
 **Design Docs:**
 
 ```bash
-./bin/oxd list                 # List all docs
-./bin/oxd show 0003            # Show specific doc
-./bin/oxd new "Title"          # Create new doc
+./bin/odm list                 # List all docs
+./bin/odm show 0003            # Show specific doc
+./bin/odm new "Title"          # Create new doc
 ```
 
 **AST Tools:**
@@ -936,7 +936,7 @@ make format                    # Format all code
 
 ### Before Starting Work
 
-- [ ] Read relevant design docs (`./bin/oxd show <number>`)
+- [ ] Read relevant design docs (`./bin/odm show <number>`)
 - [ ] Load Rust anti-patterns guide (`11-anti-patterns.md`)
 - [ ] Load relevant Rust topic guides
 - [ ] Understand existing code patterns (read related files)

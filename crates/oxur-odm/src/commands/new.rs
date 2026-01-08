@@ -105,7 +105,7 @@ version: 1.0
     if let Err(e) = crate::commands::update_index::update_index(index) {
         println!("{} Failed to update index", "Warning:".yellow());
         println!("  {}", e);
-        println!("  Run 'oxd update-index' manually to sync the index");
+        println!("  Run 'odm update-index' manually to sync the index");
     }
 
     Ok(())

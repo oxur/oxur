@@ -133,7 +133,7 @@ pub fn execute(state_mgr: &mut StateManager, doc_id_or_path: &str) -> Result<()>
     println!("{}", "Document removed successfully!".green().bold());
     println!("  Location: {}", dustbin_path.display().to_string().cyan());
     println!();
-    println!("To view removed documents: {}", "oxd list --removed".yellow());
+    println!("To view removed documents: {}", "odm list --removed".yellow());
 
     Ok(())
 }

@@ -29,7 +29,7 @@ impl Default for Config {
         Self {
             project_root: PathBuf::from("."),
             docs_directory: PathBuf::from("./design/docs"),
-            state_file: PathBuf::from("./design/docs/.oxd/state.json"),
+            state_file: PathBuf::from("./design/docs/.odm/state.json"),
             dustbin_directory: PathBuf::from("./design/docs/.dustbin"),
             preserve_dustbin_structure: true,
             auto_stage_git: true,
@@ -47,11 +47,11 @@ impl Config {
         if let Some(dir) = docs_dir {
             let path = PathBuf::from(dir);
             config.docs_directory = path.clone();
-            config.state_file = path.join(".oxd/state.json");
+            config.state_file = path.join(".odm/state.json");
             config.dustbin_directory = path.join(".dustbin");
         }
 
-        // Try to load from .oxd/config.toml (takes precedence)
+        // Try to load from .odm/config.toml (takes precedence)
         if let Some(file_config) = Self::load_from_file(&config.docs_directory)? {
             config.merge(file_config);
         }
@@ -59,18 +59,18 @@ impl Config {
         Ok(config)
     }
 
-    /// Load configuration from .oxd/config.toml
+    /// Load configuration from .odm/config.toml
     fn load_from_file(docs_dir: &Path) -> Result<Option<PartialConfig>> {
-        let config_path = docs_dir.join(".oxd/config.toml");
+        let config_path = docs_dir.join(".odm/config.toml");
         if !config_path.exists() {
             return Ok(None);
         }
 
         let contents =
-            std::fs::read_to_string(&config_path).context("Failed to read .oxd/config.toml")?;
+            std::fs::read_to_string(&config_path).context("Failed to read .odm/config.toml")?;
 
         let config: PartialConfig =
-            toml::from_str(&contents).context("Failed to parse .oxd/config.toml")?;
+            toml::from_str(&contents).context("Failed to parse .odm/config.toml")?;
 
         Ok(Some(config))
     }
@@ -120,7 +120,7 @@ mod tests {
     fn test_default_config() {
         let config = Config::default();
         assert_eq!(config.docs_directory, PathBuf::from("./design/docs"));
-        assert_eq!(config.state_file, PathBuf::from("./design/docs/.oxd/state.json"));
+        assert_eq!(config.state_file, PathBuf::from("./design/docs/.odm/state.json"));
         assert!(config.preserve_dustbin_structure);
         assert!(config.auto_stage_git);
     }
@@ -129,7 +129,7 @@ mod tests {
     fn test_load_with_docs_dir() {
         let config = Config::load(Some("/custom/docs")).unwrap();
         assert_eq!(config.docs_directory, PathBuf::from("/custom/docs"));
-        assert_eq!(config.state_file, PathBuf::from("/custom/docs/.oxd/state.json"));
+        assert_eq!(config.state_file, PathBuf::from("/custom/docs/.odm/state.json"));
         assert_eq!(config.dustbin_directory, PathBuf::from("/custom/docs/.dustbin"));
     }
 
@@ -138,10 +138,10 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let docs_dir = temp.path();
 
-        // Create .oxd directory and config file
-        fs::create_dir_all(docs_dir.join(".oxd")).unwrap();
+        // Create .odm directory and config file
+        fs::create_dir_all(docs_dir.join(".odm")).unwrap();
         fs::write(
-            docs_dir.join(".oxd/config.toml"),
+            docs_dir.join(".odm/config.toml"),
             r#"
 preserve_dustbin_structure = false
 auto_stage_git = false
