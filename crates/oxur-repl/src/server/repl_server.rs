@@ -347,6 +347,9 @@ impl ReplServer {
                     Operation::Describe { .. } => "describe",
                     Operation::History { .. } => "history",
                     Operation::ClearOutput => "clear_output",
+                    Operation::GetServerStats => "get_server_stats",
+                    Operation::GetSessionStats => "get_session_stats",
+                    Operation::GetSubprocessStats => "get_subprocess_stats",
                 };
                 m.request_received(operation_name);
 
@@ -368,6 +371,9 @@ impl ReplServer {
                     OperationResult::Error { .. } => "error",
                     OperationResult::Sessions { .. } => "success",
                     OperationResult::HistoryEntries { .. } => "success",
+                    OperationResult::ServerStats { .. } => "success",
+                    OperationResult::SessionStats { .. } => "success",
+                    OperationResult::SubprocessStats { .. } => "success",
                 };
                 m.response_sent(status);
             }

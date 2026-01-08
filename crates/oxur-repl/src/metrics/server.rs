@@ -58,7 +58,7 @@ pub struct ServerMetrics {
 }
 
 /// Snapshot of server metrics for display
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ServerMetricsSnapshot {
     pub connections_total: u64,
     pub connections_active: u64,

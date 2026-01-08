@@ -49,7 +49,7 @@ pub mod eval;
 pub mod server;
 pub mod subprocess;
 
-pub use eval::{CacheStats, EvalMetrics, ExecutionTier, Percentiles};
+pub use eval::{CacheStats, EvalMetrics, ExecutionTier, Percentiles, SessionStatsSnapshot};
 pub use server::{ServerMetrics, ServerMetricsSnapshot};
 pub use subprocess::{RestartReason, SubprocessMetrics, SubprocessMetricsSnapshot};
 

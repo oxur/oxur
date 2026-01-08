@@ -5,6 +5,9 @@
 //!
 //! Based on ODD-0018: Oxur Remote REPL Protocol Design
 
+use std::sync::Arc;
+
+use crate::metrics::ServerMetrics;
 use crate::protocol::{
     ErrorInfo, ErrorKind, Operation, OperationResult, Request, Response, SessionId, SessionInfo,
     Status,
@@ -19,12 +22,19 @@ use crate::server::{SessionError, SessionManager};
 pub struct MessageHandler {
     /// Session manager
     session_manager: SessionManager,
+    /// Server metrics (optional, for stats operations)
+    server_metrics: Option<Arc<ServerMetrics>>,
 }
 
 impl MessageHandler {
     /// Create a new message handler
     pub fn new(session_manager: SessionManager) -> Self {
-        Self { session_manager }
+        Self { session_manager, server_metrics: None }
+    }
+
+    /// Create a new message handler with server metrics
+    pub fn with_metrics(session_manager: SessionManager, metrics: Arc<ServerMetrics>) -> Self {
+        Self { session_manager, server_metrics: Some(metrics) }
     }
 
     /// Handle a REPL request and return a response
@@ -67,6 +77,12 @@ impl MessageHandler {
             Operation::Close => self.handle_close(&request.session_id),
 
             Operation::LsSessions => self.handle_list_sessions(),
+
+            Operation::GetServerStats => self.handle_get_server_stats(),
+
+            Operation::GetSessionStats => self.handle_get_session_stats(&request.session_id),
+
+            Operation::GetSubprocessStats => self.handle_get_subprocess_stats(&request.session_id),
 
             // Operations not yet implemented
             Operation::LoadFile { .. }
@@ -184,6 +200,56 @@ impl MessageHandler {
 
                 OperationResult::Sessions { sessions: session_infos }
             }
+            Err(e) => self.error_result(e),
+        }
+    }
+
+    /// Handle GetServerStats operation
+    fn handle_get_server_stats(&self) -> OperationResult {
+        match &self.server_metrics {
+            Some(metrics) => {
+                let snapshot = metrics.snapshot();
+                OperationResult::ServerStats { snapshot }
+            }
+            None => OperationResult::Error {
+                error: ErrorInfo {
+                    kind: ErrorKind::InternalError,
+                    message: "Server metrics not available".to_string(),
+                    location: None,
+                    details: None,
+                },
+                stdout: None,
+                stderr: None,
+            },
+        }
+    }
+
+    /// Handle GetSessionStats operation
+    fn handle_get_session_stats(&self, session_id: &SessionId) -> OperationResult {
+        match self.session_manager.get_stats_collector(session_id) {
+            Ok(stats_collector) => {
+                let collector = stats_collector.lock().unwrap();
+                let snapshot = collector.snapshot();
+                OperationResult::SessionStats { snapshot }
+            }
+            Err(e) => self.error_result(e),
+        }
+    }
+
+    /// Handle GetSubprocessStats operation
+    fn handle_get_subprocess_stats(&self, session_id: &SessionId) -> OperationResult {
+        match self.session_manager.get_subprocess_stats(session_id) {
+            Ok(Some(snapshot)) => OperationResult::SubprocessStats { snapshot },
+            Ok(None) => OperationResult::Error {
+                error: ErrorInfo {
+                    kind: ErrorKind::InternalError,
+                    message: "Subprocess metrics not available for this session".to_string(),
+                    location: None,
+                    details: None,
+                },
+                stdout: None,
+                stderr: None,
+            },
             Err(e) => self.error_result(e),
         }
     }

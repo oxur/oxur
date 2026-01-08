@@ -678,6 +678,14 @@ impl EvalContext {
         self.artifact_cache.as_ref().map(|cache| cache.lock().unwrap().detailed_stats())
     }
 
+    /// Get subprocess metrics snapshot.
+    ///
+    /// Returns metrics about the subprocess executor including restart count,
+    /// uptime, and last restart reason.
+    pub fn subprocess_stats(&self) -> Option<crate::metrics::SubprocessMetricsSnapshot> {
+        self.executor.as_ref().map(|exec| exec.lock().unwrap().metrics().snapshot())
+    }
+
     // ========================================================================
     // Type Inference Methods (Phase 7)
     // ========================================================================

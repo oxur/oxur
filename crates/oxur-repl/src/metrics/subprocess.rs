@@ -26,7 +26,7 @@ use std::time::Instant;
 /// | `Terminated` | SIGTERM (signal 15) |
 /// | `SignalOther(n)` | Other signal |
 /// | `Unknown` | No exit code or signal available |
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RestartReason {
     /// User explicitly requested restart via command
     UserRequested,
@@ -170,7 +170,7 @@ pub struct SubprocessMetrics {
 }
 
 /// Snapshot of subprocess metrics for display.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SubprocessMetricsSnapshot {
     /// Current uptime in seconds
     pub uptime_seconds: f64,

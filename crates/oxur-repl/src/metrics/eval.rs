@@ -177,7 +177,7 @@ impl EvalMetrics {
 }
 
 /// Percentile statistics for a tier.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Percentiles {
     /// Median (50th percentile)
     pub p50: f64,
@@ -194,7 +194,7 @@ pub struct Percentiles {
 }
 
 /// Cache statistics.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CacheStats {
     /// Number of cache hits
     pub hits: u64,
@@ -202,6 +202,39 @@ pub struct CacheStats {
     pub misses: u64,
     /// Hit rate as percentage (0-100)
     pub hit_rate: f64,
+}
+
+/// Snapshot of session statistics for protocol transport.
+///
+/// Contains all session-level evaluation metrics in a serializable form.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SessionStatsSnapshot {
+    /// Session identifier
+    pub session_id: String,
+    /// Total evaluations performed
+    pub total_evaluations: u64,
+    /// Cache statistics
+    pub cache: CacheStats,
+    /// Tier 1 (Calculator) percentiles, if any samples exist
+    pub tier1_percentiles: Option<Percentiles>,
+    /// Tier 2 (CachedLoaded) percentiles, if any samples exist
+    pub tier2_percentiles: Option<Percentiles>,
+    /// Tier 3 (JustInTime) percentiles, if any samples exist
+    pub tier3_percentiles: Option<Percentiles>,
+}
+
+impl EvalMetrics {
+    /// Create a snapshot of current metrics for protocol transport.
+    pub fn snapshot(&self) -> SessionStatsSnapshot {
+        SessionStatsSnapshot {
+            session_id: self.session_id.clone(),
+            total_evaluations: self.total_evals,
+            cache: self.cache_stats(),
+            tier1_percentiles: self.percentiles(ExecutionTier::Calculator),
+            tier2_percentiles: self.percentiles(ExecutionTier::CachedLoaded),
+            tier3_percentiles: self.percentiles(ExecutionTier::JustInTime),
+        }
+    }
 }
 
 /// Calculate percentile using linear interpolation.

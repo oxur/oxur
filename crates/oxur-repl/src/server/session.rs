@@ -269,6 +269,27 @@ impl SessionManager {
         Ok((ctx.session_dir_stats(), ctx.artifact_cache_stats()))
     }
 
+    /// Get subprocess statistics for a session
+    ///
+    /// Returns subprocess metrics snapshot for the given session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::NotFound` if the session doesn't exist.
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
+    pub fn get_subprocess_stats(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Option<crate::metrics::SubprocessMetricsSnapshot>> {
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
+
+        let ctx = sessions
+            .get(session_id)
+            .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
+
+        Ok(ctx.subprocess_stats())
+    }
+
     /// Get the number of active sessions
     ///
     /// # Errors

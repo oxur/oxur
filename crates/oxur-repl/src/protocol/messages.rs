@@ -8,6 +8,8 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use crate::metrics::{ServerMetricsSnapshot, SessionStatsSnapshot, SubprocessMetricsSnapshot};
+
 /// Universally unique identifier for REPL sessions
 ///
 /// Format: UUID v4 as string (36 characters with hyphens)
@@ -289,6 +291,15 @@ pub enum Operation {
 
     /// Clear output buffer
     ClearOutput,
+
+    /// Get server-wide statistics
+    GetServerStats,
+
+    /// Get session statistics
+    GetSessionStats,
+
+    /// Get subprocess statistics for a session
+    GetSubprocessStats,
 }
 
 /// Result of an operation
@@ -327,6 +338,24 @@ pub enum OperationResult {
     HistoryEntries {
         /// History entries (most recent first)
         entries: Vec<HistoryEntry>,
+    },
+
+    /// Server statistics response
+    ServerStats {
+        /// Server metrics snapshot
+        snapshot: ServerMetricsSnapshot,
+    },
+
+    /// Session statistics response
+    SessionStats {
+        /// Session metrics snapshot
+        snapshot: SessionStatsSnapshot,
+    },
+
+    /// Subprocess statistics response
+    SubprocessStats {
+        /// Subprocess metrics snapshot
+        snapshot: SubprocessMetricsSnapshot,
     },
 }
 
