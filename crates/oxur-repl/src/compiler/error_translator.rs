@@ -780,12 +780,12 @@ mod tests {
         use oxur_smap::{new_node_id, SourceMap, SourcePos};
 
         // Step 1: Simulate user's Oxur code
-        let oxur_source = "(defn add [a b] (+ a b))";
+        let oxur_source = "(deffn add [a b] (+ a b))";
 
         // Step 2: Parser creates SourceMap (normally done by Parser)
         let mut source_map = SourceMap::new();
-        let defn_node = new_node_id();
-        source_map.record_surface_node(defn_node, SourcePos::repl(1, 1, 25));
+        let deffn_node = new_node_id();
+        source_map.record_surface_node(deffn_node, SourcePos::repl(1, 1, 25));
 
         // Step 3: Wrapper generates Rust with source map comments (simulated)
         let generated_rust = format!(
@@ -799,7 +799,7 @@ pub extern "C" fn oxur_eval_test() {{
     }}
 }}
 "#,
-            defn_node.as_raw()
+            deffn_node.as_raw()
         );
 
         // Step 4: Simulate rustc error (type mismatch on line 6, column 8)
@@ -851,7 +851,7 @@ pub extern "C" fn oxur_eval_test() {{
         let extracted_node = node_id_result.unwrap();
         assert_eq!(
             extracted_node.as_raw(),
-            defn_node.as_raw(),
+            deffn_node.as_raw(),
             "Should extract the correct NodeId"
         );
 

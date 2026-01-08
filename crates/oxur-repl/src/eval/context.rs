@@ -905,7 +905,7 @@ mod tests {
     async fn test_eval_tier3_jit_compilation() {
         let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
-        let result = ctx.eval("(defn foo [x] (* x 2))").await.unwrap();
+        let result = ctx.eval("(deffn foo (x) (* x 2))").await.unwrap();
         assert!(result.value.contains("compiled"));
         assert_eq!(result.tier, ExecutionTier::JustInTime);
         assert!(!result.cached);
@@ -920,12 +920,12 @@ mod tests {
         let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         // First evaluation - not cached (Tier 3: JIT)
-        let result1 = ctx.eval("(defn bar [x] x)").await.unwrap();
+        let result1 = ctx.eval("(deffn bar (x) x)").await.unwrap();
         assert!(!result1.cached);
         assert_eq!(result1.tier, ExecutionTier::JustInTime);
 
         // Second evaluation - should be cached (Tier 2: CachedLoaded)
-        let result2 = ctx.eval("(defn bar [x] x)").await.unwrap();
+        let result2 = ctx.eval("(deffn bar (x) x)").await.unwrap();
         assert!(result2.cached);
         assert_eq!(result2.tier, ExecutionTier::CachedLoaded);
         assert_eq!(result2.value, result1.value);
@@ -952,7 +952,7 @@ mod tests {
 
         assert_eq!(ctx.try_calculator("(+ 1 2)"), Some("3".to_string()));
         assert_eq!(ctx.try_calculator("(+ 10 20)"), Some("30".to_string()));
-        assert_eq!(ctx.try_calculator("(defn foo [x] x)"), None);
+        assert_eq!(ctx.try_calculator("(deffn foo (x) x)"), None);
         assert_eq!(ctx.try_calculator("(+ 1 2 3)"), Some("6".to_string())); // Multiple args now supported
     }
 
@@ -961,7 +961,7 @@ mod tests {
         let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
         // Code that's not calculator-eligible goes to Tier 3 (JIT) first time
-        let result = ctx.eval("(defn foo [x] x)").await.unwrap();
+        let result = ctx.eval("(deffn foo (x) x)").await.unwrap();
 
         assert_eq!(result.tier, ExecutionTier::JustInTime);
         assert!(!result.cached);
@@ -992,7 +992,7 @@ mod tests {
         assert_eq!(result1.value, "3");
 
         // Tier 3 (JIT compilation) - complex code, first time
-        let result2 = ctx.eval("(defn add [a b] (+ a b))").await.unwrap();
+        let result2 = ctx.eval("(deffn add (a b) (+ a b))").await.unwrap();
         assert_eq!(result2.tier, ExecutionTier::JustInTime);
     }
 

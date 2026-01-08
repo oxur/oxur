@@ -18,7 +18,7 @@
 ;; Expected: Error: missing operands
 
 ;; Invalid keyword
-(defn 123-invalid (x) x)
+(deffn 123-invalid (x) x)
 ;; Expected: Error: invalid identifier (starts with number)
 
 ;; Mismatched brackets

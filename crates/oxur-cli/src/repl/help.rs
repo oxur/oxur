@@ -59,7 +59,10 @@ impl HelpSystem {
         output.push_str(&self.command("(help)", "Show this help overview"));
         output.push_str(&self.command("(help <topic>)", "Show detailed help for a topic"));
         output.push_str(&self.command("(stats)", "Show session statistics"));
-        output.push_str(&self.command("(stats <view>)", "Show specific stats view"));
+        output.push_str(&self.command(
+            "(stats <view>)",
+            "Show specific stats view (views: execution, cache, resources, server, subprocess)",
+        ));
         output.push_str(&self.command("Ctrl-D", "Exit the REPL (EOF)"));
         output.push_str(&self.command("Ctrl-C", "Cancel current input line"));
         output.push('\n');
@@ -249,9 +252,9 @@ impl HelpSystem {
 
         output.push_str(&help.section("DEFINING FUNCTIONS"));
         output.push_str("Define functions with ");
-        output.push_str(&help.cmd_text("defn"));
+        output.push_str(&help.cmd_text("deffn"));
         output.push_str(":\n\n");
-        output.push_str(&help.example("  (defn square [x] (* x x))", None));
+        output.push_str(&help.example("  (deffn square [x] (* x x))", None));
         output.push_str(&help.example("  (square 5)", Some("25")));
         output.push('\n');
 
@@ -309,7 +312,7 @@ impl HelpSystem {
         output.push_str("evaluate the same expression again, the cached version is used.\n\n");
         output.push_str("Example:\n");
         output
-            .push_str(&help.example("  (defn square [x] (* x x))", Some("Compiles once (~50ms)")));
+            .push_str(&help.example("  (deffn square [x] (* x x))", Some("Compiles once (~50ms)")));
         output.push_str(&help.example("  (square 5)", Some("Uses cache (~2ms)")));
         output.push_str(&help.example("  (square 10)", Some("Uses cache (~2ms)")));
         output.push('\n');

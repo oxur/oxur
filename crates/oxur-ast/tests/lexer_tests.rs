@@ -302,15 +302,15 @@ fn test_comment_only() {
 
 #[test]
 fn test_complex_expression() {
-    let input = r#"(defn add ((a i32) (b i32)) i32
+    let input = r#"(deffn add ((a i32) (b i32)) i32
       (+ a b))"#;
     let mut lexer = Lexer::new(input);
     let tokens = lexer.tokenize().unwrap();
 
-    // Should have: (, defn, add, (, (, a, i32, ), (, b, i32, ), ), i32, (, +, a, b, ), ), EOF
+    // Should have: (, deffn, add, (, (, a, i32, ), (, b, i32, ), ), i32, (, +, a, b, ), ), EOF
     assert!(tokens.len() > 10);
     assert_eq!(tokens[0].typ, TokenType::LParen);
-    assert_eq!(tokens[1].lexeme, "defn");
+    assert_eq!(tokens[1].lexeme, "deffn");
 }
 
 #[test]

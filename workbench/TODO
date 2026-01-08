@@ -1,18 +1,31 @@
-- change prompt so that oxur is orange and bracket is green
-- change banner so that versions are formatted and pulled from tools
-- update oxur CLI so that it records its execution path/script name, process ID, and versions when it starts up
-- create a metadata struct for that
-- create a formal abstraction for the collection of things that has become the REPL
-- create a stats struct
-- when subprocess starts up, record _its_ information to a struct
-- figure out how to instrument the subprocess
-- instrument REPL clients
-- instrument REPL servers
-- figure out if there are some good patterns to follow so that arbritrary Oxur
-  components can track their stats, publish them, and query other components
-  for their stats
-- find out if we're using sysinfo; look at using metrics crate as well as
-  metrics-exporter-prometheus and prometheus-parse
-- explore a session management solution similarly to what we did for LFE xrepl:
-  * https://github.com/xrepl/xrepl/tree/main?tab=readme-ov-file#session-management-commands
-- replace references of defn with deffn
+- [ ] change prompt so that oxur is orange and bracket is green
+- [ ] change banner so that versions are formatted and pulled from tools
+- [ ] update oxur CLI so that it records its execution path/script name, process ID, and
+      versions when it starts up
+- [ ] create a metadata struct for that
+- [ ] create a formal abstraction for the collection of things that has become the REPL
+- [x] create a stats struct
+- [ ] when subprocess starts up, record _its_ information to a struct
+- [x] figure out how to instrument the subprocess
+- [x] instrument REPL clients
+- [x] instrument REPL servers
+- [ ] figure out if there are some good patterns to follow so that arbritrary Oxur
+      components can track their stats, publish them, and query other components
+      for their stats
+- [ ] find out if we're using sysinfo; look at using metrics crate as well as
+      metrics-exporter-prometheus and prometheus-parse
+- [ ] explore a session management solution similarly to what we did for LFE xrepl:
+      * https://github.com/xrepl/xrepl/tree/main?tab=readme-ov-file#session-management-commands
+- [x] replace references of defn with deffn
+- [ ] I'm not getting subprocess stats yet:
+        oxur> (stats subprocess)
+        Subprocess not running
+- [ ] When the REPL runs in server mode, it's now tracking things like resposes received,
+      error counts, and success counts, right? Those same things should be tracked by whatever
+      abstraction represents the "server side" of the REPL when it's running in "local" or
+       "in memory" mode. Similarly, when the REPL runs in "local" or "in memory" mode, it should
+      track the "client side" stats as well for whatever stands in for the client side of the REPL
+      when it's running in "local" or "in memory" mode
+
+Completed
+=========
