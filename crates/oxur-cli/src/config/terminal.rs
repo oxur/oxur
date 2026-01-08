@@ -61,9 +61,19 @@ impl TerminalConfig {
     }
 
     /// Get the prompt with optional color formatting
+    ///
+    /// When colors are enabled and the prompt starts with "oxur",
+    /// "oxur" is colored orange and the rest (e.g., "> ") is bright green.
     pub fn formatted_prompt(&self) -> String {
         if self.color_enabled {
-            format!("\x1b[32m{}\x1b[0m", self.prompt)
+            // Check if prompt starts with "oxur" for special coloring
+            if self.prompt.starts_with("oxur") {
+                let rest = &self.prompt[4..]; // Everything after "oxur"
+                // Orange for "oxur", bright green for "> "
+                format!("\x1b[33moxur\x1b[0m\x1b[92m{}\x1b[0m", rest)
+            } else {
+                format!("\x1b[32m{}\x1b[0m", self.prompt)
+            }
         } else {
             self.prompt.clone()
         }
@@ -179,9 +189,21 @@ mod tests {
 
     #[test]
     fn test_formatted_prompt_with_color() {
+        // Non-oxur prompt uses standard green
         let config = TerminalConfig::builder().prompt("test> ").color(true).build();
         assert!(config.formatted_prompt().contains("\x1b[32m"));
         assert!(config.formatted_prompt().contains("test> "));
+    }
+
+    #[test]
+    fn test_formatted_prompt_oxur_colors() {
+        // oxur prompt uses orange for "oxur" and bright green for "> "
+        let config = TerminalConfig::builder().prompt("oxur> ").color(true).build();
+        let prompt = config.formatted_prompt();
+        assert!(prompt.contains("\x1b[33m")); // Orange
+        assert!(prompt.contains("\x1b[92m")); // Bright green
+        assert!(prompt.contains("oxur"));
+        assert!(prompt.contains("> "));
     }
 
     #[test]

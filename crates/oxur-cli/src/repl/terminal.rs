@@ -191,9 +191,15 @@ mod tests {
 
     #[test]
     fn test_terminal_config_colored_prompt() {
+        // Non-oxur prompt uses standard green
         let config = TerminalConfig::builder().prompt("test> ").color(true).build();
         assert!(config.formatted_prompt().contains("\x1b[32m"));
         assert!(config.formatted_prompt().contains("test> "));
+
+        // oxur prompt uses special coloring (orange + bright green)
+        let oxur_config = TerminalConfig::builder().prompt("oxur> ").color(true).build();
+        assert!(oxur_config.formatted_prompt().contains("\x1b[33m")); // Orange
+        assert!(oxur_config.formatted_prompt().contains("\x1b[92m")); // Bright green
     }
 
     #[test]
