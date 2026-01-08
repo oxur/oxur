@@ -4,6 +4,7 @@
 
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
+use oxur_cli::config::ReplConfig;
 use oxur_repl::protocol::{MessageId, Operation, OperationResult, ReplMode, Request, SessionId};
 use oxur_repl::transport::{TcpTransport, Transport};
 use rustyline::error::ReadlineError;
@@ -13,7 +14,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 ///
 /// Connects to an existing REPL server and provides terminal interface
 /// for sending commands and receiving results.
-pub async fn run(addr: &str, color_enabled: bool) -> Result<()> {
+pub async fn run(addr: &str, config: ReplConfig) -> Result<()> {
     // Connect to server
     let mut client = TcpTransport::connect(addr)
         .await
@@ -36,8 +37,9 @@ pub async fn run(addr: &str, color_enabled: bool) -> Result<()> {
 
     let _response = client.recv_response().await.context("Failed to receive create response")?;
 
-    // Create terminal interface
-    let mut terminal = ReplTerminal::new(color_enabled).context("Failed to create terminal")?;
+    // Create terminal interface with configuration
+    let mut terminal = ReplTerminal::with_config(config.terminal, config.history)
+        .context("Failed to create terminal")?;
 
     // Print welcome banner with connection info
     println!("Oxur REPL v{} (connected to {})", env!("CARGO_PKG_VERSION"), addr);

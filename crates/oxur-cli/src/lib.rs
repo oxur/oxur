@@ -66,7 +66,9 @@
 //! ```
 
 pub mod common;
+pub mod config;
 pub mod table;
 
 // Re-export commonly used items for convenience
 pub use common::progress::ProgressTracker;
+pub use config::{EditMode, HistoryConfig, ReplConfig, TerminalConfig};

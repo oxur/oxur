@@ -4,49 +4,57 @@
 //! using rustyline.
 
 use anyhow::{Context, Result};
+use oxur_cli::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use rustyline::error::ReadlineError;
 use rustyline::history::DefaultHistory;
-use rustyline::{Config, DefaultEditor, EditMode, Editor};
+use rustyline::{Config, DefaultEditor, Editor};
 use std::path::PathBuf;
 
 /// REPL terminal interface with line editing and history
 pub struct ReplTerminal {
     editor: Editor<(), DefaultHistory>,
     history_path: PathBuf,
-    color_enabled: bool,
+    terminal_config: TerminalConfig,
 }
 
 impl ReplTerminal {
-    /// Create a new REPL terminal
+    /// Create a new REPL terminal with configuration
     ///
     /// # Arguments
     ///
-    /// * `color_enabled` - Whether to use ANSI colors in prompts
+    /// * `terminal_config` - Terminal appearance configuration
+    /// * `history_config` - Command history configuration
     ///
     /// # Errors
     ///
     /// Returns error if rustyline initialization fails.
-    pub fn new(color_enabled: bool) -> Result<Self> {
-        let config = Config::builder().edit_mode(EditMode::Emacs).auto_add_history(true).build();
+    pub fn with_config(
+        terminal_config: TerminalConfig,
+        history_config: HistoryConfig,
+    ) -> Result<Self> {
+        let rustyline_edit_mode = match terminal_config.edit_mode {
+            EditMode::Emacs => rustyline::EditMode::Emacs,
+            EditMode::Vi => rustyline::EditMode::Vi,
+        };
+
+        let config = Config::builder()
+            .edit_mode(rustyline_edit_mode)
+            .auto_add_history(history_config.enabled)
+            .build();
 
         let mut editor =
             DefaultEditor::with_config(config).context("Failed to create terminal editor")?;
 
         // Determine history file path
-        let history_path = Self::history_path();
+        let history_path = history_config.path.unwrap_or_else(paths::default_history_path);
 
-        // Load existing history if present
-        if history_path.exists() {
+        // Load existing history if present and history is enabled
+        if history_config.enabled && history_path.exists() {
             // Ignore errors loading history - not critical
             let _ = editor.load_history(&history_path);
         }
 
-        Ok(Self { editor, history_path, color_enabled })
-    }
-
-    /// Get the path to the history file
-    fn history_path() -> PathBuf {
-        dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("oxur").join("repl_history")
+        Ok(Self { editor, history_path, terminal_config })
     }
 
     /// Read a line of input from the user
@@ -71,23 +79,15 @@ impl ReplTerminal {
         self.read_line(&prompt)
     }
 
-    /// Get the default prompt string
+    /// Get the formatted prompt string
     pub fn prompt(&self) -> String {
-        if self.color_enabled {
-            "\x1b[32moxur>\x1b[0m ".to_string()
-        } else {
-            "oxur> ".to_string()
-        }
+        self.terminal_config.formatted_prompt()
     }
 
-    /// Get a continuation prompt for multi-line input
+    /// Get the formatted continuation prompt for multi-line input
     #[allow(dead_code)]
     pub fn continuation_prompt(&self) -> String {
-        if self.color_enabled {
-            "\x1b[32m....>\x1b[0m ".to_string()
-        } else {
-            "....> ".to_string()
-        }
+        self.terminal_config.formatted_continuation_prompt()
     }
 
     /// Save command history to disk
@@ -114,12 +114,12 @@ impl ReplTerminal {
     /// Check if colors are enabled
     #[allow(dead_code)]
     pub fn color_enabled(&self) -> bool {
-        self.color_enabled
+        self.terminal_config.color_enabled
     }
 
     /// Print an error message with appropriate formatting
     pub fn print_error(&self, msg: &str) {
-        if self.color_enabled {
+        if self.terminal_config.color_enabled {
             eprintln!("\x1b[31mError:\x1b[0m {}", msg);
         } else {
             eprintln!("Error: {}", msg);
@@ -128,7 +128,7 @@ impl ReplTerminal {
 
     /// Print a result value with appropriate formatting
     pub fn print_result(&self, value: &str) {
-        if self.color_enabled {
+        if self.terminal_config.color_enabled {
             println!("\x1b[36m{}\x1b[0m", value);
         } else {
             println!("{}", value);
@@ -142,19 +142,30 @@ impl ReplTerminal {
 
     /// Print the welcome banner
     pub fn print_banner(&self) {
-        println!("Oxur REPL v{}", env!("CARGO_PKG_VERSION"));
-        println!("Type (help) for assistance, Ctrl-D to exit.");
+        if let Some(ref banner) = self.terminal_config.banner {
+            println!("{}", banner);
+        } else {
+            // Default banner
+            println!("Oxur REPL v{}", env!("CARGO_PKG_VERSION"));
+            println!("Type (help) for assistance, Ctrl-D to exit.");
+        }
         println!();
     }
 
     /// Print a goodbye message
     pub fn print_goodbye(&self) {
         println!();
-        if self.color_enabled {
+        if self.terminal_config.color_enabled {
             println!("\x1b[33mGoodbye!\x1b[0m");
         } else {
             println!("Goodbye!");
         }
+    }
+
+    /// Get the terminal configuration
+    #[allow(dead_code)]
+    pub fn config(&self) -> &TerminalConfig {
+        &self.terminal_config
     }
 }
 
@@ -163,28 +174,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_history_path() {
-        let path = ReplTerminal::history_path();
+    fn test_default_history_path() {
+        let path = paths::default_history_path();
         assert!(path.ends_with("repl_history"));
     }
 
     #[test]
-    fn test_prompt_with_color() {
-        // Can't easily test terminal creation without a TTY,
-        // but we can test the prompt formatting logic
-        let prompt_colored = "\x1b[32moxur>\x1b[0m ";
-        let prompt_plain = "oxur> ";
+    fn test_terminal_config_prompt() {
+        let config = TerminalConfig::builder().prompt("test> ").color(false).build();
+        assert_eq!(config.formatted_prompt(), "test> ");
+    }
 
-        assert!(prompt_colored.contains("oxur>"));
-        assert!(prompt_plain.contains("oxur>"));
+    #[test]
+    fn test_terminal_config_colored_prompt() {
+        let config = TerminalConfig::builder().prompt("test> ").color(true).build();
+        assert!(config.formatted_prompt().contains("\x1b[32m"));
+        assert!(config.formatted_prompt().contains("test> "));
     }
 
     #[test]
     fn test_continuation_prompt() {
-        let cont_colored = "\x1b[32m....>\x1b[0m ";
-        let cont_plain = "....> ";
+        let config = TerminalConfig::builder().continuation_prompt("... ").color(false).build();
+        assert_eq!(config.formatted_continuation_prompt(), "... ");
+    }
 
-        assert!(cont_colored.contains("....>"));
-        assert!(cont_plain.contains("....>"));
+    #[test]
+    fn test_custom_banner() {
+        let config = TerminalConfig::builder().banner("Custom Welcome!").build();
+        assert_eq!(config.banner, Some("Custom Welcome!".to_string()));
     }
 }

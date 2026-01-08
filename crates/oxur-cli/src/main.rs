@@ -12,6 +12,8 @@ use clap::{Args, Parser, Subcommand};
 #[cfg(feature = "binary")]
 use oxur_cli::common::output;
 #[cfg(feature = "binary")]
+use oxur_cli::config::ReplConfig;
+#[cfg(feature = "binary")]
 use std::path::PathBuf;
 
 #[cfg(feature = "binary")]
@@ -177,18 +179,20 @@ fn main() -> Result<()> {
 /// Handle the REPL command with its various modes
 #[cfg(feature = "binary")]
 fn handle_repl(args: ReplArgs) -> Result<()> {
-    let color_enabled = !args.no_color;
+    // Load configuration with layered resolution:
+    // defaults -> file -> env -> CLI args
+    let config = ReplConfig::load(args.no_color)?;
 
     if let Some(addr) = args.serve {
         // Server mode: start ReplServer and listen
-        run_server_mode(&addr, args.ack, color_enabled)
+        run_server_mode(&addr, args.ack)
     } else if let Some(addr) = args.connect {
         // Connect mode: connect to existing server
         let addr = addr.unwrap_or_else(|| "127.0.0.1:5099".to_string());
-        run_connect_mode(&addr, color_enabled)
+        run_connect_mode(&addr, config)
     } else {
         // Interactive mode (default): in-memory server + client
-        run_interactive_mode(color_enabled)
+        run_interactive_mode(config)
     }
 }
 
@@ -197,12 +201,12 @@ fn handle_repl(args: ReplArgs) -> Result<()> {
 /// Creates an in-process server and client connected via channels,
 /// providing the fastest possible REPL experience.
 #[cfg(feature = "binary")]
-fn run_interactive_mode(color_enabled: bool) -> Result<()> {
+fn run_interactive_mode(config: ReplConfig) -> Result<()> {
     // Create tokio runtime for async operations
     let rt = tokio::runtime::Runtime::new()?;
 
     // Run the interactive REPL
-    rt.block_on(repl::interactive::run(color_enabled))
+    rt.block_on(repl::interactive::run(config))
 }
 
 /// Run the REPL in server-only mode
@@ -210,7 +214,7 @@ fn run_interactive_mode(color_enabled: bool) -> Result<()> {
 /// Starts a REPL server listening on the specified address.
 /// Use a path for Unix socket, or HOST:PORT for TCP.
 #[cfg(feature = "binary")]
-fn run_server_mode(addr: &str, ack_port: Option<u16>, _color_enabled: bool) -> Result<()> {
+fn run_server_mode(addr: &str, ack_port: Option<u16>) -> Result<()> {
     output::info(&format!("Starting REPL server on {}...", addr));
 
     // Create tokio runtime for async operations
@@ -224,14 +228,14 @@ fn run_server_mode(addr: &str, ack_port: Option<u16>, _color_enabled: bool) -> R
 ///
 /// Connects to an existing REPL server and provides terminal interface.
 #[cfg(feature = "binary")]
-fn run_connect_mode(addr: &str, color_enabled: bool) -> Result<()> {
+fn run_connect_mode(addr: &str, config: ReplConfig) -> Result<()> {
     output::info(&format!("Connecting to REPL server at {}...", addr));
 
     // Create tokio runtime for async operations
     let rt = tokio::runtime::Runtime::new()?;
 
     // Run the connect mode client
-    rt.block_on(repl::connect::run(addr, color_enabled))
+    rt.block_on(repl::connect::run(addr, config))
 }
 
 #[cfg(not(feature = "binary"))]

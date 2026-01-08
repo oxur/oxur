@@ -237,8 +237,8 @@ tracked-files:
 push:
 	@echo "$(BLUE)Pushing changes ...$(RESET)"
 	@echo "$(CYAN)• Codeberg:$(RESET)"
-	@git push codeberg && git push codeberg --tags
+	@git push codeberg main && git push codeberg --tags
 	@echo "$(GREEN)✓ Pushed$(RESET)"
 	@echo "$(CYAN)• Github:$(RESET)"
-	@git push github && git push github --tags
+	@git push github main && git push github --tags
 	@echo "$(GREEN)✓ Pushed$(RESET)"

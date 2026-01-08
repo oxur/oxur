@@ -4,6 +4,7 @@
 
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
+use oxur_cli::config::ReplConfig;
 use oxur_repl::protocol::{MessageId, Operation, OperationResult, ReplMode, Request, SessionId};
 use oxur_repl::server::{MessageHandler, SessionManager};
 use oxur_repl::transport::{inprocess_channel, Transport};
@@ -20,7 +21,7 @@ use std::sync::Arc;
 /// - Command history persistence
 /// - Ctrl-C interrupt handling
 /// - Ctrl-D exit handling
-pub async fn run(color_enabled: bool) -> Result<()> {
+pub async fn run(config: ReplConfig) -> Result<()> {
     // Create in-process transport pair
     let (mut client, mut server_transport) = inprocess_channel();
 
@@ -49,8 +50,9 @@ pub async fn run(color_enabled: bool) -> Result<()> {
 
     let _response = client.recv_response().await.context("Failed to receive create response")?;
 
-    // Create terminal interface
-    let mut terminal = ReplTerminal::new(color_enabled).context("Failed to create terminal")?;
+    // Create terminal interface with configuration
+    let mut terminal = ReplTerminal::with_config(config.terminal, config.history)
+        .context("Failed to create terminal")?;
 
     // Print welcome banner
     terminal.print_banner();
