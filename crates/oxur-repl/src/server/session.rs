@@ -84,7 +84,8 @@ impl SessionManager {
             return Err(SessionError::AlreadyExists(session_id.to_string()));
         }
 
-        let context = EvalContext::new(session_id.clone(), mode);
+        // Use with_compilation to get full session directory and artifact cache support
+        let context = EvalContext::with_compilation(session_id.clone(), mode)?;
         sessions.insert(session_id.clone(), context);
 
         Ok(session_id)

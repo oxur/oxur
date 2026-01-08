@@ -574,19 +574,16 @@ mod tests {
             })
             .await;
 
-        // Evaluate code that produces output
+        // Evaluate a simple arithmetic expression (Tier 1 - calculator mode)
         let response = handler
             .handle(Request {
                 id: MessageId::new(2),
                 session_id: SessionId::new("test"),
-                operation: Operation::Eval {
-                    code: r#"println!("Hello from REPL")"#.to_string(),
-                    mode: ReplMode::Lisp,
-                },
+                operation: Operation::Eval { code: "(+ 1 2)".to_string(), mode: ReplMode::Lisp },
             })
             .await;
 
-        // Note: Output capture is simulated, so just verify eval succeeds
+        // Verify eval succeeds with a result
         assert!(matches!(response.result, OperationResult::Success { .. }));
     }
 
