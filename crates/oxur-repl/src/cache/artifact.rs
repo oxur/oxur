@@ -549,7 +549,6 @@ impl ArtifactCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serial_test::serial;
     use std::env;
     use std::io::Write;
     use std::sync::atomic::{AtomicU64, Ordering};
