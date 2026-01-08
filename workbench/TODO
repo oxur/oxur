@@ -6,3 +6,13 @@
 - create a stats struct
 - when subprocess starts up, record _its_ information to a struct
 - figure out how to instrument the subprocess
+- instrument REPL clients
+- instrument REPL servers
+- figure out if there are some good patterns to follow so that arbritrary Oxur
+  components can track their stats, publish them, and query other components
+  for their stats
+- find out if we're using sysinfo; look at using metrics crate as well as
+  metrics-exporter-prometheus and prometheus-parse
+- explore a session management solution similarly to what we did for LFE xrepl:
+  * https://github.com/xrepl/xrepl/tree/main?tab=readme-ov-file#session-management-commands
+- replace references of defn with deffn
