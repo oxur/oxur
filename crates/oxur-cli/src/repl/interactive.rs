@@ -2,17 +2,98 @@
 //!
 //! Provides the default REPL experience with in-memory client/server.
 
-use crate::repl::help::HelpSystem;
+use crate::repl::runner::{ReplClientAdapter, ReplRunner};
 use crate::repl::stats::parse_stats_command_with_resources;
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use oxur_cli::config::ReplConfig;
-use oxur_repl::protocol::{MessageId, Operation, OperationResult, ReplMode, Request, SessionId};
+use oxur_repl::protocol::{MessageId, Operation, ReplMode, Request, Response, SessionId};
 use oxur_repl::server::{MessageHandler, SessionManager};
-use oxur_repl::transport::{inprocess_channel, Transport};
-use rustyline::error::ReadlineError;
-use std::sync::atomic::{AtomicU64, Ordering};
+use oxur_repl::transport::{inprocess_channel, InProcessClient, InProcessServer, Transport};
 use std::sync::Arc;
+
+/// In-process client adapter for interactive mode
+///
+/// Handles the in-process channel communication and manual server-side
+/// request routing, plus stats command handling.
+struct InProcessAdapter {
+    client: InProcessClient,
+    server: InProcessServer,
+    handler: MessageHandler,
+    session_manager: Arc<SessionManager>,
+    session_id: SessionId,
+}
+
+impl InProcessAdapter {
+    fn new(
+        client: InProcessClient,
+        server: InProcessServer,
+        handler: MessageHandler,
+        session_manager: Arc<SessionManager>,
+        session_id: SessionId,
+    ) -> Self {
+        Self {
+            client,
+            server,
+            handler,
+            session_manager,
+            session_id,
+        }
+    }
+}
+
+#[async_trait]
+impl ReplClientAdapter for InProcessAdapter {
+    async fn send_eval(&mut self, request: Request) -> Result<()> {
+        // Send request to our side of the channel
+        self.client.send_request(&request).await.context("Failed to send request")?;
+
+        // Process request on server side (in-process routing)
+        let response = self.handler.handle(request).await;
+
+        // Send response back through the channel
+        self.server.send_response(&response).await.context("Failed to send response")?;
+
+        Ok(())
+    }
+
+    async fn recv_response(&mut self) -> Result<Response> {
+        self.client.recv_response().await.context("Failed to receive response")
+    }
+
+    async fn close(&mut self) -> Result<()> {
+        // No explicit close needed for in-process channels
+        Ok(())
+    }
+
+    fn handle_special_command(&mut self, input: &str, color_enabled: bool) -> Option<String> {
+        // Handle stats commands
+        if input.starts_with("(stats") {
+            match self.session_manager.get_stats_collector(&self.session_id) {
+                Ok(stats_collector) => {
+                    let (dir_stats, cache_stats) = self
+                        .session_manager
+                        .get_resource_stats(&self.session_id)
+                        .unwrap_or((None, None));
+
+                    let collector = stats_collector.lock().unwrap();
+                    return parse_stats_command_with_resources(
+                        input,
+                        &collector,
+                        dir_stats.as_ref(),
+                        cache_stats.as_ref(),
+                        color_enabled,
+                    );
+                }
+                Err(e) => {
+                    return Some(format!("Failed to get stats: {}", e));
+                }
+            }
+        }
+        None
+    }
+}
 
 /// Run the interactive REPL mode
 ///
@@ -25,7 +106,7 @@ use std::sync::Arc;
 /// - Ctrl-D exit handling
 pub async fn run(config: ReplConfig) -> Result<()> {
     // Create in-process transport pair
-    let (mut client, mut server_transport) = inprocess_channel();
+    let (client, server_transport) = inprocess_channel();
 
     // Create session manager and message handler
     let session_manager = Arc::new(SessionManager::new());
@@ -34,219 +115,34 @@ pub async fn run(config: ReplConfig) -> Result<()> {
     // Generate unique session ID
     let session_id = SessionId::new(format!("interactive-{}", std::process::id()));
 
-    // Message ID counter
-    let msg_id_counter = AtomicU64::new(1);
-
     // Create session
     let create_req = Request {
-        id: MessageId::new(msg_id_counter.fetch_add(1, Ordering::SeqCst)),
+        id: MessageId::new(1),
         session_id: session_id.clone(),
         operation: Operation::CreateSession { mode: ReplMode::Lisp },
     };
 
-    client.send_request(&create_req).await.context("Failed to send create session request")?;
-
-    // Process create request on server side
-    let create_resp = handler.handle(create_req).await;
-    server_transport.send_response(&create_resp).await.context("Failed to send create response")?;
-
-    let _response = client.recv_response().await.context("Failed to receive create response")?;
+    // Process create request directly (no channel needed for setup)
+    let _response = handler.handle(create_req).await;
 
     // Create terminal interface with configuration
-    let mut terminal = ReplTerminal::with_config(config.terminal, config.history)
+    let terminal = ReplTerminal::with_config(config.terminal, config.history)
         .context("Failed to create terminal")?;
 
-    // Print welcome banner
-    terminal.print_banner();
+    // Create adapter
+    let mut adapter = InProcessAdapter::new(
+        client,
+        server_transport,
+        handler,
+        session_manager,
+        session_id.clone(),
+    );
 
-    // Main REPL loop
-    loop {
-        // Read input from user
-        let line = match terminal.read_line_default() {
-            Ok(Some(line)) => line,
-            Ok(None) => {
-                // Ctrl-C - just print newline and continue
-                println!();
-                continue;
-            }
-            Err(ReadlineError::Eof) => {
-                // Ctrl-D - exit
-                break;
-            }
-            Err(e) => {
-                terminal.print_error(&format!("Input error: {}", e));
-                break;
-            }
-        };
-
-        // Skip empty lines
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Check for special commands
-        if trimmed == "(quit)" || trimmed == "(q)" || trimmed == "(exit)" {
-            break;
-        }
-
-        // Check for help commands
-        if let Some(help_output) = parse_help_command(trimmed, terminal.config().color_enabled) {
-            terminal.print_help(&help_output);
-            continue;
-        }
-
-        // Check for stats commands
-        if trimmed.starts_with("(stats") {
-            // Get the stats collector from the session manager
-            match session_manager.get_stats_collector(&session_id) {
-                Ok(stats_collector) => {
-                    // Also get resource stats
-                    let (dir_stats, cache_stats) =
-                        session_manager.get_resource_stats(&session_id).unwrap_or((None, None));
-
-                    let collector = stats_collector.lock().unwrap();
-                    if let Some(stats_output) = parse_stats_command_with_resources(
-                        trimmed,
-                        &collector,
-                        dir_stats.as_ref(),
-                        cache_stats.as_ref(),
-                        terminal.config().color_enabled,
-                    ) {
-                        terminal.print_help(&stats_output);
-                        continue;
-                    }
-                }
-                Err(e) => {
-                    terminal.print_error(&format!("Failed to get stats: {}", e));
-                    continue;
-                }
-            }
-        }
-
-        // Create eval request
-        let eval_req = Request {
-            id: MessageId::new(msg_id_counter.fetch_add(1, Ordering::SeqCst)),
-            session_id: session_id.clone(),
-            operation: Operation::Eval { code: trimmed.to_string(), mode: ReplMode::Lisp },
-        };
-
-        // Send request to server
-        if let Err(e) = client.send_request(&eval_req).await {
-            terminal.print_error(&format!("Failed to send request: {}", e));
-            continue;
-        }
-
-        // Process request on server side
-        let response = handler.handle(eval_req).await;
-
-        // Send response back to client
-        if let Err(e) = server_transport.send_response(&response).await {
-            terminal.print_error(&format!("Failed to send response: {}", e));
-            continue;
-        }
-
-        // Receive response
-        let response = match client.recv_response().await {
-            Ok(r) => r,
-            Err(e) => {
-                terminal.print_error(&format!("Failed to receive response: {}", e));
-                continue;
-            }
-        };
-
-        // Display result
-        match response.result {
-            OperationResult::Success { value, stdout, stderr, .. } => {
-                // Print stdout if any
-                if let Some(out) = stdout {
-                    if !out.is_empty() {
-                        terminal.print_output(&out);
-                    }
-                }
-
-                // Print return value if any
-                if let Some(val) = value {
-                    if !val.is_empty() {
-                        terminal.print_result(&val);
-                    }
-                }
-
-                // Print stderr if any
-                if let Some(err) = stderr {
-                    if !err.is_empty() {
-                        eprintln!("{}", err);
-                    }
-                }
-            }
-            OperationResult::Error { error, stdout, stderr } => {
-                // Print any stdout before the error
-                if let Some(out) = stdout {
-                    if !out.is_empty() {
-                        terminal.print_output(&out);
-                    }
-                }
-
-                // Print the error message
-                terminal.print_error(&error.message);
-
-                // Print stderr if any
-                if let Some(err) = stderr {
-                    if !err.is_empty() {
-                        eprintln!("{}", err);
-                    }
-                }
-            }
-            OperationResult::Sessions { .. } | OperationResult::HistoryEntries { .. } => {
-                // These don't produce output in interactive eval mode
-            }
-            _ => {
-                // Handle any future OperationResult variants
-            }
-        }
-    }
-
-    // Save history before exit
-    if let Err(e) = terminal.save_history() {
-        eprintln!("Warning: Failed to save command history: {}", e);
-    }
-
-    terminal.print_goodbye();
-
-    // Close session
-    let close_req = Request {
-        id: MessageId::new(msg_id_counter.fetch_add(1, Ordering::SeqCst)),
-        session_id: session_id.clone(),
-        operation: Operation::Close,
-    };
-
-    let _ = client.send_request(&close_req).await;
-    let _ = handler.handle(close_req).await;
+    // Create runner and run the REPL loop
+    let mut runner = ReplRunner::new(terminal, session_id);
+    runner.print_banner();
+    runner.run(&mut adapter).await?;
+    runner.finish(&mut adapter).await?;
 
     Ok(())
-}
-
-/// Parse help commands and return formatted help output
-///
-/// Recognizes:
-/// - `(help)` - Returns overview help
-/// - `(help <topic>)` - Returns topic-specific help or error message
-///
-/// Returns `None` if input is not a help command.
-fn parse_help_command(input: &str, color_enabled: bool) -> Option<String> {
-    let help_system = HelpSystem::new(color_enabled);
-
-    if input == "(help)" {
-        return Some(help_system.show_overview());
-    }
-
-    // Parse (help <topic>)
-    if input.starts_with("(help ") && input.ends_with(')') {
-        let topic = &input[6..input.len() - 1].trim();
-        return help_system.show_topic(topic).or_else(|| {
-            Some(format!("Unknown help topic: {}. Try (help) for available topics.", topic))
-        });
-    }
-
-    None
 }
