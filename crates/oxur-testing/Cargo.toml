@@ -24,5 +24,8 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
+# Test synchronization
+serial_test = { workspace = true }
+
 [dev-dependencies]
 tempfile = { workspace = true }

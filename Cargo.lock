@@ -679,6 +679,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1194,6 +1204,7 @@ dependencies = [
  "async-trait",
  "criterion",
  "dirs",
+ "fs2",
  "libloading",
  "oxur-comp",
  "oxur-lang",
@@ -1206,6 +1217,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "serial_test",
  "sha2",
  "syn 2.0.111",
  "tempfile",
@@ -1228,6 +1240,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
+ "serial_test",
  "tempfile",
  "thiserror 1.0.69",
  "walkdir",

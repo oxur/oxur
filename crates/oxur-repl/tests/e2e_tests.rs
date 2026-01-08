@@ -12,6 +12,37 @@
 
 use oxur_repl::eval::{EvalContext, ExecutionTier};
 use oxur_repl::protocol::{ReplMode, SessionId};
+use serial_test::serial;
+use std::env;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// Counter for generating unique cache directories per test
+static TEST_CACHE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Create an isolated evaluation context with its own cache directory
+///
+/// This prevents test interference by giving each test its own isolated cache.
+/// Uses atomic counter to ensure unique directories even in parallel test runs.
+fn create_isolated_context(session_id: SessionId, mode: ReplMode) -> EvalContext {
+    let id = TEST_CACHE_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let cache_dir = env::temp_dir()
+        .join(format!("oxur-e2e-cache-{}-{}", std::process::id(), id));
+
+    // Set env var temporarily for this context creation
+    let original = env::var("OXUR_CACHE_DIR").ok();
+    env::set_var("OXUR_CACHE_DIR", &cache_dir);
+
+    let ctx = EvalContext::with_compilation(session_id, mode)
+        .expect("Failed to create isolated context");
+
+    // Restore original env var state
+    match original {
+        Some(val) => env::set_var("OXUR_CACHE_DIR", val),
+        None => env::remove_var("OXUR_CACHE_DIR"),
+    }
+
+    ctx
+}
 
 // ============================================================================
 // Test 1: Simple Arithmetic Evaluation (Tier 1 Calculator)
@@ -50,10 +81,10 @@ async fn test_arithmetic_nested() {
 
 /// Test that non-calculator code falls through to compilation
 #[tokio::test]
+#[serial(env)]
 async fn test_arithmetic_with_variables_not_calculator() {
     let session_id = SessionId::new("e2e-calc-fallthrough");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Has variable reference - not pure calculator
     let result = ctx.eval("let x = 1 + 2; x").await.expect("Failed to eval variable code");
@@ -70,10 +101,10 @@ async fn test_arithmetic_with_variables_not_calculator() {
 ///
 /// Variables should persist across evaluations in the same session.
 #[tokio::test]
+#[serial(env)]
 async fn test_variable_definition() {
     let session_id = SessionId::new("e2e-var-def");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Define a variable
     let result1 = ctx.eval("let x = 42; x").await.expect("Failed to define variable");
@@ -89,10 +120,10 @@ async fn test_variable_definition() {
 /// Variables need to be tracked with their types and stored/loaded from VariableStore.
 #[ignore = "Requires Phase 7 (Type Inference) - not yet implemented"]
 #[tokio::test]
+#[serial(env)]
 async fn test_variable_persistence() {
     let session_id = SessionId::new("e2e-var-persist");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Define variable x
     let _result1 = ctx.eval("let x = 42; x").await.expect("Failed to define x");
@@ -109,10 +140,10 @@ async fn test_variable_persistence() {
 /// NOTE: This test requires Phase 7 (Type Inference) to be implemented.
 #[ignore = "Requires Phase 7 (Type Inference) - not yet implemented"]
 #[tokio::test]
+#[serial(env)]
 async fn test_multiple_variables() {
     let session_id = SessionId::new("e2e-var-multiple");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Define multiple variables
     let _r1 = ctx.eval("let x = 10; x").await.expect("Failed to define x");
@@ -130,10 +161,10 @@ async fn test_multiple_variables() {
 
 /// Test basic function definition
 #[tokio::test]
+#[serial(env)]
 async fn test_function_definition() {
     let session_id = SessionId::new("e2e-fn-def");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Define a simple function
     let code = r#"
@@ -150,10 +181,10 @@ async fn test_function_definition() {
 
 /// Test function with multiple parameters
 #[tokio::test]
+#[serial(env)]
 async fn test_function_multiple_params() {
     let session_id = SessionId::new("e2e-fn-multi");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Function with two parameters
     let code = r#"
@@ -170,10 +201,10 @@ async fn test_function_multiple_params() {
 
 /// Test function composition
 #[tokio::test]
+#[serial(env)]
 async fn test_function_composition() {
     let session_id = SessionId::new("e2e-fn-compose");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Define helper function
     let _r1 =
@@ -202,10 +233,10 @@ async fn test_function_composition() {
 ///
 /// Second execution of identical code should use CachedLoaded tier.
 #[tokio::test]
+#[serial(env)]
 async fn test_cache_hit_identical_code() {
     let session_id = SessionId::new("e2e-cache-hit");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     let code = "let x = 42; let y = x + 1; y";
 
@@ -222,10 +253,10 @@ async fn test_cache_hit_identical_code() {
 
 /// Test cache statistics
 #[tokio::test]
+#[serial(env)]
 async fn test_cache_statistics() {
     let session_id = SessionId::new("e2e-cache-stats");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     let code = "let val = 100; val";
 
@@ -244,10 +275,10 @@ async fn test_cache_statistics() {
 
 /// Test that different code doesn't hit cache
 #[tokio::test]
+#[serial(env)]
 async fn test_cache_miss_different_code() {
     let session_id = SessionId::new("e2e-cache-miss");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // First code
     let result1 = ctx.eval("let x = 1; x").await.expect("First eval failed");
@@ -261,17 +292,16 @@ async fn test_cache_miss_different_code() {
 
 /// Test cache across sessions (should not share)
 #[tokio::test]
+#[serial(env)]
 async fn test_cache_isolation_across_sessions() {
     let code = "let shared = 42; shared";
 
-    // Session 1
-    let mut ctx1 = EvalContext::with_compilation(SessionId::new("e2e-session-1"), ReplMode::Sexpr)
-        .expect("Failed to create context 1");
+    // Session 1 with isolated cache
+    let mut ctx1 = create_isolated_context(SessionId::new("e2e-session-1"), ReplMode::Sexpr);
     let _r1 = ctx1.eval(code).await.expect("Session 1 eval failed");
 
-    // Session 2 - should compile independently
-    let mut ctx2 = EvalContext::with_compilation(SessionId::new("e2e-session-2"), ReplMode::Sexpr)
-        .expect("Failed to create context 2");
+    // Session 2 with its own isolated cache - should compile independently
+    let mut ctx2 = create_isolated_context(SessionId::new("e2e-session-2"), ReplMode::Sexpr);
     let result2 = ctx2.eval(code).await.expect("Session 2 eval failed");
 
     // Session 2 should do JIT (independent cache)
@@ -284,10 +314,10 @@ async fn test_cache_isolation_across_sessions() {
 
 /// Test syntax error reporting
 #[tokio::test]
+#[serial(env)]
 async fn test_error_handling_syntax() {
     let session_id = SessionId::new("e2e-error-syntax");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Invalid Rust syntax
     let result = ctx.eval("let x = ;").await;
@@ -307,10 +337,10 @@ async fn test_error_handling_syntax() {
 
 /// Test type error reporting
 #[tokio::test]
+#[serial(env)]
 async fn test_error_handling_type_mismatch() {
     let session_id = SessionId::new("e2e-error-type");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Type mismatch (if compilation includes type checking)
     let code = r#"
@@ -327,10 +357,10 @@ async fn test_error_handling_type_mismatch() {
 
 /// Test runtime error handling
 #[tokio::test]
+#[serial(env)]
 async fn test_error_handling_runtime() {
     let session_id = SessionId::new("e2e-error-runtime");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Division by zero (runtime error)
     let code = r#"
@@ -356,10 +386,10 @@ async fn test_error_handling_runtime() {
 /// Currently the Lisp evaluator is a placeholder and doesn't validate syntax.
 #[ignore = "Requires full Lisp parser implementation"]
 #[tokio::test]
+#[serial(env)]
 async fn test_error_position_information() {
     let session_id = SessionId::new("e2e-error-pos");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Lisp)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Lisp);
 
     // Syntax error
     let result = ctx.eval("(+ 1 2").await; // Unclosed paren
@@ -396,10 +426,10 @@ async fn test_performance_calculator_tier() {
 
 /// Test cached mode performance (1-5ms target)
 #[tokio::test]
+#[serial(env)]
 async fn test_performance_cached_tier() {
     let session_id = SessionId::new("e2e-perf-cached");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     let code = "let x = 42; x";
 
@@ -419,10 +449,10 @@ async fn test_performance_cached_tier() {
 
 /// Test JIT mode performance (50-300ms target)
 #[tokio::test]
+#[serial(env)]
 async fn test_performance_jit_tier() {
     let session_id = SessionId::new("e2e-perf-jit");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     let code = "let fresh_var = 999; fresh_var";
 
@@ -453,10 +483,10 @@ async fn test_mode_lisp() {
 
 /// Test Sexpr mode evaluation
 #[tokio::test]
+#[serial(env)]
 async fn test_mode_sexpr() {
     let session_id = SessionId::new("e2e-mode-sexpr");
-    let mut ctx = EvalContext::with_compilation(session_id, ReplMode::Sexpr)
-        .expect("Failed to create context");
+    let mut ctx = create_isolated_context(session_id, ReplMode::Sexpr);
 
     // Rust syntax
     let result = ctx.eval("let result = 3 * 4; result").await.expect("Sexpr eval failed");
@@ -471,15 +501,14 @@ async fn test_mode_sexpr() {
 
 /// Test session isolation
 #[tokio::test]
+#[serial(env)]
 async fn test_session_isolation() {
-    // Session 1 defines variable
-    let mut ctx1 = EvalContext::with_compilation(SessionId::new("e2e-iso-1"), ReplMode::Sexpr)
-        .expect("Failed to create context 1");
+    // Session 1 defines variable with isolated cache
+    let mut ctx1 = create_isolated_context(SessionId::new("e2e-iso-1"), ReplMode::Sexpr);
     let _r1 = ctx1.eval("let session1_var = 100; session1_var").await.expect("Session 1 failed");
 
-    // Session 2 should not see session 1's variable
-    let mut ctx2 = EvalContext::with_compilation(SessionId::new("e2e-iso-2"), ReplMode::Sexpr)
-        .expect("Failed to create context 2");
+    // Session 2 with its own isolated cache - should not see session 1's variable
+    let mut ctx2 = create_isolated_context(SessionId::new("e2e-iso-2"), ReplMode::Sexpr);
 
     // This should fail or return different result (no access to session1_var)
     // For now, just verify sessions are independent

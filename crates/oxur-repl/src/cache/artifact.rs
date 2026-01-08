@@ -5,10 +5,12 @@
 //!
 //! Based on ODD-0026 Section 5.1 (Global Artifact Cache)
 
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -175,7 +177,11 @@ impl ArtifactCache {
         dirs::cache_dir().ok_or(CacheError::NotFound).map(|dir| dir.join("oxur").join("artifacts"))
     }
 
-    /// Load cache index from disk
+    /// Load cache index from disk with file locking
+    ///
+    /// Uses shared (read) locks to allow concurrent reads while preventing
+    /// reads during writes. This prevents race conditions where the file
+    /// is read while being written (which causes "EOF while parsing" errors).
     fn load_index(cache_dir: &Path) -> Result<CacheIndex> {
         let index_path = cache_dir.join("index.json");
 
@@ -184,24 +190,79 @@ impl ArtifactCache {
             return Ok(CacheIndex { version: 1, ..Default::default() });
         }
 
-        let content = fs::read_to_string(&index_path)
+        // Open file for reading
+        let mut file = OpenOptions::new()
+            .read(true)
+            .open(&index_path)
+            .map_err(|e| CacheError::IndexLoadFailed(format!("Failed to open index: {}", e)))?;
+
+        // Acquire shared lock (multiple readers allowed, blocks writers)
+        file.lock_shared()
+            .map_err(|e| CacheError::IndexLoadFailed(format!("Failed to lock index: {}", e)))?;
+
+        // Read file contents
+        let mut content = String::new();
+        file.read_to_string(&mut content)
             .map_err(|e| CacheError::IndexLoadFailed(format!("Failed to read index: {}", e)))?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| CacheError::IndexLoadFailed(format!("Failed to parse index JSON: {}", e)))
+        // Parse JSON
+        let index = serde_json::from_str(&content)
+            .map_err(|e| CacheError::IndexLoadFailed(format!("Failed to parse index JSON: {}", e)))?;
+
+        // Lock is automatically released when file is dropped
+        Ok(index)
     }
 
-    /// Save cache index to disk
+    /// Save cache index to disk with atomic write and file locking
+    ///
+    /// Uses exclusive locks and atomic file operations (write-to-temp + rename)
+    /// to prevent concurrent modifications and ensure readers never see partial writes.
+    ///
+    /// # Implementation Details
+    ///
+    /// 1. Ensure cache directory exists
+    /// 2. Serialize index to JSON string
+    /// 3. Write to temporary file (.index.json.tmp)
+    /// 4. Open final file with exclusive lock
+    /// 5. Atomically rename temp file to final file
+    ///
+    /// This ensures that:
+    /// - Writers don't interfere with each other (exclusive lock)
+    /// - Readers never see partial writes (atomic rename)
+    /// - No "EOF while parsing" errors from concurrent access
     fn save_index(&self) -> Result<()> {
-        let index_path = self.cache_dir.join("index.json");
+        // Ensure cache directory exists (it might not if this is the first save)
+        fs::create_dir_all(&self.cache_dir)?;
 
+        let index_path = self.cache_dir.join("index.json");
+        let temp_path = self.cache_dir.join(".index.json.tmp");
+
+        // Serialize to JSON
         let content = serde_json::to_string_pretty(&self.index).map_err(|e| {
             CacheError::IndexSaveFailed(format!("Failed to serialize index: {}", e))
         })?;
 
-        fs::write(&index_path, content)
-            .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to write index: {}", e)))?;
+        // Write to temporary file first (no lock needed for temp file)
+        fs::write(&temp_path, &content)
+            .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to write temp file: {}", e)))?;
 
+        // Open (or create) the final index file with write permission
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&index_path)
+            .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to open index: {}", e)))?;
+
+        // Acquire exclusive lock (blocks all readers and writers)
+        file.lock_exclusive()
+            .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to lock index: {}", e)))?;
+
+        // Atomically replace the index file with the temp file
+        // This is atomic on Unix and mostly-atomic on Windows
+        fs::rename(&temp_path, &index_path)
+            .map_err(|e| CacheError::IndexSaveFailed(format!("Failed to rename temp file: {}", e)))?;
+
+        // Lock is automatically released when file is dropped
         Ok(())
     }
 
@@ -484,7 +545,7 @@ impl ArtifactCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oxur_testing::env_lock::with_env_lock;
+    use serial_test::serial;
     use std::env;
     use std::io::Write;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -498,21 +559,14 @@ mod tests {
         let test_dir =
             env::temp_dir().join(format!("oxur-test-cache-{}-{}", std::process::id(), id));
 
-        // Use env_lock to prevent race conditions when parallel tests modify OXUR_CACHE_DIR
-        with_env_lock(|| {
-            env::set_var("OXUR_CACHE_DIR", &test_dir);
-
-            let mut cache = ArtifactCache::new().expect("Failed to create cache");
-            cache.clear().expect("Failed to clear cache");
-            (cache, test_dir)
-        })
+        // Use with_directory to create isolated cache (no env var needed)
+        let mut cache = ArtifactCache::with_directory(&test_dir).expect("Failed to create cache");
+        cache.clear().expect("Failed to clear cache");
+        (cache, test_dir)
     }
 
     fn cleanup_test_cache(test_dir: PathBuf) {
-        with_env_lock(|| {
-            env::remove_var("OXUR_CACHE_DIR");
-            let _ = fs::remove_dir_all(&test_dir);
-        });
+        let _ = fs::remove_dir_all(&test_dir);
     }
 
     #[test]

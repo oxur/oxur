@@ -5,7 +5,7 @@
 //!
 //! - Working with test data files
 //! - Extracting expected outputs from comments
-//! - Preventing race conditions when tests modify environment variables
+//! - Test synchronization via `serial_test`
 //!
 //! # Test Data Organization
 //!
@@ -39,8 +39,19 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 use walkdir::WalkDir;
 
-// Submodules
-pub mod env_lock;
+// Re-export serial_test for convenience
+//
+// Use #[serial_test::serial(env)] attribute on tests that modify environment variables
+// to prevent race conditions when tests run in parallel.
+//
+// Example:
+//   #[test]
+//   #[serial_test::serial(env)]
+//   fn test_with_env_var() {
+//       std::env::set_var("MY_VAR", "value");
+//       // test code
+//   }
+pub use serial_test;
 
 /// Error types for test utilities
 #[derive(Debug, Error)]
