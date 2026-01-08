@@ -140,6 +140,11 @@ impl ReplTerminal {
         print!("{}", output);
     }
 
+    /// Print help content with appropriate formatting
+    pub fn print_help(&self, content: &str) {
+        println!("{}", content);
+    }
+
     /// Print the welcome banner
     pub fn print_banner(&self) {
         if let Some(ref banner) = self.terminal_config.banner {

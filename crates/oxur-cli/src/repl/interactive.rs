@@ -2,6 +2,7 @@
 //!
 //! Provides the default REPL experience with in-memory client/server.
 
+use crate::repl::help::HelpSystem;
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use oxur_cli::config::ReplConfig;
@@ -84,8 +85,14 @@ pub async fn run(config: ReplConfig) -> Result<()> {
         }
 
         // Check for special commands
-        if trimmed == "(quit)" || trimmed == "(exit)" {
+        if trimmed == "(quit)" || trimmed == "(q)" || trimmed == "(exit)" {
             break;
+        }
+
+        // Check for help commands
+        if let Some(help_output) = parse_help_command(trimmed, terminal.config().color_enabled) {
+            terminal.print_help(&help_output);
+            continue;
         }
 
         // Create eval request
@@ -188,4 +195,29 @@ pub async fn run(config: ReplConfig) -> Result<()> {
     let _ = handler.handle(close_req).await;
 
     Ok(())
+}
+
+/// Parse help commands and return formatted help output
+///
+/// Recognizes:
+/// - `(help)` - Returns overview help
+/// - `(help <topic>)` - Returns topic-specific help or error message
+///
+/// Returns `None` if input is not a help command.
+fn parse_help_command(input: &str, color_enabled: bool) -> Option<String> {
+    let help_system = HelpSystem::new(color_enabled);
+
+    if input == "(help)" {
+        return Some(help_system.show_overview());
+    }
+
+    // Parse (help <topic>)
+    if input.starts_with("(help ") && input.ends_with(')') {
+        let topic = &input[6..input.len() - 1].trim();
+        return help_system.show_topic(topic).or_else(|| {
+            Some(format!("Unknown help topic: {}. Try (help) for available topics.", topic))
+        });
+    }
+
+    None
 }
