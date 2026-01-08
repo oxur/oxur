@@ -36,8 +36,8 @@ pub struct ReplServer {
     /// Graceful shutdown timeout (how long to wait for connections to finish)
     shutdown_timeout: Duration,
 
-    /// Optional server metrics for observability
-    metrics: Option<ServerMetrics>,
+    /// Optional server metrics for observability (Arc-wrapped for sharing across tasks)
+    metrics: Option<Arc<ServerMetrics>>,
 }
 
 /// Handle for triggering server shutdown
@@ -105,7 +105,7 @@ impl ReplServer {
     /// # }
     /// ```
     pub fn with_metrics(mut self) -> Self {
-        self.metrics = Some(ServerMetrics::new());
+        self.metrics = Some(Arc::new(ServerMetrics::new()));
         self
     }
 
@@ -233,12 +233,12 @@ impl ReplServer {
                             // Spawn handler for this connection
                             let session_manager = Arc::clone(&self.session_manager);
                             let mut shutdown_rx = self.shutdown_tx.subscribe();
-                            let metrics = self.metrics.clone();
+                            let metrics = self.metrics.as_ref().map(Arc::clone);
 
                             active_connections.spawn(async move {
                                 // Run connection handler, but cancel if shutdown is triggered
                                 tokio::select! {
-                                    result = Self::handle_connection(transport, session_manager, metrics.as_ref()) => {
+                                    result = Self::handle_connection(transport, session_manager, metrics.as_deref()) => {
                                         match result {
                                             Ok(_) => {
                                                 eprintln!("[INFO] Connection closed ({})", peer_addr);

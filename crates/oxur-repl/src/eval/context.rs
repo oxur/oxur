@@ -5,10 +5,9 @@
 
 use crate::cache::ArtifactCache;
 use crate::compiler::CachedCompiler;
-use crate::eval::{
-    output_capture::OutputCapturer, stats::StatsCollector, LispEvaluator, SexprEvaluator,
-};
+use crate::eval::{output_capture::OutputCapturer, LispEvaluator, SexprEvaluator};
 use crate::executor::SubprocessExecutor;
+use crate::metrics::EvalMetrics;
 use crate::protocol::{ReplMode, SessionId};
 use crate::session::SessionDir;
 use crate::type_inference::TypeInference;
@@ -76,6 +75,28 @@ pub enum ExecutionTier {
     JustInTime,
 }
 
+impl ExecutionTier {
+    /// Get the metrics label for this tier.
+    ///
+    /// Returns a static string suitable for use as a metrics label value.
+    pub fn as_label(&self) -> &'static str {
+        match self {
+            Self::Calculator => "calculator",
+            Self::CachedLoaded => "cached",
+            Self::JustInTime => "jit",
+        }
+    }
+
+    /// Get a human-readable display name for this tier.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::Calculator => "Calculator",
+            Self::CachedLoaded => "Cached",
+            Self::JustInTime => "JIT",
+        }
+    }
+}
+
 /// Result of an evaluation
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvalResult {
@@ -127,7 +148,7 @@ pub struct EvalContext {
     cache: HashMap<String, String>,
 
     /// Statistics collector for tracking execution metrics (shared)
-    stats_collector: Arc<Mutex<StatsCollector>>,
+    stats_collector: Arc<Mutex<EvalMetrics>>,
 
     /// Artifact cache for compiled libraries (shared)
     artifact_cache: Option<Arc<Mutex<ArtifactCache>>>,
@@ -172,7 +193,7 @@ impl EvalContext {
             lisp_eval: LispEvaluator::new(),
             sexpr_eval: SexprEvaluator::new(),
             cache: HashMap::new(),
-            stats_collector: Arc::new(Mutex::new(StatsCollector::new(session_id.as_str()))),
+            stats_collector: Arc::new(Mutex::new(EvalMetrics::new(session_id.as_str()))),
             artifact_cache: None,
             compiler: None,
             executor: None,
@@ -230,7 +251,7 @@ impl EvalContext {
             lisp_eval: LispEvaluator::new(),
             sexpr_eval: SexprEvaluator::new(),
             cache: HashMap::new(),
-            stats_collector: Arc::new(Mutex::new(StatsCollector::new(session_id.as_str()))),
+            stats_collector: Arc::new(Mutex::new(EvalMetrics::new(session_id.as_str()))),
             artifact_cache: Some(artifact_cache),
             compiler: Some(compiler),
             executor: Some(executor),
@@ -272,7 +293,7 @@ impl EvalContext {
     /// Get the statistics collector
     ///
     /// Returns a shared reference to the stats collector for detailed metrics access.
-    pub fn stats_collector(&self) -> Arc<Mutex<StatsCollector>> {
+    pub fn stats_collector(&self) -> Arc<Mutex<EvalMetrics>> {
         Arc::clone(&self.stats_collector)
     }
 
@@ -290,7 +311,7 @@ impl EvalContext {
             lisp_eval: LispEvaluator::new(),
             sexpr_eval: SexprEvaluator::new(),
             cache: self.cache.clone(),
-            stats_collector: Arc::new(Mutex::new(StatsCollector::new(new_session_id.as_str()))),
+            stats_collector: Arc::new(Mutex::new(EvalMetrics::new(new_session_id.as_str()))),
             artifact_cache: self.artifact_cache.clone(),
             compiler: self.compiler.clone(),
             executor: self.executor.clone(),

@@ -13,4 +13,13 @@ pub use context::{EvalContext, EvalError, EvalResult, ExecutionTier, Result};
 pub use lisp_mode::LispEvaluator;
 pub use output_capture::{CapturedOutput, OutputCapturer};
 pub use sexpr_mode::SexprEvaluator;
-pub use stats::{get_resource_stats, CacheStats, Percentiles, ResourceStats, StatsCollector};
+
+// Re-export metrics types (EvalMetrics replaces StatsCollector)
+pub use crate::metrics::{CacheStats, EvalMetrics, Percentiles};
+
+// Re-export resource stats (not duplicated in metrics)
+pub use stats::{get_resource_stats, ResourceStats};
+
+// Backwards compatibility alias
+#[deprecated(since = "0.2.0", note = "Use EvalMetrics instead")]
+pub type StatsCollector = EvalMetrics;

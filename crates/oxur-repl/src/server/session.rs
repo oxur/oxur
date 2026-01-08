@@ -238,7 +238,7 @@ impl SessionManager {
     pub fn get_stats_collector(
         &self,
         session_id: &SessionId,
-    ) -> Result<Arc<std::sync::Mutex<crate::eval::stats::StatsCollector>>> {
+    ) -> Result<Arc<std::sync::Mutex<crate::eval::EvalMetrics>>> {
         let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
 
         let ctx = sessions

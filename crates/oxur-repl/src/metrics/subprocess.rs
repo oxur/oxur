@@ -140,6 +140,9 @@ impl std::fmt::Display for RestartReason {
 /// - Current uptime
 /// - Start time tracking
 ///
+/// Maintains local state for `(stats subprocess)` display while also emitting
+/// to the `metrics` crate facade for external monitoring.
+///
 /// # Usage
 ///
 /// ```
@@ -155,17 +158,34 @@ impl std::fmt::Display for RestartReason {
 ///
 /// // Get current uptime
 /// let uptime = metrics.uptime_seconds();
+///
+/// // Get snapshot for display
+/// let snapshot = metrics.snapshot();
 /// ```
 #[derive(Debug)]
 pub struct SubprocessMetrics {
     started_at: Option<Instant>,
     restart_count: u64,
+    last_restart_reason: Option<RestartReason>,
+}
+
+/// Snapshot of subprocess metrics for display.
+#[derive(Debug, Clone)]
+pub struct SubprocessMetricsSnapshot {
+    /// Current uptime in seconds
+    pub uptime_seconds: f64,
+    /// Total restart count
+    pub restart_count: u64,
+    /// Last restart reason (if any)
+    pub last_restart_reason: Option<RestartReason>,
+    /// Whether the subprocess is currently running
+    pub is_running: bool,
 }
 
 impl SubprocessMetrics {
     /// Create a new SubprocessMetrics instance.
     pub fn new() -> Self {
-        Self { started_at: None, restart_count: 0 }
+        Self { started_at: None, restart_count: 0, last_restart_reason: None }
     }
 
     /// Record that the subprocess has started.
@@ -185,6 +205,7 @@ impl SubprocessMetrics {
     /// * `reason` - The categorized reason for the restart
     pub fn record_restart(&mut self, reason: RestartReason) {
         self.restart_count += 1;
+        self.last_restart_reason = Some(reason);
         counter!("repl.subprocess.restarts_total", "reason" => reason.as_label()).increment(1);
     }
 
@@ -205,6 +226,26 @@ impl SubprocessMetrics {
     /// Get the total restart count.
     pub fn restart_count(&self) -> u64 {
         self.restart_count
+    }
+
+    /// Get the last restart reason.
+    pub fn last_restart_reason(&self) -> Option<RestartReason> {
+        self.last_restart_reason
+    }
+
+    /// Check if the subprocess is currently running.
+    pub fn is_running(&self) -> bool {
+        self.started_at.is_some()
+    }
+
+    /// Get a snapshot of current metrics for display.
+    pub fn snapshot(&self) -> SubprocessMetricsSnapshot {
+        SubprocessMetricsSnapshot {
+            uptime_seconds: self.uptime_seconds(),
+            restart_count: self.restart_count,
+            last_restart_reason: self.last_restart_reason,
+            is_running: self.is_running(),
+        }
     }
 }
 

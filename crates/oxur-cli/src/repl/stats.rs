@@ -5,13 +5,13 @@
 
 use oxur_cli::table::{OxurTable, Tabled};
 use oxur_repl::cache::CacheStats as ArtifactCacheStats;
-use oxur_repl::eval::{get_resource_stats, ExecutionTier, StatsCollector};
+use oxur_repl::eval::{get_resource_stats, EvalMetrics, ExecutionTier};
 use oxur_repl::session::DirStats;
 
 // Display functions
 
 /// Show session summary (default stats view)
-pub fn show_session_summary(collector: &StatsCollector, color_enabled: bool) -> String {
+pub fn show_session_summary(collector: &EvalMetrics, color_enabled: bool) -> String {
     let mut output = String::new();
 
     // Header
@@ -91,7 +91,7 @@ pub fn show_session_summary(collector: &StatsCollector, color_enabled: bool) -> 
 }
 
 /// Show detailed execution breakdown
-pub fn show_execution_details(collector: &StatsCollector, color_enabled: bool) -> String {
+pub fn show_execution_details(collector: &EvalMetrics, color_enabled: bool) -> String {
     let mut output = String::new();
 
     output.push_str(&header("Execution Statistics", color_enabled));
@@ -128,7 +128,7 @@ pub fn show_execution_details(collector: &StatsCollector, color_enabled: bool) -
 }
 
 /// Show cache statistics
-pub fn show_cache_stats(collector: &StatsCollector, color_enabled: bool) -> String {
+pub fn show_cache_stats(collector: &EvalMetrics, color_enabled: bool) -> String {
     let mut output = String::new();
 
     output.push_str(&header("Cache Statistics", color_enabled));
@@ -285,6 +285,141 @@ pub fn show_resource_stats(
     output
 }
 
+/// Show server metrics
+#[allow(dead_code)] // Infrastructure ready for (stats server) command
+pub fn show_server_stats(
+    server_snapshot: &oxur_repl::metrics::ServerMetricsSnapshot,
+    color_enabled: bool,
+) -> String {
+    let mut output = String::new();
+
+    output.push_str(&header("Server Statistics", color_enabled));
+    output.push('\n');
+
+    // Connection stats
+    output.push_str(&section("CONNECTIONS", color_enabled));
+
+    #[derive(Tabled)]
+    struct ConnectionMetric {
+        #[tabled(rename = "Metric")]
+        metric: String,
+        #[tabled(rename = "Value")]
+        value: String,
+    }
+
+    let metrics = vec![
+        ConnectionMetric {
+            metric: "Total Connections".to_string(),
+            value: server_snapshot.connections_total.to_string(),
+        },
+        ConnectionMetric {
+            metric: "Active Connections".to_string(),
+            value: server_snapshot.connections_active.to_string(),
+        },
+    ];
+
+    output.push_str(&OxurTable::new(metrics).render());
+    output.push('\n');
+
+    // Session stats
+    output.push_str(&section("SESSIONS", color_enabled));
+
+    let metrics = vec![
+        ConnectionMetric {
+            metric: "Total Sessions".to_string(),
+            value: server_snapshot.sessions_total.to_string(),
+        },
+        ConnectionMetric {
+            metric: "Active Sessions".to_string(),
+            value: server_snapshot.sessions_active.to_string(),
+        },
+    ];
+
+    output.push_str(&OxurTable::new(metrics).render());
+    output.push('\n');
+
+    // Request/Response stats
+    output.push_str(&section("REQUESTS & RESPONSES", color_enabled));
+
+    let success_rate = if server_snapshot.responses_total > 0 {
+        (server_snapshot.responses_success as f64 / server_snapshot.responses_total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let metrics = vec![
+        ConnectionMetric {
+            metric: "Total Requests".to_string(),
+            value: server_snapshot.requests_total.to_string(),
+        },
+        ConnectionMetric {
+            metric: "Total Responses".to_string(),
+            value: server_snapshot.responses_total.to_string(),
+        },
+        ConnectionMetric {
+            metric: "Successful".to_string(),
+            value: server_snapshot.responses_success.to_string(),
+        },
+        ConnectionMetric {
+            metric: "Errors".to_string(),
+            value: server_snapshot.responses_error.to_string(),
+        },
+        ConnectionMetric {
+            metric: "Success Rate".to_string(),
+            value: format!("{:.1}%", success_rate),
+        },
+    ];
+
+    output.push_str(&OxurTable::new(metrics).render());
+    output.push('\n');
+
+    output
+}
+
+/// Show subprocess metrics
+#[allow(dead_code)] // Infrastructure ready for (stats subprocess) command
+pub fn show_subprocess_stats(
+    subprocess_snapshot: &oxur_repl::metrics::SubprocessMetricsSnapshot,
+    color_enabled: bool,
+) -> String {
+    let mut output = String::new();
+
+    output.push_str(&header("Subprocess Statistics", color_enabled));
+    output.push('\n');
+
+    output.push_str(&section("STATUS", color_enabled));
+
+    #[derive(Tabled)]
+    struct SubprocessMetric {
+        #[tabled(rename = "Metric")]
+        metric: String,
+        #[tabled(rename = "Value")]
+        value: String,
+    }
+
+    let status = if subprocess_snapshot.is_running { "Running" } else { "Stopped" };
+    let uptime = format_uptime_seconds(subprocess_snapshot.uptime_seconds);
+    let last_reason = subprocess_snapshot
+        .last_restart_reason
+        .map(|r| r.to_string())
+        .unwrap_or_else(|| "N/A".to_string());
+
+    let metrics = vec![
+        SubprocessMetric { metric: "Status".to_string(), value: status.to_string() },
+        SubprocessMetric { metric: "Uptime".to_string(), value: uptime },
+        SubprocessMetric {
+            metric: "Restart Count".to_string(),
+            value: subprocess_snapshot.restart_count.to_string(),
+        },
+        SubprocessMetric { metric: "Last Restart Reason".to_string(), value: last_reason },
+    ];
+
+    output.push_str(&OxurTable::new(metrics).render());
+    output.push('\n');
+
+    output
+}
+
 /// Parse stats commands
 ///
 /// Recognizes:
@@ -293,7 +428,7 @@ pub fn show_resource_stats(
 /// - `(stats cache)` - Cache metrics
 pub fn parse_stats_command(
     input: &str,
-    collector: &StatsCollector,
+    collector: &EvalMetrics,
     color_enabled: bool,
 ) -> Option<String> {
     if input == "(stats)" {
@@ -316,7 +451,7 @@ pub fn parse_stats_command(
 /// Extended version that handles `(stats resources)` command
 pub fn parse_stats_command_with_resources(
     input: &str,
-    collector: &StatsCollector,
+    collector: &EvalMetrics,
     dir_stats: Option<&DirStats>,
     cache_stats: Option<&ArtifactCacheStats>,
     color_enabled: bool,
@@ -388,6 +523,30 @@ fn format_duration(seconds: u64) -> String {
     }
 }
 
+#[allow(dead_code)]
+fn format_uptime_seconds(seconds: f64) -> String {
+    let secs = seconds as u64;
+    const MINUTE: u64 = 60;
+    const HOUR: u64 = MINUTE * 60;
+    const DAY: u64 = HOUR * 24;
+
+    if secs >= DAY {
+        let days = secs / DAY;
+        let hours = (secs % DAY) / HOUR;
+        format!("{}d {}h", days, hours)
+    } else if secs >= HOUR {
+        let hours = secs / HOUR;
+        let mins = (secs % HOUR) / MINUTE;
+        format!("{}h {}m", hours, mins)
+    } else if secs >= MINUTE {
+        let mins = secs / MINUTE;
+        let s = secs % MINUTE;
+        format!("{}m {}s", mins, s)
+    } else {
+        format!("{:.1}s", seconds)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -395,7 +554,7 @@ mod tests {
 
     #[test]
     fn test_display_session_summary() {
-        let mut collector = StatsCollector::new("test");
+        let mut collector = EvalMetrics::new("test");
         collector.record(ExecutionTier::Calculator, false, Duration::from_millis(1));
         collector.record(ExecutionTier::CachedLoaded, true, Duration::from_millis(2));
 
@@ -408,7 +567,7 @@ mod tests {
 
     #[test]
     fn test_display_execution_details() {
-        let mut collector = StatsCollector::new("test");
+        let mut collector = EvalMetrics::new("test");
         collector.record(ExecutionTier::Calculator, false, Duration::from_millis(1));
         collector.record(ExecutionTier::Calculator, false, Duration::from_millis(2));
 
@@ -420,7 +579,7 @@ mod tests {
 
     #[test]
     fn test_display_cache_stats() {
-        let mut collector = StatsCollector::new("test");
+        let mut collector = EvalMetrics::new("test");
         collector.record(ExecutionTier::CachedLoaded, true, Duration::from_millis(2));
 
         let output = show_cache_stats(&collector, false);
@@ -431,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_parse_stats_command_summary() {
-        let collector = StatsCollector::new("test");
+        let collector = EvalMetrics::new("test");
 
         let result = parse_stats_command("(stats)", &collector, false);
         assert!(result.is_some());
@@ -440,7 +599,7 @@ mod tests {
 
     #[test]
     fn test_parse_stats_command_execution() {
-        let collector = StatsCollector::new("test");
+        let collector = EvalMetrics::new("test");
 
         let result = parse_stats_command("(stats execution)", &collector, false);
         assert!(result.is_some());
@@ -449,7 +608,7 @@ mod tests {
 
     #[test]
     fn test_parse_stats_command_cache() {
-        let collector = StatsCollector::new("test");
+        let collector = EvalMetrics::new("test");
 
         let result = parse_stats_command("(stats cache)", &collector, false);
         assert!(result.is_some());
@@ -458,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_parse_stats_command_invalid() {
-        let collector = StatsCollector::new("test");
+        let collector = EvalMetrics::new("test");
 
         let result = parse_stats_command("(stats invalid)", &collector, false);
         assert!(result.is_none());

@@ -39,17 +39,19 @@
 //! - `repl.subprocess.restarts_total` - Restart count by reason
 //! - `repl.subprocess.uptime_seconds` - Time since last restart
 //!
-//! ## Evaluation Metrics (StatsCollector integration)
+//! ## Evaluation Metrics
 //! - `repl.eval.total` - Evaluations by tier
 //! - `repl.eval.duration_ms` - Execution time by tier
 //! - `repl.cache.hits` - Cache hits
 //! - `repl.cache.misses` - Cache misses
 
+pub mod eval;
 pub mod server;
 pub mod subprocess;
 
-pub use server::ServerMetrics;
-pub use subprocess::{RestartReason, SubprocessMetrics};
+pub use eval::{CacheStats, EvalMetrics, ExecutionTier, Percentiles};
+pub use server::{ServerMetrics, ServerMetricsSnapshot};
+pub use subprocess::{RestartReason, SubprocessMetrics, SubprocessMetricsSnapshot};
 
 use std::error::Error;
 use std::net::SocketAddr;
