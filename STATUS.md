@@ -114,7 +114,7 @@
 | | Hygiene | Avoiding unintended capture | 0% |
 | | Compile-time evaluation | Running code during compilation | 0% |
 | | Core macros | Pre-compiled standard macros | 0% |
-| **7. Type System** | | Oxur's own type semantics | **10%** |
+| **7. Type System** | | Oxur's flavour of Rust type semantics | **10%** |
 | | Runtime type tags | Dynamic type discrimination | 20% |
 | | Type predicates | `number?`, `string?`, `list?`, etc. | 0% |
 | | Type annotations | Optional static type hints in Oxur syntax | 0% |

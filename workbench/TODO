@@ -3,8 +3,6 @@
 ## Backlog
 
 - [ ] create a formal abstraction for the collection of things that has become the REPL
-- [ ] explore a session management solution similarly to what we did for LFE xrepl:
-      * <https://github.com/xrepl/xrepl/tree/main?tab=readme-ov-file#session-management-commands>
 
 ## Completed
 
@@ -41,3 +39,5 @@
        "in memory" mode. Similarly, when the REPL runs in "local" or "in memory" mode, it should
       track the "client side" stats as well for whatever stands in for the client side of the REPL
       when it's running in "local" or "in memory" mode
+- [x] explore a session management solution similarly to what we did for LFE xrepl:
+      * <https://github.com/xrepl/xrepl/tree/main?tab=readme-ov-file#session-management-commands>
