@@ -6,8 +6,9 @@
 use anyhow::{Context, Result};
 use oxur_cli::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use reedline::{
-    default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings, Emacs,
-    FileBackedHistory, Reedline, Signal, Vi,
+    default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
+    ColumnarMenu, Emacs, FileBackedHistory, KeyCode, KeyModifiers, Keybindings, MenuBuilder,
+    Reedline, ReedlineEvent, ReedlineMenu, Signal, Vi,
 };
 use std::path::PathBuf;
 
@@ -16,6 +17,18 @@ use crate::repl::oxur_prompt::OxurPrompt;
 use crate::repl::pager;
 use crate::repl::sexp_highlighter::SExpHighlighter;
 use crate::repl::sexp_validator::SExpValidator;
+
+/// Add Tab keybinding for completion menu
+fn add_completion_keybinding(keybindings: &mut Keybindings) {
+    keybindings.add_binding(
+        KeyModifiers::NONE,
+        KeyCode::Tab,
+        ReedlineEvent::UntilFound(vec![
+            ReedlineEvent::Menu("completion_menu".to_string()),
+            ReedlineEvent::MenuNext,
+        ]),
+    );
+}
 
 /// REPL terminal interface with line editing and history
 pub struct ReplTerminal {
@@ -40,11 +53,19 @@ impl ReplTerminal {
         terminal_config: TerminalConfig,
         history_config: HistoryConfig,
     ) -> Result<Self> {
-        // Convert edit mode to reedline's EditMode trait object
+        // Convert edit mode to reedline's EditMode trait object with Tab completion
         let edit_mode: Box<dyn reedline::EditMode> = match terminal_config.edit_mode {
-            EditMode::Emacs => Box::new(Emacs::new(default_emacs_keybindings())),
+            EditMode::Emacs => {
+                let mut keybindings = default_emacs_keybindings();
+                add_completion_keybinding(&mut keybindings);
+                Box::new(Emacs::new(keybindings))
+            }
             EditMode::Vi => {
-                Box::new(Vi::new(default_vi_insert_keybindings(), default_vi_normal_keybindings()))
+                let mut insert_keybindings = default_vi_insert_keybindings();
+                let mut normal_keybindings = default_vi_normal_keybindings();
+                add_completion_keybinding(&mut insert_keybindings);
+                add_completion_keybinding(&mut normal_keybindings);
+                Box::new(Vi::new(insert_keybindings, normal_keybindings))
             }
         };
 
@@ -69,13 +90,21 @@ impl ReplTerminal {
             .context("Failed to create history backend")?,
         );
 
+        // Create completion menu
+        let completion_menu = ColumnarMenu::default()
+            .with_name("completion_menu")
+            .with_columns(4)
+            .with_column_width(Some(20))
+            .with_column_padding(2);
+
         // Build reedline editor with syntax highlighting, validation, and completion
         let editor = Reedline::create()
             .with_history(history)
             .with_edit_mode(edit_mode)
             .with_highlighter(Box::new(SExpHighlighter::new(terminal_config.color_enabled)))
             .with_validator(Box::new(SExpValidator::new()))
-            .with_completer(Box::new(OxurCompleter::new()));
+            .with_completer(Box::new(OxurCompleter::new()))
+            .with_menu(ReedlineMenu::EngineCompleter(Box::new(completion_menu)));
 
         Ok(Self { editor, history_path, terminal_config })
     }
