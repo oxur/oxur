@@ -66,6 +66,7 @@ impl HelpSystem {
             "(stats <view>)",
             "Show specific stats view (views: execution, cache, resources, server, subprocess)",
         ));
+        output.push('\n');
         output.push_str(&self.command("Ctrl-C", "Cancel current input line"));
         output.push_str(&self.command("Ctrl-D", "Exit the REPL (EOF)"));
         output.push('\n');
