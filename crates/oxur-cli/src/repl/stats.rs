@@ -49,33 +49,33 @@ pub fn show_session_summary(collector: &EvalMetrics, color_enabled: bool) -> Str
     // Tier 1
     if let Some(p) = collector.percentiles(ExecutionTier::Calculator) {
         metrics.push(TierMetric {
-            tier: "Calculator".to_string(),
-            count: p.count.to_string(),
-            p50: format!("{:.2}", p.p50),
-            p95: format!("{:.2}", p.p95),
-            p99: format!("{:.2}", p.p99),
+            tier: " Calculator ".to_string(),
+            count: format!(" {} ", p.count),
+            p50: format!(" {:.2} ", p.p50),
+            p95: format!(" {:.2} ", p.p95),
+            p99: format!(" {:.2} ", p.p99),
         });
     }
 
     // Tier 2
     if let Some(p) = collector.percentiles(ExecutionTier::CachedLoaded) {
         metrics.push(TierMetric {
-            tier: "Cached".to_string(),
-            count: p.count.to_string(),
-            p50: format!("{:.2}", p.p50),
-            p95: format!("{:.2}", p.p95),
-            p99: format!("{:.2}", p.p99),
+            tier: " Cached ".to_string(),
+            count: format!(" {} ", p.count),
+            p50: format!(" {:.2} ", p.p50),
+            p95: format!(" {:.2} ", p.p95),
+            p99: format!(" {:.2} ", p.p99),
         });
     }
 
     // Tier 3
     if let Some(p) = collector.percentiles(ExecutionTier::JustInTime) {
         metrics.push(TierMetric {
-            tier: "JIT".to_string(),
-            count: p.count.to_string(),
-            p50: format!("{:.2}", p.p50),
-            p95: format!("{:.2}", p.p95),
-            p99: format!("{:.2}", p.p99),
+            tier: " JIT ".to_string(),
+            count: format!(" {} ", p.count),
+            p50: format!(" {:.2} ", p.p50),
+            p95: format!(" {:.2} ", p.p95),
+            p99: format!(" {:.2} ", p.p99),
         });
     }
 
@@ -110,12 +110,12 @@ pub fn show_execution_details(collector: &EvalMetrics, color_enabled: bool) -> S
             }
 
             let metrics = vec![
-                Metric { metric: "Count".to_string(), value: p.count.to_string() },
-                Metric { metric: "Min".to_string(), value: format!("{:.2}", p.min) },
-                Metric { metric: "p50 (median)".to_string(), value: format!("{:.2}", p.p50) },
-                Metric { metric: "p95".to_string(), value: format!("{:.2}", p.p95) },
-                Metric { metric: "p99".to_string(), value: format!("{:.2}", p.p99) },
-                Metric { metric: "Max".to_string(), value: format!("{:.2}", p.max) },
+                Metric { metric: " Count ".to_string(), value: format!(" {} ", p.count) },
+                Metric { metric: " Min ".to_string(), value: format!(" {:.2} ", p.min) },
+                Metric { metric: " p50 (median) ".to_string(), value: format!(" {:.2} ", p.p50) },
+                Metric { metric: " p95 ".to_string(), value: format!(" {:.2} ", p.p95) },
+                Metric { metric: " p99 ".to_string(), value: format!(" {:.2} ", p.p99) },
+                Metric { metric: " Max ".to_string(), value: format!(" {:.2} ", p.max) },
             ];
 
             output.push_str(
@@ -147,9 +147,9 @@ pub fn show_cache_stats(collector: &EvalMetrics, color_enabled: bool) -> String 
     }
 
     let metrics = vec![
-        CacheMetric { metric: "Hits".to_string(), value: cache.hits.to_string() },
-        CacheMetric { metric: "Misses".to_string(), value: cache.misses.to_string() },
-        CacheMetric { metric: "Hit Rate".to_string(), value: format!("{:.1}%", cache.hit_rate) },
+        CacheMetric { metric: " Hits ".to_string(), value: format!(" {} ", cache.hits) },
+        CacheMetric { metric: " Misses ".to_string(), value: format!(" {} ", cache.misses) },
+        CacheMetric { metric: " Hit Rate ".to_string(), value: format!(" {:.1}% ", cache.hit_rate) },
     ];
 
     output.push_str(&OxurTable::new(metrics).with_title("EVALUATION CACHE").with_footer().render());
@@ -181,16 +181,16 @@ pub fn show_resource_stats(
 
         let metrics = vec![
             MemoryMetric {
-                metric: "Process RSS".to_string(),
-                value: format_bytes(resource_stats.process_memory_bytes),
+                metric: " Process RSS ".to_string(),
+                value: format!(" {} ", format_bytes(resource_stats.process_memory_bytes)),
             },
             MemoryMetric {
-                metric: "Virtual Memory".to_string(),
-                value: format_bytes(resource_stats.virtual_memory_bytes),
+                metric: " Virtual Memory ".to_string(),
+                value: format!(" {} ", format_bytes(resource_stats.virtual_memory_bytes)),
             },
             MemoryMetric {
-                metric: "Process ID".to_string(),
-                value: resource_stats.pid.to_string(),
+                metric: " Process ID ".to_string(),
+                value: format!(" {} ", resource_stats.pid),
             },
         ];
 
@@ -214,13 +214,13 @@ pub fn show_resource_stats(
 
         let metrics = vec![
             DirMetric {
-                metric: "Location".to_string(),
-                value: format!("{}{}", dir_stats.path.display(), location_type),
+                metric: " Location ".to_string(),
+                value: format!(" {}{} ", dir_stats.path.display(), location_type),
             },
-            DirMetric { metric: "Files".to_string(), value: dir_stats.file_count.to_string() },
+            DirMetric { metric: " Files ".to_string(), value: format!(" {} ", dir_stats.file_count) },
             DirMetric {
-                metric: "Disk Usage".to_string(),
-                value: format_bytes(dir_stats.total_bytes),
+                metric: " Disk Usage ".to_string(),
+                value: format!(" {} ", format_bytes(dir_stats.total_bytes)),
             },
         ];
 
@@ -254,24 +254,24 @@ pub fn show_resource_stats(
 
         let metrics = vec![
             ArtifactMetric {
-                metric: "Entries".to_string(),
-                value: cache_stats.entry_count.to_string(),
+                metric: " Entries ".to_string(),
+                value: format!(" {} ", cache_stats.entry_count),
             },
             ArtifactMetric {
-                metric: "Total Size".to_string(),
-                value: format_bytes(cache_stats.total_size_bytes),
+                metric: " Total Size ".to_string(),
+                value: format!(" {} ", format_bytes(cache_stats.total_size_bytes)),
             },
             ArtifactMetric {
-                metric: "Oldest Entry".to_string(),
+                metric: " Oldest Entry ".to_string(),
                 value: if cache_stats.entry_count > 0 {
-                    format_duration(age_seconds)
+                    format!(" {} ", format_duration(age_seconds))
                 } else {
-                    "N/A".to_string()
+                    " N/A ".to_string()
                 },
             },
             ArtifactMetric {
-                metric: "Cache Directory".to_string(),
-                value: cache_stats.cache_dir.display().to_string(),
+                metric: " Cache Directory ".to_string(),
+                value: format!(" {} ", cache_stats.cache_dir.display()),
             },
         ];
 
@@ -307,12 +307,12 @@ pub fn show_server_stats(
     // Connection stats
     let metrics = vec![
         ConnectionMetric {
-            metric: "Total Connections".to_string(),
-            value: server_snapshot.connections_total.to_string(),
+            metric: " Total Connections ".to_string(),
+            value: format!(" {} ", server_snapshot.connections_total),
         },
         ConnectionMetric {
-            metric: "Active Connections".to_string(),
-            value: server_snapshot.connections_active.to_string(),
+            metric: " Active Connections ".to_string(),
+            value: format!(" {} ", server_snapshot.connections_active),
         },
     ];
 
@@ -322,12 +322,12 @@ pub fn show_server_stats(
     // Session stats
     let metrics = vec![
         ConnectionMetric {
-            metric: "Total Sessions".to_string(),
-            value: server_snapshot.sessions_total.to_string(),
+            metric: " Total Sessions ".to_string(),
+            value: format!(" {} ", server_snapshot.sessions_total),
         },
         ConnectionMetric {
-            metric: "Active Sessions".to_string(),
-            value: server_snapshot.sessions_active.to_string(),
+            metric: " Active Sessions ".to_string(),
+            value: format!(" {} ", server_snapshot.sessions_active),
         },
     ];
 
@@ -343,24 +343,24 @@ pub fn show_server_stats(
 
     let metrics = vec![
         ConnectionMetric {
-            metric: "Total Requests".to_string(),
-            value: server_snapshot.requests_total.to_string(),
+            metric: " Total Requests ".to_string(),
+            value: format!(" {} ", server_snapshot.requests_total),
         },
         ConnectionMetric {
-            metric: "Total Responses".to_string(),
-            value: server_snapshot.responses_total.to_string(),
+            metric: " Total Responses ".to_string(),
+            value: format!(" {} ", server_snapshot.responses_total),
         },
         ConnectionMetric {
-            metric: "Successful".to_string(),
-            value: server_snapshot.responses_success.to_string(),
+            metric: " Successful ".to_string(),
+            value: format!(" {} ", server_snapshot.responses_success),
         },
         ConnectionMetric {
-            metric: "Errors".to_string(),
-            value: server_snapshot.responses_error.to_string(),
+            metric: " Errors ".to_string(),
+            value: format!(" {} ", server_snapshot.responses_error),
         },
         ConnectionMetric {
-            metric: "Success Rate".to_string(),
-            value: format!("{:.1}%", success_rate),
+            metric: " Success Rate ".to_string(),
+            value: format!(" {:.1}% ", success_rate),
         },
     ];
 
@@ -398,13 +398,13 @@ pub fn show_subprocess_stats(
         .unwrap_or_else(|| "N/A".to_string());
 
     let metrics = vec![
-        SubprocessMetric { metric: "Status".to_string(), value: status.to_string() },
-        SubprocessMetric { metric: "Uptime".to_string(), value: uptime },
+        SubprocessMetric { metric: " Status ".to_string(), value: format!(" {} ", status) },
+        SubprocessMetric { metric: " Uptime ".to_string(), value: format!(" {} ", uptime) },
         SubprocessMetric {
-            metric: "Restart Count".to_string(),
-            value: subprocess_snapshot.restart_count.to_string(),
+            metric: " Restart Count ".to_string(),
+            value: format!(" {} ", subprocess_snapshot.restart_count),
         },
-        SubprocessMetric { metric: "Last Restart Reason".to_string(), value: last_reason },
+        SubprocessMetric { metric: " Last Restart Reason ".to_string(), value: format!(" {} ", last_reason) },
     ];
 
     output.push_str(&OxurTable::new(metrics).with_title("STATUS").with_footer().render());
@@ -458,33 +458,33 @@ pub fn show_session_summary_from_snapshot(
     // Tier 1
     if let Some(ref p) = snapshot.tier1_percentiles {
         metrics.push(TierMetric {
-            tier: "Calculator".to_string(),
-            count: p.count.to_string(),
-            p50: format!("{:.2}", p.p50),
-            p95: format!("{:.2}", p.p95),
-            p99: format!("{:.2}", p.p99),
+            tier: " Calculator ".to_string(),
+            count: format!(" {} ", p.count),
+            p50: format!(" {:.2} ", p.p50),
+            p95: format!(" {:.2} ", p.p95),
+            p99: format!(" {:.2} ", p.p99),
         });
     }
 
     // Tier 2
     if let Some(ref p) = snapshot.tier2_percentiles {
         metrics.push(TierMetric {
-            tier: "Cached".to_string(),
-            count: p.count.to_string(),
-            p50: format!("{:.2}", p.p50),
-            p95: format!("{:.2}", p.p95),
-            p99: format!("{:.2}", p.p99),
+            tier: " Cached ".to_string(),
+            count: format!(" {} ", p.count),
+            p50: format!(" {:.2} ", p.p50),
+            p95: format!(" {:.2} ", p.p95),
+            p99: format!(" {:.2} ", p.p99),
         });
     }
 
     // Tier 3
     if let Some(ref p) = snapshot.tier3_percentiles {
         metrics.push(TierMetric {
-            tier: "JIT".to_string(),
-            count: p.count.to_string(),
-            p50: format!("{:.2}", p.p50),
-            p95: format!("{:.2}", p.p95),
-            p99: format!("{:.2}", p.p99),
+            tier: " JIT ".to_string(),
+            count: format!(" {} ", p.count),
+            p50: format!(" {:.2} ", p.p50),
+            p95: format!(" {:.2} ", p.p95),
+            p99: format!(" {:.2} ", p.p99),
         });
     }
 
@@ -523,12 +523,12 @@ pub fn show_execution_from_snapshot(
                 }
 
                 let metrics = vec![
-                    Metric { metric: "Count".to_string(), value: p.count.to_string() },
-                    Metric { metric: "Min".to_string(), value: format!("{:.2}", p.min) },
-                    Metric { metric: "p50 (median)".to_string(), value: format!("{:.2}", p.p50) },
-                    Metric { metric: "p95".to_string(), value: format!("{:.2}", p.p95) },
-                    Metric { metric: "p99".to_string(), value: format!("{:.2}", p.p99) },
-                    Metric { metric: "Max".to_string(), value: format!("{:.2}", p.max) },
+                    Metric { metric: " Count ".to_string(), value: format!(" {} ", p.count) },
+                    Metric { metric: " Min ".to_string(), value: format!(" {:.2} ", p.min) },
+                    Metric { metric: " p50 (median) ".to_string(), value: format!(" {:.2} ", p.p50) },
+                    Metric { metric: " p95 ".to_string(), value: format!(" {:.2} ", p.p95) },
+                    Metric { metric: " p99 ".to_string(), value: format!(" {:.2} ", p.p99) },
+                    Metric { metric: " Max ".to_string(), value: format!(" {:.2} ", p.max) },
                 ];
 
                 output.push_str(&OxurTable::new(metrics).with_title(name).with_footer().render());
@@ -560,11 +560,11 @@ pub fn show_cache_from_snapshot(snapshot: &SessionStatsSnapshot, color_enabled: 
     }
 
     let metrics = vec![
-        CacheMetric { metric: "Hits".to_string(), value: snapshot.cache.hits.to_string() },
-        CacheMetric { metric: "Misses".to_string(), value: snapshot.cache.misses.to_string() },
+        CacheMetric { metric: " Hits ".to_string(), value: format!(" {} ", snapshot.cache.hits) },
+        CacheMetric { metric: " Misses ".to_string(), value: format!(" {} ", snapshot.cache.misses) },
         CacheMetric {
-            metric: "Hit Rate".to_string(),
-            value: format!("{:.1}%", snapshot.cache.hit_rate),
+            metric: " Hit Rate ".to_string(),
+            value: format!(" {:.1}% ", snapshot.cache.hit_rate),
         },
     ];
 
