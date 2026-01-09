@@ -1,7 +1,8 @@
 //! Metrics system for REPL observability
 //!
 //! Provides unified metrics collection across all REPL components using the
-//! `metrics` crate facade pattern. Supports TCP export for external monitoring.
+//! `metrics` crate facade pattern. Stats are exposed via the REPL protocol
+//! (postcard-encoded) for internal monitoring and debugging.
 //!
 //! # Architecture
 //!
@@ -20,8 +21,8 @@
 //!                               │
 //!                               ▼
 //!                     ┌───────────────────┐
-//!                     │ TCP Exporter      │
-//!                     │ :9100 (default)   │
+//!                     │ REPL Protocol     │
+//!                     │ (postcard-based)  │
 //!                     └───────────────────┘
 //! ```
 //!
@@ -53,77 +54,22 @@ pub use eval::{CacheStats, EvalMetrics, ExecutionTier, Percentiles, SessionStats
 pub use server::{ServerMetrics, ServerMetricsSnapshot};
 pub use subprocess::{RestartReason, SubprocessMetrics, SubprocessMetricsSnapshot};
 
-use std::error::Error;
-use std::net::SocketAddr;
-
-/// Default TCP exporter address
-pub const DEFAULT_METRICS_ADDR: &str = "127.0.0.1:9100";
-
-/// Initialize the metrics exporter for TCP-based monitoring.
+/// Initialize process-level metrics collection.
 ///
-/// This installs a TCP exporter that streams metrics to connected clients
-/// using Protocol Buffers encoding. Also registers process-level metrics
-/// (memory, CPU, file descriptors).
-///
-/// # Arguments
-///
-/// * `addr` - Socket address to bind the TCP exporter
-///
-/// # Errors
-///
-/// Returns an error if:
-/// - The address cannot be parsed
-/// - The TCP listener cannot bind to the address
-/// - A metrics exporter is already installed
+/// Registers process metrics (memory, CPU, file descriptors, etc.) with the
+/// metrics facade. These metrics are recorded in-memory and can be retrieved
+/// via the REPL protocol using stats requests.
 ///
 /// # Example
 ///
 /// ```no_run
-/// use oxur_repl::metrics::init_metrics_exporter;
-/// use std::net::SocketAddr;
+/// use oxur_repl::metrics::init_process_metrics;
 ///
-/// let addr: SocketAddr = "127.0.0.1:9100".parse().unwrap();
-/// init_metrics_exporter(addr).expect("Failed to initialize metrics");
+/// init_process_metrics();
+/// // Metrics now being collected, retrieve via protocol stats requests
 /// ```
-pub fn init_metrics_exporter(addr: SocketAddr) -> Result<(), Box<dyn Error + Send + Sync>> {
-    use metrics_exporter_tcp::TcpBuilder;
-
-    TcpBuilder::new().listen_address(addr).install()?;
-
+pub fn init_process_metrics() {
     // Register process metrics (memory, CPU, file descriptors, etc.)
     let process_collector = metrics_process::Collector::default();
     process_collector.describe();
-
-    Ok(())
-}
-
-/// Initialize metrics exporter with the default address (127.0.0.1:9100).
-///
-/// Convenience wrapper around [`init_metrics_exporter`].
-pub fn init_metrics_exporter_default() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let addr: SocketAddr = DEFAULT_METRICS_ADDR.parse()?;
-    init_metrics_exporter(addr)
-}
-
-/// Check if a metrics recorder is installed.
-///
-/// Returns true if metrics are being recorded (an exporter was installed).
-/// This can be used to conditionally emit metrics.
-pub fn metrics_enabled() -> bool {
-    // Try to get a counter - if it returns a noop recorder, metrics are disabled
-    // The metrics crate always returns a valid handle, but if no recorder is
-    // installed it's a no-op. We can't directly check this, so we assume
-    // metrics are enabled if init was called.
-    true
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_addr_parses() {
-        let addr: SocketAddr = DEFAULT_METRICS_ADDR.parse().unwrap();
-        assert_eq!(addr.port(), 9100);
-    }
 }
