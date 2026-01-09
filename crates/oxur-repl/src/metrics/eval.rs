@@ -64,6 +64,15 @@ pub struct EvalMetrics {
 
     /// Total evaluations
     total_evals: u64,
+
+    /// Parse error count
+    parse_errors: u64,
+
+    /// Compile error count
+    compile_errors: u64,
+
+    /// Runtime error count
+    runtime_errors: u64,
 }
 
 impl EvalMetrics {
@@ -77,6 +86,9 @@ impl EvalMetrics {
             cache_hits: 0,
             cache_misses: 0,
             total_evals: 0,
+            parse_errors: 0,
+            compile_errors: 0,
+            runtime_errors: 0,
         }
     }
 
@@ -174,6 +186,39 @@ impl EvalMetrics {
     pub fn session_id(&self) -> &str {
         &self.session_id
     }
+
+    /// Record a parse error.
+    pub fn record_parse_error(&mut self) {
+        self.parse_errors += 1;
+        counter!("repl.errors.total", "type" => "parse").increment(1);
+    }
+
+    /// Record a compile error.
+    pub fn record_compile_error(&mut self) {
+        self.compile_errors += 1;
+        counter!("repl.errors.total", "type" => "compile").increment(1);
+    }
+
+    /// Record a runtime error.
+    pub fn record_runtime_error(&mut self) {
+        self.runtime_errors += 1;
+        counter!("repl.errors.total", "type" => "runtime").increment(1);
+    }
+
+    /// Get total error count.
+    pub fn total_errors(&self) -> u64 {
+        self.parse_errors + self.compile_errors + self.runtime_errors
+    }
+
+    /// Get error rate as percentage.
+    pub fn error_rate(&self) -> f64 {
+        let total = self.total_evals + self.total_errors();
+        if total > 0 {
+            (self.total_errors() as f64 / total as f64) * 100.0
+        } else {
+            0.0
+        }
+    }
 }
 
 /// Percentile statistics for a tier.
@@ -221,11 +266,34 @@ pub struct SessionStatsSnapshot {
     pub tier2_percentiles: Option<Percentiles>,
     /// Tier 3 (JustInTime) percentiles, if any samples exist
     pub tier3_percentiles: Option<Percentiles>,
+    /// Parse error count
+    pub parse_errors: u64,
+    /// Compile error count
+    pub compile_errors: u64,
+    /// Runtime error count
+    pub runtime_errors: u64,
+    /// Average evaluation time across all tiers (milliseconds)
+    pub average_eval_time_ms: f64,
 }
 
 impl EvalMetrics {
     /// Create a snapshot of current metrics for protocol transport.
     pub fn snapshot(&self) -> SessionStatsSnapshot {
+        // Calculate average eval time across all tiers
+        let all_samples: Vec<f64> = self
+            .tier1_samples
+            .iter()
+            .chain(self.tier2_samples.iter())
+            .chain(self.tier3_samples.iter())
+            .map(|d| d.as_secs_f64() * 1000.0)
+            .collect();
+
+        let average_eval_time_ms = if !all_samples.is_empty() {
+            all_samples.iter().sum::<f64>() / all_samples.len() as f64
+        } else {
+            0.0
+        };
+
         SessionStatsSnapshot {
             session_id: self.session_id.clone(),
             total_evaluations: self.total_evals,
@@ -233,6 +301,10 @@ impl EvalMetrics {
             tier1_percentiles: self.percentiles(ExecutionTier::Calculator),
             tier2_percentiles: self.percentiles(ExecutionTier::CachedLoaded),
             tier3_percentiles: self.percentiles(ExecutionTier::JustInTime),
+            parse_errors: self.parse_errors,
+            compile_errors: self.compile_errors,
+            runtime_errors: self.runtime_errors,
+            average_eval_time_ms,
         }
     }
 }
