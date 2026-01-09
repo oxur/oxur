@@ -150,6 +150,9 @@ pub struct EvalContext {
     /// Statistics collector for tracking execution metrics (shared)
     stats_collector: Arc<Mutex<EvalMetrics>>,
 
+    /// Usage metrics collector for tracking command patterns (shared)
+    usage_metrics: Arc<Mutex<crate::metrics::UsageMetrics>>,
+
     /// Artifact cache for compiled libraries (shared)
     artifact_cache: Option<Arc<Mutex<ArtifactCache>>>,
 
@@ -194,6 +197,9 @@ impl EvalContext {
             sexpr_eval: SexprEvaluator::new(),
             cache: HashMap::new(),
             stats_collector: Arc::new(Mutex::new(EvalMetrics::new(session_id.as_str()))),
+            usage_metrics: Arc::new(Mutex::new(crate::metrics::UsageMetrics::new(
+                session_id.as_str(),
+            ))),
             artifact_cache: None,
             compiler: None,
             executor: None,
@@ -252,6 +258,9 @@ impl EvalContext {
             sexpr_eval: SexprEvaluator::new(),
             cache: HashMap::new(),
             stats_collector: Arc::new(Mutex::new(EvalMetrics::new(session_id.as_str()))),
+            usage_metrics: Arc::new(Mutex::new(crate::metrics::UsageMetrics::new(
+                session_id.as_str(),
+            ))),
             artifact_cache: Some(artifact_cache),
             compiler: Some(compiler),
             executor: Some(executor),
@@ -297,6 +306,13 @@ impl EvalContext {
         Arc::clone(&self.stats_collector)
     }
 
+    /// Get the usage metrics collector
+    ///
+    /// Returns a shared reference to the usage metrics collector for command frequency tracking.
+    pub fn usage_metrics(&self) -> Arc<Mutex<crate::metrics::UsageMetrics>> {
+        Arc::clone(&self.usage_metrics)
+    }
+
     /// Clone this context into a new session
     ///
     /// Creates a new context with a different session ID but the same
@@ -312,6 +328,9 @@ impl EvalContext {
             sexpr_eval: SexprEvaluator::new(),
             cache: self.cache.clone(),
             stats_collector: Arc::new(Mutex::new(EvalMetrics::new(new_session_id.as_str()))),
+            usage_metrics: Arc::new(Mutex::new(crate::metrics::UsageMetrics::new(
+                new_session_id.as_str(),
+            ))),
             artifact_cache: self.artifact_cache.clone(),
             compiler: self.compiler.clone(),
             executor: self.executor.clone(),

@@ -109,6 +109,10 @@ impl<C: ReplClientAdapter> ReplClientAdapter for MetricsClientAdapter<C> {
         self.inner.close().await
     }
 
+    fn current_session(&self) -> &oxur_repl::protocol::SessionId {
+        self.inner.current_session()
+    }
+
     async fn handle_special_command(&mut self, input: &str, color_enabled: bool) -> Option<String> {
         self.inner.handle_special_command(input, color_enabled).await
     }

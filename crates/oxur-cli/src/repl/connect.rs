@@ -60,6 +60,10 @@ impl ReplClientAdapter for TcpAdapter {
         self.transport.close().await.context("Failed to close connection")
     }
 
+    fn current_session(&self) -> &SessionId {
+        &self.session_id
+    }
+
     async fn handle_special_command(&mut self, input: &str, color_enabled: bool) -> Option<String> {
         // Handle stats commands via protocol
         if !input.starts_with("(stats") {

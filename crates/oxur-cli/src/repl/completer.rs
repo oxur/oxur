@@ -22,7 +22,21 @@ impl OxurCompleter {
 
     /// Get list of special commands
     fn special_commands() -> Vec<&'static str> {
-        vec!["(help)", "(quit)", "(q)", "(exit)", "(info)", "(stats)", "(sessions)", "(clear)", "(banner)"]
+        vec![
+            "(help)",
+            "(quit)",
+            "(q)",
+            "(exit)",
+            "(info)",
+            "(stats)",
+            "(sessions)",
+            "(clear)",
+            "(banner)",
+            "(current-session)",
+            "(new-session)",
+            "(switch-session)",
+            "(close-session)",
+        ]
     }
 
     /// Get list of help topics with descriptions
@@ -45,6 +59,8 @@ impl OxurCompleter {
             ("execution", "Execution tier statistics"),
             ("cache", "Cache hit rates and performance"),
             ("resources", "Memory and system resources"),
+            ("usage", "Command frequency and usage patterns"),
+            ("client", "Client-side latency and request metrics"),
         ]
     }
 
@@ -71,6 +87,33 @@ impl OxurCompleter {
                     completions.push((format!("(stats {})", view), Some(description.to_string())));
                 }
             }
+            return completions;
+        }
+
+        // New session with name hint: "(new-session "
+        if partial == "(new-session " || partial.starts_with("(new-session \"") {
+            completions.push((
+                "(new-session \"name\")".to_string(),
+                Some("Create named session".to_string()),
+            ));
+            return completions;
+        }
+
+        // Switch session hint: "(switch-session "
+        if partial == "(switch-session " {
+            completions.push((
+                "(switch-session <session-id>)".to_string(),
+                Some("Switch to existing session by ID".to_string()),
+            ));
+            return completions;
+        }
+
+        // Close session hint: "(close-session "
+        if partial == "(close-session " {
+            completions.push((
+                "(close-session <session-id>)".to_string(),
+                Some("Close specific session by ID".to_string()),
+            ));
             return completions;
         }
 
@@ -199,11 +242,13 @@ mod tests {
     fn test_complete_stats_all_views() {
         let mut completer = OxurCompleter::new();
         let suggestions = completer.complete("(stats ", 7);
-        assert_eq!(suggestions.len(), 3); // All 3 stats views
+        assert_eq!(suggestions.len(), 5); // All 5 stats views
         let values: Vec<_> = suggestions.iter().map(|s| s.value.as_str()).collect();
         assert!(values.contains(&"(stats execution)"));
         assert!(values.contains(&"(stats cache)"));
         assert!(values.contains(&"(stats resources)"));
+        assert!(values.contains(&"(stats usage)"));
+        assert!(values.contains(&"(stats client)"));
     }
 
     #[test]
@@ -273,5 +318,51 @@ mod tests {
         let mut completer = OxurCompleter::new();
         let suggestions = completer.complete("(ban", 4);
         assert!(suggestions.iter().any(|s| s.value == "(banner)"));
+    }
+
+    #[test]
+    fn test_session_commands_completion() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(cur", 4);
+        assert!(suggestions.iter().any(|s| s.value == "(current-session)"));
+
+        let suggestions = completer.complete("(new-", 5);
+        assert!(suggestions.iter().any(|s| s.value == "(new-session)"));
+
+        let suggestions = completer.complete("(switch", 7);
+        assert!(suggestions.iter().any(|s| s.value == "(switch-session)"));
+
+        let suggestions = completer.complete("(close-", 7);
+        assert!(suggestions.iter().any(|s| s.value == "(close-session)"));
+    }
+
+    #[test]
+    fn test_new_session_with_name_hint() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(new-session ", 13);
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].value, "(new-session \"name\")");
+        assert_eq!(suggestions[0].description, Some("Create named session".to_string()));
+    }
+
+    #[test]
+    fn test_switch_session_hint() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(switch-session ", 16);
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].value, "(switch-session <session-id>)");
+        assert_eq!(
+            suggestions[0].description,
+            Some("Switch to existing session by ID".to_string())
+        );
+    }
+
+    #[test]
+    fn test_close_session_hint() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(close-session ", 15);
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].value, "(close-session <session-id>)");
+        assert_eq!(suggestions[0].description, Some("Close specific session by ID".to_string()));
     }
 }

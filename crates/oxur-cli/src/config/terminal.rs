@@ -75,12 +75,12 @@ impl TerminalConfig {
             // Check if prompt starts with "oxur" for special coloring
             if self.prompt.starts_with("oxur") {
                 let rest = &self.prompt[4..]; // Everything after "oxur"
-                // Color each letter individually using colored crate
+                                              // Color each letter individually using colored crate
                 format!(
                     "{}{}{}{}{}",
-                    "o".bright_yellow(),
-                    "x".yellow(),
-                    "u".bright_red(),
+                    "o".bright_yellow().bold(),
+                    "x".bright_yellow(),
+                    "u".yellow(),
                     "r".red(),
                     rest.bright_green()
                 )

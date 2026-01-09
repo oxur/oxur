@@ -42,11 +42,12 @@ tokio = { version = "1.0", features = ["full"], optional = true }
 async-trait = { version = "0.1", optional = true }
 # Metrics system (ODD-pending: REPL Metrics)
 metrics = { version = "0.24", optional = true }
+uuid = { version = "1.0", features = ["v4"], optional = true }
 
 [features]
 default = ["binary"]
 # Feature for the binary (not needed by library users)
-binary = ["clap", "oxur-lang", "oxur-comp", "oxur-repl", "reedline", "nu-ansi-term", "terminal_size", "crossterm", "dirs", "tokio", "async-trait", "metrics"]
+binary = ["clap", "oxur-lang", "oxur-comp", "oxur-repl", "reedline", "nu-ansi-term", "terminal_size", "crossterm", "dirs", "tokio", "async-trait", "metrics", "uuid"]
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -46,13 +46,17 @@
 //! - `repl.cache.hits` - Cache hits
 //! - `repl.cache.misses` - Cache misses
 
+pub mod client;
 pub mod eval;
 pub mod server;
 pub mod subprocess;
+pub mod usage;
 
+pub use client::{ClientMetrics, ClientMetricsSnapshot};
 pub use eval::{CacheStats, EvalMetrics, ExecutionTier, Percentiles, SessionStatsSnapshot};
 pub use server::{ServerMetrics, ServerMetricsSnapshot};
 pub use subprocess::{RestartReason, SubprocessMetrics, SubprocessMetricsSnapshot};
+pub use usage::{CommandType, UsageMetrics, UsageMetricsSnapshot};
 
 /// Initialize process-level metrics collection.
 ///

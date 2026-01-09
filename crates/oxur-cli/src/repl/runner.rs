@@ -41,6 +41,41 @@ pub trait ReplClientAdapter: Send {
     ) -> Option<String> {
         None
     }
+
+    /// Record a usage metric for the given command type
+    ///
+    /// Default implementation does nothing (no-op).
+    /// Interactive mode will override this to track command frequency.
+    fn record_usage(&mut self, _command_type: oxur_repl::metrics::CommandType) {}
+
+    /// Create a new session
+    ///
+    /// Returns the new session ID on success.
+    /// Default implementation returns an error.
+    async fn create_session(&mut self, _name: Option<String>) -> Result<SessionId> {
+        Err(anyhow::anyhow!("Session creation not supported in this mode"))
+    }
+
+    /// Switch to a different session
+    ///
+    /// Returns Ok if the session exists and switch was successful.
+    /// Default implementation returns an error.
+    async fn switch_session(&mut self, _session_id: SessionId) -> Result<()> {
+        Err(anyhow::anyhow!("Session switching not supported in this mode"))
+    }
+
+    /// Get current session ID
+    ///
+    /// Returns the currently active session ID.
+    fn current_session(&self) -> &SessionId;
+
+    /// Close a session
+    ///
+    /// Closes the specified session. If None, closes current session.
+    /// Default implementation returns an error.
+    async fn close_session(&mut self, _session_id: Option<SessionId>) -> Result<()> {
+        Err(anyhow::anyhow!("Session closing not supported in this mode"))
+    }
 }
 
 /// Shared REPL loop runner
@@ -115,12 +150,14 @@ impl ReplRunner {
             // Check for help commands
             let color_enabled = self.terminal.config().color_enabled;
             if let Some(help_output) = parse_help_command(trimmed, color_enabled) {
+                client.record_usage(oxur_repl::metrics::CommandType::Help);
                 self.terminal.print_help(&help_output);
                 continue;
             }
 
             // Check for clear command
             if trimmed == "(clear)" {
+                client.record_usage(oxur_repl::metrics::CommandType::Clear);
                 if let Err(e) = self.terminal.clear_screen() {
                     self.terminal.print_error(&format!("Failed to clear screen: {}", e));
                 }
@@ -129,6 +166,7 @@ impl ReplRunner {
 
             // Check for banner command
             if trimmed == "(banner)" {
+                client.record_usage(oxur_repl::metrics::CommandType::Banner);
                 if let Some(ref metadata) = self.metadata {
                     self.terminal.print_banner(metadata);
                 } else {
@@ -137,11 +175,20 @@ impl ReplRunner {
                 continue;
             }
 
+            // Check for session management commands
+            if let Some(output) = self.handle_session_command(trimmed, client).await {
+                self.terminal.print_help(&output);
+                continue;
+            }
+
             // Check for adapter-specific special commands (e.g., stats)
             if let Some(output) = client.handle_special_command(trimmed, color_enabled).await {
                 self.terminal.print_help(&output);
                 continue;
             }
+
+            // Track eval command
+            client.record_usage(oxur_repl::metrics::CommandType::Eval);
 
             // Create eval request
             let eval_req = Request {
@@ -195,6 +242,89 @@ impl ReplRunner {
         let _ = client.close().await;
 
         Ok(())
+    }
+
+    /// Handle session management commands
+    ///
+    /// Returns Some(output) if the command was handled, None otherwise.
+    async fn handle_session_command<C: ReplClientAdapter>(
+        &mut self,
+        input: &str,
+        client: &mut C,
+    ) -> Option<String> {
+        // (current-session)
+        if input == "(current-session)" {
+            let session_id = client.current_session();
+            return Some(format!("Current session: {}", session_id));
+        }
+
+        // (new-session)
+        if input == "(new-session)" {
+            match client.create_session(None).await {
+                Ok(new_id) => {
+                    self.session_id = new_id.clone();
+                    return Some(format!("Created and switched to new session: {}", new_id));
+                }
+                Err(e) => return Some(format!("Failed to create session: {}", e)),
+            }
+        }
+
+        // (new-session "name")
+        if input.starts_with("(new-session ") && input.ends_with(')') {
+            let name_part = &input[13..input.len() - 1].trim();
+            // Remove quotes if present
+            let name = if name_part.starts_with('"') && name_part.ends_with('"') {
+                &name_part[1..name_part.len() - 1]
+            } else {
+                name_part
+            };
+
+            match client.create_session(Some(name.to_string())).await {
+                Ok(new_id) => {
+                    self.session_id = new_id.clone();
+                    return Some(format!(
+                        "Created and switched to new session: {} ({})",
+                        name, new_id
+                    ));
+                }
+                Err(e) => return Some(format!("Failed to create session: {}", e)),
+            }
+        }
+
+        // (switch-session <id>)
+        if input.starts_with("(switch-session ") && input.ends_with(')') {
+            let id_part = &input[16..input.len() - 1].trim();
+            let session_id = SessionId::new(*id_part);
+
+            match client.switch_session(session_id.clone()).await {
+                Ok(()) => {
+                    self.session_id = session_id.clone();
+                    return Some(format!("Switched to session: {}", session_id));
+                }
+                Err(e) => return Some(format!("Failed to switch session: {}", e)),
+            }
+        }
+
+        // (close-session)
+        if input == "(close-session)" {
+            match client.close_session(None).await {
+                Ok(()) => return Some("Closed current session".to_string()),
+                Err(e) => return Some(format!("Failed to close session: {}", e)),
+            }
+        }
+
+        // (close-session <id>)
+        if input.starts_with("(close-session ") && input.ends_with(')') {
+            let id_part = &input[15..input.len() - 1].trim();
+            let session_id = SessionId::new(*id_part);
+
+            match client.close_session(Some(session_id.clone())).await {
+                Ok(()) => return Some(format!("Closed session: {}", session_id)),
+                Err(e) => return Some(format!("Failed to close session: {}", e)),
+            }
+        }
+
+        None
     }
 
     /// Check if input is a quit command

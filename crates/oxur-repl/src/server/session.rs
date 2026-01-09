@@ -319,6 +319,27 @@ impl SessionManager {
         Ok(ctx.stats_collector())
     }
 
+    /// Get the usage metrics collector for a session
+    ///
+    /// Returns a shared reference to the session's UsageMetrics for command frequency tracking.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::NotFound` if the session doesn't exist.
+    /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
+    pub fn get_usage_metrics(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Arc<std::sync::Mutex<crate::metrics::UsageMetrics>>> {
+        let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
+
+        let ctx = sessions
+            .get(session_id)
+            .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
+
+        Ok(ctx.usage_metrics())
+    }
+
     /// Get resource statistics for a session
     ///
     /// Returns (session_dir_stats, artifact_cache_stats) for the given session.

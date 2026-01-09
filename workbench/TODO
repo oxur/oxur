@@ -1,34 +1,43 @@
+# TODO Tracker
 
-- [ ] change banner so that versions are formatted and pulled from tools
-- [ ] update oxur CLI so that it records its execution path/script name, process ID, and
-      versions when it starts up
-- [ ] create a metadata struct for that
-- [ ] at spaces before and after row elements
+## Backlog
+
 - [ ] create a formal abstraction for the collection of things that has become the REPL
+- [ ] explore a session management solution similarly to what we did for LFE xrepl:
+      * <https://github.com/xrepl/xrepl/tree/main?tab=readme-ov-file#session-management-commands>
+
+## Completed
+
+### Jan 2026
+
+- [x] replace references of defn with deffn
+- [x] change prompt so that oxur is orange and bracket is bright green
 - [x] create a stats struct
-- [ ] when subprocess starts up, record _its_ information to a struct
 - [x] figure out how to instrument the subprocess
 - [x] instrument REPL clients
 - [x] instrument REPL servers
-- [ ] figure out if there are some good patterns to follow so that arbritrary Oxur
-      components can track their stats, publish them, and query other components
-      for their stats
-- [ ] find out if we're using sysinfo; look at using metrics crate as well as
-      metrics-exporter-prometheus and prometheus-parse
-- [ ] explore a session management solution similarly to what we did for LFE xrepl:
-      * https://github.com/xrepl/xrepl/tree/main?tab=readme-ov-file#session-management-commands
-- [ ] I'm not getting subprocess stats yet:
+- [x] Switch to reedline when we need to support better multiline code in the REPL
+- [x] update oxur CLI so that it records its execution path/script name, process ID, and
+      versions when it starts up
+- [x] create a metadata struct for that
+- [x] I'm not getting subprocess stats yet:
         oxur> (stats subprocess)
         Subprocess not running
-- [ ] When the REPL runs in server mode, it's now tracking things like resposes received,
+- [x] when subprocess starts up, record _its_ information to a struct
+- [x] Migrate from rustyline to reedline so that 1) we can have better multi-line readline support, and 2) we can get built-in paging of long text (e.g., our huge help text) for free
+- [x] find out if we're using sysinfo; look at using metrics crate as well as
+      metrics-exporter-prometheus and prometheus-parse
+- [x] figure out if there are some good patterns to follow so that arbritrary Oxur
+      components can track their stats, publish them, and query other components
+      for their stats
+- [x] add a (clear) command
+- [x] add a (banner) command
+- [x] change banner so that versions are formatted and pulled from tools
+- [x] add spaces before and after row elements (so that there's padding before the beginning
+      of every cell and after the last element in a cell)
+- [x] When the REPL runs in server mode, it's now tracking things like resposes received,
       error counts, and success counts, right? Those same things should be tracked by whatever
       abstraction represents the "server side" of the REPL when it's running in "local" or
        "in memory" mode. Similarly, when the REPL runs in "local" or "in memory" mode, it should
       track the "client side" stats as well for whatever stands in for the client side of the REPL
       when it's running in "local" or "in memory" mode
-
-Completed
-=========
-
-- [x] replace references of defn with deffn
-- [x] change prompt so that oxur is orange and bracket is bright green

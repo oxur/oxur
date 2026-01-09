@@ -11,81 +11,52 @@ use oxur_repl::session::DirStats;
 
 // Display functions
 
-/// Show session summary (default stats view)
-pub fn show_session_summary(collector: &EvalMetrics, color_enabled: bool) -> String {
+/// Show comprehensive statistics (all stats combined)
+#[allow(clippy::too_many_arguments)]
+pub fn show_all_stats(
+    collector: &EvalMetrics,
+    dir_stats: Option<&DirStats>,
+    cache_stats: Option<&ArtifactCacheStats>,
+    server_snapshot: Option<&oxur_repl::metrics::ServerMetricsSnapshot>,
+    client_snapshot: Option<&oxur_repl::metrics::ClientMetricsSnapshot>,
+    subprocess_snapshot: Option<&oxur_repl::metrics::SubprocessMetricsSnapshot>,
+    usage_snapshot: Option<&oxur_repl::metrics::UsageMetricsSnapshot>,
+    color_enabled: bool,
+) -> String {
     let mut output = String::new();
 
-    // Header
-    output.push_str(&header("Session Statistics", color_enabled));
-    output.push('\n');
+    // 1. Execution Statistics (full detailed view)
+    output.push_str(&show_execution_details(collector, color_enabled));
 
-    // Overall summary
-    output.push_str(&section("SUMMARY", color_enabled));
-    output.push_str(&format!("Total Evaluations: {}\n", collector.total_evaluations()));
+    // 2. Cache Statistics (full view)
+    output.push_str(&show_cache_stats(collector, color_enabled));
 
-    let cache = collector.cache_stats();
-    output.push_str(&format!(
-        "Cache Hit Rate: {:.1}% ({} hits, {} misses)\n\n",
-        cache.hit_rate, cache.hits, cache.misses
-    ));
-
-    // Execution tiers table
-    #[derive(Tabled)]
-    struct TierMetric {
-        #[tabled(rename = "Tier")]
-        tier: String,
-        #[tabled(rename = "Count")]
-        count: String,
-        #[tabled(rename = "P50 (ms)")]
-        p50: String,
-        #[tabled(rename = "P95 (ms)")]
-        p95: String,
-        #[tabled(rename = "P99 (ms)")]
-        p99: String,
-    }
-
-    let mut metrics = Vec::new();
-
-    // Tier 1
-    if let Some(p) = collector.percentiles(ExecutionTier::Calculator) {
-        metrics.push(TierMetric {
-            tier: " Calculator ".to_string(),
-            count: format!(" {} ", p.count),
-            p50: format!(" {:.2} ", p.p50),
-            p95: format!(" {:.2} ", p.p95),
-            p99: format!(" {:.2} ", p.p99),
-        });
-    }
-
-    // Tier 2
-    if let Some(p) = collector.percentiles(ExecutionTier::CachedLoaded) {
-        metrics.push(TierMetric {
-            tier: " Cached ".to_string(),
-            count: format!(" {} ", p.count),
-            p50: format!(" {:.2} ", p.p50),
-            p95: format!(" {:.2} ", p.p95),
-            p99: format!(" {:.2} ", p.p99),
-        });
-    }
-
-    // Tier 3
-    if let Some(p) = collector.percentiles(ExecutionTier::JustInTime) {
-        metrics.push(TierMetric {
-            tier: " JIT ".to_string(),
-            count: format!(" {} ", p.count),
-            p50: format!(" {:.2} ", p.p50),
-            p95: format!(" {:.2} ", p.p95),
-            p99: format!(" {:.2} ", p.p99),
-        });
-    }
-
-    if !metrics.is_empty() {
-        output.push_str(
-            &OxurTable::new(metrics).with_title("EXECUTION TIERS").with_footer().render(),
-        );
+    // 3. Resource Usage (full view if available)
+    if dir_stats.is_some() || cache_stats.is_some() {
         output.push('\n');
-    } else {
-        output.push_str("No execution data yet.\n\n");
+        output.push_str(&show_resource_stats(dir_stats, cache_stats, color_enabled));
+    }
+
+    // 4. Client Statistics (full view if available)
+    if let Some(client) = client_snapshot {
+        output.push_str(&show_client_stats(client, color_enabled));
+    }
+
+    // 5. Usage Statistics (full view if available)
+    if let Some(usage) = usage_snapshot {
+        output.push('\n');
+        output.push_str(&show_usage_stats(usage, color_enabled));
+    }
+
+    // 6. Subprocess Statistics (full view if available)
+    if let Some(subprocess) = subprocess_snapshot {
+        output.push_str(&show_subprocess_stats(subprocess, color_enabled));
+    }
+
+    // 7. Server Statistics (full view if available)
+    if let Some(server) = server_snapshot {
+        output.push('\n');
+        output.push_str(&show_server_stats(server, color_enabled));
     }
 
     output
@@ -360,6 +331,174 @@ pub fn show_sessions(
     output
 }
 
+/// Show usage metrics
+pub fn show_usage_stats(
+    usage_snapshot: &oxur_repl::metrics::UsageMetricsSnapshot,
+    color_enabled: bool,
+) -> String {
+    let mut output = String::new();
+
+    output.push_str(&header("Usage Statistics", color_enabled));
+    output.push('\n');
+
+    #[derive(Tabled)]
+    struct CommandMetric {
+        #[tabled(rename = "Command")]
+        command: String,
+        #[tabled(rename = "Count")]
+        count: String,
+        #[tabled(rename = "Percentage")]
+        percentage: String,
+    }
+
+    let total = usage_snapshot.total_commands as f64;
+    let calc_pct = |count: u64| {
+        if total > 0.0 {
+            format!(" {:.1}% ", (count as f64 / total) * 100.0)
+        } else {
+            " 0.0% ".to_string()
+        }
+    };
+
+    let mut metrics = vec![
+        CommandMetric {
+            command: " Eval ".to_string(),
+            count: format!(" {} ", usage_snapshot.eval_count),
+            percentage: calc_pct(usage_snapshot.eval_count),
+        },
+        CommandMetric {
+            command: " Help ".to_string(),
+            count: format!(" {} ", usage_snapshot.help_count),
+            percentage: calc_pct(usage_snapshot.help_count),
+        },
+        CommandMetric {
+            command: " Stats ".to_string(),
+            count: format!(" {} ", usage_snapshot.stats_count),
+            percentage: calc_pct(usage_snapshot.stats_count),
+        },
+        CommandMetric {
+            command: " Info ".to_string(),
+            count: format!(" {} ", usage_snapshot.info_count),
+            percentage: calc_pct(usage_snapshot.info_count),
+        },
+        CommandMetric {
+            command: " Sessions ".to_string(),
+            count: format!(" {} ", usage_snapshot.sessions_count),
+            percentage: calc_pct(usage_snapshot.sessions_count),
+        },
+        CommandMetric {
+            command: " Clear ".to_string(),
+            count: format!(" {} ", usage_snapshot.clear_count),
+            percentage: calc_pct(usage_snapshot.clear_count),
+        },
+        CommandMetric {
+            command: " Banner ".to_string(),
+            count: format!(" {} ", usage_snapshot.banner_count),
+            percentage: calc_pct(usage_snapshot.banner_count),
+        },
+    ];
+
+    // Add total as a footer-like row
+    metrics.push(CommandMetric {
+        command: " Total Commands: ".to_string(),
+        count: format!(" {} ", usage_snapshot.total_commands),
+        percentage: " ".to_string(),
+    });
+
+    output
+        .push_str(&OxurTable::new(metrics).with_title("COMMAND FREQUENCY").with_footer().render());
+    output.push_str("\n\n");
+
+    output
+}
+
+/// Show client metrics
+pub fn show_client_stats(
+    client_snapshot: &oxur_repl::metrics::ClientMetricsSnapshot,
+    color_enabled: bool,
+) -> String {
+    let mut output = String::new();
+
+    output.push_str(&header("Client Statistics", color_enabled));
+    output.push('\n');
+
+    #[derive(Tabled)]
+    struct RequestMetric {
+        #[tabled(rename = "Metric")]
+        metric: String,
+        #[tabled(rename = "Value ")]
+        value: String,
+    }
+
+    // Request/Response stats
+    let metrics = vec![
+        RequestMetric {
+            metric: " Total Requests ".to_string(),
+            value: format!(" {} ", client_snapshot.requests_total),
+        },
+        RequestMetric {
+            metric: " Total Responses ".to_string(),
+            value: format!(" {} ", client_snapshot.responses_total),
+        },
+        RequestMetric {
+            metric: " Success Responses ".to_string(),
+            value: format!(" {} ", client_snapshot.responses_success),
+        },
+        RequestMetric {
+            metric: " Error Responses ".to_string(),
+            value: format!(" {} ", client_snapshot.responses_error),
+        },
+    ];
+
+    output.push_str(
+        &OxurTable::new(metrics).with_title("REQUESTS & RESPONSES").with_footer().render(),
+    );
+    output.push_str("\n\n");
+
+    #[derive(Tabled)]
+    struct LatencyMetric {
+        #[tabled(rename = "Metric")]
+        metric: String,
+        #[tabled(rename = "Value (ms)")]
+        value: String,
+    }
+
+    // Latency stats
+    let latency_metrics = vec![
+        LatencyMetric {
+            metric: " Average ".to_string(),
+            value: format!(" {:.2} ", client_snapshot.average_latency_ms),
+        },
+        LatencyMetric {
+            metric: " P50 ".to_string(),
+            value: format!(" {:.2} ", client_snapshot.p50_latency_ms),
+        },
+        LatencyMetric {
+            metric: " P95 ".to_string(),
+            value: format!(" {:.2} ", client_snapshot.p95_latency_ms),
+        },
+        LatencyMetric {
+            metric: " P99 ".to_string(),
+            value: format!(" {:.2} ", client_snapshot.p99_latency_ms),
+        },
+        LatencyMetric {
+            metric: " Min ".to_string(),
+            value: format!(" {:.2} ", client_snapshot.min_latency_ms),
+        },
+        LatencyMetric {
+            metric: " Max ".to_string(),
+            value: format!(" {:.2} ", client_snapshot.max_latency_ms),
+        },
+    ];
+
+    output.push_str(
+        &OxurTable::new(latency_metrics).with_title("LATENCY DISTRIBUTION").with_footer().render(),
+    );
+    output.push('\n');
+
+    output
+}
+
 /// Show server metrics
 pub fn show_server_stats(
     server_snapshot: &oxur_repl::metrics::ServerMetricsSnapshot,
@@ -441,7 +580,7 @@ pub fn show_server_stats(
     output.push_str(
         &OxurTable::new(metrics).with_title("REQUESTS & RESPONSES").with_footer().render(),
     );
-    output.push('\n');
+    output.push_str("\n\n");
 
     output
 }
@@ -485,7 +624,7 @@ pub fn show_subprocess_stats(
     ];
 
     output.push_str(&OxurTable::new(metrics).with_title("STATUS").with_footer().render());
-    output.push('\n');
+    output.push_str("\n\n");
 
     output
 }
@@ -673,7 +812,7 @@ pub fn parse_stats_command(
     color_enabled: bool,
 ) -> Option<String> {
     if input == "(stats)" {
-        return Some(show_session_summary(collector, color_enabled));
+        return Some(show_all_stats(collector, None, None, None, None, None, None, color_enabled));
     }
 
     if input == "(stats execution)" {
@@ -798,11 +937,13 @@ mod tests {
         collector.record(ExecutionTier::Calculator, false, Duration::from_millis(1));
         collector.record(ExecutionTier::CachedLoaded, true, Duration::from_millis(2));
 
-        let output = show_session_summary(&collector, false);
+        let output = show_all_stats(&collector, None, None, None, None, None, None, false);
 
-        assert!(output.contains("Session Statistics"));
-        assert!(output.contains("Total Evaluations: 2"));
-        assert!(output.contains("Cache Hit Rate"));
+        // Should contain all the major sections
+        assert!(output.contains("Execution Statistics"));
+        assert!(output.contains("Cache Statistics"));
+        assert!(output.contains("TIER 1: CALCULATOR"));
+        assert!(output.contains("EVALUATION CACHE"));
     }
 
     #[test]
@@ -834,7 +975,10 @@ mod tests {
 
         let result = parse_stats_command("(stats)", &collector, false);
         assert!(result.is_some());
-        assert!(result.unwrap().contains("Session Statistics"));
+        // Should contain multiple sections
+        let output = result.unwrap();
+        assert!(output.contains("Execution Statistics"));
+        assert!(output.contains("Cache Statistics"));
     }
 
     #[test]

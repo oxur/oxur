@@ -158,9 +158,10 @@
 | | Rust stdlib access | Seamless access to `std::*` | 0% |
 | **12. REPL & Interactive Dev** | | The interactive programming experience | **60%** |
 | | Basic REPL loop | Read, eval, print, loop | 70% |
-| | Multi-line input | Handling incomplete expressions | 0% |
+| | Multi-line input | Handling incomplete expressions | 100% |
 | | History | Command recall, `*`, `**`, `***` | 0% |
-| | Completion | Tab completion for symbols | 0% |
+| | Command Completion | Tab completion for non-language, REPL-specific commands | 100% |
+| | Symbol Completion | Tab completion for symbols | 0% |
 | | Live reload | Redefine functions without restart | 0% |
 | | Inspector | Examining values interactively | 0% |
 | | Debugger | Stepping, breakpoints | 0% |
@@ -168,7 +169,8 @@
 | | Artifact caching | SHA256-keyed compilation cache | 95% |
 | | Error display | Friendly error formatting | 80% |
 | | Server/client | Network REPL protocol | 90% |
-| | Session management | Multiple isolated sessions | 85% |
+| | Session management | Multiple isolated sessions | 95% |
+| | REPL stats | Metrics for the REPL as a whole | 95% |
 | **13. Tooling & Distribution** | | Developer tools and ecosystem | **45%** |
 | | Build system (`cargo-oxur`) | Compiling Oxur projects | 25% |
 | | Project structure | `Oxur.toml` configuration | 0% |

@@ -61,12 +61,26 @@ impl HelpSystem {
         output.push_str(&self.command("(help <topic>)", "Show detailed help for a topic"));
         output.push_str(&self.command("(info)", "Show system metadata (versions, platform, etc.)"));
         output.push_str(&self.command("(quit), (q), (exit)", "Exit the REPL"));
-        output.push_str(&self.command("(sessions)", "List all active sessions"));
         output.push_str(&self.command("(stats)", "Show session statistics"));
         output.push_str(&self.command(
             "(stats <view>)",
             "Show specific stats view (views: execution, cache, resources, server, subprocess)",
         ));
+        output.push('\n');
+
+        // Session Management Commands
+        output.push_str(&self.section("SESSION MANAGEMENT"));
+        output.push_str(&self.command("(sessions)", "List all active sessions"));
+        output.push_str(&self.command("(current-session)", "Show current session ID"));
+        output.push_str(&self.command("(new-session)", "Create and switch to a new session"));
+        output.push_str(
+            &self.command("(new-session \"name\")", "Create and switch to a named session"),
+        );
+        output.push_str(&self.command("(switch-session <id>)", "Switch to an existing session"));
+        output.push_str(
+            &self.command("(close-session)", "Close current session (must switch first)"),
+        );
+        output.push_str(&self.command("(close-session <id>)", "Close a specific session"));
         output.push('\n');
         output.push_str(&self.command("Ctrl-C", "Cancel current input line"));
         output.push_str(&self.command("Ctrl-D", "Exit the REPL (EOF)"));
@@ -421,10 +435,46 @@ impl HelpSystem {
         output.push_str("\n\n");
 
         output.push_str(&help.section("MULTIPLE SESSIONS"));
-        output.push_str("When running in server mode, multiple clients can connect\n");
-        output.push_str("simultaneously, each with their own isolated session.\n\n");
+        output.push_str("You can create and manage multiple sessions within a single REPL.\n");
+        output.push_str("Each session has its own isolated evaluation environment.\n\n");
 
-        output.push_str(&help.note("💡 TIP: Session state persists for the duration of the REPL"));
+        output.push_str(&help.section("SESSION COMMANDS"));
+        output.push_str(&help.command("(sessions)", "List all active sessions"));
+        output.push_str(&help.command("(current-session)", "Show current session ID"));
+        output.push_str(&help.command("(new-session)", "Create unnamed session and switch to it"));
+        output.push_str(
+            &help.command("(new-session \"name\")", "Create named session and switch to it"),
+        );
+        output.push_str(&help.command("(switch-session <id>)", "Switch to existing session by ID"));
+        output.push_str(
+            &help.command("(close-session)", "Close current session (must switch first)"),
+        );
+        output.push_str(&help.command("(close-session <id>)", "Close specific session by ID"));
+        output.push('\n');
+
+        output.push_str(&help.section("WORKFLOW EXAMPLE"));
+        output
+            .push_str(&help.example("  (current-session)", Some("Shows your current session ID")));
+        output.push_str(&help.example(
+            "  (new-session \"experiment\")",
+            Some("Creates and switches to new session"),
+        ));
+        output
+            .push_str(&help.example("  (deffn foo [] 42)", Some("Define function in new session")));
+        output.push_str(&help.example("  (sessions)", Some("List all sessions")));
+        output.push_str(
+            &help.example("  (switch-session session-abc123)", Some("Switch back to original")),
+        );
+        output.push_str(
+            &help.example("  (close-session experiment-xyz)", Some("Close the experiment session")),
+        );
+        output.push('\n');
+
+        output.push_str(&help.note("💡 TIP: Session state persists until you close it"));
+        output.push('\n');
+        output.push_str(
+            &help.note("⚠️  NOTE: Cannot close the currently active session - switch first"),
+        );
         output.push('\n');
 
         output.push_str("See also: ");
@@ -452,6 +502,16 @@ impl HelpSystem {
         );
         output.push_str(&help.command("(q)", "Exit the REPL (short alias for quit)"));
         output.push_str(&help.command("(quit)", "Exit the REPL gracefully"));
+        output.push('\n');
+
+        output.push_str(&help.section("SESSION MANAGEMENT"));
+        output.push_str(&help.command("(sessions)", "List all active sessions with metadata"));
+        output.push_str(&help.command("(current-session)", "Display current session ID"));
+        output.push_str(&help.command("(new-session)", "Create new unnamed session"));
+        output.push_str(&help.command("(new-session \"name\")", "Create new named session"));
+        output.push_str(&help.command("(switch-session <id>)", "Switch to existing session"));
+        output.push_str(&help.command("(close-session)", "Close current session (switch first)"));
+        output.push_str(&help.command("(close-session <id>)", "Close specific session by ID"));
         output.push('\n');
 
         output.push_str(&help.section("STATISTICS"));
