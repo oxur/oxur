@@ -293,10 +293,13 @@ mod tests {
         assert!(config.formatted_prompt().contains("\x1b[32m"));
         assert!(config.formatted_prompt().contains("test> "));
 
-        // oxur prompt uses special coloring (orange + bright green)
+        // oxur prompt uses special coloring (bright yellow, yellow, bright red, dark red, bright green)
         let oxur_config = TerminalConfig::builder().prompt("oxur> ").color(true).build();
-        assert!(oxur_config.formatted_prompt().contains("\x1b[33m")); // Orange
-        assert!(oxur_config.formatted_prompt().contains("\x1b[92m")); // Bright green
+        assert!(oxur_config.formatted_prompt().contains("\x1b[93m")); // Bright yellow (o)
+        assert!(oxur_config.formatted_prompt().contains("\x1b[33m")); // Regular yellow (x)
+        assert!(oxur_config.formatted_prompt().contains("\x1b[91m")); // Bright red (u)
+        assert!(oxur_config.formatted_prompt().contains("\x1b[31m")); // Dark red (r)
+        assert!(oxur_config.formatted_prompt().contains("\x1b[92m")); // Bright green (>)
     }
 
     #[test]
