@@ -117,6 +117,14 @@ impl ReplRunner {
                 continue;
             }
 
+            // Check for clear command
+            if trimmed == "(clear)" {
+                if let Err(e) = self.terminal.clear_screen() {
+                    self.terminal.print_error(&format!("Failed to clear screen: {}", e));
+                }
+                continue;
+            }
+
             // Check for adapter-specific special commands (e.g., stats)
             if let Some(output) = client.handle_special_command(trimmed, color_enabled).await {
                 self.terminal.print_help(&output);

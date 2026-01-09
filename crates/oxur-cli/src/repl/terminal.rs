@@ -4,12 +4,14 @@
 //! using reedline.
 
 use anyhow::{Context, Result};
+use crossterm::{execute, terminal};
 use oxur_cli::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use reedline::{
     default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
     ColumnarMenu, Emacs, FileBackedHistory, KeyCode, KeyModifiers, Keybindings, MenuBuilder,
     Reedline, ReedlineEvent, ReedlineMenu, Signal, Vi,
 };
+use std::io;
 use std::path::PathBuf;
 
 use crate::repl::completer::OxurCompleter;
@@ -262,6 +264,13 @@ impl ReplTerminal {
         } else {
             println!("Goodbye!");
         }
+    }
+
+    /// Clear the terminal screen and move cursor to top
+    pub fn clear_screen(&self) -> Result<()> {
+        execute!(io::stdout(), terminal::Clear(terminal::ClearType::All))?;
+        execute!(io::stdout(), crossterm::cursor::MoveTo(0, 0))?;
+        Ok(())
     }
 
     /// Get the terminal configuration
