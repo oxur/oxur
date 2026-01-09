@@ -13,6 +13,7 @@ use std::path::PathBuf;
 
 use crate::repl::completer::OxurCompleter;
 use crate::repl::oxur_prompt::OxurPrompt;
+use crate::repl::pager;
 use crate::repl::sexp_highlighter::SExpHighlighter;
 use crate::repl::sexp_validator::SExpValidator;
 
@@ -156,8 +157,14 @@ impl ReplTerminal {
     }
 
     /// Print help content with appropriate formatting
+    ///
+    /// Automatically pages content if it exceeds terminal height.
     pub fn print_help(&self, content: &str) {
-        println!("{}", content);
+        if let Err(e) = pager::page_text(content) {
+            // Fallback to direct print if paging fails
+            eprintln!("Warning: Pager failed ({}), printing directly", e);
+            println!("{}", content);
+        }
     }
 
     /// Print the welcome banner

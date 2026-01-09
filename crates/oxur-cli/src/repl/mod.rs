@@ -9,6 +9,7 @@ pub mod info;
 pub mod interactive;
 pub mod metrics;
 pub mod oxur_prompt;
+pub mod pager;
 pub mod runner;
 pub mod server;
 pub mod sexp_highlighter;
