@@ -33,9 +33,25 @@ impl SExpHighlighter {
     fn is_keyword(token: &str) -> bool {
         matches!(
             token,
-            "deffn" | "defn" | "let" | "if" | "cond" | "match" |
-            "+" | "-" | "*" | "/" | "=" | "<" | ">" |
-            "and" | "or" | "not" | "true" | "false" | "nil"
+            "deffn"
+                | "defn"
+                | "let"
+                | "if"
+                | "cond"
+                | "match"
+                | "+"
+                | "-"
+                | "*"
+                | "/"
+                | "="
+                | "<"
+                | ">"
+                | "and"
+                | "or"
+                | "not"
+                | "true"
+                | "false"
+                | "nil"
         )
     }
 
@@ -58,13 +74,13 @@ impl Highlighter for SExpHighlighter {
             styled.push((Style::default(), line.to_string()));
             return styled;
         }
-        let mut chars = line.chars().peekable();
+
         let mut current_token = String::new();
         let mut in_string = false;
         let mut in_comment = false;
         let mut paren_depth = 0;
 
-        while let Some(ch) = chars.next() {
+        for ch in line.chars() {
             match ch {
                 ';' if !in_string => {
                     // Flush current token before starting comment
@@ -116,7 +132,8 @@ impl Highlighter for SExpHighlighter {
                     // Flush current token before paren
                     if !current_token.is_empty() {
                         if Self::is_keyword(&current_token) {
-                            styled.push((Style::new().fg(Color::Cyan).bold(), current_token.clone()));
+                            styled
+                                .push((Style::new().fg(Color::Cyan).bold(), current_token.clone()));
                         } else if current_token.parse::<f64>().is_ok() {
                             styled.push((Style::new().fg(Color::Yellow), current_token.clone()));
                         } else {
@@ -132,7 +149,8 @@ impl Highlighter for SExpHighlighter {
                     if !current_token.is_empty() {
                         // Style token based on type
                         if Self::is_keyword(&current_token) {
-                            styled.push((Style::new().fg(Color::Cyan).bold(), current_token.clone()));
+                            styled
+                                .push((Style::new().fg(Color::Cyan).bold(), current_token.clone()));
                         } else if current_token.parse::<f64>().is_ok() {
                             styled.push((Style::new().fg(Color::Yellow), current_token.clone()));
                         } else {

@@ -6,8 +6,8 @@
 use anyhow::{Context, Result};
 use oxur_cli::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use reedline::{
-    default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
-    Emacs, FileBackedHistory, Reedline, Signal, Vi,
+    default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings, Emacs,
+    FileBackedHistory, Reedline, Signal, Vi,
 };
 use std::path::PathBuf;
 
@@ -125,7 +125,6 @@ impl ReplTerminal {
         // FileBackedHistory auto-saves - this is a no-op
         Ok(())
     }
-
 
     /// Check if colors are enabled
     #[allow(dead_code)]

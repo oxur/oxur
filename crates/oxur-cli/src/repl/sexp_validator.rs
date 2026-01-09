@@ -160,19 +160,13 @@ mod tests {
     #[test]
     fn test_validator_complete() {
         let validator = SExpValidator::new();
-        assert!(matches!(
-            validator.validate("(+ 1 2)"),
-            ValidationResult::Complete
-        ));
+        assert!(matches!(validator.validate("(+ 1 2)"), ValidationResult::Complete));
     }
 
     #[test]
     fn test_validator_incomplete() {
         let validator = SExpValidator::new();
-        assert!(matches!(
-            validator.validate("(+ 1 2"),
-            ValidationResult::Incomplete
-        ));
+        assert!(matches!(validator.validate("(+ 1 2"), ValidationResult::Incomplete));
     }
 
     #[test]

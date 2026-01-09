@@ -25,10 +25,7 @@ impl OxurPrompt {
     /// * `primary` - The main prompt string (e.g., "oxur> ")
     /// * `continuation` - The continuation prompt for multi-line input (e.g., "....> ")
     pub fn new(primary: String, continuation: String) -> Self {
-        Self {
-            primary,
-            continuation,
-        }
+        Self { primary, continuation }
     }
 }
 
@@ -57,10 +54,7 @@ impl Prompt for OxurPrompt {
             PromptHistorySearchStatus::Passing => "",
             PromptHistorySearchStatus::Failing => "failing ",
         };
-        Cow::Owned(format!(
-            "({}reverse-search: {}) ",
-            status, history_search.term
-        ))
+        Cow::Owned(format!("({}reverse-search: {}) ", status, history_search.term))
     }
 }
 
@@ -85,10 +79,7 @@ mod tests {
     #[test]
     fn test_prompt_indicator_empty() {
         let prompt = OxurPrompt::new("oxur> ".to_string(), "....> ".to_string());
-        assert_eq!(
-            prompt.render_prompt_indicator(PromptEditMode::Default),
-            ""
-        );
+        assert_eq!(prompt.render_prompt_indicator(PromptEditMode::Default), "");
     }
 
     #[test]
