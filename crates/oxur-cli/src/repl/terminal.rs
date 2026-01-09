@@ -7,11 +7,13 @@ use anyhow::{Context, Result};
 use oxur_cli::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use reedline::{
     default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
-    DefaultPrompt, Emacs, FileBackedHistory, Reedline, Signal, Vi,
+    Emacs, FileBackedHistory, Reedline, Signal, Vi,
 };
 use std::path::PathBuf;
 
+use crate::repl::oxur_prompt::OxurPrompt;
 use crate::repl::sexp_highlighter::SExpHighlighter;
+use crate::repl::sexp_validator::SExpValidator;
 
 /// REPL terminal interface with line editing and history
 pub struct ReplTerminal {
@@ -65,11 +67,12 @@ impl ReplTerminal {
             .context("Failed to create history backend")?,
         );
 
-        // Build reedline editor with syntax highlighting
+        // Build reedline editor with syntax highlighting and validation
         let editor = Reedline::create()
             .with_history(history)
             .with_edit_mode(edit_mode)
-            .with_highlighter(Box::new(SExpHighlighter::new(terminal_config.color_enabled)));
+            .with_highlighter(Box::new(SExpHighlighter::new(terminal_config.color_enabled)))
+            .with_validator(Box::new(SExpValidator::new()));
 
         Ok(Self { editor, history_path, terminal_config })
     }
@@ -80,12 +83,13 @@ impl ReplTerminal {
     /// - `Ok(Some(line))` - User entered a line
     /// - `Ok(None)` - User pressed Ctrl-C (interrupt)
     /// - `Err(_)` - User pressed Ctrl-D (exit) or other error
-    pub fn read_line(&mut self, _prompt: &str) -> Result<Option<String>> {
-        // Note: DefaultPrompt doesn't support custom prompt strings in reedline.
-        // For custom prompts, we'll need to implement the Prompt trait (Phase 3).
-        let default_prompt = DefaultPrompt::default();
+    pub fn read_line(&mut self, prompt: &str) -> Result<Option<String>> {
+        let oxur_prompt = OxurPrompt::new(
+            prompt.to_string(),
+            self.terminal_config.formatted_continuation_prompt(),
+        );
 
-        match self.editor.read_line(&default_prompt) {
+        match self.editor.read_line(&oxur_prompt) {
             Ok(Signal::Success(line)) => Ok(Some(line)),
             Ok(Signal::CtrlC) => Ok(None),
             Ok(Signal::CtrlD) => Err(anyhow::anyhow!("EOF")),
