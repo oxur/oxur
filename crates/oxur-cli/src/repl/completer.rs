@@ -22,7 +22,7 @@ impl OxurCompleter {
 
     /// Get list of special commands
     fn special_commands() -> Vec<&'static str> {
-        vec!["(help)", "(quit)", "(q)", "(exit)", "(info)", "(stats)", "(clear)", "(banner)"]
+        vec!["(help)", "(quit)", "(q)", "(exit)", "(info)", "(stats)", "(sessions)", "(clear)", "(banner)"]
     }
 
     /// Get list of help topics with descriptions

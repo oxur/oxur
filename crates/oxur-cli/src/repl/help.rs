@@ -61,6 +61,7 @@ impl HelpSystem {
         output.push_str(&self.command("(help <topic>)", "Show detailed help for a topic"));
         output.push_str(&self.command("(info)", "Show system metadata (versions, platform, etc.)"));
         output.push_str(&self.command("(quit), (q), (exit)", "Exit the REPL"));
+        output.push_str(&self.command("(sessions)", "List all active sessions"));
         output.push_str(&self.command("(stats)", "Show session statistics"));
         output.push_str(&self.command(
             "(stats <view>)",

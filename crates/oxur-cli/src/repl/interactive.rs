@@ -118,6 +118,16 @@ impl ReplClientAdapter for InProcessAdapter {
             return Some(show_system_info(&self.system_metadata, color_enabled));
         }
 
+        // Handle (sessions) command
+        if input == "(sessions)" {
+            return match self.session_manager.list() {
+                Ok(sessions) => {
+                    Some(crate::repl::stats::show_sessions(&sessions, &self.session_id, color_enabled))
+                }
+                Err(e) => Some(format!("Failed to list sessions: {}", e)),
+            };
+        }
+
         // Handle stats commands
         if !input.starts_with("(stats") {
             return None;

@@ -105,7 +105,7 @@ pub fn show_execution_details(collector: &EvalMetrics, color_enabled: bool) -> S
             struct Metric {
                 #[tabled(rename = "Metric")]
                 metric: String,
-                #[tabled(rename = "Value (ms)")]
+                #[tabled(rename = "Value (ms) ")]
                 value: String,
             }
 
@@ -142,14 +142,17 @@ pub fn show_cache_stats(collector: &EvalMetrics, color_enabled: bool) -> String 
     struct CacheMetric {
         #[tabled(rename = "Metric")]
         metric: String,
-        #[tabled(rename = "Value")]
+        #[tabled(rename = "Value ")]
         value: String,
     }
 
     let metrics = vec![
         CacheMetric { metric: " Hits ".to_string(), value: format!(" {} ", cache.hits) },
         CacheMetric { metric: " Misses ".to_string(), value: format!(" {} ", cache.misses) },
-        CacheMetric { metric: " Hit Rate ".to_string(), value: format!(" {:.1}% ", cache.hit_rate) },
+        CacheMetric {
+            metric: " Hit Rate ".to_string(),
+            value: format!(" {:.1}% ", cache.hit_rate),
+        },
     ];
 
     output.push_str(&OxurTable::new(metrics).with_title("EVALUATION CACHE").with_footer().render());
@@ -175,7 +178,7 @@ pub fn show_resource_stats(
         struct MemoryMetric {
             #[tabled(rename = "Metric")]
             metric: String,
-            #[tabled(rename = "Value")]
+            #[tabled(rename = "Value ")]
             value: String,
         }
 
@@ -208,7 +211,7 @@ pub fn show_resource_stats(
         struct DirMetric {
             #[tabled(rename = "Metric")]
             metric: String,
-            #[tabled(rename = "Value")]
+            #[tabled(rename = "Value ")]
             value: String,
         }
 
@@ -217,7 +220,10 @@ pub fn show_resource_stats(
                 metric: " Location ".to_string(),
                 value: format!(" {}{} ", dir_stats.path.display(), location_type),
             },
-            DirMetric { metric: " Files ".to_string(), value: format!(" {} ", dir_stats.file_count) },
+            DirMetric {
+                metric: " Files ".to_string(),
+                value: format!(" {} ", dir_stats.file_count),
+            },
             DirMetric {
                 metric: " Disk Usage ".to_string(),
                 value: format!(" {} ", format_bytes(dir_stats.total_bytes)),
@@ -238,7 +244,7 @@ pub fn show_resource_stats(
         struct ArtifactMetric {
             #[tabled(rename = "Metric")]
             metric: String,
-            #[tabled(rename = "Value")]
+            #[tabled(rename = "Value ")]
             value: String,
         }
 
@@ -286,6 +292,74 @@ pub fn show_resource_stats(
     output
 }
 
+/// Show all sessions with their statistics
+pub fn show_sessions(
+    sessions: &[oxur_repl::server::SessionInfo],
+    current_session_id: &oxur_repl::protocol::SessionId,
+    color_enabled: bool,
+) -> String {
+    let mut output = String::new();
+
+    output.push_str(&header("Sessions", color_enabled));
+    output.push('\n');
+
+    if sessions.is_empty() {
+        output.push_str("No active sessions\n");
+        return output;
+    }
+
+    #[derive(Tabled)]
+    struct SessionRow {
+        #[tabled(rename = "ID")]
+        id: String,
+        #[tabled(rename = "Name")]
+        name: String,
+        #[tabled(rename = "Active")]
+        active: String,
+        #[tabled(rename = "Evals")]
+        evals: String,
+        #[tabled(rename = "Last Active")]
+        last_active: String,
+    }
+
+    let rows: Vec<SessionRow> = sessions
+        .iter()
+        .map(|s| {
+            let is_current = s.id == *current_session_id;
+            let active_marker = if is_current { " * " } else { " " };
+
+            // Format last active time
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
+            let elapsed_ms = now.saturating_sub(s.last_active_at);
+            let last_active = if elapsed_ms < 60_000 {
+                " just now ".to_string()
+            } else if elapsed_ms < 3_600_000 {
+                format!(" {} min ago ", elapsed_ms / 60_000)
+            } else if elapsed_ms < 86_400_000 {
+                format!(" {} hr ago ", elapsed_ms / 3_600_000)
+            } else {
+                format!(" {} days ago ", elapsed_ms / 86_400_000)
+            };
+
+            SessionRow {
+                id: format!(" {} ", s.id),
+                name: format!(" {} ", s.name.clone().unwrap_or_else(|| "-".to_string())),
+                active: active_marker.to_string(),
+                evals: format!(" {} ", s.eval_count),
+                last_active,
+            }
+        })
+        .collect();
+
+    output.push_str(&OxurTable::new(rows).with_title("ACTIVE SESSIONS").with_footer().render());
+    output.push('\n');
+
+    output
+}
+
 /// Show server metrics
 pub fn show_server_stats(
     server_snapshot: &oxur_repl::metrics::ServerMetricsSnapshot,
@@ -300,7 +374,7 @@ pub fn show_server_stats(
     struct ConnectionMetric {
         #[tabled(rename = "Metric")]
         metric: String,
-        #[tabled(rename = "Value")]
+        #[tabled(rename = "Value ")]
         value: String,
     }
 
@@ -386,7 +460,7 @@ pub fn show_subprocess_stats(
     struct SubprocessMetric {
         #[tabled(rename = "Metric")]
         metric: String,
-        #[tabled(rename = "Value")]
+        #[tabled(rename = "Value ")]
         value: String,
     }
 
@@ -404,7 +478,10 @@ pub fn show_subprocess_stats(
             metric: " Restart Count ".to_string(),
             value: format!(" {} ", subprocess_snapshot.restart_count),
         },
-        SubprocessMetric { metric: " Last Restart Reason ".to_string(), value: format!(" {} ", last_reason) },
+        SubprocessMetric {
+            metric: " Last Restart Reason ".to_string(),
+            value: format!(" {} ", last_reason),
+        },
     ];
 
     output.push_str(&OxurTable::new(metrics).with_title("STATUS").with_footer().render());
@@ -443,13 +520,13 @@ pub fn show_session_summary_from_snapshot(
     struct TierMetric {
         #[tabled(rename = "Tier")]
         tier: String,
-        #[tabled(rename = "Count")]
+        #[tabled(rename = "Count ")]
         count: String,
         #[tabled(rename = "P50 (ms)")]
         p50: String,
-        #[tabled(rename = "P95 (ms)")]
+        #[tabled(rename = "P95 (ms) ")]
         p95: String,
-        #[tabled(rename = "P99 (ms)")]
+        #[tabled(rename = "P99 (ms) ")]
         p99: String,
     }
 
@@ -525,7 +602,10 @@ pub fn show_execution_from_snapshot(
                 let metrics = vec![
                     Metric { metric: " Count ".to_string(), value: format!(" {} ", p.count) },
                     Metric { metric: " Min ".to_string(), value: format!(" {:.2} ", p.min) },
-                    Metric { metric: " p50 (median) ".to_string(), value: format!(" {:.2} ", p.p50) },
+                    Metric {
+                        metric: " p50 (median) ".to_string(),
+                        value: format!(" {:.2} ", p.p50),
+                    },
                     Metric { metric: " p95 ".to_string(), value: format!(" {:.2} ", p.p95) },
                     Metric { metric: " p99 ".to_string(), value: format!(" {:.2} ", p.p99) },
                     Metric { metric: " Max ".to_string(), value: format!(" {:.2} ", p.max) },
@@ -561,7 +641,10 @@ pub fn show_cache_from_snapshot(snapshot: &SessionStatsSnapshot, color_enabled: 
 
     let metrics = vec![
         CacheMetric { metric: " Hits ".to_string(), value: format!(" {} ", snapshot.cache.hits) },
-        CacheMetric { metric: " Misses ".to_string(), value: format!(" {} ", snapshot.cache.misses) },
+        CacheMetric {
+            metric: " Misses ".to_string(),
+            value: format!(" {} ", snapshot.cache.misses),
+        },
         CacheMetric {
             metric: " Hit Rate ".to_string(),
             value: format!(" {:.1}% ", snapshot.cache.hit_rate),
