@@ -1320,6 +1320,7 @@ dependencies = [
  "oxur-repl",
  "reedline",
  "serde",
+ "serial_test",
  "tabled",
  "tempfile",
  "terminal_size",
