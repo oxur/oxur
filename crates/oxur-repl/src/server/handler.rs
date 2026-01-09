@@ -7,6 +7,7 @@
 
 use std::sync::Arc;
 
+use crate::metadata::SystemMetadata;
 use crate::metrics::ServerMetrics;
 use crate::protocol::{
     ErrorInfo, ErrorKind, Operation, OperationResult, Request, Response, SessionId, SessionInfo,
@@ -24,17 +25,33 @@ pub struct MessageHandler {
     session_manager: SessionManager,
     /// Server metrics (optional, for stats operations)
     server_metrics: Option<Arc<ServerMetrics>>,
+    /// System metadata captured at startup
+    system_metadata: Option<Arc<SystemMetadata>>,
 }
 
 impl MessageHandler {
     /// Create a new message handler
     pub fn new(session_manager: SessionManager) -> Self {
-        Self { session_manager, server_metrics: None }
+        Self { session_manager, server_metrics: None, system_metadata: None }
     }
 
     /// Create a new message handler with server metrics
     pub fn with_metrics(session_manager: SessionManager, metrics: Arc<ServerMetrics>) -> Self {
-        Self { session_manager, server_metrics: Some(metrics) }
+        Self { session_manager, server_metrics: Some(metrics), system_metadata: None }
+    }
+
+    /// Create a new message handler with system metadata
+    pub fn with_metadata(session_manager: SessionManager, metadata: Arc<SystemMetadata>) -> Self {
+        Self { session_manager, server_metrics: None, system_metadata: Some(metadata) }
+    }
+
+    /// Create a new message handler with both metrics and metadata
+    pub fn with_metrics_and_metadata(
+        session_manager: SessionManager,
+        metrics: Arc<ServerMetrics>,
+        metadata: Arc<SystemMetadata>,
+    ) -> Self {
+        Self { session_manager, server_metrics: Some(metrics), system_metadata: Some(metadata) }
     }
 
     /// Handle a REPL request and return a response
@@ -83,6 +100,8 @@ impl MessageHandler {
             Operation::GetSessionStats => self.handle_get_session_stats(&request.session_id),
 
             Operation::GetSubprocessStats => self.handle_get_subprocess_stats(&request.session_id),
+
+            Operation::GetSystemInfo => self.handle_get_system_info(),
 
             // Operations not yet implemented
             Operation::LoadFile { .. }
@@ -251,6 +270,23 @@ impl MessageHandler {
                 stderr: None,
             },
             Err(e) => self.error_result(e),
+        }
+    }
+
+    /// Handle GetSystemInfo operation
+    fn handle_get_system_info(&self) -> OperationResult {
+        match &self.system_metadata {
+            Some(metadata) => OperationResult::SystemInfo { metadata: (**metadata).clone() },
+            None => OperationResult::Error {
+                error: ErrorInfo {
+                    kind: ErrorKind::InternalError,
+                    message: "System metadata not available".to_string(),
+                    location: None,
+                    details: None,
+                },
+                stdout: None,
+                stderr: None,
+            },
         }
     }
 

@@ -8,6 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use crate::metadata::SystemMetadata;
 use crate::metrics::{ServerMetricsSnapshot, SessionStatsSnapshot, SubprocessMetricsSnapshot};
 
 /// Universally unique identifier for REPL sessions
@@ -300,6 +301,9 @@ pub enum Operation {
 
     /// Get subprocess statistics for a session
     GetSubprocessStats,
+
+    /// Get system metadata (versions, platform info, etc.)
+    GetSystemInfo,
 }
 
 /// Result of an operation
@@ -356,6 +360,12 @@ pub enum OperationResult {
     SubprocessStats {
         /// Subprocess metrics snapshot
         snapshot: SubprocessMetricsSnapshot,
+    },
+
+    /// System metadata response
+    SystemInfo {
+        /// System metadata captured at startup
+        metadata: SystemMetadata,
     },
 }
 

@@ -58,6 +58,7 @@ impl HelpSystem {
         output.push_str(&self.command("(quit), (q), (exit)", "Exit the REPL"));
         output.push_str(&self.command("(help)", "Show this help overview"));
         output.push_str(&self.command("(help <topic>)", "Show detailed help for a topic"));
+        output.push_str(&self.command("(info)", "Show system metadata (versions, platform, etc.)"));
         output.push_str(&self.command("(stats)", "Show session statistics"));
         output.push_str(&self.command(
             "(stats <view>)",
@@ -442,6 +443,9 @@ impl HelpSystem {
         output.push_str(&help.command("(exit)", "Exit the REPL (alias for quit)"));
         output.push_str(&help.command("(help)", "Show help overview"));
         output.push_str(&help.command("(help <topic>)", "Show detailed help for a specific topic"));
+        output.push_str(
+            &help.command("(info)", "Show system information (versions, platform, etc.)"),
+        );
         output.push('\n');
 
         output.push_str(&help.section("STATISTICS"));

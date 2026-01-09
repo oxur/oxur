@@ -2,12 +2,14 @@
 //!
 //! Provides the default REPL experience with in-memory client/server.
 
+use crate::repl::info::show_system_info;
 use crate::repl::runner::{ReplClientAdapter, ReplRunner};
 use crate::repl::stats::{parse_stats_command_with_resources, show_subprocess_stats};
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use oxur_cli::config::ReplConfig;
+use oxur_repl::metadata::SystemMetadata;
 use oxur_repl::protocol::{MessageId, Operation, ReplMode, Request, Response, SessionId};
 use oxur_repl::server::{MessageHandler, SessionManager};
 use oxur_repl::transport::{inprocess_channel, InProcessClient, InProcessServer, Transport};
@@ -16,13 +18,14 @@ use std::sync::Arc;
 /// In-process client adapter for interactive mode
 ///
 /// Handles the in-process channel communication and manual server-side
-/// request routing, plus stats command handling.
+/// request routing, plus stats and info command handling.
 struct InProcessAdapter {
     client: InProcessClient,
     server: InProcessServer,
     handler: MessageHandler,
     session_manager: Arc<SessionManager>,
     session_id: SessionId,
+    system_metadata: Arc<SystemMetadata>,
 }
 
 impl InProcessAdapter {
@@ -32,8 +35,9 @@ impl InProcessAdapter {
         handler: MessageHandler,
         session_manager: Arc<SessionManager>,
         session_id: SessionId,
+        system_metadata: Arc<SystemMetadata>,
     ) -> Self {
-        Self { client, server, handler, session_manager, session_id }
+        Self { client, server, handler, session_manager, session_id, system_metadata }
     }
 }
 
@@ -62,6 +66,11 @@ impl ReplClientAdapter for InProcessAdapter {
     }
 
     async fn handle_special_command(&mut self, input: &str, color_enabled: bool) -> Option<String> {
+        // Handle (info) command
+        if input == "(info)" {
+            return Some(show_system_info(&self.system_metadata, color_enabled));
+        }
+
         // Handle stats commands
         if !input.starts_with("(stats") {
             return None;
@@ -117,12 +126,16 @@ impl ReplClientAdapter for InProcessAdapter {
 /// - Ctrl-C interrupt handling
 /// - Ctrl-D exit handling
 pub async fn run(config: ReplConfig) -> Result<()> {
+    // Capture system metadata at startup
+    let system_metadata = Arc::new(SystemMetadata::capture());
+
     // Create in-process transport pair
     let (client, server_transport) = inprocess_channel();
 
-    // Create session manager and message handler
+    // Create session manager and message handler with metadata
     let session_manager = Arc::new(SessionManager::new());
-    let handler = MessageHandler::new((*session_manager).clone());
+    let handler =
+        MessageHandler::with_metadata((*session_manager).clone(), system_metadata.clone());
 
     // Generate unique session ID
     let session_id = SessionId::new(format!("interactive-{}", std::process::id()));
@@ -148,6 +161,7 @@ pub async fn run(config: ReplConfig) -> Result<()> {
         handler,
         session_manager,
         session_id.clone(),
+        system_metadata,
     );
 
     // Create runner and run the REPL loop

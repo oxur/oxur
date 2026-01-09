@@ -350,6 +350,7 @@ impl ReplServer {
                     Operation::GetServerStats => "get_server_stats",
                     Operation::GetSessionStats => "get_session_stats",
                     Operation::GetSubprocessStats => "get_subprocess_stats",
+                    Operation::GetSystemInfo => "get_system_info",
                 };
                 m.request_received(operation_name);
 
@@ -374,6 +375,7 @@ impl ReplServer {
                     OperationResult::ServerStats { .. } => "success",
                     OperationResult::SessionStats { .. } => "success",
                     OperationResult::SubprocessStats { .. } => "success",
+                    OperationResult::SystemInfo { .. } => "success",
                 };
                 m.response_sent(status);
             }
