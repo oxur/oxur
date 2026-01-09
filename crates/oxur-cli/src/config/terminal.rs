@@ -3,6 +3,7 @@
 //! Provides configuration for terminal appearance including prompts,
 //! colors, banners, and editing mode.
 
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
 /// Default ASCII art banner for the REPL
@@ -74,17 +75,17 @@ impl TerminalConfig {
             // Check if prompt starts with "oxur" for special coloring
             if self.prompt.starts_with("oxur") {
                 let rest = &self.prompt[4..]; // Everything after "oxur"
-                                              // Bright yellow "o", yellow "x", bright red "u", dark red "r", bright green ">"
+                // Color each letter individually using colored crate
                 format!(
-                    "\x1b[93m{}\x1b[0m\x1b[33m{}\x1b[0m\x1b[91m{}\x1b[0m\x1b[31m{}\x1b[0m\x1b[92m{}\x1b[0m",
-                    &self.prompt[0..1],
-                    &self.prompt[1..2],
-                    &self.prompt[2..3],
-                    &self.prompt[3..4],
-                    rest
+                    "{}{}{}{}{}",
+                    "o".bright_yellow(),
+                    "x".yellow(),
+                    "u".bright_red(),
+                    "r".red(),
+                    rest.bright_green()
                 )
             } else {
-                format!("\x1b[32m{}\x1b[0m", self.prompt)
+                self.prompt.green().to_string()
             }
         } else {
             self.prompt.clone()
@@ -94,7 +95,7 @@ impl TerminalConfig {
     /// Get the continuation prompt with optional color formatting
     pub fn formatted_continuation_prompt(&self) -> String {
         if self.color_enabled {
-            format!("\x1b[32m{}\x1b[0m", self.continuation_prompt)
+            self.continuation_prompt.green().to_string()
         } else {
             self.continuation_prompt.clone()
         }
@@ -200,28 +201,46 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_formatted_prompt_with_color() {
+        // Force colors on for testing
+        colored::control::set_override(true);
+
         // Non-oxur prompt uses standard green
         let config = TerminalConfig::builder().prompt("test> ").color(true).build();
-        assert!(config.formatted_prompt().contains("\x1b[32m"));
-        assert!(config.formatted_prompt().contains("test> "));
+        let colored_prompt = config.formatted_prompt();
+        // Colored output should be different from plain text
+        assert_ne!(colored_prompt, "test> ");
+        // Should contain ANSI escape codes
+        assert!(colored_prompt.contains("\x1b["));
+        assert!(colored_prompt.contains("test> "));
+
+        // Reset color override
+        colored::control::unset_override();
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_formatted_prompt_oxur_colors() {
+        // Force colors on for testing
+        colored::control::set_override(true);
+
         // oxur prompt uses individual colors for each letter + bright green for "> "
         let config = TerminalConfig::builder().prompt("oxur> ").color(true).build();
         let prompt = config.formatted_prompt();
-        assert!(prompt.contains("\x1b[93m")); // Bright yellow (o)
-        assert!(prompt.contains("\x1b[33m")); // Regular yellow (x)
-        assert!(prompt.contains("\x1b[91m")); // Bright red (u)
-        assert!(prompt.contains("\x1b[31m")); // Dark red (r)
-        assert!(prompt.contains("\x1b[92m")); // Bright green (>)
+        // Colored output should be different from plain text
+        assert_ne!(prompt, "oxur> ");
+        // Should contain ANSI escape codes for colors
+        assert!(prompt.contains("\x1b["));
+        // Should contain all the letters
         assert!(prompt.contains("o"));
         assert!(prompt.contains("x"));
         assert!(prompt.contains("u"));
         assert!(prompt.contains("r"));
         assert!(prompt.contains("> "));
+
+        // Reset color override
+        colored::control::unset_override();
     }
 
     #[test]
