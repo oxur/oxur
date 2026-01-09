@@ -18,21 +18,27 @@ use crate::repl::pager;
 use crate::repl::sexp_highlighter::SExpHighlighter;
 use crate::repl::sexp_validator::SExpValidator;
 
-/// Extract version number from version string
+/// Extract version info from version string (without tool name)
 ///
-/// Converts "rustc 1.75.0 (hash)" to "1.75.0", or "cargo 1.75.0" to "1.75.0"
+/// Converts "rustc 1.75.0 (hash)" to "1.75.0 (hash)", or "cargo 1.75.0 (date)" to "1.75.0 (date)"
+/// Keeps the full version string but removes the tool name prefix.
 fn format_version(version_str: &str) -> String {
-    // Split by whitespace and take the second element (the version number)
-    // e.g., "rustc 1.75.0 (hash)" -> ["rustc", "1.75.0", "(hash)", ...]
-    version_str.split_whitespace().nth(1).unwrap_or(version_str).to_string()
+    // Split by whitespace and skip the first element (tool name)
+    // e.g., "rustc 1.75.0 (82e1608df 2023-12-21)" -> "1.75.0 (82e1608df 2023-12-21)"
+    let parts: Vec<&str> = version_str.split_whitespace().collect();
+    if parts.len() > 1 {
+        parts[1..].join(" ")
+    } else {
+        version_str.to_string()
+    }
 }
 
 /// Substitute version placeholders in banner text
 ///
-/// Replaces template placeholders with actual version numbers:
+/// Replaces template placeholders with actual version information:
 /// - `N.N.N` → Oxur version (e.g., "0.1.0")
-/// - `M.M.M` → Rust version (e.g., "1.75.0")
-/// - `L.L.L` → Cargo version (e.g., "1.75.0")
+/// - `M.M.M` → Rust version info (e.g., "1.75.0 (82e1608df 2023-12-21)")
+/// - `L.L.L` → Cargo version info (e.g., "1.75.0 (1d8b05cdd 2023-11-20)")
 fn substitute_banner_versions(
     banner: &str,
     metadata: &oxur_repl::metadata::SystemMetadata,
@@ -308,13 +314,13 @@ mod tests {
     #[test]
     fn test_format_version_rustc() {
         let version = "rustc 1.75.0 (82e1608df 2023-12-21)";
-        assert_eq!(format_version(version), "1.75.0");
+        assert_eq!(format_version(version), "1.75.0 (82e1608df 2023-12-21)");
     }
 
     #[test]
     fn test_format_version_cargo() {
         let version = "cargo 1.75.0 (1d8b05cdd 2023-11-20)";
-        assert_eq!(format_version(version), "1.75.0");
+        assert_eq!(format_version(version), "1.75.0 (1d8b05cdd 2023-11-20)");
     }
 
     #[test]
@@ -328,8 +334,8 @@ mod tests {
         let banner = "oxur: N.N.N\nrustc: M.M.M\ncargo: L.L.L";
         let metadata = oxur_repl::metadata::SystemMetadata {
             oxur_version: "0.1.0".to_string(),
-            rust_version: "rustc 1.75.0 (hash)".to_string(),
-            cargo_version: "cargo 1.75.0 (hash)".to_string(),
+            rust_version: "rustc 1.75.0 (82e1608df 2023-12-21)".to_string(),
+            cargo_version: "cargo 1.75.0 (1d8b05cdd 2023-11-20)".to_string(),
             os_name: "Test".to_string(),
             os_version: "1.0".to_string(),
             arch: "x86_64".to_string(),
@@ -341,8 +347,8 @@ mod tests {
 
         let result = substitute_banner_versions(banner, &metadata);
         assert!(result.contains("oxur: 0.1.0"));
-        assert!(result.contains("rustc: 1.75.0"));
-        assert!(result.contains("cargo: 1.75.0"));
+        assert!(result.contains("rustc: 1.75.0 (82e1608df 2023-12-21)"));
+        assert!(result.contains("cargo: 1.75.0 (1d8b05cdd 2023-11-20)"));
         assert!(!result.contains("N.N.N"));
         assert!(!result.contains("M.M.M"));
         assert!(!result.contains("L.L.L"));
