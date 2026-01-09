@@ -10,7 +10,7 @@ use crate::repl::stats::{
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use oxur_cli::config::ReplConfig;
+use crate::config::ReplConfig;
 use oxur_repl::metadata::SystemMetadata;
 use oxur_repl::metrics::{ClientMetrics, ServerMetrics};
 use oxur_repl::protocol::{

@@ -277,12 +277,14 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
+ "oxur-cli",
  "oxur-comp",
  "oxur-lang",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
+ "tokio",
  "walkdir",
 ]
 

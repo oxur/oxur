@@ -3,16 +3,15 @@
 //! Main command-line interface for Oxur projects.
 
 #[cfg(feature = "binary")]
-mod repl;
-
-#[cfg(feature = "binary")]
 use anyhow::Result;
 #[cfg(feature = "binary")]
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 #[cfg(feature = "binary")]
 use oxur_cli::common::output;
 #[cfg(feature = "binary")]
 use oxur_cli::config::ReplConfig;
+#[cfg(feature = "binary")]
+use oxur_cli::ReplArgs;
 #[cfg(feature = "binary")]
 use std::path::PathBuf;
 
@@ -66,40 +65,6 @@ enum Commands {
 
     /// Run tests
     Test,
-}
-
-/// REPL command arguments
-#[cfg(feature = "binary")]
-#[derive(Args, Debug, Default, Clone)]
-pub struct ReplArgs {
-    /// Start the default built-in REPL server and connect to it
-    /// with the built-in client. This is the default behavior.
-    #[arg(short = 'i', long = "interactive")]
-    pub interactive: bool,
-
-    /// Connect to a running REPL server with the built-in client.
-    /// If no address given, connects to 127.0.0.1:5099
-    #[arg(short = 'c', long = "connect", value_name = "HOST:PORT")]
-    pub connect: Option<Option<String>>,
-
-    /// Disable ANSI colors in interactive or connect modes.
-    #[arg(long = "no-color")]
-    pub no_color: bool,
-
-    /// Start a REPL server only (no client).
-    /// Use a path for Unix socket, or HOST:PORT for TCP.
-    #[arg(short = 's', long = "serve", value_name = "PATH|HOST:PORT")]
-    pub serve: Option<String>,
-
-    /// Acknowledge the port of this server to another nREPL server
-    /// running on ACK-PORT. Used for tooling integration.
-    #[arg(long = "ack", value_name = "ACK-PORT")]
-    pub ack: Option<u16>,
-
-    /// The transport module to use.
-    /// Default: oxur_repl::transport::tcp
-    #[arg(short = 't', long = "transport", value_name = "TRANSPORT")]
-    pub transport: Option<String>,
 }
 
 #[cfg(feature = "binary")]
@@ -206,7 +171,7 @@ fn run_interactive_mode(config: ReplConfig) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
 
     // Run the interactive REPL
-    rt.block_on(repl::interactive::run(config))
+    rt.block_on(oxur_cli::repl::interactive::run(config))
 }
 
 /// Run the REPL in server-only mode
@@ -221,7 +186,7 @@ fn run_server_mode(addr: &str, ack_port: Option<u16>) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
 
     // Run the server
-    rt.block_on(repl::server::run(addr, ack_port))
+    rt.block_on(oxur_cli::repl::server::run(addr, ack_port))
 }
 
 /// Run the REPL in connect mode
@@ -235,7 +200,7 @@ fn run_connect_mode(addr: &str, config: ReplConfig) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
 
     // Run the connect mode client
-    rt.block_on(repl::connect::run(addr, config))
+    rt.block_on(oxur_cli::repl::connect::run(addr, config))
 }
 
 #[cfg(not(feature = "binary"))]

@@ -1,9 +1,12 @@
 //! cargo-oxur - Cargo subcommand for building Oxur projects
 //!
-//! Provides `cargo oxur build`, `cargo oxur run`, etc.
+//! Provides `cargo oxur build`, `cargo oxur run`, `cargo oxur repl`, etc.
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use oxur_cli::common::output;
+use oxur_cli::config::ReplConfig;
+use oxur_cli::ReplArgs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -74,6 +77,9 @@ enum OxurCommands {
         #[arg(short, long)]
         verbose: bool,
     },
+
+    /// Start the interactive REPL
+    Repl(ReplArgs),
 }
 
 fn main() -> Result<()> {
@@ -90,6 +96,8 @@ fn main() -> Result<()> {
             }
 
             OxurCommands::Check { manifest_path, verbose } => handle_check(manifest_path, verbose),
+
+            OxurCommands::Repl(args) => handle_repl(args),
         },
     }
 }
@@ -350,4 +358,62 @@ fn find_project_root(manifest_path: Option<&Path>) -> Result<PathBuf> {
             }
         }
     }
+}
+
+/// Handle the REPL command with its various modes
+fn handle_repl(args: ReplArgs) -> Result<()> {
+    // Load configuration with layered resolution:
+    // defaults -> file -> env -> CLI args
+    let config = ReplConfig::load(args.no_color)?;
+
+    if let Some(ref addr) = args.serve {
+        // Server mode: start ReplServer and listen
+        run_server_mode(addr, args.ack)
+    } else if let Some(ref addr) = args.connect {
+        // Connect mode: connect to existing server
+        let addr = addr.clone().unwrap_or_else(|| "127.0.0.1:5099".to_string());
+        run_connect_mode(&addr, config)
+    } else {
+        // Interactive mode (default): in-memory server + client
+        run_interactive_mode(config)
+    }
+}
+
+/// Run the default interactive REPL mode
+///
+/// Creates an in-process server and client connected via channels,
+/// providing the fastest possible REPL experience.
+fn run_interactive_mode(config: ReplConfig) -> Result<()> {
+    // Create tokio runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    // Run the interactive REPL
+    rt.block_on(oxur_cli::repl::interactive::run(config))
+}
+
+/// Run the REPL in server-only mode
+///
+/// Starts a REPL server listening on the specified address.
+/// Use a path for Unix socket, or HOST:PORT for TCP.
+fn run_server_mode(addr: &str, ack_port: Option<u16>) -> Result<()> {
+    output::info(&format!("Starting REPL server on {}...", addr));
+
+    // Create tokio runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    // Run the server
+    rt.block_on(oxur_cli::repl::server::run(addr, ack_port))
+}
+
+/// Run the REPL in connect mode
+///
+/// Connects to an existing REPL server and provides terminal interface.
+fn run_connect_mode(addr: &str, config: ReplConfig) -> Result<()> {
+    output::info(&format!("Connecting to REPL server at {}...", addr));
+
+    // Create tokio runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    // Run the connect mode client
+    rt.block_on(oxur_cli::repl::connect::run(addr, config))
 }

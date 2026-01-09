@@ -3,7 +3,7 @@
 //! Provides display functions for REPL statistics using OxurTable formatting.
 //! Core data collection is in oxur-repl; this module handles presentation only.
 
-use oxur_cli::table::{OxurTable, Tabled};
+use crate::table::{OxurTable, Tabled};
 use oxur_repl::cache::CacheStats as ArtifactCacheStats;
 use oxur_repl::eval::{get_resource_stats, EvalMetrics, ExecutionTier};
 use oxur_repl::metrics::SessionStatsSnapshot;

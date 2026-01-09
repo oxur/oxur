@@ -5,7 +5,7 @@
 
 use anyhow::{Context, Result};
 use crossterm::{execute, terminal};
-use oxur_cli::config::{paths, EditMode, HistoryConfig, TerminalConfig};
+use crate::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use reedline::{
     default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
     ColumnarMenu, Emacs, FileBackedHistory, KeyCode, KeyModifiers, Keybindings, MenuBuilder,

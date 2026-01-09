@@ -3,7 +3,7 @@
 //! Provides display functions for system metadata using OxurTable formatting.
 //! Core data capture is in oxur-repl::metadata; this module handles presentation.
 
-use oxur_cli::table::{OxurTable, Tabled};
+use crate::table::{OxurTable, Tabled};
 use oxur_repl::metadata::SystemMetadata;
 
 /// Show system information in a formatted table

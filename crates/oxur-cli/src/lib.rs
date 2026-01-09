@@ -69,6 +69,18 @@ pub mod common;
 pub mod config;
 pub mod table;
 
+// Args module requires clap (part of binary feature)
+#[cfg(feature = "binary")]
+pub mod args;
+
+// REPL module requires binary feature dependencies
+#[cfg(feature = "binary")]
+pub mod repl;
+
 // Re-export commonly used items for convenience
 pub use common::progress::ProgressTracker;
 pub use config::{EditMode, HistoryConfig, ReplConfig, TerminalConfig};
+
+// Re-export args when available
+#[cfg(feature = "binary")]
+pub use args::ReplArgs;

@@ -20,6 +20,8 @@ walkdir = "2.4"
 
 oxur-comp = { version = "0.1.0", path = "../oxur-comp" }
 oxur-lang = { version = "0.1.0", path = "../oxur-lang" }
+oxur-cli = { version = "0.1.0", path = "../oxur-cli", features = ["binary"] }
+tokio = { version = "1.0", features = ["full"] }
 
 [dev-dependencies]
 tempfile.workspace = true
