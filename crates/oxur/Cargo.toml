@@ -1,0 +1,30 @@
+[package]
+name = "oxur"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Oxur: A Lisp dialect that treats Rust as its compilation target and runtime"
+keywords = ["lisp", "rust", "compiler", "repl", "metaprogramming"]
+categories = ["compilers", "development-tools"]
+
+[dependencies]
+# Core compiler components
+oxur-lang = { version = "0.1.0", path = "../oxur-lang" }
+oxur-comp = { version = "0.1.0", path = "../oxur-comp" }
+
+# AST conversion and manipulation
+oxur-ast = { version = "0.1.0", path = "../oxur-ast" }
+
+# REPL and interactive development
+oxur-repl = { version = "0.1.0", path = "../oxur-repl" }
+
+# CLI utilities
+oxur-cli = { version = "0.1.0", path = "../oxur-cli" }
+
+# Pretty printing
+oxur-pretty = { version = "0.1.0", path = "../oxur-pretty" }
+
+[dev-dependencies]
+oxur-testing = { version = "0.1.0", path = "../oxur-testing" }
