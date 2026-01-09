@@ -1287,6 +1287,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxur"
+version = "0.1.0"
+dependencies = [
+ "oxur-ast",
+ "oxur-cli",
+ "oxur-comp",
+ "oxur-lang",
+ "oxur-pretty",
+ "oxur-repl",
+ "oxur-testing",
+]
+
+[[package]]
 name = "oxur-ast"
 version = "0.1.0"
 dependencies = [

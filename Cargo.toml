@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/oxur",
     "crates/oxur-odm",
     "crates/oxur-ast",
     "crates/oxur-lang",
