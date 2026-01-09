@@ -25,35 +25,39 @@ impl OxurCompleter {
         vec!["(help)", "(quit)", "(q)", "(exit)", "(info)", "(stats)"]
     }
 
-    /// Get list of help topics
-    fn help_topics() -> Vec<&'static str> {
+    /// Get list of help topics with descriptions
+    fn help_topics() -> Vec<(&'static str, &'static str)> {
         vec![
-            "basics",
-            "evaluation",
-            "keyboard",
-            "sessions",
-            "commands",
-            "modes",
-            "performance",
-            "stats",
+            ("basics", "Basic REPL usage and syntax"),
+            ("evaluation", "How expressions are evaluated"),
+            ("keyboard", "Keyboard shortcuts and navigation"),
+            ("sessions", "Session management and history"),
+            ("commands", "Special commands reference"),
+            ("modes", "REPL modes (interactive, server, connect)"),
+            ("performance", "Performance tips and optimization"),
+            ("stats", "Statistics and metrics"),
         ]
     }
 
-    /// Get list of stats views
-    fn stats_views() -> Vec<&'static str> {
-        vec!["execution", "cache", "resources"]
+    /// Get list of stats views with descriptions
+    fn stats_views() -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("execution", "Execution tier statistics"),
+            ("cache", "Cache hit rates and performance"),
+            ("resources", "Memory and system resources"),
+        ]
     }
 
-    /// Find completions for the given partial input
-    fn find_completions(&self, partial: &str) -> Vec<String> {
+    /// Find completions for the given partial input with descriptions
+    fn find_completions(&self, partial: &str) -> Vec<(String, Option<String>)> {
         let mut completions = Vec::new();
 
         // Help topics: "(help <partial>"
         if let Some(help_prefix) = partial.strip_prefix("(help ") {
             let topic_partial = help_prefix.trim();
-            for topic in Self::help_topics() {
+            for (topic, description) in Self::help_topics() {
                 if topic.starts_with(topic_partial) {
-                    completions.push(format!("(help {})", topic));
+                    completions.push((format!("(help {})", topic), Some(description.to_string())));
                 }
             }
             return completions;
@@ -62,9 +66,9 @@ impl OxurCompleter {
         // Stats views: "(stats <partial>"
         if let Some(stats_prefix) = partial.strip_prefix("(stats ") {
             let view_partial = stats_prefix.trim();
-            for view in Self::stats_views() {
+            for (view, description) in Self::stats_views() {
                 if view.starts_with(view_partial) {
-                    completions.push(format!("(stats {})", view));
+                    completions.push((format!("(stats {})", view), Some(description.to_string())));
                 }
             }
             return completions;
@@ -74,7 +78,7 @@ impl OxurCompleter {
         if !partial.contains(' ') {
             for cmd in Self::special_commands() {
                 if cmd.starts_with(partial) {
-                    completions.push(cmd.to_string());
+                    completions.push((cmd.to_string(), None));
                 }
             }
         }
@@ -95,9 +99,9 @@ impl Completer for OxurCompleter {
 
         self.find_completions(partial)
             .into_iter()
-            .map(|completion| Suggestion {
-                value: completion.clone(),
-                description: None,
+            .map(|(value, description)| Suggestion {
+                value,
+                description,
                 style: None,
                 extra: None,
                 span: Span::new(0, pos),
@@ -228,5 +232,32 @@ mod tests {
         let mut completer = OxurCompleter::new();
         let suggestions = completer.complete("(exi", 4);
         assert!(suggestions.iter().any(|s| s.value == "(exit)"));
+    }
+
+    #[test]
+    fn test_help_topic_has_description() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(help ba", 8);
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].value, "(help basics)");
+        assert_eq!(suggestions[0].description, Some("Basic REPL usage and syntax".to_string()));
+    }
+
+    #[test]
+    fn test_stats_view_has_description() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(stats ex", 9);
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].value, "(stats execution)");
+        assert_eq!(suggestions[0].description, Some("Execution tier statistics".to_string()));
+    }
+
+    #[test]
+    fn test_special_commands_no_description() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(h", 2);
+        assert!(suggestions.iter().any(|s| s.value == "(help)"));
+        let help_suggestion = suggestions.iter().find(|s| s.value == "(help)").unwrap();
+        assert_eq!(help_suggestion.description, None);
     }
 }
