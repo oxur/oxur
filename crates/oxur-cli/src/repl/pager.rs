@@ -3,7 +3,11 @@
 //! Provides automatic paging for help and other long text output.
 //! Auto-detects terminal height and only pages if content doesn't fit.
 
-use std::io::{self, BufRead, Write};
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEvent},
+    terminal::{disable_raw_mode, enable_raw_mode},
+};
+use std::io::{self, Write};
 
 /// Default terminal height if detection fails
 const DEFAULT_TERM_HEIGHT: usize = 24;
@@ -11,7 +15,7 @@ const DEFAULT_TERM_HEIGHT: usize = 24;
 /// Page through text content if it exceeds terminal height
 ///
 /// Automatically detects terminal height and pages content if needed.
-/// Uses a simple "Press Enter to continue, q to quit" interface.
+/// Uses a simple "Press Space to continue, q to quit" interface.
 ///
 /// # Arguments
 ///
@@ -59,49 +63,71 @@ fn page_lines(lines: &[&str], term_height: usize) -> io::Result<()> {
     let mut current_line = 0;
     let total_lines = lines.len();
 
-    let stdin = io::stdin();
-    let mut stdin_lock = stdin.lock();
     let mut stdout = io::stdout();
 
-    while current_line < total_lines {
-        // Calculate how many lines to show
-        let end_line = (current_line + page_size).min(total_lines);
+    // Enable raw mode for single-key reading
+    enable_raw_mode().map_err(io::Error::other)?;
 
-        // Print the page
-        for line in &lines[current_line..end_line] {
-            println!("{}", line);
+    let result = (|| -> io::Result<()> {
+        while current_line < total_lines {
+            // Calculate how many lines to show
+            let end_line = (current_line + page_size).min(total_lines);
+
+            // Print the page
+            for line in &lines[current_line..end_line] {
+                println!("{}", line);
+            }
+
+            current_line = end_line;
+
+            // If we've shown everything, we're done
+            if current_line >= total_lines {
+                break;
+            }
+
+            // Show prompt
+            let remaining = total_lines - current_line;
+            write!(
+                stdout,
+                "\x1b[7m-- More ({} lines remaining) -- Press Space to continue, q to quit \x1b[0m",
+                remaining
+            )?;
+            stdout.flush()?;
+
+            // Read single key press
+            loop {
+                if let Event::Key(KeyEvent { code, .. }) =
+                    event::read().map_err(io::Error::other)?
+                {
+                    match code {
+                        KeyCode::Char(' ') => {
+                            // Continue to next page
+                            break;
+                        }
+                        KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                            // Clear prompt and exit
+                            write!(stdout, "\r\x1b[K")?;
+                            return Ok(());
+                        }
+                        _ => {
+                            // Ignore other keys
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            // Clear the prompt line
+            write!(stdout, "\r\x1b[K")?;
         }
 
-        current_line = end_line;
+        Ok(())
+    })();
 
-        // If we've shown everything, we're done
-        if current_line >= total_lines {
-            break;
-        }
+    // Always restore terminal mode
+    disable_raw_mode().map_err(io::Error::other)?;
 
-        // Show prompt
-        let remaining = total_lines - current_line;
-        write!(
-            stdout,
-            "\x1b[7m-- More ({} lines remaining) -- Press Enter to continue, q to quit \x1b[0m",
-            remaining
-        )?;
-        stdout.flush()?;
-
-        // Read user input
-        let mut input = String::new();
-        stdin_lock.read_line(&mut input)?;
-
-        // Clear the prompt line
-        write!(stdout, "\r\x1b[K")?;
-
-        // Check if user wants to quit
-        if input.trim().starts_with('q') || input.trim().starts_with('Q') {
-            break;
-        }
-    }
-
-    Ok(())
+    result
 }
 
 #[cfg(test)]
