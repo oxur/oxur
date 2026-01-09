@@ -2,6 +2,7 @@
 //!
 //! Provides terminal interface and REPL loop implementations.
 
+pub mod completer;
 pub mod connect;
 pub mod help;
 pub mod info;

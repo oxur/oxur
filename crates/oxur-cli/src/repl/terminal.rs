@@ -11,6 +11,7 @@ use reedline::{
 };
 use std::path::PathBuf;
 
+use crate::repl::completer::OxurCompleter;
 use crate::repl::oxur_prompt::OxurPrompt;
 use crate::repl::sexp_highlighter::SExpHighlighter;
 use crate::repl::sexp_validator::SExpValidator;
@@ -67,12 +68,13 @@ impl ReplTerminal {
             .context("Failed to create history backend")?,
         );
 
-        // Build reedline editor with syntax highlighting and validation
+        // Build reedline editor with syntax highlighting, validation, and completion
         let editor = Reedline::create()
             .with_history(history)
             .with_edit_mode(edit_mode)
             .with_highlighter(Box::new(SExpHighlighter::new(terminal_config.color_enabled)))
-            .with_validator(Box::new(SExpValidator::new()));
+            .with_validator(Box::new(SExpValidator::new()))
+            .with_completer(Box::new(OxurCompleter::new()));
 
         Ok(Self { editor, history_path, terminal_config })
     }
