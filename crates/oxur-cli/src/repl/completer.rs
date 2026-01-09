@@ -22,7 +22,7 @@ impl OxurCompleter {
 
     /// Get list of special commands
     fn special_commands() -> Vec<&'static str> {
-        vec!["(help)", "(quit)", "(q)", "(exit)", "(info)", "(stats)", "(clear)"]
+        vec!["(help)", "(quit)", "(q)", "(exit)", "(info)", "(stats)", "(clear)", "(banner)"]
     }
 
     /// Get list of help topics with descriptions
@@ -266,5 +266,12 @@ mod tests {
         let mut completer = OxurCompleter::new();
         let suggestions = completer.complete("(cle", 4);
         assert!(suggestions.iter().any(|s| s.value == "(clear)"));
+    }
+
+    #[test]
+    fn test_banner_command_completion() {
+        let mut completer = OxurCompleter::new();
+        let suggestions = completer.complete("(ban", 4);
+        assert!(suggestions.iter().any(|s| s.value == "(banner)"));
     }
 }

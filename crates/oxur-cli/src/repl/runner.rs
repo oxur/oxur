@@ -51,12 +51,13 @@ pub struct ReplRunner {
     terminal: ReplTerminal,
     session_id: SessionId,
     msg_counter: AtomicU64,
+    metadata: Option<oxur_repl::metadata::SystemMetadata>,
 }
 
 impl ReplRunner {
     /// Create a new REPL runner
     pub fn new(terminal: ReplTerminal, session_id: SessionId) -> Self {
-        Self { terminal, session_id, msg_counter: AtomicU64::new(1) }
+        Self { terminal, session_id, msg_counter: AtomicU64::new(1), metadata: None }
     }
 
     /// Get the next message ID
@@ -70,7 +71,8 @@ impl ReplRunner {
     }
 
     /// Print the welcome banner with system metadata
-    pub fn print_banner(&self, metadata: &oxur_repl::metadata::SystemMetadata) {
+    pub fn print_banner(&mut self, metadata: &oxur_repl::metadata::SystemMetadata) {
+        self.metadata = Some(metadata.clone());
         self.terminal.print_banner(metadata);
     }
 
@@ -121,6 +123,16 @@ impl ReplRunner {
             if trimmed == "(clear)" {
                 if let Err(e) = self.terminal.clear_screen() {
                     self.terminal.print_error(&format!("Failed to clear screen: {}", e));
+                }
+                continue;
+            }
+
+            // Check for banner command
+            if trimmed == "(banner)" {
+                if let Some(ref metadata) = self.metadata {
+                    self.terminal.print_banner(metadata);
+                } else {
+                    self.terminal.print_error("No metadata available");
                 }
                 continue;
             }

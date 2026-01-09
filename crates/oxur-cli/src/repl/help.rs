@@ -64,6 +64,8 @@ impl HelpSystem {
             "(stats <view>)",
             "Show specific stats view (views: execution, cache, resources, server, subprocess)",
         ));
+        output.push_str(&self.command("(clear)", "Clear the terminal screen"));
+        output.push_str(&self.command("(banner)", "Redisplay the welcome banner"));
         output.push_str(&self.command("Ctrl-D", "Exit the REPL (EOF)"));
         output.push_str(&self.command("Ctrl-C", "Cancel current input line"));
         output.push('\n');
@@ -446,6 +448,8 @@ impl HelpSystem {
         output.push_str(
             &help.command("(info)", "Show system information (versions, platform, etc.)"),
         );
+        output.push_str(&help.command("(clear)", "Clear the terminal screen"));
+        output.push_str(&help.command("(banner)", "Redisplay the welcome banner"));
         output.push('\n');
 
         output.push_str(&help.section("STATISTICS"));
