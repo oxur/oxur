@@ -602,11 +602,9 @@ impl EvalContext {
         let wrapped_code = self
             .wrapper
             .wrap(&cache_key, &rust_source, Some(&self.source_map))
-            .map_err(|e| {
-                EvalError::CompilationError {
-                    msg: format!("Failed to wrap code: {}", e),
-                    pos: SourcePos::repl(1, 1, code.len() as u32),
-                }
+            .map_err(|e| EvalError::CompilationError {
+                msg: format!("Failed to wrap code: {}", e),
+                pos: SourcePos::repl(1, 1, code.len() as u32),
             })?;
 
         // Step 4: Compile to dynamic library

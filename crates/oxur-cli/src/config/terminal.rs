@@ -69,7 +69,7 @@ impl TerminalConfig {
             // Check if prompt starts with "oxur" for special coloring
             if self.prompt.starts_with("oxur") {
                 let rest = &self.prompt[4..]; // Everything after "oxur"
-                // Orange for "oxur", bright green for "> "
+                                              // Orange for "oxur", bright green for "> "
                 format!("\x1b[33moxur\x1b[0m\x1b[92m{}\x1b[0m", rest)
             } else {
                 format!("\x1b[32m{}\x1b[0m", self.prompt)
