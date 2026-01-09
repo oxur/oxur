@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use oxur_repl::protocol::{
     MessageId, Operation, OperationResult, ReplMode, Request, Response, SessionId,
 };
-use rustyline::error::ReadlineError;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Trait for REPL client adapters
@@ -90,11 +89,11 @@ impl ReplRunner {
                     println!();
                     continue;
                 }
-                Err(ReadlineError::Eof) => {
-                    // Ctrl-D - exit
-                    break;
-                }
                 Err(e) => {
+                    // Check if it's an EOF error (Ctrl-D)
+                    if e.to_string().contains("EOF") {
+                        break;
+                    }
                     self.terminal.print_error(&format!("Input error: {}", e));
                     break;
                 }

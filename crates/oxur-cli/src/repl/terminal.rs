@@ -1,18 +1,20 @@
 //! Terminal interface for REPL interaction
 //!
 //! Provides line editing, command history, and terminal handling
-//! using rustyline.
+//! using reedline.
 
 use anyhow::{Context, Result};
 use oxur_cli::config::{paths, EditMode, HistoryConfig, TerminalConfig};
-use rustyline::error::ReadlineError;
-use rustyline::history::DefaultHistory;
-use rustyline::{Config, DefaultEditor, Editor};
+use reedline::{
+    default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
+    DefaultPrompt, Emacs, FileBackedHistory, Reedline, Signal, Vi,
+};
 use std::path::PathBuf;
 
 /// REPL terminal interface with line editing and history
 pub struct ReplTerminal {
-    editor: Editor<(), DefaultHistory>,
+    editor: Reedline,
+    #[allow(dead_code)] // Kept for API compatibility and future use
     history_path: PathBuf,
     terminal_config: TerminalConfig,
 }
@@ -27,32 +29,42 @@ impl ReplTerminal {
     ///
     /// # Errors
     ///
-    /// Returns error if rustyline initialization fails.
+    /// Returns error if reedline initialization fails.
     pub fn with_config(
         terminal_config: TerminalConfig,
         history_config: HistoryConfig,
     ) -> Result<Self> {
-        let rustyline_edit_mode = match terminal_config.edit_mode {
-            EditMode::Emacs => rustyline::EditMode::Emacs,
-            EditMode::Vi => rustyline::EditMode::Vi,
+        // Convert edit mode to reedline's EditMode trait object
+        let edit_mode: Box<dyn reedline::EditMode> = match terminal_config.edit_mode {
+            EditMode::Emacs => Box::new(Emacs::new(default_emacs_keybindings())),
+            EditMode::Vi => {
+                Box::new(Vi::new(default_vi_insert_keybindings(), default_vi_normal_keybindings()))
+            }
         };
-
-        let config = Config::builder()
-            .edit_mode(rustyline_edit_mode)
-            .auto_add_history(history_config.enabled)
-            .build();
-
-        let mut editor =
-            DefaultEditor::with_config(config).context("Failed to create terminal editor")?;
 
         // Determine history file path
         let history_path = history_config.path.unwrap_or_else(paths::default_history_path);
 
-        // Load existing history if present and history is enabled
-        if history_config.enabled && history_path.exists() {
-            // Ignore errors loading history - not critical
-            let _ = editor.load_history(&history_path);
-        }
+        // Create history backend
+        // Note: FileBackedHistory is used for both enabled and disabled cases.
+        // When disabled, we use a temp path that won't persist between sessions.
+        let history_path_for_backend = if history_config.enabled {
+            history_path.clone()
+        } else {
+            // Use a temporary path that won't be loaded or saved
+            std::env::temp_dir().join("oxur-repl-temp-history")
+        };
+
+        let history = Box::new(
+            FileBackedHistory::with_file(
+                history_config.max_size.unwrap_or(10000),
+                history_path_for_backend,
+            )
+            .context("Failed to create history backend")?,
+        );
+
+        // Build reedline editor
+        let editor = Reedline::create().with_history(history).with_edit_mode(edit_mode);
 
         Ok(Self { editor, history_path, terminal_config })
     }
@@ -62,19 +74,22 @@ impl ReplTerminal {
     /// Returns:
     /// - `Ok(Some(line))` - User entered a line
     /// - `Ok(None)` - User pressed Ctrl-C (interrupt)
-    /// - `Err(ReadlineError::Eof)` - User pressed Ctrl-D (exit)
-    /// - `Err(...)` - Other error
-    pub fn read_line(&mut self, prompt: &str) -> Result<Option<String>, ReadlineError> {
-        match self.editor.readline(prompt) {
-            Ok(line) => Ok(Some(line)),
-            Err(ReadlineError::Interrupted) => Ok(None), // Ctrl-C
-            Err(ReadlineError::Eof) => Err(ReadlineError::Eof), // Ctrl-D
-            Err(e) => Err(e),
+    /// - `Err(_)` - User pressed Ctrl-D (exit) or other error
+    pub fn read_line(&mut self, _prompt: &str) -> Result<Option<String>> {
+        // Note: DefaultPrompt doesn't support custom prompt strings in reedline.
+        // For custom prompts, we'll need to implement the Prompt trait (Phase 3).
+        let default_prompt = DefaultPrompt::default();
+
+        match self.editor.read_line(&default_prompt) {
+            Ok(Signal::Success(line)) => Ok(Some(line)),
+            Ok(Signal::CtrlC) => Ok(None),
+            Ok(Signal::CtrlD) => Err(anyhow::anyhow!("EOF")),
+            Err(e) => Err(anyhow::anyhow!("Input error: {}", e)),
         }
     }
 
     /// Read a line using the default prompt
-    pub fn read_line_default(&mut self) -> Result<Option<String>, ReadlineError> {
+    pub fn read_line_default(&mut self) -> Result<Option<String>> {
         let prompt = self.prompt();
         self.read_line(&prompt)
     }
@@ -92,24 +107,13 @@ impl ReplTerminal {
 
     /// Save command history to disk
     ///
-    /// Creates the history directory if it doesn't exist.
+    /// With FileBackedHistory, history is automatically saved.
+    /// This method is retained for API compatibility.
     pub fn save_history(&mut self) -> Result<()> {
-        // Create history directory if needed
-        if let Some(parent) = self.history_path.parent() {
-            std::fs::create_dir_all(parent).context("Failed to create history directory")?;
-        }
-
-        self.editor.save_history(&self.history_path).context("Failed to save command history")?;
-
+        // FileBackedHistory auto-saves - this is a no-op
         Ok(())
     }
 
-    /// Add a line to history manually (in case auto_add_history is disabled)
-    #[allow(dead_code)]
-    pub fn add_history(&mut self, line: &str) -> Result<()> {
-        self.editor.add_history_entry(line).context("Failed to add history entry")?;
-        Ok(())
-    }
 
     /// Check if colors are enabled
     #[allow(dead_code)]
