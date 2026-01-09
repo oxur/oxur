@@ -22,14 +22,25 @@ use crate::repl::sexp_validator::SExpValidator;
 ///
 /// Converts "rustc 1.75.0 (hash)" to "1.75.0", or "cargo 1.75.0" to "1.75.0"
 fn format_version(version_str: &str) -> String {
-    version_str
-        .split_whitespace()
-        .nth(1)
-        .unwrap_or(version_str)
-        .split_once(' ')
-        .map(|(v, _)| v)
-        .unwrap_or(version_str)
-        .to_string()
+    // Split by whitespace and take the second element (the version number)
+    // e.g., "rustc 1.75.0 (hash)" -> ["rustc", "1.75.0", "(hash)", ...]
+    version_str.split_whitespace().nth(1).unwrap_or(version_str).to_string()
+}
+
+/// Substitute version placeholders in banner text
+///
+/// Replaces template placeholders with actual version numbers:
+/// - `N.N.N` → Oxur version (e.g., "0.1.0")
+/// - `M.M.M` → Rust version (e.g., "1.75.0")
+/// - `L.L.L` → Cargo version (e.g., "1.75.0")
+fn substitute_banner_versions(
+    banner: &str,
+    metadata: &oxur_repl::metadata::SystemMetadata,
+) -> String {
+    banner
+        .replace("N.N.N", &metadata.oxur_version)
+        .replace("M.M.M", &format_version(&metadata.rust_version))
+        .replace("L.L.L", &format_version(&metadata.cargo_version))
 }
 
 /// Add Tab keybinding for completion menu
@@ -212,7 +223,9 @@ impl ReplTerminal {
     /// Print the welcome banner with system metadata
     pub fn print_banner(&self, metadata: &oxur_repl::metadata::SystemMetadata) {
         if let Some(ref banner) = self.terminal_config.banner {
-            println!("{}", banner);
+            // Custom banner with version substitution
+            let banner_with_versions = substitute_banner_versions(banner, metadata);
+            println!("{}", banner_with_versions);
         } else {
             // Default banner with version information
             if self.terminal_config.color_enabled {
@@ -290,5 +303,48 @@ mod tests {
     fn test_custom_banner() {
         let config = TerminalConfig::builder().banner("Custom Welcome!").build();
         assert_eq!(config.banner, Some("Custom Welcome!".to_string()));
+    }
+
+    #[test]
+    fn test_format_version_rustc() {
+        let version = "rustc 1.75.0 (82e1608df 2023-12-21)";
+        assert_eq!(format_version(version), "1.75.0");
+    }
+
+    #[test]
+    fn test_format_version_cargo() {
+        let version = "cargo 1.75.0 (1d8b05cdd 2023-11-20)";
+        assert_eq!(format_version(version), "1.75.0");
+    }
+
+    #[test]
+    fn test_format_version_unknown() {
+        let version = "unknown";
+        assert_eq!(format_version(version), "unknown");
+    }
+
+    #[test]
+    fn test_substitute_banner_versions() {
+        let banner = "oxur: N.N.N\nrustc: M.M.M\ncargo: L.L.L";
+        let metadata = oxur_repl::metadata::SystemMetadata {
+            oxur_version: "0.1.0".to_string(),
+            rust_version: "rustc 1.75.0 (hash)".to_string(),
+            cargo_version: "cargo 1.75.0 (hash)".to_string(),
+            os_name: "Test".to_string(),
+            os_version: "1.0".to_string(),
+            arch: "x86_64".to_string(),
+            hostname: "test".to_string(),
+            pid: 1234,
+            cwd: std::path::PathBuf::from("/test"),
+            started_at: std::time::SystemTime::now(),
+        };
+
+        let result = substitute_banner_versions(banner, &metadata);
+        assert!(result.contains("oxur: 0.1.0"));
+        assert!(result.contains("rustc: 1.75.0"));
+        assert!(result.contains("cargo: 1.75.0"));
+        assert!(!result.contains("N.N.N"));
+        assert!(!result.contains("M.M.M"));
+        assert!(!result.contains("L.L.L"));
     }
 }
