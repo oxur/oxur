@@ -73,10 +73,11 @@ fn page_lines(lines: &[&str], term_height: usize) -> io::Result<()> {
             // Calculate how many lines to show
             let end_line = (current_line + page_size).min(total_lines);
 
-            // Print the page
+            // Print the page (use \r\n for raw mode)
             for line in &lines[current_line..end_line] {
-                println!("{}", line);
+                write!(stdout, "{}\r\n", line)?;
             }
+            stdout.flush()?;
 
             current_line = end_line;
 
