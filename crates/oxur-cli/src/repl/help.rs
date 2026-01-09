@@ -55,19 +55,19 @@ impl HelpSystem {
 
         // Control Commands
         output.push_str(&self.section("CONTROL COMMANDS"));
-        output.push_str(&self.command("(quit), (q), (exit)", "Exit the REPL"));
+        output.push_str(&self.command("(banner)", "Redisplay the welcome banner"));
+        output.push_str(&self.command("(clear)", "Clear the terminal screen"));
         output.push_str(&self.command("(help)", "Show this help overview"));
         output.push_str(&self.command("(help <topic>)", "Show detailed help for a topic"));
         output.push_str(&self.command("(info)", "Show system metadata (versions, platform, etc.)"));
+        output.push_str(&self.command("(quit), (q), (exit)", "Exit the REPL"));
         output.push_str(&self.command("(stats)", "Show session statistics"));
         output.push_str(&self.command(
             "(stats <view>)",
             "Show specific stats view (views: execution, cache, resources, server, subprocess)",
         ));
-        output.push_str(&self.command("(clear)", "Clear the terminal screen"));
-        output.push_str(&self.command("(banner)", "Redisplay the welcome banner"));
-        output.push_str(&self.command("Ctrl-D", "Exit the REPL (EOF)"));
         output.push_str(&self.command("Ctrl-C", "Cancel current input line"));
+        output.push_str(&self.command("Ctrl-D", "Exit the REPL (EOF)"));
         output.push('\n');
 
         // Keyboard Shortcuts
@@ -440,16 +440,16 @@ impl HelpSystem {
         output.push('\n');
 
         output.push_str(&help.section("REPL CONTROL"));
-        output.push_str(&help.command("(quit)", "Exit the REPL gracefully"));
-        output.push_str(&help.command("(q)", "Exit the REPL (short alias for quit)"));
+        output.push_str(&help.command("(banner)", "Redisplay the welcome banner"));
+        output.push_str(&help.command("(clear)", "Clear the terminal screen"));
         output.push_str(&help.command("(exit)", "Exit the REPL (alias for quit)"));
         output.push_str(&help.command("(help)", "Show help overview"));
         output.push_str(&help.command("(help <topic>)", "Show detailed help for a specific topic"));
         output.push_str(
             &help.command("(info)", "Show system information (versions, platform, etc.)"),
         );
-        output.push_str(&help.command("(clear)", "Clear the terminal screen"));
-        output.push_str(&help.command("(banner)", "Redisplay the welcome banner"));
+        output.push_str(&help.command("(q)", "Exit the REPL (short alias for quit)"));
+        output.push_str(&help.command("(quit)", "Exit the REPL gracefully"));
         output.push('\n');
 
         output.push_str(&help.section("STATISTICS"));
@@ -463,8 +463,8 @@ impl HelpSystem {
         output.push('\n');
 
         output.push_str(&help.section("KEYBOARD SHORTCUTS"));
-        output.push_str(&help.command("Ctrl-D", "Exit REPL if line is empty"));
         output.push_str(&help.command("Ctrl-C", "Cancel current input and start fresh"));
+        output.push_str(&help.command("Ctrl-D", "Exit REPL if line is empty"));
         output.push_str(&help.command("Ctrl-L", "Clear the screen"));
         output.push('\n');
 
