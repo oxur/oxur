@@ -18,6 +18,20 @@ use crate::repl::pager;
 use crate::repl::sexp_highlighter::SExpHighlighter;
 use crate::repl::sexp_validator::SExpValidator;
 
+/// Extract version number from version string
+///
+/// Converts "rustc 1.75.0 (hash)" to "1.75.0", or "cargo 1.75.0" to "1.75.0"
+fn format_version(version_str: &str) -> String {
+    version_str
+        .split_whitespace()
+        .nth(1)
+        .unwrap_or(version_str)
+        .split_once(' ')
+        .map(|(v, _)| v)
+        .unwrap_or(version_str)
+        .to_string()
+}
+
 /// Add Tab keybinding for completion menu
 fn add_completion_keybinding(keybindings: &mut Keybindings) {
     keybindings.add_binding(
@@ -195,13 +209,27 @@ impl ReplTerminal {
         }
     }
 
-    /// Print the welcome banner
-    pub fn print_banner(&self) {
+    /// Print the welcome banner with system metadata
+    pub fn print_banner(&self, metadata: &oxur_repl::metadata::SystemMetadata) {
         if let Some(ref banner) = self.terminal_config.banner {
             println!("{}", banner);
         } else {
-            // Default banner
-            println!("Oxur REPL v{}", env!("CARGO_PKG_VERSION"));
+            // Default banner with version information
+            if self.terminal_config.color_enabled {
+                println!(
+                    "\x1b[1mOxur REPL\x1b[0m v{} | \x1b[90mRust: {} | Cargo: {}\x1b[0m",
+                    metadata.oxur_version,
+                    format_version(&metadata.rust_version),
+                    format_version(&metadata.cargo_version)
+                );
+            } else {
+                println!(
+                    "Oxur REPL v{} | Rust: {} | Cargo: {}",
+                    metadata.oxur_version,
+                    format_version(&metadata.rust_version),
+                    format_version(&metadata.cargo_version)
+                );
+            }
             println!("Type (help) for assistance, Ctrl-D to exit.");
         }
         println!();

@@ -122,6 +122,9 @@ impl ReplClientAdapter for TcpAdapter {
 /// Connects to an existing REPL server and provides terminal interface
 /// for sending commands and receiving results.
 pub async fn run(addr: &str, config: ReplConfig) -> Result<()> {
+    // Capture system metadata at startup
+    let system_metadata = oxur_repl::metadata::SystemMetadata::capture();
+
     // Connect to server
     let transport = TcpTransport::connect(addr)
         .await
@@ -151,7 +154,7 @@ pub async fn run(addr: &str, config: ReplConfig) -> Result<()> {
     let mut runner = ReplRunner::new(terminal, session_id);
 
     // Print welcome banner and connection info
-    runner.print_banner();
+    runner.print_banner(&system_metadata);
     print_connection_info(addr, runner.terminal().config().color_enabled);
 
     // Run the REPL loop

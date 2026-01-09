@@ -69,9 +69,9 @@ impl ReplRunner {
         &self.terminal
     }
 
-    /// Print the welcome banner
-    pub fn print_banner(&self) {
-        self.terminal.print_banner();
+    /// Print the welcome banner with system metadata
+    pub fn print_banner(&self, metadata: &oxur_repl::metadata::SystemMetadata) {
+        self.terminal.print_banner(metadata);
     }
 
     /// Run the main REPL loop

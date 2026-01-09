@@ -161,12 +161,12 @@ pub async fn run(config: ReplConfig) -> Result<()> {
         handler,
         session_manager,
         session_id.clone(),
-        system_metadata,
+        system_metadata.clone(),
     );
 
     // Create runner and run the REPL loop
     let mut runner = ReplRunner::new(terminal, session_id);
-    runner.print_banner();
+    runner.print_banner(&system_metadata);
     runner.run(&mut adapter).await?;
     runner.finish(&mut adapter).await?;
 
