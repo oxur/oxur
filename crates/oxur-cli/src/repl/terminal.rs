@@ -11,6 +11,8 @@ use reedline::{
 };
 use std::path::PathBuf;
 
+use crate::repl::sexp_highlighter::SExpHighlighter;
+
 /// REPL terminal interface with line editing and history
 pub struct ReplTerminal {
     editor: Reedline,
@@ -63,8 +65,11 @@ impl ReplTerminal {
             .context("Failed to create history backend")?,
         );
 
-        // Build reedline editor
-        let editor = Reedline::create().with_history(history).with_edit_mode(edit_mode);
+        // Build reedline editor with syntax highlighting
+        let editor = Reedline::create()
+            .with_history(history)
+            .with_edit_mode(edit_mode)
+            .with_highlighter(Box::new(SExpHighlighter::new(terminal_config.color_enabled)));
 
         Ok(Self { editor, history_path, terminal_config })
     }

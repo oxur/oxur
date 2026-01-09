@@ -1297,6 +1297,7 @@ dependencies = [
  "colored",
  "dirs",
  "metrics",
+ "nu-ansi-term",
  "oxur-comp",
  "oxur-lang",
  "oxur-repl",

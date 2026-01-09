@@ -9,5 +9,6 @@ pub mod interactive;
 pub mod metrics;
 pub mod runner;
 pub mod server;
+pub mod sexp_highlighter;
 pub mod stats;
 pub mod terminal;
