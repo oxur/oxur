@@ -317,7 +317,7 @@ pub fn show_server_stats(
     ];
 
     output.push_str(&OxurTable::new(metrics).with_title("CONNECTIONS").with_footer().render());
-    output.push('\n');
+    output.push_str("\n\n");
 
     // Session stats
     let metrics = vec![
@@ -332,7 +332,7 @@ pub fn show_server_stats(
     ];
 
     output.push_str(&OxurTable::new(metrics).with_title("SESSIONS").with_footer().render());
-    output.push('\n');
+    output.push_str("\n\n");
 
     // Request/Response stats
     let success_rate = if server_snapshot.responses_total > 0 {

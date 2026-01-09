@@ -4,13 +4,14 @@
 
 use crate::repl::info::show_system_info;
 use crate::repl::runner::{ReplClientAdapter, ReplRunner};
-use crate::repl::stats::{parse_stats_command_with_resources, show_subprocess_stats};
+use crate::repl::stats::{parse_stats_command_with_resources, show_server_stats, show_subprocess_stats};
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use oxur_cli::config::ReplConfig;
 use oxur_repl::metadata::SystemMetadata;
-use oxur_repl::protocol::{MessageId, Operation, ReplMode, Request, Response, SessionId};
+use oxur_repl::metrics::ServerMetrics;
+use oxur_repl::protocol::{MessageId, Operation, OperationResult, ReplMode, Request, Response, SessionId};
 use oxur_repl::server::{MessageHandler, SessionManager};
 use oxur_repl::transport::{inprocess_channel, InProcessClient, InProcessServer, Transport};
 use std::sync::Arc;
@@ -19,6 +20,9 @@ use std::sync::Arc;
 ///
 /// Handles the in-process channel communication and manual server-side
 /// request routing, plus stats and info command handling.
+///
+/// Tracks both server-side and client-side metrics for consistency
+/// with server mode.
 struct InProcessAdapter {
     client: InProcessClient,
     server: InProcessServer,
@@ -26,6 +30,7 @@ struct InProcessAdapter {
     session_manager: Arc<SessionManager>,
     session_id: SessionId,
     system_metadata: Arc<SystemMetadata>,
+    server_metrics: Arc<ServerMetrics>,
 }
 
 impl InProcessAdapter {
@@ -36,19 +41,61 @@ impl InProcessAdapter {
         session_manager: Arc<SessionManager>,
         session_id: SessionId,
         system_metadata: Arc<SystemMetadata>,
+        server_metrics: Arc<ServerMetrics>,
     ) -> Self {
-        Self { client, server, handler, session_manager, session_id, system_metadata }
+        Self { client, server, handler, session_manager, session_id, system_metadata, server_metrics }
     }
 }
 
 #[async_trait]
 impl ReplClientAdapter for InProcessAdapter {
     async fn send_eval(&mut self, request: Request) -> Result<()> {
+        // Track server-side request metrics (matching server mode behavior)
+        let operation_name = match &request.operation {
+            Operation::CreateSession { .. } => "create_session",
+            Operation::Clone { .. } => "clone",
+            Operation::Eval { .. } => "eval",
+            Operation::Close => "close",
+            Operation::LsSessions => "ls_sessions",
+            Operation::LoadFile { .. } => "load_file",
+            Operation::Interrupt => "interrupt",
+            Operation::Describe { .. } => "describe",
+            Operation::History { .. } => "history",
+            Operation::ClearOutput => "clear_output",
+            Operation::GetServerStats => "get_server_stats",
+            Operation::GetSessionStats => "get_session_stats",
+            Operation::GetSubprocessStats => "get_subprocess_stats",
+            Operation::GetSystemInfo => "get_system_info",
+            _ => "unknown",
+        };
+        self.server_metrics.request_received(operation_name);
+
+        // Track session creation/close for session metrics
+        match &request.operation {
+            Operation::CreateSession { .. } => self.server_metrics.session_created(),
+            Operation::Close => self.server_metrics.session_closed(),
+            _ => {}
+        }
+
         // Send request to our side of the channel
         self.client.send_request(&request).await.context("Failed to send request")?;
 
         // Process request on server side (in-process routing)
         let response = self.handler.handle(request).await;
+
+        // Track server-side response metrics
+        let status = match &response.result {
+            OperationResult::Success { .. } => "success",
+            OperationResult::Error { .. } => "error",
+            OperationResult::Sessions { .. } => "success",
+            OperationResult::HistoryEntries { .. } => "success",
+            OperationResult::ServerStats { .. } => "success",
+            OperationResult::SessionStats { .. } => "success",
+            OperationResult::SubprocessStats { .. } => "success",
+            OperationResult::SystemInfo { .. } => "success",
+            _ => "unknown",
+        };
+        self.server_metrics.response_sent(status);
 
         // Send response back through the channel
         self.server.send_response(&response).await.context("Failed to send response")?;
@@ -76,13 +123,10 @@ impl ReplClientAdapter for InProcessAdapter {
             return None;
         }
 
-        // Handle server stats - not available in interactive mode (no dedicated server)
+        // Handle server stats - available in interactive mode via local metrics
         if input == "(stats server)" {
-            return Some(
-                "Server stats not available in interactive mode.\n\
-                 Use 'oxur repl serve' and connect with 'oxur repl connect' for server mode."
-                    .to_string(),
-            );
+            let snapshot = self.server_metrics.snapshot();
+            return Some(show_server_stats(&snapshot, color_enabled));
         }
 
         // Handle subprocess stats
@@ -132,10 +176,18 @@ pub async fn run(config: ReplConfig) -> Result<()> {
     // Create in-process transport pair
     let (client, server_transport) = inprocess_channel();
 
-    // Create session manager and message handler with metadata
+    // Create session manager
     let session_manager = Arc::new(SessionManager::new());
-    let handler =
-        MessageHandler::with_metadata((*session_manager).clone(), system_metadata.clone());
+
+    // Create server metrics for tracking (same as server mode)
+    let server_metrics = Arc::new(ServerMetrics::new());
+
+    // Create message handler with both metrics and metadata
+    let handler = MessageHandler::with_metrics_and_metadata(
+        (*session_manager).clone(),
+        server_metrics.clone(),
+        system_metadata.clone(),
+    );
 
     // Generate unique session ID
     let session_id = SessionId::new(format!("interactive-{}", std::process::id()));
@@ -154,7 +206,7 @@ pub async fn run(config: ReplConfig) -> Result<()> {
     let terminal = ReplTerminal::with_config(config.terminal, config.history)
         .context("Failed to create terminal")?;
 
-    // Create adapter
+    // Create adapter with server metrics
     let mut adapter = InProcessAdapter::new(
         client,
         server_transport,
@@ -162,6 +214,7 @@ pub async fn run(config: ReplConfig) -> Result<()> {
         session_manager,
         session_id.clone(),
         system_metadata.clone(),
+        server_metrics,
     );
 
     // Create runner and run the REPL loop
