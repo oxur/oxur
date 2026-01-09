@@ -2,6 +2,7 @@
 //!
 //! Provides REPL client that connects to a remote server via TCP.
 
+use crate::config::ReplConfig;
 use crate::repl::runner::{ReplClientAdapter, ReplRunner};
 use crate::repl::stats::{
     show_cache_from_snapshot, show_execution_from_snapshot, show_server_stats,
@@ -10,7 +11,6 @@ use crate::repl::stats::{
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use crate::config::ReplConfig;
 use oxur_repl::protocol::{
     MessageId, Operation, OperationResult, ReplMode, Request, Response, SessionId,
 };

@@ -3,9 +3,9 @@
 //! Provides line editing, command history, and terminal handling
 //! using reedline.
 
+use crate::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use anyhow::{Context, Result};
 use crossterm::{execute, terminal};
-use crate::config::{paths, EditMode, HistoryConfig, TerminalConfig};
 use reedline::{
     default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
     ColumnarMenu, Emacs, FileBackedHistory, KeyCode, KeyModifiers, Keybindings, MenuBuilder,

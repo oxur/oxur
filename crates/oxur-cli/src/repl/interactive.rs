@@ -2,6 +2,7 @@
 //!
 //! Provides the default REPL experience with in-memory client/server.
 
+use crate::config::ReplConfig;
 use crate::repl::info::show_system_info;
 use crate::repl::runner::{ReplClientAdapter, ReplRunner};
 use crate::repl::stats::{
@@ -10,7 +11,6 @@ use crate::repl::stats::{
 use crate::repl::terminal::ReplTerminal;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use crate::config::ReplConfig;
 use oxur_repl::metadata::SystemMetadata;
 use oxur_repl::metrics::{ClientMetrics, ServerMetrics};
 use oxur_repl::protocol::{
