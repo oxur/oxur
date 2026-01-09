@@ -211,9 +211,12 @@ impl MessageHandler {
                     .into_iter()
                     .map(|s| SessionInfo {
                         id: s.id,
+                        name: s.name,
                         mode: s.mode,
                         eval_count: s.eval_count,
                         created_at: s.created_at,
+                        last_active_at: s.last_active_at,
+                        timeout_ms: s.timeout_ms,
                     })
                     .collect();
 

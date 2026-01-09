@@ -239,15 +239,21 @@ mod tests {
                 sessions: vec![
                     SessionInfo {
                         id: SessionId::new("session1"),
+                        name: None,
                         mode: ReplMode::Lisp,
                         eval_count: 0,
                         created_at: 0,
+                        last_active_at: 0,
+                        timeout_ms: 3600000,
                     },
                     SessionInfo {
                         id: SessionId::new("session2"),
+                        name: None,
                         mode: ReplMode::Sexpr,
                         eval_count: 5,
                         created_at: 1000,
+                        last_active_at: 1000,
+                        timeout_ms: 3600000,
                     },
                 ],
             },

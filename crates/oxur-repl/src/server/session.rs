@@ -35,6 +35,9 @@ pub struct SessionInfo {
     /// Session ID
     pub id: SessionId,
 
+    /// Optional session name
+    pub name: Option<String>,
+
     /// Evaluation mode (Lisp or Sexpr)
     pub mode: ReplMode,
 
@@ -43,6 +46,42 @@ pub struct SessionInfo {
 
     /// Creation timestamp (milliseconds since epoch)
     pub created_at: u64,
+
+    /// Last active timestamp (milliseconds since epoch)
+    pub last_active_at: u64,
+
+    /// Session timeout in milliseconds (default: 1 hour)
+    pub timeout_ms: u64,
+}
+
+/// Session metadata tracked separately from EvalContext
+#[derive(Debug, Clone)]
+struct SessionMetadata {
+    /// Optional session name
+    name: Option<String>,
+    /// Creation timestamp (milliseconds since epoch)
+    created_at: u64,
+    /// Last active timestamp (milliseconds since epoch)
+    last_active_at: u64,
+    /// Session timeout in milliseconds
+    timeout_ms: u64,
+}
+
+impl Default for SessionMetadata {
+    fn default() -> Self {
+        Self {
+            name: None,
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64,
+            last_active_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64,
+            timeout_ms: 3_600_000, // Default: 1 hour
+        }
+    }
 }
 
 /// Manages multiple REPL sessions
@@ -53,12 +92,17 @@ pub struct SessionInfo {
 pub struct SessionManager {
     /// Active sessions (session_id -> context)
     sessions: Arc<RwLock<HashMap<SessionId, EvalContext>>>,
+    /// Session metadata (session_id -> metadata)
+    metadata: Arc<RwLock<HashMap<SessionId, SessionMetadata>>>,
 }
 
 impl SessionManager {
     /// Create a new session manager
     pub fn new() -> Self {
-        Self { sessions: Arc::new(RwLock::new(HashMap::new())) }
+        Self {
+            sessions: Arc::new(RwLock::new(HashMap::new())),
+            metadata: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 
     /// Create a new session
@@ -87,6 +131,10 @@ impl SessionManager {
         // Use with_compilation to get full session directory and artifact cache support
         let context = EvalContext::with_compilation(session_id.clone(), mode)?;
         sessions.insert(session_id.clone(), context);
+
+        // Insert default metadata
+        let mut metadata = self.metadata.write().map_err(|_| SessionError::LockPoisoned)?;
+        metadata.insert(session_id.clone(), SessionMetadata::default());
 
         Ok(session_id)
     }
@@ -130,6 +178,17 @@ impl SessionManager {
             let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
 
             sessions.insert(session_id.clone(), context.clone());
+        }
+
+        // Update last_active_at timestamp
+        {
+            let mut metadata = self.metadata.write().map_err(|_| SessionError::LockPoisoned)?;
+            if let Some(meta) = metadata.get_mut(session_id) {
+                meta.last_active_at = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
+            }
         }
 
         Ok(result)
@@ -186,16 +245,22 @@ impl SessionManager {
     /// Returns `SessionError::LockPoisoned` if the internal lock is poisoned.
     pub fn list(&self) -> Result<Vec<SessionInfo>> {
         let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
+        let metadata = self.metadata.read().map_err(|_| SessionError::LockPoisoned)?;
 
         let mut infos: Vec<SessionInfo> = sessions
             .iter()
             .map(|(id, ctx)| {
                 let (tier1, tier2, _) = ctx.stats();
+                let meta = metadata.get(id).cloned().unwrap_or_default();
+
                 SessionInfo {
                     id: id.clone(),
+                    name: meta.name,
                     mode: ctx.mode(),
                     eval_count: tier1 + tier2,
-                    created_at: 0, // TODO: Track creation time
+                    created_at: meta.created_at,
+                    last_active_at: meta.last_active_at,
+                    timeout_ms: meta.timeout_ms,
                 }
             })
             .collect();
@@ -213,18 +278,23 @@ impl SessionManager {
     /// Returns `SessionError::NotFound` if the session doesn't exist.
     pub fn get_info(&self, session_id: &SessionId) -> Result<SessionInfo> {
         let sessions = self.sessions.read().map_err(|_| SessionError::LockPoisoned)?;
+        let metadata = self.metadata.read().map_err(|_| SessionError::LockPoisoned)?;
 
         let ctx = sessions
             .get(session_id)
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
         let (tier1, tier2, _) = ctx.stats();
+        let meta = metadata.get(session_id).cloned().unwrap_or_default();
 
         Ok(SessionInfo {
             id: session_id.clone(),
+            name: meta.name,
             mode: ctx.mode(),
             eval_count: tier1 + tier2,
-            created_at: 0, // TODO: Track creation time
+            created_at: meta.created_at,
+            last_active_at: meta.last_active_at,
+            timeout_ms: meta.timeout_ms,
         })
     }
 

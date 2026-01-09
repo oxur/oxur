@@ -404,12 +404,18 @@ pub struct Status {
 pub struct SessionInfo {
     /// Session ID
     pub id: SessionId,
+    /// Optional session name
+    pub name: Option<String>,
     /// Evaluation mode (Lisp or Sexpr)
     pub mode: ReplMode,
     /// Number of evaluations performed
     pub eval_count: u64,
     /// Creation timestamp (milliseconds since epoch)
     pub created_at: u64,
+    /// Last active timestamp (milliseconds since epoch)
+    pub last_active_at: u64,
+    /// Session timeout in milliseconds
+    pub timeout_ms: u64,
 }
 
 /// Detailed error information
@@ -687,9 +693,12 @@ mod tests {
     fn test_session_info_serialization() {
         let info = SessionInfo {
             id: SessionId::new("test-session"),
+            name: Some("test".to_string()),
             mode: ReplMode::Lisp,
             eval_count: 42,
             created_at: 1234567890,
+            last_active_at: 1234568000,
+            timeout_ms: 3600000,
         };
 
         let json = serde_json::to_string(&info).unwrap();
@@ -703,15 +712,21 @@ mod tests {
             sessions: vec![
                 SessionInfo {
                     id: SessionId::new("session-1"),
+                    name: None,
                     mode: ReplMode::Lisp,
                     eval_count: 10,
                     created_at: 1000,
+                    last_active_at: 1100,
+                    timeout_ms: 3600000,
                 },
                 SessionInfo {
                     id: SessionId::new("session-2"),
+                    name: Some("work".to_string()),
                     mode: ReplMode::Sexpr,
                     eval_count: 5,
                     created_at: 2000,
+                    last_active_at: 2100,
+                    timeout_ms: 3600000,
                 },
             ],
         };
