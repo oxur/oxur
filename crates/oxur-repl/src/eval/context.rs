@@ -1104,4 +1104,320 @@ mod tests {
             assert!(err_string.contains("<repl>:1:1"));
         }
     }
+
+    // ===== Additional coverage tests =====
+
+    #[test]
+    fn test_execution_tier_as_label() {
+        assert_eq!(ExecutionTier::Calculator.as_label(), "calculator");
+        assert_eq!(ExecutionTier::CachedLoaded.as_label(), "cached");
+        assert_eq!(ExecutionTier::JustInTime.as_label(), "jit");
+    }
+
+    #[test]
+    fn test_execution_tier_display_name() {
+        assert_eq!(ExecutionTier::Calculator.display_name(), "Calculator");
+        assert_eq!(ExecutionTier::CachedLoaded.display_name(), "Cached");
+        assert_eq!(ExecutionTier::JustInTime.display_name(), "JIT");
+    }
+
+    #[test]
+    fn test_eval_result_struct() {
+        let result = EvalResult {
+            value: "42".to_string(),
+            tier: ExecutionTier::Calculator,
+            cached: false,
+            duration_ms: 5,
+            stdout: Some("output".to_string()),
+            stderr: Some("error".to_string()),
+        };
+
+        assert_eq!(result.value, "42");
+        assert_eq!(result.tier, ExecutionTier::Calculator);
+        assert!(!result.cached);
+        assert_eq!(result.duration_ms, 5);
+        assert_eq!(result.stdout, Some("output".to_string()));
+        assert_eq!(result.stderr, Some("error".to_string()));
+    }
+
+    #[test]
+    fn test_eval_result_equality() {
+        let result1 = EvalResult {
+            value: "42".to_string(),
+            tier: ExecutionTier::Calculator,
+            cached: false,
+            duration_ms: 5,
+            stdout: None,
+            stderr: None,
+        };
+
+        let result2 = EvalResult {
+            value: "42".to_string(),
+            tier: ExecutionTier::Calculator,
+            cached: false,
+            duration_ms: 5,
+            stdout: None,
+            stderr: None,
+        };
+
+        let result3 = EvalResult {
+            value: "100".to_string(),
+            tier: ExecutionTier::JustInTime,
+            cached: true,
+            duration_ms: 100,
+            stdout: None,
+            stderr: None,
+        };
+
+        assert_eq!(result1, result2);
+        assert_ne!(result1, result3);
+    }
+
+    #[test]
+    fn test_stats_collector_accessor() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+        let stats = ctx.stats_collector();
+
+        // Should be able to lock and access
+        let guard = stats.lock().unwrap();
+        let cache_stats = guard.cache_stats();
+        assert_eq!(cache_stats.hits, 0);
+        assert_eq!(cache_stats.misses, 0);
+    }
+
+    #[test]
+    fn test_usage_metrics_accessor() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+        let usage = ctx.usage_metrics();
+
+        // Should be able to lock and access
+        let mut guard = usage.lock().unwrap();
+        guard.record_eval();
+        let snapshot = guard.snapshot();
+        assert_eq!(snapshot.eval_count, 1);
+    }
+
+    #[test]
+    fn test_session_dir_stats_not_initialized() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        // Without full compilation pipeline, session_dir is None
+        assert!(ctx.session_dir_stats().is_none());
+    }
+
+    #[test]
+    fn test_artifact_cache_stats_not_initialized() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        // Without full compilation pipeline, artifact_cache is None
+        assert!(ctx.artifact_cache_stats().is_none());
+    }
+
+    #[test]
+    fn test_subprocess_stats_not_initialized() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        // Without full compilation pipeline, executor is None
+        assert!(ctx.subprocess_stats().is_none());
+    }
+
+    #[test]
+    fn test_type_inference_register_and_get() {
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        // Initially no variables
+        assert_eq!(ctx.get_variable_type("x"), None);
+
+        // Register a variable
+        ctx.register_variable_type("x", "i32", false);
+        assert_eq!(ctx.get_variable_type("x"), Some("i32".to_string()));
+
+        // Register mutable variable
+        ctx.register_variable_type("y", "String", true);
+        assert_eq!(ctx.get_variable_type("y"), Some("String".to_string()));
+
+        // Unknown variable still returns None
+        assert_eq!(ctx.get_variable_type("z"), None);
+    }
+
+    #[test]
+    fn test_type_inference_get_all_variables() {
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        ctx.register_variable_type("x", "i32", false);
+        ctx.register_variable_type("y", "String", true);
+
+        let vars = ctx.get_all_variable_types();
+        assert_eq!(vars.len(), 2);
+
+        // Check that both variables are present (order may vary)
+        let has_x = vars.iter().any(|(name, ty, mutable)| {
+            name == "x" && ty == "i32" && !mutable
+        });
+        let has_y = vars.iter().any(|(name, ty, mutable)| {
+            name == "y" && ty == "String" && *mutable
+        });
+        assert!(has_x);
+        assert!(has_y);
+    }
+
+    #[test]
+    fn test_type_inference_clear() {
+        let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        ctx.register_variable_type("x", "i32", false);
+        ctx.register_variable_type("y", "String", true);
+        assert_eq!(ctx.get_all_variable_types().len(), 2);
+
+        ctx.clear_type_information();
+        assert_eq!(ctx.get_all_variable_types().len(), 0);
+        assert_eq!(ctx.get_variable_type("x"), None);
+    }
+
+    #[test]
+    fn test_infer_types_from_code() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        let code = r#"
+            fn main() {
+                let x: i32 = 42;
+                let mut y: String = "hello".to_string();
+            }
+        "#;
+
+        let types = ctx.infer_types(code);
+        // The type inference should find variables in the code
+        assert!(types.len() >= 2);
+
+        // Check x is found with correct type
+        let x_info = types.iter().find(|(name, _, _)| name == "x");
+        assert!(x_info.is_some());
+        if let Some((_, ty, mutable)) = x_info {
+            assert_eq!(ty, "i32");
+            assert!(!mutable);
+        }
+
+        // Check y is found with correct type
+        let y_info = types.iter().find(|(name, _, _)| name == "y");
+        assert!(y_info.is_some());
+        if let Some((_, ty, mutable)) = y_info {
+            assert_eq!(ty, "String");
+            assert!(*mutable);
+        }
+    }
+
+    #[test]
+    fn test_infer_types_empty_code() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        let types = ctx.infer_types("");
+        assert!(types.is_empty());
+    }
+
+    #[test]
+    fn test_infer_types_no_variables() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        let code = "fn main() { println!(\"hello\"); }";
+        let types = ctx.infer_types(code);
+        assert!(types.is_empty());
+    }
+
+    #[test]
+    fn test_hash_code_consistency() {
+        let ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
+
+        // Same code should produce same hash
+        let hash1 = ctx.hash_code("(+ 1 2)");
+        let hash2 = ctx.hash_code("(+ 1 2)");
+        assert_eq!(hash1, hash2);
+
+        // Different code should produce different hash
+        let hash3 = ctx.hash_code("(+ 1 3)");
+        assert_ne!(hash1, hash3);
+
+        // Hash should start with 'h' (valid Rust identifier)
+        assert!(hash1.starts_with('h'));
+    }
+
+    #[test]
+    fn test_new_context_sexpr_mode() {
+        let ctx = EvalContext::new(SessionId::new("test-sexpr"), ReplMode::Sexpr);
+        assert_eq!(ctx.session_id(), &SessionId::new("test-sexpr"));
+        assert_eq!(ctx.mode(), ReplMode::Sexpr);
+    }
+
+    #[test]
+    fn test_clone_to_preserves_mode() {
+        let ctx = EvalContext::new(SessionId::new("session-1"), ReplMode::Sexpr);
+        let cloned = ctx.clone_to(SessionId::new("session-2"));
+
+        assert_eq!(cloned.mode(), ReplMode::Sexpr);
+    }
+
+    #[test]
+    fn test_execution_tier_debug() {
+        // Test Debug trait implementation
+        let tier = ExecutionTier::Calculator;
+        let debug_str = format!("{:?}", tier);
+        assert_eq!(debug_str, "Calculator");
+
+        let tier = ExecutionTier::CachedLoaded;
+        let debug_str = format!("{:?}", tier);
+        assert_eq!(debug_str, "CachedLoaded");
+
+        let tier = ExecutionTier::JustInTime;
+        let debug_str = format!("{:?}", tier);
+        assert_eq!(debug_str, "JustInTime");
+    }
+
+    #[test]
+    fn test_execution_tier_clone() {
+        let tier1 = ExecutionTier::Calculator;
+        let tier2 = tier1;
+        assert_eq!(tier1, tier2);
+    }
+
+    #[test]
+    fn test_eval_result_clone() {
+        let result = EvalResult {
+            value: "42".to_string(),
+            tier: ExecutionTier::Calculator,
+            cached: false,
+            duration_ms: 5,
+            stdout: Some("out".to_string()),
+            stderr: None,
+        };
+
+        let cloned = result.clone();
+        assert_eq!(result, cloned);
+    }
+
+    #[test]
+    fn test_eval_result_debug() {
+        let result = EvalResult {
+            value: "42".to_string(),
+            tier: ExecutionTier::Calculator,
+            cached: false,
+            duration_ms: 5,
+            stdout: None,
+            stderr: None,
+        };
+
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("EvalResult"));
+        assert!(debug_str.contains("42"));
+        assert!(debug_str.contains("Calculator"));
+    }
+
+    #[test]
+    fn test_eval_error_debug() {
+        let err = EvalError::SyntaxError {
+            msg: "test".to_string(),
+            pos: SourcePos::repl(1, 1, 1),
+        };
+
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("SyntaxError"));
+    }
 }

@@ -128,6 +128,38 @@ impl SessionManager {
             return Err(SessionError::AlreadyExists(session_id.to_string()));
         }
 
+        // Use EvalContext::new() for basic session management
+        // For full compilation support, use create_with_compilation()
+        let context = EvalContext::new(session_id.clone(), mode);
+        sessions.insert(session_id.clone(), context);
+
+        // Insert default metadata
+        let mut metadata = self.metadata.write().map_err(|_| SessionError::LockPoisoned)?;
+        metadata.insert(session_id.clone(), SessionMetadata::default());
+
+        Ok(session_id)
+    }
+
+    /// Create a new session with full compilation support
+    ///
+    /// This creates a session with the full compilation pipeline including
+    /// session directory, artifact cache, and subprocess executor.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SessionError::AlreadyExists` if a session with the same ID already exists.
+    /// Returns `SessionError::EvalFailed` if the compilation pipeline cannot be initialized.
+    pub fn create_with_compilation(
+        &self,
+        session_id: SessionId,
+        mode: ReplMode,
+    ) -> Result<SessionId> {
+        let mut sessions = self.sessions.write().map_err(|_| SessionError::LockPoisoned)?;
+
+        if sessions.contains_key(&session_id) {
+            return Err(SessionError::AlreadyExists(session_id.to_string()));
+        }
+
         // Use with_compilation to get full session directory and artifact cache support
         let context = EvalContext::with_compilation(session_id.clone(), mode)?;
         sessions.insert(session_id.clone(), context);

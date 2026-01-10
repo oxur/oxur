@@ -616,4 +616,579 @@ mod tests {
 
         assert_eq!(server.shutdown_timeout, Duration::from_secs(60));
     }
+
+    #[tokio::test]
+    async fn test_with_metrics() {
+        let server = ReplServer::new("127.0.0.1:0").with_metrics();
+        assert!(server.metrics.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_server_builder_chain() {
+        let server = ReplServer::new("127.0.0.1:0")
+            .with_metrics()
+            .with_shutdown_timeout(Duration::from_secs(45));
+
+        assert!(server.metrics.is_some());
+        assert_eq!(server.shutdown_timeout, Duration::from_secs(45));
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_with_metrics() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let metrics = Arc::new(ServerMetrics::new());
+        let metrics_clone = Arc::clone(&metrics);
+
+        // Spawn server with metrics
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, Some(&metrics_clone)).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Connect client
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session request
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-metrics"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        assert!(matches!(response.result, OperationResult::Success { .. }));
+
+        // Eval request
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-metrics"),
+            operation: Operation::Eval { code: "(+ 1 1)".to_string(), mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // Close session request - triggers session_closed metric
+        let request = Request {
+            id: MessageId::new(3),
+            session_id: SessionId::new("test-metrics"),
+            operation: Operation::Close,
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_ls_sessions() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // LsSessions request
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("unused"),
+            operation: Operation::LsSessions,
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        assert!(matches!(response.result, OperationResult::Sessions { .. }));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_history() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-history"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // History request
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-history"),
+            operation: Operation::History { limit: Some(10) },
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // History may return entries or error depending on session state
+        assert!(matches!(
+            response.result,
+            OperationResult::HistoryEntries { .. } | OperationResult::Error { .. }
+        ));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_get_server_stats() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // GetServerStats request
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("unused"),
+            operation: Operation::GetServerStats,
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // ServerStats may return stats or error depending on state
+        assert!(matches!(
+            response.result,
+            OperationResult::ServerStats { .. } | OperationResult::Error { .. }
+        ));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_get_session_stats() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-stats"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // GetSessionStats request
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-stats"),
+            operation: Operation::GetSessionStats,
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        assert!(matches!(response.result, OperationResult::SessionStats { .. }));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_get_subprocess_stats() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-sub-stats"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // GetSubprocessStats request
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-sub-stats"),
+            operation: Operation::GetSubprocessStats,
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // SubprocessStats may return stats or error depending on subprocess state
+        assert!(matches!(
+            response.result,
+            OperationResult::SubprocessStats { .. } | OperationResult::Error { .. }
+        ));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_get_system_info() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // GetSystemInfo request
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("unused"),
+            operation: Operation::GetSystemInfo,
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // SystemInfo may return info or error
+        assert!(matches!(
+            response.result,
+            OperationResult::SystemInfo { .. } | OperationResult::Error { .. }
+        ));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_clear_output() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-clear"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // ClearOutput request
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-clear"),
+            operation: Operation::ClearOutput,
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // ClearOutput may return success or error depending on session state
+        assert!(matches!(
+            response.result,
+            OperationResult::Success { .. } | OperationResult::Error { .. }
+        ));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_interrupt() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-interrupt"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // Interrupt request
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-interrupt"),
+            operation: Operation::Interrupt,
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // Interrupt may return success or error depending on state
+        assert!(matches!(
+            response.result,
+            OperationResult::Success { .. } | OperationResult::Error { .. }
+        ));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_describe() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-describe"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // Describe request
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-describe"),
+            operation: Operation::Describe { symbol: "test".to_string() },
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // Response can be success or error depending on what's describable
+        assert!(matches!(
+            response.result,
+            OperationResult::Success { .. } | OperationResult::Error { .. }
+        ));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_load_file() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-load"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // LoadFile request - file doesn't need to exist, testing the path
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-load"),
+            operation: Operation::LoadFile {
+                path: "/nonexistent/test.lisp".to_string(),
+                mode: ReplMode::Lisp,
+            },
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        // Should return error for nonexistent file
+        assert!(matches!(response.result, OperationResult::Error { .. }));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_clone_session() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, None).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Create session first
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("test-clone-src"),
+            operation: Operation::CreateSession { mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let _response = client.recv_response().await.unwrap();
+
+        // Clone request - clone FROM the source session (session_id is the target)
+        let request = Request {
+            id: MessageId::new(2),
+            session_id: SessionId::new("test-clone-dst"),
+            operation: Operation::Clone { source_session_id: SessionId::new("test-clone-src") },
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        assert!(matches!(response.result, OperationResult::Success { .. }));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_handle_connection_error_response_with_metrics() {
+        let listener = TcpTransportListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let metrics = Arc::new(ServerMetrics::new());
+        let metrics_clone = Arc::clone(&metrics);
+
+        let server_handle = tokio::spawn(async move {
+            let transport = listener.accept().await.unwrap();
+            let session_manager = Arc::new(SessionManager::new());
+            ReplServer::handle_connection(transport, session_manager, Some(&metrics_clone)).await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpTransport::connect(addr.to_string()).await.unwrap();
+
+        // Try to eval on non-existent session - should get error response
+        let request = Request {
+            id: MessageId::new(1),
+            session_id: SessionId::new("nonexistent"),
+            operation: Operation::Eval { code: "(+ 1 1)".to_string(), mode: ReplMode::Lisp },
+        };
+        client.send_request(&request).await.unwrap();
+        let response = client.recv_response().await.unwrap();
+        assert!(matches!(response.result, OperationResult::Error { .. }));
+
+        drop(client);
+        timeout(Duration::from_secs(1), server_handle).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_full_server_start_and_shutdown() {
+        let mut server = ReplServer::new("127.0.0.1:0");
+        let shutdown_handle = server.shutdown_handle();
+
+        // Start server in background
+        let server_task = tokio::spawn(async move { server.start().await });
+
+        // Give server time to start
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Trigger shutdown
+        shutdown_handle.shutdown();
+
+        // Wait for server to finish
+        let result = timeout(Duration::from_secs(5), server_task).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_server_with_metrics_full_lifecycle() {
+        let mut server =
+            ReplServer::new("127.0.0.1:0").with_metrics().with_shutdown_timeout(Duration::from_secs(5));
+        let shutdown_handle = server.shutdown_handle();
+
+        let server_task = tokio::spawn(async move { server.start().await });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        shutdown_handle.shutdown();
+
+        let result = timeout(Duration::from_secs(5), server_task).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_handle_clone() {
+        let server = ReplServer::new("127.0.0.1:0");
+        let handle1 = server.shutdown_handle();
+        let handle2 = handle1.clone();
+
+        // Both handles should be functional
+        handle1.shutdown();
+        handle2.shutdown();
+    }
+
+    #[tokio::test]
+    async fn test_server_default_shutdown_timeout() {
+        let server = ReplServer::new("127.0.0.1:0");
+        assert_eq!(server.shutdown_timeout, Duration::from_secs(30));
+    }
 }

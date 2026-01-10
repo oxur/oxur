@@ -1009,4 +1009,699 @@ mod tests {
         let result = parse_stats_command("(not-stats)", &collector, false);
         assert!(result.is_none());
     }
+
+    // ===== Helper function tests =====
+
+    #[test]
+    fn test_format_bytes_bytes() {
+        assert_eq!(format_bytes(0), "0 bytes");
+        assert_eq!(format_bytes(100), "100 bytes");
+        assert_eq!(format_bytes(1023), "1023 bytes");
+    }
+
+    #[test]
+    fn test_format_bytes_kilobytes() {
+        assert_eq!(format_bytes(1024), "1.00 KB");
+        assert_eq!(format_bytes(2048), "2.00 KB");
+        assert_eq!(format_bytes(1536), "1.50 KB");
+        assert_eq!(format_bytes(1024 * 1024 - 1), "1024.00 KB");
+    }
+
+    #[test]
+    fn test_format_bytes_megabytes() {
+        assert_eq!(format_bytes(1024 * 1024), "1.00 MB");
+        assert_eq!(format_bytes(2 * 1024 * 1024), "2.00 MB");
+        assert_eq!(format_bytes(1024 * 1024 * 1024 - 1), "1024.00 MB");
+    }
+
+    #[test]
+    fn test_format_bytes_gigabytes() {
+        assert_eq!(format_bytes(1024 * 1024 * 1024), "1.00 GB");
+        assert_eq!(format_bytes(2 * 1024 * 1024 * 1024), "2.00 GB");
+    }
+
+    #[test]
+    fn test_format_duration_seconds() {
+        assert_eq!(format_duration(0), "0 seconds ago");
+        assert_eq!(format_duration(30), "30 seconds ago");
+        assert_eq!(format_duration(59), "59 seconds ago");
+    }
+
+    #[test]
+    fn test_format_duration_minutes() {
+        assert_eq!(format_duration(60), "1 minutes ago");
+        assert_eq!(format_duration(120), "2 minutes ago");
+        assert_eq!(format_duration(3599), "59 minutes ago");
+    }
+
+    #[test]
+    fn test_format_duration_hours() {
+        assert_eq!(format_duration(3600), "1 hours ago");
+        assert_eq!(format_duration(7200), "2 hours ago");
+        assert_eq!(format_duration(86399), "23 hours ago");
+    }
+
+    #[test]
+    fn test_format_duration_days() {
+        assert_eq!(format_duration(86400), "1 days ago");
+        assert_eq!(format_duration(172800), "2 days ago");
+        assert_eq!(format_duration(604800), "7 days ago");
+    }
+
+    #[test]
+    fn test_format_uptime_seconds_subsecond() {
+        assert_eq!(format_uptime_seconds(0.5), "0.5s");
+        assert_eq!(format_uptime_seconds(30.5), "30.5s");
+        assert_eq!(format_uptime_seconds(59.9), "59.9s");
+    }
+
+    #[test]
+    fn test_format_uptime_seconds_minutes() {
+        assert_eq!(format_uptime_seconds(60.0), "1m 0s");
+        assert_eq!(format_uptime_seconds(90.0), "1m 30s");
+        assert_eq!(format_uptime_seconds(3599.0), "59m 59s");
+    }
+
+    #[test]
+    fn test_format_uptime_seconds_hours() {
+        assert_eq!(format_uptime_seconds(3600.0), "1h 0m");
+        assert_eq!(format_uptime_seconds(5400.0), "1h 30m");
+        assert_eq!(format_uptime_seconds(86399.0), "23h 59m");
+    }
+
+    #[test]
+    fn test_format_uptime_seconds_days() {
+        assert_eq!(format_uptime_seconds(86400.0), "1d 0h");
+        assert_eq!(format_uptime_seconds(129600.0), "1d 12h");
+        assert_eq!(format_uptime_seconds(172800.0), "2d 0h");
+    }
+
+    #[test]
+    fn test_header_with_color() {
+        let result = header("Test", true);
+        assert!(result.contains("Test"));
+        assert!(result.contains("\x1b[1;36m")); // cyan color code
+        assert!(result.contains("\x1b[0m")); // reset code
+        assert!(result.contains("═")); // unicode equals
+    }
+
+    #[test]
+    fn test_header_without_color() {
+        let result = header("Test", false);
+        assert!(result.contains("Test"));
+        assert!(!result.contains("\x1b")); // no escape codes
+        assert!(result.contains("=")); // ASCII equals
+    }
+
+    #[test]
+    fn test_section_with_color() {
+        let result = section("Section", true);
+        assert!(result.contains("Section"));
+        assert!(result.contains("\x1b[1;36m")); // cyan color code
+        assert!(result.contains("─")); // unicode dash
+    }
+
+    #[test]
+    fn test_section_without_color() {
+        let result = section("Section", false);
+        assert!(result.contains("Section"));
+        assert!(!result.contains("\x1b")); // no escape codes
+        assert!(result.contains("-")); // ASCII dash
+    }
+
+    #[test]
+    fn test_tier_name_calculator() {
+        let name = tier_name(ExecutionTier::Calculator);
+        assert!(name.contains("CALCULATOR"));
+        assert!(name.contains("TIER 1"));
+    }
+
+    #[test]
+    fn test_tier_name_cached() {
+        let name = tier_name(ExecutionTier::CachedLoaded);
+        assert!(name.contains("CACHED"));
+        assert!(name.contains("TIER 2"));
+    }
+
+    #[test]
+    fn test_tier_name_jit() {
+        let name = tier_name(ExecutionTier::JustInTime);
+        assert!(name.contains("JUST-IN-TIME"));
+        assert!(name.contains("TIER 3"));
+    }
+
+    // ===== Display function tests =====
+
+    #[test]
+    fn test_show_resource_stats_no_data() {
+        let output = show_resource_stats(None, None, false);
+        // When no data is provided, should show messages about unavailability
+        assert!(output.contains("Resource Usage"));
+        assert!(output.contains("Session directory not initialized"));
+        assert!(output.contains("Artifact cache not initialized"));
+    }
+
+    #[test]
+    fn test_show_sessions_empty() {
+        let sessions: Vec<oxur_repl::server::SessionInfo> = vec![];
+        let current = oxur_repl::protocol::SessionId::new("test");
+
+        let output = show_sessions(&sessions, &current, false);
+        assert!(output.contains("Sessions"));
+        assert!(output.contains("No active sessions"));
+    }
+
+    #[test]
+    fn test_show_usage_stats() {
+        let usage = oxur_repl::metrics::UsageMetricsSnapshot {
+            session_id: "test".to_string(),
+            eval_count: 10,
+            help_count: 5,
+            stats_count: 3,
+            info_count: 2,
+            sessions_count: 1,
+            clear_count: 0,
+            banner_count: 1,
+            total_commands: 22,
+        };
+
+        let output = show_usage_stats(&usage, false);
+        assert!(output.contains("Usage Statistics"));
+        assert!(output.contains("COMMAND FREQUENCY"));
+        assert!(output.contains("Eval"));
+        assert!(output.contains("10"));
+    }
+
+    #[test]
+    fn test_show_client_stats() {
+        let client = oxur_repl::metrics::ClientMetricsSnapshot {
+            requests_total: 100,
+            responses_total: 98,
+            responses_success: 95,
+            responses_error: 3,
+            average_latency_ms: 10.5,
+            p50_latency_ms: 8.0,
+            p95_latency_ms: 25.0,
+            p99_latency_ms: 50.0,
+            min_latency_ms: 1.0,
+            max_latency_ms: 100.0,
+        };
+
+        let output = show_client_stats(&client, false);
+        assert!(output.contains("Client Statistics"));
+        assert!(output.contains("REQUESTS & RESPONSES"));
+        assert!(output.contains("LATENCY DISTRIBUTION"));
+        assert!(output.contains("100")); // requests_total
+    }
+
+    #[test]
+    fn test_show_server_stats() {
+        let server = oxur_repl::metrics::ServerMetricsSnapshot {
+            connections_total: 50,
+            connections_active: 2,
+            sessions_total: 30,
+            sessions_active: 5,
+            requests_total: 1000,
+            responses_total: 998,
+            responses_success: 990,
+            responses_error: 8,
+        };
+
+        let output = show_server_stats(&server, false);
+        assert!(output.contains("Server Statistics"));
+        assert!(output.contains("CONNECTIONS"));
+        assert!(output.contains("SESSIONS"));
+        assert!(output.contains("Success Rate"));
+    }
+
+    #[test]
+    fn test_show_subprocess_stats_running() {
+        let subprocess = oxur_repl::metrics::SubprocessMetricsSnapshot {
+            is_running: true,
+            uptime_seconds: 3600.0,
+            restart_count: 2,
+            last_restart_reason: None,
+        };
+
+        let output = show_subprocess_stats(&subprocess, false);
+        assert!(output.contains("Subprocess Statistics"));
+        assert!(output.contains("Running"));
+        assert!(output.contains("1h 0m")); // uptime
+    }
+
+    #[test]
+    fn test_show_subprocess_stats_stopped() {
+        let subprocess = oxur_repl::metrics::SubprocessMetricsSnapshot {
+            is_running: false,
+            uptime_seconds: 0.0,
+            restart_count: 0,
+            last_restart_reason: None,
+        };
+
+        let output = show_subprocess_stats(&subprocess, false);
+        assert!(output.contains("Stopped"));
+    }
+
+    #[test]
+    fn test_parse_stats_command_with_resources() {
+        let collector = EvalMetrics::new("test");
+
+        // Test resources command
+        let result = parse_stats_command_with_resources(
+            "(stats resources)",
+            &collector,
+            None,
+            None,
+            false,
+        );
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("Resource Usage"));
+
+        // Test fallback to regular stats
+        let result = parse_stats_command_with_resources(
+            "(stats)",
+            &collector,
+            None,
+            None,
+            false,
+        );
+        assert!(result.is_some());
+
+        // Test invalid command
+        let result = parse_stats_command_with_resources(
+            "(stats invalid)",
+            &collector,
+            None,
+            None,
+            false,
+        );
+        assert!(result.is_none());
+    }
+
+    // ===== Snapshot-based display tests =====
+
+    #[test]
+    fn test_show_session_summary_from_snapshot_empty() {
+        let snapshot = SessionStatsSnapshot {
+            session_id: "test".to_string(),
+            total_evaluations: 0,
+            cache: oxur_repl::metrics::CacheStats { hits: 0, misses: 0, hit_rate: 0.0 },
+            tier1_percentiles: None,
+            tier2_percentiles: None,
+            tier3_percentiles: None,
+            parse_errors: 0,
+            compile_errors: 0,
+            runtime_errors: 0,
+            average_eval_time_ms: 0.0,
+        };
+
+        let output = show_session_summary_from_snapshot(&snapshot, false);
+        assert!(output.contains("Session Statistics"));
+        assert!(output.contains("Total Evaluations: 0"));
+        assert!(output.contains("No execution data yet"));
+    }
+
+    #[test]
+    fn test_show_session_summary_from_snapshot_with_data() {
+        let snapshot = SessionStatsSnapshot {
+            session_id: "test".to_string(),
+            total_evaluations: 100,
+            cache: oxur_repl::metrics::CacheStats { hits: 80, misses: 20, hit_rate: 80.0 },
+            tier1_percentiles: Some(oxur_repl::metrics::Percentiles {
+                count: 50,
+                min: 0.5,
+                p50: 1.0,
+                p95: 2.0,
+                p99: 3.0,
+                max: 5.0,
+            }),
+            tier2_percentiles: None,
+            tier3_percentiles: None,
+            parse_errors: 0,
+            compile_errors: 0,
+            runtime_errors: 0,
+            average_eval_time_ms: 1.5,
+        };
+
+        let output = show_session_summary_from_snapshot(&snapshot, false);
+        assert!(output.contains("Total Evaluations: 100"));
+        assert!(output.contains("80.0%")); // hit rate
+        assert!(output.contains("EXECUTION TIERS"));
+        assert!(output.contains("Calculator"));
+    }
+
+    #[test]
+    fn test_show_execution_from_snapshot() {
+        let snapshot = SessionStatsSnapshot {
+            session_id: "test".to_string(),
+            total_evaluations: 10,
+            cache: oxur_repl::metrics::CacheStats { hits: 5, misses: 5, hit_rate: 50.0 },
+            tier1_percentiles: Some(oxur_repl::metrics::Percentiles {
+                count: 5,
+                min: 0.5,
+                p50: 1.0,
+                p95: 2.0,
+                p99: 3.0,
+                max: 5.0,
+            }),
+            tier2_percentiles: Some(oxur_repl::metrics::Percentiles {
+                count: 3,
+                min: 1.0,
+                p50: 2.0,
+                p95: 4.0,
+                p99: 5.0,
+                max: 8.0,
+            }),
+            tier3_percentiles: Some(oxur_repl::metrics::Percentiles {
+                count: 2,
+                min: 50.0,
+                p50: 100.0,
+                p95: 200.0,
+                p99: 250.0,
+                max: 300.0,
+            }),
+            parse_errors: 0,
+            compile_errors: 0,
+            runtime_errors: 0,
+            average_eval_time_ms: 50.0,
+        };
+
+        let output = show_execution_from_snapshot(&snapshot, false);
+        assert!(output.contains("Execution Statistics"));
+        assert!(output.contains("TIER 1: CALCULATOR"));
+        assert!(output.contains("TIER 2: CACHED LOADED"));
+        assert!(output.contains("TIER 3: JUST-IN-TIME"));
+    }
+
+    #[test]
+    fn test_show_cache_from_snapshot() {
+        let snapshot = SessionStatsSnapshot {
+            session_id: "test".to_string(),
+            total_evaluations: 100,
+            cache: oxur_repl::metrics::CacheStats { hits: 75, misses: 25, hit_rate: 75.0 },
+            tier1_percentiles: None,
+            tier2_percentiles: None,
+            tier3_percentiles: None,
+            parse_errors: 0,
+            compile_errors: 0,
+            runtime_errors: 0,
+            average_eval_time_ms: 0.0,
+        };
+
+        let output = show_cache_from_snapshot(&snapshot, false);
+        assert!(output.contains("Cache Statistics"));
+        assert!(output.contains("EVALUATION CACHE"));
+        assert!(output.contains("75")); // hits
+        assert!(output.contains("25")); // misses
+        assert!(output.contains("75.0%")); // hit rate
+    }
+
+    #[test]
+    fn test_show_all_stats_with_optional_data() {
+        let collector = EvalMetrics::new("test");
+
+        // Test with all options as Some
+        let server = oxur_repl::metrics::ServerMetricsSnapshot {
+            connections_total: 10,
+            connections_active: 1,
+            sessions_total: 5,
+            sessions_active: 1,
+            requests_total: 100,
+            responses_total: 100,
+            responses_success: 99,
+            responses_error: 1,
+        };
+
+        let client = oxur_repl::metrics::ClientMetricsSnapshot {
+            requests_total: 50,
+            responses_total: 50,
+            responses_success: 49,
+            responses_error: 1,
+            average_latency_ms: 5.0,
+            p50_latency_ms: 4.0,
+            p95_latency_ms: 10.0,
+            p99_latency_ms: 20.0,
+            min_latency_ms: 1.0,
+            max_latency_ms: 30.0,
+        };
+
+        let subprocess = oxur_repl::metrics::SubprocessMetricsSnapshot {
+            is_running: true,
+            uptime_seconds: 120.0,
+            restart_count: 1,
+            last_restart_reason: None,
+        };
+
+        let usage = oxur_repl::metrics::UsageMetricsSnapshot {
+            session_id: "test".to_string(),
+            eval_count: 25,
+            help_count: 5,
+            stats_count: 3,
+            info_count: 2,
+            sessions_count: 1,
+            clear_count: 0,
+            banner_count: 1,
+            total_commands: 37,
+        };
+
+        let output = show_all_stats(
+            &collector,
+            None,
+            None,
+            Some(&server),
+            Some(&client),
+            Some(&subprocess),
+            Some(&usage),
+            false,
+        );
+
+        assert!(output.contains("Execution Statistics"));
+        assert!(output.contains("Cache Statistics"));
+        assert!(output.contains("Server Statistics"));
+        assert!(output.contains("Client Statistics"));
+        assert!(output.contains("Subprocess Statistics"));
+        assert!(output.contains("Usage Statistics"));
+    }
+
+    // ===== Additional coverage tests =====
+
+    #[test]
+    fn test_show_sessions_with_data() {
+        use oxur_repl::protocol::ReplMode;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+
+        let sessions = vec![
+            oxur_repl::server::SessionInfo {
+                id: oxur_repl::protocol::SessionId::new("session-1"),
+                name: Some("Main".to_string()),
+                mode: ReplMode::Lisp,
+                eval_count: 42,
+                created_at: now - 3600_000, // 1 hour ago
+                last_active_at: now - 30_000, // 30 seconds ago - "just now"
+                timeout_ms: 300_000,
+            },
+            oxur_repl::server::SessionInfo {
+                id: oxur_repl::protocol::SessionId::new("session-2"),
+                name: None, // No name - tests the "-" fallback
+                mode: ReplMode::Sexpr,
+                eval_count: 10,
+                created_at: now - 7200_000,
+                last_active_at: now - 120_000, // 2 min ago
+                timeout_ms: 300_000,
+            },
+            oxur_repl::server::SessionInfo {
+                id: oxur_repl::protocol::SessionId::new("session-3"),
+                name: Some("Old".to_string()),
+                mode: ReplMode::Lisp,
+                eval_count: 5,
+                created_at: now - 172800_000,
+                last_active_at: now - 7200_000, // 2 hr ago
+                timeout_ms: 300_000,
+            },
+            oxur_repl::server::SessionInfo {
+                id: oxur_repl::protocol::SessionId::new("session-4"),
+                name: Some("Very Old".to_string()),
+                mode: ReplMode::Lisp,
+                eval_count: 1,
+                created_at: now - 259200_000,
+                last_active_at: now - 172800_000, // 2 days ago
+                timeout_ms: 300_000,
+            },
+        ];
+        let current = oxur_repl::protocol::SessionId::new("session-1");
+
+        let output = show_sessions(&sessions, &current, false);
+        assert!(output.contains("Sessions"));
+        assert!(output.contains("ACTIVE SESSIONS"));
+        assert!(output.contains("session-1"));
+        assert!(output.contains("Main"));
+        assert!(output.contains("42")); // eval_count
+        assert!(output.contains("just now")); // <1 min
+        assert!(output.contains("min ago")); // 2 min
+        assert!(output.contains("hr ago")); // 2 hr
+        assert!(output.contains("days ago")); // 2 days
+    }
+
+    #[test]
+    fn test_show_resource_stats_with_dir_stats() {
+        use std::path::PathBuf;
+
+        let dir_stats = oxur_repl::session::DirStats {
+            file_count: 15,
+            total_bytes: 102400,
+            is_tmpfs: true,
+            path: PathBuf::from("/tmp/oxur-session"),
+        };
+
+        let output = show_resource_stats(Some(&dir_stats), None, false);
+        assert!(output.contains("Resource Usage"));
+        assert!(output.contains("SESSION DIRECTORY"));
+        assert!(output.contains("15")); // file_count
+        assert!(output.contains("100.00 KB")); // total_bytes formatted
+        assert!(output.contains("tmpfs")); // is_tmpfs flag
+    }
+
+    #[test]
+    fn test_show_resource_stats_with_cache_stats() {
+        use std::path::PathBuf;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+
+        let cache_stats = oxur_repl::cache::CacheStats {
+            entry_count: 25,
+            total_size_bytes: 5242880,
+            oldest_entry_secs: now - 3600, // 1 hour ago
+            newest_entry_secs: now,
+            cache_dir: PathBuf::from("/home/user/.cache/oxur"),
+        };
+
+        let output = show_resource_stats(None, Some(&cache_stats), false);
+        assert!(output.contains("Resource Usage"));
+        assert!(output.contains("ARTIFACT CACHE"));
+        assert!(output.contains("25")); // entry_count
+        assert!(output.contains("5.00 MB")); // total_size formatted
+    }
+
+    #[test]
+    fn test_show_resource_stats_with_empty_cache() {
+        use std::path::PathBuf;
+
+        let cache_stats = oxur_repl::cache::CacheStats {
+            entry_count: 0,
+            total_size_bytes: 0,
+            oldest_entry_secs: 0,
+            newest_entry_secs: 0,
+            cache_dir: PathBuf::from("/home/user/.cache/oxur"),
+        };
+
+        let output = show_resource_stats(None, Some(&cache_stats), false);
+        assert!(output.contains("ARTIFACT CACHE"));
+        assert!(output.contains("N/A")); // oldest entry shows N/A when empty
+    }
+
+    #[test]
+    fn test_show_resource_stats_dir_not_tmpfs() {
+        use std::path::PathBuf;
+
+        let dir_stats = oxur_repl::session::DirStats {
+            file_count: 5,
+            total_bytes: 1024,
+            is_tmpfs: false, // Not on tmpfs
+            path: PathBuf::from("/var/oxur-session"),
+        };
+
+        let output = show_resource_stats(Some(&dir_stats), None, false);
+        assert!(output.contains("SESSION DIRECTORY"));
+        assert!(!output.contains("tmpfs")); // No tmpfs indicator
+    }
+
+    #[test]
+    fn test_show_usage_stats_zero_commands() {
+        let usage = oxur_repl::metrics::UsageMetricsSnapshot {
+            session_id: "test".to_string(),
+            eval_count: 0,
+            help_count: 0,
+            stats_count: 0,
+            info_count: 0,
+            sessions_count: 0,
+            clear_count: 0,
+            banner_count: 0,
+            total_commands: 0,
+        };
+
+        let output = show_usage_stats(&usage, false);
+        assert!(output.contains("Usage Statistics"));
+        assert!(output.contains("0.0%")); // All percentages should be 0.0%
+    }
+
+    #[test]
+    fn test_show_subprocess_stats_with_restart_reason() {
+        let subprocess = oxur_repl::metrics::SubprocessMetricsSnapshot {
+            is_running: true,
+            uptime_seconds: 7200.0,
+            restart_count: 3,
+            last_restart_reason: Some(oxur_repl::metrics::RestartReason::UserRequested),
+        };
+
+        let output = show_subprocess_stats(&subprocess, false);
+        assert!(output.contains("Subprocess Statistics"));
+        assert!(output.contains("2h 0m")); // 2 hours
+        assert!(output.contains("3")); // restart count
+        assert!(output.contains("user requested")); // UserRequested displays
+    }
+
+    #[test]
+    fn test_show_server_stats_zero_responses() {
+        let server = oxur_repl::metrics::ServerMetricsSnapshot {
+            connections_total: 5,
+            connections_active: 0,
+            sessions_total: 2,
+            sessions_active: 0,
+            requests_total: 10,
+            responses_total: 0, // No responses yet
+            responses_success: 0,
+            responses_error: 0,
+        };
+
+        let output = show_server_stats(&server, false);
+        assert!(output.contains("Server Statistics"));
+        assert!(output.contains("0.0%")); // Success rate with no responses
+    }
+
+    #[test]
+    fn test_show_session_summary_from_snapshot_with_tier2_and_tier3() {
+        let snapshot = SessionStatsSnapshot {
+            session_id: "test".to_string(),
+            total_evaluations: 100,
+            cache: oxur_repl::metrics::CacheStats { hits: 50, misses: 50, hit_rate: 50.0 },
+            tier1_percentiles: None, // No tier1
+            tier2_percentiles: Some(oxur_repl::metrics::Percentiles {
+                count: 30,
+                min: 1.0,
+                p50: 5.0,
+                p95: 10.0,
+                p99: 15.0,
+                max: 20.0,
+            }),
+            tier3_percentiles: Some(oxur_repl::metrics::Percentiles {
+                count: 20,
+                min: 50.0,
+                p50: 100.0,
+                p95: 200.0,
+                p99: 300.0,
+                max: 400.0,
+            }),
+            parse_errors: 5,
+            compile_errors: 3,
+            runtime_errors: 2,
+            average_eval_time_ms: 25.0,
+        };
+
+        let output = show_session_summary_from_snapshot(&snapshot, false);
+        assert!(output.contains("Cached")); // Tier 2
+        assert!(output.contains("JIT")); // Tier 3
+    }
 }

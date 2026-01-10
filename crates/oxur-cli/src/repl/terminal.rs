@@ -379,4 +379,288 @@ mod tests {
         assert!(!result.contains("M.M.M"));
         assert!(!result.contains("L.L.L"));
     }
+
+    // ===== Additional coverage tests =====
+
+    #[test]
+    fn test_format_version_empty() {
+        let version = "";
+        assert_eq!(format_version(version), "");
+    }
+
+    #[test]
+    fn test_format_version_single_word() {
+        let version = "1.75.0";
+        assert_eq!(format_version(version), "1.75.0");
+    }
+
+    #[test]
+    fn test_format_version_many_parts() {
+        let version = "tool 1.0.0 extra info here";
+        assert_eq!(format_version(version), "1.0.0 extra info here");
+    }
+
+    #[test]
+    fn test_substitute_banner_no_placeholders() {
+        let banner = "Welcome to the REPL!";
+        let metadata = oxur_repl::metadata::SystemMetadata {
+            oxur_version: "0.1.0".to_string(),
+            rust_version: "rustc 1.75.0".to_string(),
+            cargo_version: "cargo 1.75.0".to_string(),
+            os_name: "Test".to_string(),
+            os_version: "1.0".to_string(),
+            arch: "x86_64".to_string(),
+            hostname: "test".to_string(),
+            pid: 1234,
+            cwd: std::path::PathBuf::from("/test"),
+            started_at: std::time::SystemTime::now(),
+        };
+
+        let result = substitute_banner_versions(banner, &metadata);
+        assert_eq!(result, "Welcome to the REPL!");
+    }
+
+    #[test]
+    fn test_substitute_banner_partial_placeholders() {
+        let banner = "Oxur N.N.N only";
+        let metadata = oxur_repl::metadata::SystemMetadata {
+            oxur_version: "0.2.0".to_string(),
+            rust_version: "rustc 1.76.0".to_string(),
+            cargo_version: "cargo 1.76.0".to_string(),
+            os_name: "Test".to_string(),
+            os_version: "1.0".to_string(),
+            arch: "x86_64".to_string(),
+            hostname: "test".to_string(),
+            pid: 1234,
+            cwd: std::path::PathBuf::from("/test"),
+            started_at: std::time::SystemTime::now(),
+        };
+
+        let result = substitute_banner_versions(banner, &metadata);
+        assert_eq!(result, "Oxur 0.2.0 only");
+    }
+
+    #[test]
+    fn test_add_completion_keybinding() {
+        let mut keybindings = default_emacs_keybindings();
+        // Should not panic
+        add_completion_keybinding(&mut keybindings);
+    }
+
+    #[test]
+    fn test_add_completion_keybinding_vi_insert() {
+        let mut keybindings = default_vi_insert_keybindings();
+        add_completion_keybinding(&mut keybindings);
+    }
+
+    #[test]
+    fn test_add_completion_keybinding_vi_normal() {
+        let mut keybindings = default_vi_normal_keybindings();
+        add_completion_keybinding(&mut keybindings);
+    }
+
+    #[test]
+    fn test_terminal_config_default_banner() {
+        let config = TerminalConfig::default();
+        // Default config has the DEFAULT_BANNER set
+        assert!(config.banner.is_some());
+    }
+
+    #[test]
+    fn test_terminal_config_color_disabled() {
+        let config = TerminalConfig::builder().color(false).build();
+        assert!(!config.color_enabled);
+    }
+
+    #[test]
+    fn test_terminal_config_color_enabled() {
+        let config = TerminalConfig::builder().color(true).build();
+        assert!(config.color_enabled);
+    }
+
+    #[test]
+    fn test_terminal_config_edit_mode_emacs() {
+        let config = TerminalConfig::builder().edit_mode(EditMode::Emacs).build();
+        assert!(matches!(config.edit_mode, EditMode::Emacs));
+    }
+
+    #[test]
+    fn test_terminal_config_edit_mode_vi() {
+        let config = TerminalConfig::builder().edit_mode(EditMode::Vi).build();
+        assert!(matches!(config.edit_mode, EditMode::Vi));
+    }
+
+    #[test]
+    fn test_history_config_default() {
+        let config = HistoryConfig::default();
+        assert!(config.enabled);
+        assert!(config.path.is_none());
+        // Default has max_size of 10000
+        assert_eq!(config.max_size, Some(10000));
+    }
+
+    #[test]
+    fn test_history_config_disabled() {
+        let config = HistoryConfig { enabled: false, path: None, max_size: None };
+        assert!(!config.enabled);
+    }
+
+    #[test]
+    fn test_history_config_custom_path() {
+        let path = PathBuf::from("/custom/history");
+        let config = HistoryConfig { enabled: true, path: Some(path.clone()), max_size: None };
+        assert_eq!(config.path, Some(path));
+    }
+
+    #[test]
+    fn test_history_config_custom_max_size() {
+        let config = HistoryConfig { enabled: true, path: None, max_size: Some(5000) };
+        assert_eq!(config.max_size, Some(5000));
+    }
+
+    // Tests for ReplTerminal that don't require actual terminal interaction
+    // These test the creation path and configuration access
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_with_config_emacs() {
+        // Create with emacs mode - tests line 91-94
+        let terminal_config = TerminalConfig::builder()
+            .edit_mode(EditMode::Emacs)
+            .color(false)
+            .build();
+        let history_config = HistoryConfig { enabled: false, path: None, max_size: Some(100) };
+
+        let result = ReplTerminal::with_config(terminal_config, history_config);
+        assert!(result.is_ok());
+        let terminal = result.unwrap();
+        assert!(!terminal.config().color_enabled);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_with_config_vi() {
+        // Create with vi mode - tests line 96-102
+        let terminal_config = TerminalConfig::builder()
+            .edit_mode(EditMode::Vi)
+            .color(false)
+            .build();
+        let history_config = HistoryConfig { enabled: false, path: None, max_size: Some(100) };
+
+        let result = ReplTerminal::with_config(terminal_config, history_config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_with_history_enabled() {
+        // Test with history enabled - tests line 111-112
+        let terminal_config = TerminalConfig::builder().color(false).build();
+        let temp_dir = std::env::temp_dir();
+        let history_path = temp_dir.join("test-oxur-history");
+        let history_config =
+            HistoryConfig { enabled: true, path: Some(history_path.clone()), max_size: Some(500) };
+
+        let result = ReplTerminal::with_config(terminal_config, history_config);
+        assert!(result.is_ok());
+
+        // Cleanup
+        let _ = std::fs::remove_file(history_path);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_with_history_disabled() {
+        // Test with history disabled - tests line 114-116
+        let terminal_config = TerminalConfig::builder().color(false).build();
+        let history_config = HistoryConfig { enabled: false, path: None, max_size: None };
+
+        let result = ReplTerminal::with_config(terminal_config, history_config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_config_accessor() {
+        let terminal_config = TerminalConfig::builder()
+            .prompt("test> ")
+            .continuation_prompt("..> ")
+            .color(false)
+            .build();
+        let history_config = HistoryConfig::default();
+
+        let terminal = ReplTerminal::with_config(terminal_config.clone(), history_config).unwrap();
+
+        // Test config() accessor - line 277-279
+        let config = terminal.config();
+        assert_eq!(config.prompt, "test> ");
+        assert_eq!(config.continuation_prompt, "..> ");
+        assert!(!config.color_enabled);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_prompt() {
+        let terminal_config =
+            TerminalConfig::builder().prompt("custom> ").color(false).build();
+        let history_config = HistoryConfig::default();
+
+        let terminal = ReplTerminal::with_config(terminal_config, history_config).unwrap();
+
+        // Test prompt() method - line 172-174
+        let prompt = terminal.prompt();
+        assert_eq!(prompt, "custom> ");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_continuation_prompt() {
+        let terminal_config = TerminalConfig::builder()
+            .continuation_prompt(">>> ")
+            .color(false)
+            .build();
+        let history_config = HistoryConfig::default();
+
+        let terminal = ReplTerminal::with_config(terminal_config, history_config).unwrap();
+
+        // Test continuation_prompt() method - line 178-180
+        let cont_prompt = terminal.continuation_prompt();
+        assert_eq!(cont_prompt, ">>> ");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_color_enabled() {
+        let terminal_config = TerminalConfig::builder().color(true).build();
+        let history_config = HistoryConfig::default();
+
+        let terminal = ReplTerminal::with_config(terminal_config, history_config).unwrap();
+
+        // Test color_enabled() method - line 193-195
+        assert!(terminal.color_enabled());
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_color_disabled() {
+        let terminal_config = TerminalConfig::builder().color(false).build();
+        let history_config = HistoryConfig::default();
+
+        let terminal = ReplTerminal::with_config(terminal_config, history_config).unwrap();
+
+        assert!(!terminal.color_enabled());
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_repl_terminal_save_history() {
+        let terminal_config = TerminalConfig::builder().color(false).build();
+        let history_config = HistoryConfig::default();
+
+        let mut terminal = ReplTerminal::with_config(terminal_config, history_config).unwrap();
+
+        // Test save_history() method - line 186-189
+        let result = terminal.save_history();
+        assert!(result.is_ok());
+    }
 }

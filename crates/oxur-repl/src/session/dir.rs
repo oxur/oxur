@@ -234,6 +234,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_session_dir_creation() {
         let session_id = SessionId::new("test-create");
         let dir = SessionDir::new(&session_id).expect("Failed to create session dir");
@@ -243,6 +244,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_session_dir_write_source() {
         let session_id = SessionId::new("test-write");
         let dir = SessionDir::new(&session_id).expect("Failed to create session dir");
@@ -256,6 +258,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_session_dir_create_subdir() {
         let session_id = SessionId::new("test-subdir");
         let dir = SessionDir::new(&session_id).expect("Failed to create session dir");
@@ -267,6 +270,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_session_dir_list_files() {
         let session_id = SessionId::new("test-list");
         let dir = SessionDir::new(&session_id).expect("Failed to create session dir");
@@ -279,6 +283,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_session_dir_cleanup() {
         let session_id = SessionId::new("test-cleanup");
         let dir = SessionDir::new(&session_id).expect("Failed to create session dir");
@@ -293,6 +298,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
     fn test_session_dir_auto_cleanup_on_drop() {
         let session_id = SessionId::new("test-drop");
         let path = {

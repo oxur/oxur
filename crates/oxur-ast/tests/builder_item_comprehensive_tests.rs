@@ -1,6 +1,23 @@
 use oxur_ast::ast::*;
 use oxur_ast::builder::AstBuilder;
-use oxur_ast::sexp::Parser;
+use oxur_ast::sexp::{Parser, SExp};
+use std::path::PathBuf;
+
+/// Helper function to parse a fixture file from test-data/fixtures/
+fn parse_fixture(path: &str) -> SExp {
+    let full_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/fixtures").join(path);
+    Parser::parse_file(&full_path)
+        .unwrap_or_else(|e| panic!("Failed to parse fixture {}: {}", path, e))
+}
+
+/// Helper to extract type from a Const item
+fn extract_const_type(item: &Item) -> &Ty {
+    match &item.kind {
+        ItemKind::Const { ty, .. } => ty,
+        _ => panic!("Expected Const item"),
+    }
+}
 
 // ===== Type Item Tests (build_type_item) =====
 
@@ -953,4 +970,324 @@ fn test_build_mod_item_external() {
         }
         _ => panic!("Expected Mod item"),
     }
+}
+
+// ===== Type Kind Tests (using fixtures) =====
+
+#[test]
+fn test_build_ty_kind_never() {
+    let sexp = parse_fixture("ty/never.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    assert!(matches!(ty.kind, TyKind::Never));
+}
+
+#[test]
+fn test_build_ty_kind_infer() {
+    let sexp = parse_fixture("ty/infer.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    assert!(matches!(ty.kind, TyKind::Infer));
+}
+
+#[test]
+fn test_build_ty_kind_ref_immut() {
+    let sexp = parse_fixture("ty/ref-immut.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::Ref { lifetime, mutability, .. } => {
+            assert!(lifetime.is_none());
+            assert!(matches!(mutability, Mutability::Not));
+        }
+        _ => panic!("Expected Ref type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_ref_mut() {
+    let sexp = parse_fixture("ty/ref-mut.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::Ref { mutability, .. } => {
+            assert!(matches!(mutability, Mutability::Mut));
+        }
+        _ => panic!("Expected Ref type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_ref_with_lifetime() {
+    let sexp = parse_fixture("ty/ref-with-lifetime.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::Ref { lifetime, .. } => {
+            assert!(lifetime.is_some());
+            assert_eq!(lifetime.as_ref().unwrap().ident.name, "a");
+        }
+        _ => panic!("Expected Ref type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_ptr_const() {
+    let sexp = parse_fixture("ty/ptr-const.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::Ptr { mutability, .. } => {
+            assert!(matches!(mutability, Mutability::Not));
+        }
+        _ => panic!("Expected Ptr type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_ptr_mut() {
+    let sexp = parse_fixture("ty/ptr-mut.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::Ptr { mutability, .. } => {
+            assert!(matches!(mutability, Mutability::Mut));
+        }
+        _ => panic!("Expected Ptr type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_array() {
+    let sexp = parse_fixture("ty/array.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    assert!(matches!(ty.kind, TyKind::Array { .. }));
+}
+
+#[test]
+fn test_build_ty_kind_slice() {
+    let sexp = parse_fixture("ty/slice.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    assert!(matches!(ty.kind, TyKind::Slice(_)));
+}
+
+#[test]
+fn test_build_ty_kind_tuple() {
+    let sexp = parse_fixture("ty/tuple.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::Tuple(tys) => {
+            assert_eq!(tys.len(), 2);
+        }
+        _ => panic!("Expected Tuple type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_bare_fn() {
+    let sexp = parse_fixture("ty/bare-fn.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::BareFn { safety, abi, inputs, .. } => {
+            assert!(matches!(safety, Safety::Default));
+            assert!(abi.is_none());
+            assert!(inputs.is_empty());
+        }
+        _ => panic!("Expected BareFn type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_bare_fn_unsafe() {
+    let sexp = parse_fixture("ty/bare-fn-unsafe.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::BareFn { safety, .. } => {
+            assert!(matches!(safety, Safety::Unsafe));
+        }
+        _ => panic!("Expected BareFn type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_bare_fn_abi() {
+    let sexp = parse_fixture("ty/bare-fn-abi.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::BareFn { abi, .. } => {
+            assert_eq!(abi.as_ref().unwrap(), "C");
+        }
+        _ => panic!("Expected BareFn type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_bare_fn_with_params() {
+    let sexp = parse_fixture("ty/bare-fn-with-params.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::BareFn { inputs, .. } => {
+            assert_eq!(inputs.len(), 1);
+            assert!(inputs[0].name.is_none());
+        }
+        _ => panic!("Expected BareFn type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_bare_fn_named_param() {
+    let sexp = parse_fixture("ty/bare-fn-named-param.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::BareFn { inputs, .. } => {
+            assert!(inputs[0].name.is_some());
+            assert_eq!(inputs[0].name.as_ref().unwrap().name, "x");
+        }
+        _ => panic!("Expected BareFn type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_impl_trait() {
+    let sexp = parse_fixture("ty/impl-trait.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::ImplTrait(bounds) => {
+            assert_eq!(bounds.len(), 1);
+        }
+        _ => panic!("Expected ImplTrait type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_trait_object() {
+    let sexp = parse_fixture("ty/trait-object.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::TraitObject { bounds, syntax } => {
+            assert_eq!(bounds.len(), 1);
+            assert!(matches!(syntax, TraitObjectSyntax::Dyn));
+        }
+        _ => panic!("Expected TraitObject type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_trait_object_no_dyn() {
+    let sexp = parse_fixture("ty/trait-object-no-dyn.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    match &ty.kind {
+        TyKind::TraitObject { syntax, .. } => {
+            assert!(matches!(syntax, TraitObjectSyntax::None));
+        }
+        _ => panic!("Expected TraitObject type"),
+    }
+}
+
+#[test]
+fn test_build_ty_kind_mac_call() {
+    let sexp = parse_fixture("ty/mac-call.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    assert!(matches!(ty.kind, TyKind::MacCall(_)));
+}
+
+#[test]
+fn test_build_ty_kind_paren() {
+    let sexp = parse_fixture("ty/paren.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    assert!(matches!(ty.kind, TyKind::Paren(_)));
+}
+
+#[test]
+fn test_build_ty_with_id_and_span() {
+    let sexp = parse_fixture("ty/with-id-and-span.sexp");
+    let mut builder = AstBuilder::new();
+    let item = builder.build_item(&sexp).unwrap();
+    let ty = extract_const_type(&item);
+
+    assert_eq!(ty.id, NodeId(99));
+    assert_eq!(ty.span.lo, 5);
+    assert_eq!(ty.span.hi, 10);
+}
+
+// ===== Type Kind Error Tests =====
+
+#[test]
+fn test_build_ty_kind_invalid() {
+    let sexp = parse_fixture("ty/invalid-kind.sexp");
+    let mut builder = AstBuilder::new();
+    let result = builder.build_item(&sexp);
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_build_ty_kind_invalid_symbol() {
+    let sexp = parse_fixture("ty/invalid-symbol.sexp");
+    let mut builder = AstBuilder::new();
+    let result = builder.build_item(&sexp);
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_build_ty_trait_object_invalid_syntax() {
+    let sexp = parse_fixture("ty/trait-object-invalid-syntax.sexp");
+    let mut builder = AstBuilder::new();
+    let result = builder.build_item(&sexp);
+
+    assert!(result.is_err());
 }
