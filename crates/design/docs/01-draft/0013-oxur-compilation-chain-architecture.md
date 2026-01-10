@@ -33,15 +33,15 @@ version: 1.2
 8. [Stage 4: De-S-expression (Oxur AST → syn AST)](#stage-4-de-s-expression-oxur-ast--syn-ast)
 9. [Stage 5: Generate (Rust AST → Rust Source)](#stage-5-generate-rust-ast--rust-source)
 10. [Stage 6: Compile (Rust Source → Binary)](#stage-6-compile-rust-source--binary)
-10. [Source Map Architecture](#source-map-architecture)
-11. [Error Reporting](#error-reporting)
-12. [REPL Architecture](#repl-architecture)
-13. [Macro System](#macro-system)
-14. [Repository Structure](#repository-structure)
-15. [Development Phases](#development-phases)
-16. [Testing Strategy](#testing-strategy)
-17. [Performance Considerations](#performance-considerations)
-18. [Open Questions](#open-questions)
+11. [Source Map Architecture](#source-map-architecture)
+12. [Error Reporting](#error-reporting)
+13. [REPL Architecture](#repl-architecture)
+14. [Macro System](#macro-system)
+15. [Repository Structure](#repository-structure)
+16. [Development Phases](#development-phases)
+17. [Testing Strategy](#testing-strategy)
+18. [Performance Considerations](#performance-considerations)
+19. [Open Questions](#open-questions)
 
 ---
 
@@ -1358,10 +1358,12 @@ Error at Node 200
 Map Core Forms (canonical S-expressions representing Lisp concepts) to Oxur AST (S-expressions representing Rust concepts). This is the **semantic boundary** where we cross from Lisp semantics to Rust semantics while staying in S-expression form.
 
 **Key Insight:** Oxur AST forms a **buffer zone** that protects the compiler from changes in both directions:
+
 - Changes in Oxur language syntax/semantics (Surface/Core Forms evolution)
 - Changes in Rust AST representation (syn crate evolution, Rust language changes)
 
 This stage transforms:
+
 - Lisp-oriented forms like `define-func`, `if-expr`, `let-bind`
 - Into Rust-oriented S-expressions like `(Item :kind (Fn ...))`, `(Expr :kind (If ...))`, `(Local ...)`
 - That can then be mechanically converted to syn AST structures in Stage 4
@@ -1373,6 +1375,7 @@ This stage transforms:
 Oxur AST uses the canonical S-expression format defined in ODD-0003. It represents Rust AST nodes as S-expressions with keyword arguments:
 
 **Example - Function definition:**
+
 ```lisp
 (Item
   :vis Public
@@ -1419,6 +1422,7 @@ Convert Oxur AST (S-expressions of Rust concepts) into actual syn crate AST stru
 ### Why This Stage Exists
 
 Separating this from Stage 3 provides:
+
 - **Clean abstraction**: Stage 3 handles semantic transformation, Stage 4 handles data conversion
 - **Buffer zone benefits**: Changes to syn crate don't affect Core Forms lowering
 - **Reusability**: The oxur-ast crate can be used by other tools
@@ -3315,6 +3319,47 @@ This architecture provides:
 ---
 
 ## Version History
+
+### Version 1.2 (2026-01-10)
+
+Established explicit 6-stage compilation pipeline with Oxur AST buffer zone architecture. This represents a "fix" for poorly phrased features and addresses language ambiguity while also introducing clarifying examples and detailed descriptions of the stages.
+
+**Major Changes:**
+
+1. **6-Stage Pipeline** - Expanded from 5 to 6 stages by splitting lowering into two explicit stages
+2. **Oxur AST Buffer Zone** - Made explicit the intermediate S-expression layer between Core Forms and syn AST
+3. **Stage 3 (Lower)** - Now explicitly crosses semantic boundary: Core Forms → Oxur AST (S-expressions of Rust concepts)
+4. **Stage 4 (De-S-expression)** - New explicit stage: Oxur AST → syn AST structures (mechanical conversion)
+5. **Stages 5-6** - Renumbered Generate and Compile stages from old 4-5
+6. **Multi-Stage Philosophy** - Updated to describe distinct layers including semantic boundary and de-S-expressioning
+7. **Data Flow Table** - Updated to show all 6 stages with accurate inputs/outputs
+8. **All Diagrams** - Updated Big Picture, Full Pipeline Overview, and detailed stage descriptions
+9. **Implementation Note** - Documented that current implementation combines Stages 3+4, with proper separation planned
+
+**Sections Updated:**
+
+- Table of Contents (added Stage 4 link)
+- The Big Picture diagram
+- Multi-Stage Compilation Philosophy
+- Example section (Stages 1-6)
+- Data Flow Summary table
+- Full Pipeline Overview diagram
+- Detailed Stage 3 section (now Core Forms → Oxur AST)
+- New Stage 4 section (De-S-expression with DeSExpressioner)
+- Detailed Stages 5-6 (renumbered)
+- Repository structure comments
+- Performance considerations
+- Implementation checklists
+- All cross-references and stage number mentions
+
+**Architectural Insight:**
+
+The Oxur AST acts as a **buffer zone** protecting the compiler from changes in both directions:
+
+- Upstream: Oxur language syntax/semantics evolution (Surface/Core Forms)
+- Downstream: syn crate evolution and Rust language changes
+
+This separation enables independent evolution of the Oxur language front-end and the Rust compilation back-end.
 
 ### Version 1.1 (2026-01-05)
 
