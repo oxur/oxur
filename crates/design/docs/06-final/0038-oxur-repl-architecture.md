@@ -5,11 +5,11 @@ author: "Duncan McGreggor & Claude"
 component: All
 tags: [repl, architecture, definitive]
 created: 2026-01-04
-updated: 2026-01-06
+updated: 2026-01-10
 state: Final
 supersedes: null
 superseded-by: null
-version: 1.3
+version: 1.4
 ---
 
 
@@ -245,7 +245,7 @@ This architecture is informed by comprehensive analysis of evcxr (Rust REPL/Jupy
 │  oxur-comp (lowering to Rust)                               │
 │    - lower(core: &CoreForm, source_map: &mut SourceMap)     │
 │      → Result<RustAst>                                      │
-│    - Records Core→Rust transformations in source_map        │
+│    - Records Core→Oxur AST→syn transformations in source_map│
 ├─────────────────────────────────────────────────────────────┤
 │  oxur-ast (Rust AST manipulation)                           │
 │    - print_rust(ast: &syn::File) → String                   │
@@ -510,7 +510,7 @@ impl SourceMap {
     // Called by oxur-lang during expansion
     pub fn record_expansion(&mut self, surface: NodeId, core: NodeId);
 
-    // Called by oxur-comp during lowering
+    // Called by oxur-comp during lowering (crosses semantic boundary via Oxur AST)
     pub fn record_lowering(&mut self, core: NodeId, rust: NodeId);
 
     // Called by oxur-repl during error translation
@@ -581,7 +581,9 @@ pub fn parse_core_forms(
 
 **Location:** Separate crate
 
-**Purpose:** Lowering Core Forms to Rust AST
+**Purpose:** Lowering Core Forms to Rust AST via Oxur AST intermediate layer
+
+**Note:** Per ODD-0013, this internally crosses the semantic boundary from Lisp concepts to Rust concepts via Oxur AST (S-expressions of Rust concepts), then converts to syn structures. Current implementation combines these steps.
 
 **REPL Integration Points:**
 
@@ -593,7 +595,7 @@ pub fn lower(
 ) -> Result<syn::File>;
 ```
 
-**Responsibility:** Records Core→Rust transformations in SourceMap
+**Responsibility:** Records Core→Oxur AST→syn transformations in SourceMap
 
 #### oxur-ast
 
@@ -778,7 +780,7 @@ pub struct CachedCompiler {
 
 **Responsibilities:**
 
-- Lowers Core Forms to Rust AST (via oxur-comp)
+- Lowers Core Forms to Rust AST (via oxur-comp, crossing semantic boundary through Oxur AST)
 - Wraps AST with REPL scaffolding (RustAstWrapper)
 - Invokes cargo to compile to dylib
 - Parses cargo output for errors
@@ -792,9 +794,9 @@ pub struct CachedCompiler {
 ```rust
 impl CachedCompiler {
     pub async fn eval(&mut self, form: CoreForm) -> Result<Response> {
-        // 1. Lower: CoreForm → RustAst (via oxur-comp)
+        // 1. Lower: CoreForm → Oxur AST → syn AST (via oxur-comp)
         // 2. Wrap: Add REPL scaffolding (RustAstWrapper)
-        // 3. Generate: RustAst → String (via oxur-ast)
+        // 3. Generate: syn AST → String (via oxur-ast)
         // 4. Write: Save to session_dir
         // 5. Compile: Invoke cargo build
         // 6. Parse errors: rustc JSON → SourceMap lookup
@@ -1455,16 +1457,26 @@ User Input: "(+ 1 2)"
 │       &mut source_map    ◄─ NEW                         │
 │   )?;                                                   │
 │                                                         │
+│ Note (per ODD-0013):                          ◄─ NEW    │
+│   This internally involves two operations:              │
+│   1. Core Forms → Oxur AST (semantic boundary)          │
+│      Crosses from Lisp to Rust concepts                 │
+│   2. Oxur AST → syn AST (de-S-expressioning)            │
+│      Converts S-expressions to syn structures           │
+│   Current implementation combines these steps.          │
+│                                                         │
 │ SourceMap Recording:                           ◄─ NEW   │
 │   - Records Core NodeId → Rust NodeId                   │
 │   - Critical for error translation                      │
 │                                                         │
 │ Examples:                                               │
 │   (define-func add [x y] (+ x y))                       │
-│   → syn::ItemFn { ... }                                 │
+│   → (Item :kind (Fn ...)) [Oxur AST]                    │
+│   → syn::ItemFn { ... }   [syn AST]                     │
 │                                                         │
 │   (if-expr condition then-branch else-branch)           │
-│   → syn::ExprIf { ... }                                 │
+│   → (Expr :kind (If ...)) [Oxur AST]                    │
+│   → syn::ExprIf { ... }   [syn AST]                     │
 └─────────────────────────────────────────────────────────┘
   │
   ↓
@@ -1684,7 +1696,7 @@ Result: Value (to return to user)
 **Key Insights:**
 
 - ALL stages happen on the server. Client just sends/receives protocol messages.
-- SourceMap threading: Parse → Expand → Lower all record transformations
+- SourceMap threading: Parse → Expand → Lower (via Oxur AST) - all record transformations
 - Cache check happens BEFORE parsing (Stage 0 - fastest path)
 - Cache store happens AFTER compilation (Stage 11 - benefits future evals)
 - Subprocess execution is MANDATORY (not optional) for Ctrl-C support
@@ -1718,7 +1730,7 @@ impl CachedCompiler {
         core: CoreForm,
         source_map: SourceMap
     ) -> Result<Response> {
-        // Stage 4: Lower records core→rust transformations
+        // Stage 4: Lower records core→oxur ast→syn transformations
         let rust_ast = oxur_comp::lower(&core, &mut source_map)?;
 
         // Stage 5-6: RustAstWrapper uses source_map
@@ -2343,7 +2355,7 @@ EvalContext
 **Key Observations:**
 
 1. **Cache is critical** - Transforms 50-300ms → 1-5ms (50-200x!)
-2. **SourceMap threads through** - Parse → Expand → Lower → Error translation
+2. **SourceMap threads through** - Parse → Expand → Lower (via Oxur AST) → Error translation
 3. **Subprocess is mandatory** - Not optional (Ctrl-C requires it)
 4. **All work server-side** - Client is truly thin (protocol only)
 
@@ -3312,7 +3324,7 @@ impl SourceMap {
     // Called by oxur-lang during expansion
     pub fn record_expansion(&mut self, surface: NodeId, core: NodeId);
 
-    // Called by oxur-comp during lowering
+    // Called by oxur-comp during lowering (crosses semantic boundary via Oxur AST)
     pub fn record_lowering(&mut self, core: NodeId, rust: NodeId);
 
     // Called by oxur-repl for error translation
@@ -3745,7 +3757,7 @@ let core = expand(surface, &mut source_map)?;
 
 // Step 3: Lower records transformations
 let rust = lower(&core, &mut source_map)?;
-// POST: source_map contains Core → Rust mappings
+// POST: source_map contains Core → Oxur AST → syn mappings
 
 // Step 4: Error translation uses complete map
 let original_pos = source_map.lookup(rust_node_id)?;
@@ -4326,7 +4338,7 @@ User writes Oxur code:
       (+ x y))  ; <-- ERROR: y is undefined (line 2, column 8)
 
 After compilation pipeline:
-  Surface Forms → Core Forms → Rust AST → Rust source
+  Surface Forms → Core Forms → Oxur AST → syn AST → Rust source
 
   Generated lib.rs:
     fn square(x: i32) -> i32 {
@@ -4755,7 +4767,8 @@ thread 'main' panicked at 'index out of bounds', lib.rs:42:5
               ┌────────────────┐
               │Lower (Stage 4) │
               │ Records:       │
-              │ Core → Rust    │
+              │Core → Oxr AST  │
+              │→ syn           │
               └───────┬────────┘
                       ↓
               ┌─────────────────┐
@@ -4869,7 +4882,7 @@ fn test_full_error_pipeline() {
 
 **Summary:**
 
-Error translation is the **killer feature** of Oxur's source mapping. By tracking transformations across three stages (Surface → Core → Rust), we can provide rustc-quality error messages that point to the original Oxur source code, not generated Rust.
+Error translation is the **killer feature** of Oxur's source mapping. By tracking transformations across multiple stages (Surface → Core → Oxur AST → syn), we can provide rustc-quality error messages that point to the original Oxur source code, not generated Rust.
 
 This is what makes Oxur different from other Lisps - errors that feel like a native compiler, not a translation layer.
 
@@ -5606,7 +5619,7 @@ This architecture provides:
 - ✅ **Subprocess isolation** - User code crashes don't corrupt REPL state
 - ✅ **Session-based architecture** - Multiple concurrent users, isolated state
 - ✅ **Three-tier execution** - Optimize for common cases (calculator mode)
-- ✅ **Complete compilation pipeline** - Oxur → Core Forms → Rust → Execution
+- ✅ **Complete compilation pipeline** - Oxur → Core Forms → Oxur AST → Rust → Execution
 - ✅ **Error translation** - Source maps enable Oxur-level error messages
 - ✅ **Scalable design** - Supports single-user and multi-user deployments
 - ✅ **Well-defined integration points** - Clear APIs with oxur-lang, oxur-comp, oxur-ast
@@ -5624,6 +5637,37 @@ This architecture provides:
 ---
 
 ## 15. Version History
+
+### Version 1.4 (2026-01-10)
+
+Updated compilation pipeline descriptions to reflect ODD-0013's improved clarity about the Oxur AST buffer zone.
+
+**Changes:**
+
+1. **Oxur AST Intermediate Layer Clarified**
+   - Updated all pipeline flow descriptions to mention Oxur AST
+   - Stage 4 (Lower) now explicitly notes it crosses semantic boundary via Oxur AST
+   - Pipeline flows updated from "Core Forms → Rust AST" to "Core Forms → Oxur AST → syn AST"
+
+2. **Semantic Boundary Documentation**
+   - Added explanation that Oxur AST is where we cross from Lisp to Rust concepts
+   - Noted current implementation combines Stages 3+4 per ODD-0013
+   - Clarified Oxur AST acts as buffer zone protecting from changes in both directions
+
+3. **Pipeline References Updated Throughout**
+   - Section 2.2: oxur-comp purpose now mentions Oxur AST intermediate layer
+   - Section 3.1: Stage 4 includes detailed note about internal operations
+   - Section 11: Error translation description updated to include Oxur AST stage
+   - All SourceMap tracking references updated: "Surface → Core → Oxur AST → syn"
+
+4. **Examples Enhanced**
+   - Stage 4 examples now show both Oxur AST and syn AST representations
+   - `(define-func ...) → (Item :kind (Fn ...)) → syn::ItemFn`
+   - Makes the transformation clearer for implementers
+
+**Impact:** Documentation clarity only - no architectural changes, aligns with ODD-0013 v1.2
+
+---
 
 ### Version 1.3 (2026-01-07)
 
@@ -5724,7 +5768,7 @@ Complete architecture finalization based on:
 
 2. **Decision 2: oxur-smap Foundation Crate** (NEW - Phase 0 Prerequisite)
    - Dedicated source mapping crate (no dependencies)
-   - Multi-stage tracking: Surface → Core → Rust → Error translation
+   - Multi-stage tracking: Surface → Core → Oxur AST → syn → Error translation
    - Added to all integration points
    - Unique differentiator (no other Lisp has this)
 
