@@ -29,9 +29,10 @@ version: 1.2
 4. [The Compilation Pipeline](#the-compilation-pipeline)
 5. [Stage 1: Parse (Oxur Syntax → Surface Forms)](#stage-1-parse-oxur-syntax--surface-forms)
 6. [Stage 2: Expand (Surface Forms → Core Forms)](#stage-2-expand-surface-forms--core-forms)
-7. [Stage 3: Lower (Core Forms → Rust AST)](#stage-3-lower-core-forms--rust-ast)
-8. [Stage 4: Generate (Rust AST → Rust Source)](#stage-4-generate-rust-ast--rust-source)
-9. [Stage 5: Compile (Rust Source → Binary)](#stage-5-compile-rust-source--binary)
+7. [Stage 3: Lower (Core Forms → Oxur AST)](#stage-3-lower-core-forms--oxur-ast)
+8. [Stage 4: De-S-expression (Oxur AST → syn AST)](#stage-4-de-s-expression-oxur-ast--syn-ast)
+9. [Stage 5: Generate (Rust AST → Rust Source)](#stage-5-generate-rust-ast--rust-source)
+10. [Stage 6: Compile (Rust Source → Binary)](#stage-6-compile-rust-source--binary)
 10. [Source Map Architecture](#source-map-architecture)
 11. [Error Reporting](#error-reporting)
 12. [REPL Architecture](#repl-architecture)
@@ -80,30 +81,42 @@ Surface Forms (with sugar, macros)
     ↓ Stage 2: Expand
 Core Forms (canonical S-expressions - the IR)
     ↓ Stage 3: Lower
+Oxur AST (S-expressions of Rust concepts)
+    ↓ Stage 4: De-S-expression
 Rust AST (syn crate structures)
-    ↓ Stage 4: Generate
+    ↓ Stage 5: Generate
 Rust Source (.rs files)
-    ↓ Stage 5: Compile
+    ↓ Stage 6: Compile
 Binary / Library (rustc)
 ```
 
 ### Multi-Stage Compilation Philosophy
 
-Following Zylisp's successful pattern, we split compilation into two groups of stages:
+Following Zylisp's successful pattern, we split compilation into distinct layers:
 
-**Stage 1: Oxur Language** (`oxur/crates/oxur-lang`)
+**Stages 1-2: Oxur Language** (`oxur/crates/oxur-lang`, `oxur/crates/oxur-comp`)
 
-- Parses Oxur syntax
-- Expands macros, performs desugaring
-- Produces **Core Forms** (the IR)
-- Can evolve rapidly without affecting Rust interop; similarly, Rust AST can change witout impacting Oxur
+- Parse Oxur syntax → Surface Forms
+- Expand macros, desugar → Core Forms (the stable IR)
+- Can evolve rapidly without affecting downstream stages
 
-**Stage 2: Rust AST Layer** (`oxur/crates/oxur-ast`)
+**Stage 3: Semantic Boundary** (Part of `oxur/crates/oxur-comp`)
 
-- Bidirectional Core Forms ↔ Rust AST conversion
-- Stable "assembly language" for Rust
-- 1:1 mapping - explicit and complete
-- Rarely changes, rock solid
+- Cross from Lisp semantics to Rust semantics
+- Core Forms → Oxur AST (S-expressions of Rust concepts)
+- Buffer zone protecting from changes in both directions
+
+**Stage 4: De-S-expressioning** (`oxur/crates/oxur-ast`)
+
+- Convert S-expression data to syn structures
+- Oxur AST → syn AST
+- Mechanical transformation using oxur-ast builders
+
+**Stages 5-6: Rust Backend**
+
+- Generate Rust source from syn AST
+- Compile with rustc
+- Stable pipeline leveraging Rust ecosystem
 
 ### Why This Separation Matters
 
@@ -119,6 +132,12 @@ Following Zylisp's successful pattern, we split compilation into two groups of s
 
 *The user-facing, publicly defined syntax of Oxur Lisp*
 
+**Key Insight: Homoiconicity** - In Lisp, there is no separate "AST" structure. The S-expressions ARE the AST. Code is data, data is code. This is the fundamental property that makes Lisp uniquely powerful for metaprogramming.
+
+Surface Forms are ergonomic S-expressions that include all the syntactic conveniences developers want: macros like `deffn`, `when`, threading operators, and other sugar. These forms don't need to be minimal or canonical - they exist to make programming pleasant and expressive.
+
+**Front-End Freedom**: Because Surface Forms expand to a stable set of Core Forms, we have complete freedom to experiment with syntax here. Want to add a new macro? A new syntactic form? As long as it expands to Core Forms, add away! The back-end compilation pipeline remains unaffected.
+
 ```clj
 (deffn add (a:i32 b:i32) (:> i32)
   (+ a b))
@@ -132,7 +151,7 @@ This is pretty much as simple as `deffn` can be. We can add docstrings:
   (+ a b))
 ```
 
-We could add pattern-matching in function heads:
+Or we could add pattern-matching in function heads:
 
 ```clj
 (deffn add (:> i32)
@@ -143,13 +162,29 @@ We could add pattern-matching in function heads:
   ((a:i32 b:i32) (+ a b)))
 ```
 
-The various surface forms we might have, with all of their variety will expand to a set of internal forms that have less variety and are easier to parse. Note that some surface forms will have exactly the same form as their internal forms; they don't *have* to be different, but they *can* be (and in most causes will very likely be different).
+The various surface forms we might have, with all of their variety will expand to a set of internal forms that have less variety and are easier to parse. However, with less variety the trade-off is greater verbosity.
+
+Note that some surface forms will have exactly the same form as their internal forms; they don't *have* to be different, but they *can* be (and in most causes will very likely be different).
 
 #### 2. Internal Form
 
 *The Simplified Lisp that sits at the heart of Oxur*
 
-Our fist `deffn` might expaned to the following:
+**Core Forms: The Stable IR** - Following the successful pattern established by Robert Virding in LFE (Lisp Flavoured Erlang), Oxur defines a minimal set of Core Forms that serve as the canonical intermediate representation. Research from the 1970s onwards (including work stemming from the lambda papers) demonstrated that a full-fledged Lisp can be built from a surprisingly small number of primitive forms.
+
+**The Key Insight from LFE/Virding's Design:**
+
+1. **Core Forms don't need to be ergonomic** - Developers never write them directly, so there's no pressure to make them user-friendly. They can be verbose, explicit, and optimized for mechanical transformation rather than human authoring.
+
+2. **Core Forms are STABLE** - Once defined, they become the rock-solid foundation. They rarely change, providing a stable contract between the front-end (Surface Forms) and back-end (Rust code generation).
+
+3. **This Creates Two Areas of Freedom:**
+   - **Front-End Freedom**: Experiment wildly with Surface Form syntax and macros. As long as they expand to Core Forms, the back-end pipeline is unaffected.
+   - **Back-End Freedom**: The transformation from Core Forms to Rust is stable and predictable. Core Forms don't change, and Rust doesn't change, so the compilation pipeline is reliable.
+
+Core Forms are the **Intermediate Representation (IR)** - the canonical S-expressions that represent the essence of the program after all syntactic sugar has been removed and all macros have been expanded. This is analogous to Core Erlang in LFE or the minimal form in Scheme implementations.
+
+So, with all that being said, our first `deffn` might expand to something like the following:
 
 ```scheme
 (define-fn add () (lambda (a:i32 b:i32) (:> i32) (+ a b)))
@@ -161,9 +196,31 @@ Note: We expect that various `def*` Oxur macros will expand to `define-*`.
 
 *An S-expression form of the Rust AST*
 
-The Oxur AST was intentionally designed to be nearly identical to the Rust AST, essentially just an S-expression form of the Rust AST. This provides a layer of separation between the two languages to allow for future growth in unexpected directions while at the same time providing a very low barrier for translation between the two.
+**The Semantic Boundary** - This is where we cross from Oxur/Lisp concepts to Rust concepts, while maintaining S-expression representation. Core Forms express Lisp semantics (`define-fn`, `lambda`, `if-expr`), while Oxur AST expresses Rust AST concepts (`Item`, `Expr`, `Stmt`) in S-expression form.
 
-The Oxur AST will be generated by the Oxur compiler, transforming internal forms to the S-Expressions of the Oxur AST. The above function will look something like the following:
+**The Stable Buffer Zone** - The Oxur AST S-expression layer serves as a protective buffer between two independently evolving systems:
+
+1. **Oxur language** (which we control) - Core Forms can evolve as we refine the language
+2. **Rust language** (which we don't control) - Rust syntax may evolve with new features, keywords, constructs
+
+This buffer zone protects us from changes in **both directions**:
+
+- **If we swap Rust AST libraries**: Only the S-expression → `syn` converter needs updating (in the `oxur-ast` crate)
+- **If Rust language evolves**: *We can keep our AST!* We'd have to update our converter and it would have to do more work, but everything in Oxur itself, from the AST up through the surface forms would remain unchanged.
+
+**The Key Semantic Boundary:** This is where we cross from **Lisp concepts** (Core Forms like `define-fn`, `lambda`, `if-expr`) to **Rust concepts** (Items, Expressions, Statements, Types) - but we stay in S-expression form as a stable buffer zone between two independently evolving systems.
+
+**Why S-expressions here?** This abstraction layer means:
+
+- The Oxur compiler (`oxur-comp`) never depends on `syn` directly
+- The Oxur language is insulated from Rust implementation details
+- If `syn` is replaced with another Rust parser library, only the converter needs updating
+- If Rust's syntax evolves, only the Oxur AST spec and converter need updating
+- The Oxur language itself remains stable regardless of changes in either direction
+
+The Oxur AST maps 1:1 to Rust's AST concepts (what the `syn` crate represents). However, the Oxur view is that it needs to *control its own AST*, and for consistency, S-expressions are maintained. This design provides a **stable buffer zone** between two independently evolving systems: the Oxur language (which we control) and the Rust language (which we don't).
+
+The Oxur AST will be generated by the Oxur compiler, transforming Core Forms (Lisp semantics) to Oxur AST S-expressions (Rust semantics, still in S-expression form). This compilation will convert the above function to something like the following:
 
 ```lisp
 (Item
@@ -267,7 +324,33 @@ The Oxur AST will be generated by the Oxur compiler, transforming internal forms
         :could-be-bare-literal false))))
 ```
 
-Rust AST - The final step on the Oxur side is the conversion of Oxur AST to Rust AST (essentially, de-S-expressioning the code). This gives us something like the following for our original addition function:
+It is important to note that, until Oxur has its own VM, this S-expression-based AST *will have to be converted to Rust to be used; it cannot be used directly*.
+
+#### 4. Rust AST
+
+*De-S-expressioning: Converting to actual `syn` structures*
+
+**Crossing into the Rust Ecosystem** - This is where we convert our Oxur AST S-expressions into actual `syn` crate data structures. The transformation from `(Item :kind (Fn ...))` to `syn::Item::Fn { ... }` is the final step on the Oxur side before code generation.
+
+**Where This Lives** - The `oxur-ast` crate - and this is the **ONLY** place in the entire Oxur codebase that depends on `syn`. This isolation is intentional and crucial to the architecture.
+
+**The Transformation:**
+
+- **Mechanical 1:1 conversion**: Oxur AST already represents Rust concepts, so this is straightforward structural conversion
+- **Bidirectional**: Can go both Rust → Oxur AST (for round-trip testing and Rust analysis) and Oxur AST → Rust (for compilation)
+- **Deterministic**: No semantic decisions, just changing data structure representation
+- **No information loss**: Round-trip conversions preserve all information
+
+**The Architectural Benefit:**
+
+- `oxur-comp` outputs Oxur AST S-expressions (no `syn` dependency)
+- `oxur-ast` converts those to `syn` types (only place with `syn` dependency)
+- If we need to swap out `syn` for another Rust AST library, we only change `oxur-ast`
+- The entire Oxur compiler and language remain untouched by such changes
+
+This is essentially crossing from "our world" (S-expressions, which we control) into "the Rust ecosystem world" (`syn` types, which provide access to Rust tooling). Once we have `syn` structures, we can use the entire Rust ecosystem's tooling - formatters, analyzers, code generators.
+
+The final step on the Oxur side is the conversion of Oxur AST to Rust AST (essentially, de-S-expressioning the code). This gives us something like the following for our original addition function:
 
 ```rust
 Item::Fn {
@@ -416,11 +499,43 @@ Item::Fn {
 }
 ```
 
-#### 4. Rust Source
+#### 5. Rust Source
 
-*[add missing one-liner description]*
+*From structured AST to formatted text*
 
-The Rust compiler only runs against Rust source code, so before we hand off our code to `rustc` we must convert it to Rust source. This task is performed by oxur-ast and generates the following:
+**Two Generation Strategies:**
+
+The Rust compiler only runs against Rust source code, so before we hand off our code to `rustc` we must convert it to Rust source. The `oxur-ast` crate provides two code generation paths optimized for different use cases:
+
+**1. Fast Generation** (`gen_rust()` - ~50-100ms for 100 files)
+
+- Pipeline: `syn AST → ToTokens → TokenStream → .to_string() → rustc`
+- Uses Rust's `quote` crate for rapid token stream generation
+- Output is valid but not prettified
+- **Best for:** REPL evaluation, debugging, rapid iteration, internal tooling
+
+**2. Pretty Generation** (`gen_rust_pretty()` - ~400-500ms for 100 files)
+
+- Pipeline: `syn AST → ToTokens → TokenStream → .to_string() → syn::parse_file() → prettyplease::unparse() → rustc`
+- Adds `prettyplease` formatting on top of fast generation
+- Output is beautifully formatted, idiomatic Rust
+- **Best for:** Production code, publishing, human review, final artifacts
+
+**Why Both?** Performance matters in different contexts. The 5x speed difference is imperceptible for single expressions in a REPL (50ms feels instant), but becomes significant for large projects or rapid iteration workflows. Having both paths lets us optimize for the user's actual needs.
+
+**Example Implementation:**
+
+```rust
+use oxur_ast::rust_gen::{gen_rust, gen_rust_pretty};
+
+// Fast path - for compilation
+let code = gen_rust(&syn_item)?;
+
+// Pretty path - for tooling, debugging, pedagogy, etc.
+let pretty_code = gen_rust_pretty(&syn_file)?;
+```
+
+This task is performed by `oxur-ast` using the `syn`, `quote`, and optionally `prettyplease` Rust crates, and generates the following:
 
 ```
 fn add(a: i32, b: i32) -> i32 {
@@ -428,13 +543,34 @@ fn add(a: i32, b: i32) -> i32 {
 }
 ```
 
-#### 5. The Rust Compiler and Toolchain
+#### 6. The Rust Compiler and Toolchain
 
-*[add missing one-liner description]*
+*Leveraging Rust's mature compilation infrastructure*
 
-Source (.rs) → rustc → HIR → MIR → LLVM IR → Machine code
+At this point, we've completed the Oxur compilation pipeline and produced standard Rust source code. The `.rs` files are handed off to the Rust toolchain for final compilation to native binaries.
 
-[add missing descriptive text / short paragraph]
+**The rustc Pipeline:**
+
+```
+Rust Source (.rs) → rustc → HIR → MIR → LLVM IR → Machine code
+```
+
+**What rustc does:**
+
+- **HIR** (High-level IR): Desugaring, macro expansion (again), type checking
+- **MIR** (Mid-level IR): Borrow checking, optimization passes
+- **LLVM IR**: Platform-independent intermediate representation
+- **Machine Code**: Native binary for the target architecture
+
+**Key Benefit:** By targeting Rust source code, Oxur gets all of Rust's:
+
+- **Type safety** - compile-time guarantees
+- **Memory safety** - borrow checker validation
+- **Performance** - LLVM optimizations
+- **Ecosystem** - access to all Rust crates and tools
+- **Portability** - cross-compilation to any Rust-supported platform
+
+**This is the end of the Oxur compilation pipeline.** The output is a native binary that can be executed directly on the target platform, with all the safety and performance guarantees that Rust provides.
 
 ---
 
@@ -522,27 +658,45 @@ Following Erlang/LFE philosophy:
 │                    Stage 3: Lower                            │
 │                                                              │
 │  Input:  Core Forms (canonical S-expressions)                │
+│  Output: Oxur AST (S-expressions of Rust concepts)           │
+│                                                              │
+│  Responsibilities:                                           │
+│  • Cross semantic boundary (Lisp → Rust concepts)            │
+│  • Map Core Forms to Rust concepts in S-expr form            │
+│  • Buffer zone protecting from changes in both directions    │
+│  • Track Core Form → Oxur AST mapping in source map          │
+│                                                              │
+│  Examples (S-expression form):                               │
+│  • define-func → (Item :kind (Fn ...))                       │
+│  • if-expr → (Expr :kind (If ...))                           │
+│  • match-expr → (Expr :kind (Match ...))                     │
+└──────────────────────────────────────────────────────────────┘
+                            ↓
+                    Oxur AST (S-expressions)
+                            ↓
+┌──────────────────────────────────────────────────────────────┐
+│                    Stage 4: De-S-expression                  │
+│                                                              │
+│  Input:  Oxur AST (S-expressions of Rust concepts)           │
 │  Output: Rust AST (syn crate structures)                     │
 │                                                              │
 │  Responsibilities:                                           │
-│  • Map Core Forms to Rust AST nodes                          │
-│  • Type inference/checking (optional - can defer to rustc)   │
-│  • Lifetime annotation (insert explicit lifetimes)           │
-│  • Trait bound resolution                                    │
-│  • Track Core Form → Rust AST mapping in source map          │
+│  • Convert S-expression data to syn Rust structs             │
+│  • Use oxur-ast crate's builder functionality                │
+│  • Track Oxur AST → syn AST mapping in source map            │
 │                                                              │
 │  Examples:                                                   │
-│  • define-func → syn::ItemFn                                 │
-│  • if-expr → syn::ExprIf                                     │
-│  • match-expr → syn::ExprMatch                               │
+│  • (Item :kind (Fn ...)) → syn::Item::Fn                     │
+│  • (Expr :kind (If ...)) → syn::Expr::If                     │
+│  • (Expr :kind (Match ...)) → syn::Expr::Match               │
 └──────────────────────────────────────────────────────────────┘
                             ↓
-                    Rust AST
+                    Rust AST (syn structures)
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                    Stage 4: Generate                         │
+│                    Stage 5: Generate                         │
 │                                                              │
-│  Input:  Rust AST                                            │
+│  Input:  Rust AST (syn structures)                           │
 │  Output: Formatted Rust source code                          │
 │                                                              │
 │  Responsibilities:                                           │
@@ -556,7 +710,7 @@ Following Erlang/LFE philosophy:
                     Rust Source (.rs)
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                    Stage 5: Compile                          │
+│                    Stage 6: Compile                          │
 │                                                              │
 │  Tool:   rustc (or cargo)                                    │
 │  Input:  Generated .rs files                                 │
@@ -576,9 +730,10 @@ Following Erlang/LFE philosophy:
 |-------|-------|--------|--------------|
 | 1. Parse | Text | Surface Forms | Tokenize, read S-expressions |
 | 2. Expand | Surface Forms | Core Forms | Macro expansion, desugaring |
-| 3. Lower | Core Forms | Rust AST | Map to Rust structures |
-| 4. Generate | Rust AST | Rust Source | Pretty-print |
-| 5. Compile | Rust Source | Binary | rustc |
+| 3. Lower | Core Forms | Oxur AST | Map to Rust concepts (S-expr form) |
+| 4. De-S-expression | Oxur AST | Rust AST (syn) | Convert S-expr to syn structures |
+| 5. Generate | Rust AST | Rust Source | Pretty-print (fast or pretty) |
+| 6. Compile | Rust Source | Binary | rustc |
 
 ---
 
@@ -1196,22 +1351,135 @@ Error at Node 200
 
 ---
 
-## Stage 3: Lower (Core Forms → Rust AST)
+## Stage 3: Lower (Core Forms → Oxur AST)
 
 ### Purpose
 
-Map Core Forms (canonical S-expressions) to Rust's AST structures, preparing for code generation.
+Map Core Forms (canonical S-expressions representing Lisp concepts) to Oxur AST (S-expressions representing Rust concepts). This is the **semantic boundary** where we cross from Lisp semantics to Rust semantics while staying in S-expression form.
 
-### Why Rust AST?
+**Key Insight:** Oxur AST forms a **buffer zone** that protects the compiler from changes in both directions:
+- Changes in Oxur language syntax/semantics (Surface/Core Forms evolution)
+- Changes in Rust AST representation (syn crate evolution, Rust language changes)
 
-We use the `syn` crate's AST types directly:
+This stage transforms:
+- Lisp-oriented forms like `define-func`, `if-expr`, `let-bind`
+- Into Rust-oriented S-expressions like `(Item :kind (Fn ...))`, `(Expr :kind (If ...))`, `(Local ...)`
+- That can then be mechanically converted to syn AST structures in Stage 4
 
-- Well-documented and stable
-- Matches Rust's semantics exactly
-- Can leverage existing Rust tools
-- `quote` macro for easy AST construction
+> **Implementation Status:** This stage is partially implemented. The current codebase has Core Forms lowering directly to syn structures (combining Stages 3+4). The proper separation into Stage 3 (Core → Oxur AST) and Stage 4 (Oxur AST → syn) is planned.
 
-### Lowering Strategy
+### Oxur AST Format
+
+Oxur AST uses the canonical S-expression format defined in ODD-0003. It represents Rust AST nodes as S-expressions with keyword arguments:
+
+**Example - Function definition:**
+```lisp
+(Item
+  :vis Public
+  :ident (Ident :name "add" :span (Span :lo 0 :hi 3))
+  :kind (Fn
+    :sig (Signature
+      :ident (Ident :name "add")
+      :inputs [(FnArg
+                 :pat (Pat :kind (Ident :name "x"))
+                 :ty (Type :path "i32"))
+               (FnArg
+                 :pat (Pat :kind (Ident :name "y"))
+                 :ty (Type :path "i32"))]
+      :output (ReturnType :type (Type :path "i32")))
+    :block (Block
+      :stmts [(Stmt :kind (Expr
+                :kind (Binary
+                  :op Add
+                  :left (Expr :kind (Path :path "x"))
+                  :right (Expr :kind (Path :path "y")))))])))
+```
+
+### Core Form → Oxur AST Mappings
+
+| Core Form | Oxur AST (S-expression) | Description |
+|-----------|-------------------------|-------------|
+| `define-func` | `(Item :kind (Fn ...))` | Function definition |
+| `lambda` | `(Expr :kind (Closure ...))` | Closure expression |
+| `if-expr` | `(Expr :kind (If ...))` | Conditional expression |
+| `match` | `(Expr :kind (Match ...))` | Pattern matching |
+| `let-bind` | `(Local ...)` | Local variable binding |
+| `binary-op` | `(Expr :kind (Binary ...))` | Binary operation |
+| `call` | `(Expr :kind (Call ...))` | Function call |
+| `var-ref` | `(Expr :kind (Path ...))` | Variable/path reference |
+
+---
+
+## Stage 4: De-S-expression (Oxur AST → syn AST)
+
+### Purpose
+
+Convert Oxur AST (S-expressions of Rust concepts) into actual syn crate AST structures. This is a **mechanical transformation** from one data representation to another.
+
+### Why This Stage Exists
+
+Separating this from Stage 3 provides:
+- **Clean abstraction**: Stage 3 handles semantic transformation, Stage 4 handles data conversion
+- **Buffer zone benefits**: Changes to syn crate don't affect Core Forms lowering
+- **Reusability**: The oxur-ast crate can be used by other tools
+- **Testing**: Can test Stage 3 output independently before syn conversion
+
+### De-S-expressioning Strategy
+
+The oxur-ast crate provides builders that convert S-expressions to syn structures:
+
+```rust
+use oxur_ast::builder::Builder;
+
+pub struct DeSExpressioner {
+    builder: Builder,
+    source_map: SourceMap,
+}
+
+impl DeSExpressioner {
+    pub fn new(previous_map: &SourceMap) -> Self {
+        Self {
+            builder: Builder::new(),
+            source_map: SourceMap::new("de-sexp", previous_map),
+        }
+    }
+
+    pub fn convert(&mut self, oxur_ast_sexp: &SExp) -> Result<syn::Item> {
+        // Use oxur-ast builder to convert S-expr → syn
+        let syn_item = self.builder.build_item(oxur_ast_sexp)?;
+
+        // Track transformation in source map
+        let node_id = next_node_id();
+        self.source_map.record_transform(node_id, oxur_ast_sexp.node_id());
+
+        Ok(syn_item)
+    }
+}
+```
+
+### Oxur AST → syn AST Mappings
+
+| Oxur AST S-expression | syn AST type | Description |
+|-----------------------|--------------|-------------|
+| `(Item :kind (Fn ...))` | `syn::Item::Fn` | Function item |
+| `(Expr :kind (If ...))` | `syn::Expr::If` | If expression |
+| `(Expr :kind (Match ...))` | `syn::Expr::Match` | Match expression |
+| `(Local ...)` | `syn::Local` | Local variable |
+| `(Expr :kind (Binary ...))` | `syn::Expr::Binary` | Binary expression |
+| `(Expr :kind (Call ...))` | `syn::Expr::Call` | Call expression |
+| `(Expr :kind (Path ...))` | `syn::Expr::Path` | Path expression |
+
+### Implementation Notes
+
+The oxur-ast crate handles this conversion and is described in detail in ODD-0003 and ODD-0004 through ODD-0007.
+
+---
+
+## Stages 3+4 Combined (Current Implementation)
+
+> **Note:** The following implementation details describe the **current codebase** which combines Stages 3 and 4 into a single lowering pass that goes directly from Core Forms to syn AST. This section will be updated once the proper Stage 3/4 split is implemented.
+
+### Combined Lowering Strategy
 
 ```rust
 pub struct Lowerer {
@@ -1264,10 +1532,12 @@ impl Lowerer {
 }
 ```
 
-### Core Form → Rust AST Mappings
+### Combined Core Form → Rust AST Mappings
 
-| Core Form | Rust AST | Example |
-|-----------|----------|---------|
+The current implementation maps Core Forms directly to syn AST:
+
+| Core Form | syn AST type | Example Rust code |
+|-----------|--------------|-------------------|
 | `define-func` | `syn::ItemFn` | `fn add(x: i32, y: i32) -> i32 { ... }` |
 | `lambda` | `syn::ExprClosure` | `\|x, y\| x + y` |
 | `if-expr` | `syn::ExprIf` | `if x > 0 { ... } else { ... }` |
@@ -1277,7 +1547,7 @@ impl Lowerer {
 | `call` | `syn::ExprCall` | `foo(1, 2, 3)` |
 | `var-ref` | `syn::ExprPath` | `x` or `std::vec::Vec` |
 
-### Type Lowering
+### Type Lowering (Combined)
 
 Types in Core Forms need to be lowered to Rust types:
 
@@ -1479,11 +1749,11 @@ fn print_all<T: Display>(items: Vec<T>) {
 
 ---
 
-## Stage 4: Generate (Rust AST → Rust Source)
+## Stage 5: Generate (Rust AST → Rust Source)
 
 ### Purpose
 
-Convert Rust AST structures into formatted, readable Rust source code.
+Convert syn AST structures into formatted, readable Rust source code.
 
 ### Implementation
 
@@ -1565,7 +1835,7 @@ fn add(x: i32, y: i32) -> i32 {
 
 ---
 
-## Stage 5: Compile (Rust Source → Binary)
+## Stage 6: Compile (Rust Source → Binary)
 
 ### Purpose
 
@@ -1619,7 +1889,7 @@ impl ErrorTranslator {
         let (file, line, col, message) = parse_rustc_error(error)?;
 
         // Find the Rust AST node at that position
-        // (This is approximate - we don't have perfect position tracking in Stage 4)
+        // (This is approximate - we don't have perfect position tracking in Stage 5)
 
         // Use source map to find original Oxur source
         // Walk backward through transformations
@@ -2373,7 +2643,7 @@ fn compile_macro_layer(
 ```
 github.com/oxur/crates
 ├── oxur-smap/          # Source mapping foundation (no dependencies)
-├── oxur-ast/           # Rust AST ↔ Core Forms (Stage 3)
+├── oxur-ast/           # Rust AST ↔ S-expressions (Stages 3-4)
 ├── oxur-comp/          # Oxur compiler (Stages 1-2)
 ├── oxur-lang/          # Oxur lang. def., core forms/macros
 ├── oxur-repl/          # REPL server/client + subprocess binary
@@ -2634,8 +2904,8 @@ oxur-cli/
 
 **Deliverables**:
 
-- [ ] Stage 4 (Generate) implementation
-- [ ] Stage 5 (Compile) integration
+- [ ] Stage 5 (Generate) implementation
+- [ ] Stage 6 (Compile) integration
 - [ ] End-to-end compilation test
 - [ ] Compile and run "Hello, World!"
 - [ ] Error translation from rustc errors
@@ -2869,13 +3139,13 @@ fn bench_repl_simple_expr(b: &mut Bencher) {
 
 **Performance Breakdown (Tier 3 cold compilation):**
 
-- Stages 0-7 (parse through write): ~15ms total
-- Stage 8 (cargo compilation): ~280ms (93% of total)
-- Stages 9-12 (post-compile): ~5ms total
+- Stages 1-5 (parse through generate): ~15ms total
+- Stage 6 (rustc compilation): ~280ms (93% of total)
+- REPL overhead (load + execute): ~5ms total
 
 **Optimization Priority:**
 
-1. Cache hits (skip Stage 8) → 50-200x speedup
+1. Cache hits (skip Stage 6) → 50-200x speedup
 2. Incremental compilation → 3-5x speedup on modifications
 3. tmpfs for temp files → 2-3% speedup
 
