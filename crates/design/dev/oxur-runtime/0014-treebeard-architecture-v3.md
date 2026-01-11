@@ -156,7 +156,7 @@ Current Oxur AST Bridge capabilities:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                     Oxur (oxur-vm)                            │
+│                   Oxur (oxur-runtime)                         │
 │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐ │
 │  │  oxur-reader   │→│  oxur-macros   │→│  ast-bridge    │  │
 │  │  (S-exp parse) │  │  (expand)      │  │  (95% done!)   │  │
@@ -626,7 +626,7 @@ pub fn register_fn<F, Args, Ret>(
 **Dependents:**
 - `treebeard-repl`
 - `treebeard-loader`
-- `oxur-vm`
+- `oxur-runtime`
 
 ### 4.2 treebeard-repl
 
@@ -729,7 +729,7 @@ impl<F: LanguageFrontend> Repl<F> {
 - `treebeard-core`
 
 **Dependents:**
-- `oxur-vm` (uses REPL infrastructure)
+- `oxur-runtime` (uses REPL infrastructure)
 
 ### 4.3 treebeard-loader
 
@@ -900,10 +900,10 @@ pub struct FunctionEntry {
 - Treebeard provides proper environment handling
 - Ownership tracking requires fresh implementation
 
-### 5.3 New Code Needed in oxur-vm
+### 5.3 New Code Needed in oxur-runtime
 
 ```rust
-// oxur-vm/src/lib.rs
+// oxur-runtime/src/lib.rs
 
 /// Oxur language frontend for Treebeard
 pub struct OxurFrontend {
