@@ -8,11 +8,11 @@ This index is automatically generated. Do not edit manually.
 |--------|-------|-------|----------|
 | 0044 | cargo-oxur: Cargo Plugin Planning & Resources | Active | 2026-01-07 |
 | 0043 | Oxur REPL Storage Architecture: A Tiered Approach | Draft | 2026-01-06 |
-| 0042 | Towards a Rust VM for Oxur: A Pragmatic Approach | Final | 2026-01-06 |
+| 0042 | Towards a Rust Runtime for Oxur: A Pragmatic Approach | Final | 2026-01-10 |
 | 0041 | Reimagining the REPL: A guide to modern terminal UX design | Final | 2026-01-06 |
 | 0040 | Oxur REPL Implementation Plan | Active | 2026-01-06 |
 | 0039 | oxur-smap Implementation Plan | Final | 2026-01-05 |
-| 0038 | Oxur REPL Architecture | Final | 2026-01-06 |
+| 0038 | Oxur REPL Architecture | Final | 2026-01-10 |
 | 0037 | oxur-pretty Implementation Plan | Final | 2026-01-04 |
 | 0036 | oxur-ast Phase 8.5: Macros & Attributes Completeness | Final | 2026-01-04 |
 | 0035 | oxur-ast Phase 13: Async/Await and Modern Rust Features | Final | 2026-01-05 |
@@ -68,7 +68,7 @@ This index is automatically generated. Do not edit manually.
 
 ### Final
 
-- [0042 - Towards a Rust VM for Oxur: A Pragmatic Approach](06-final/0042-towards-a-rust-vm-for-oxur-a-pragmatic-approach.md)
+- [0042 - Towards a Rust Runtime for Oxur: A Pragmatic Approach](06-final/0042-towards-a-rust-runtime-for-oxur-a-pragmatic-approach.md)
 - [0041 - Reimagining the REPL: A guide to modern terminal UX design](06-final/0041-reimagining-the-repl-a-guide-to-modern-terminal-ux-design.md)
 - [0039 - oxur-smap Implementation Plan](06-final/0039-oxur-smap-implementation-plan.md)
 - [0038 - Oxur REPL Architecture](06-final/0038-oxur-repl-architecture.md)
