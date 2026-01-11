@@ -4,12 +4,20 @@ use anyhow::Result;
 use clap::Parser;
 use design::index::DocumentIndex;
 use design::state::StateManager;
+use serde::Deserialize;
 
 mod cli;
 mod commands;
 
 use cli::{Cli, Commands, DebugCommands};
 use commands::*;
+
+/// Repo-root configuration (loaded from .odmrc at git root)
+#[derive(Debug, Deserialize)]
+struct RepoConfig {
+    /// Preferred docs directory path (relative to repo root)
+    docs_dir: Option<String>,
+}
 
 fn main() -> Result<()> {
     let mut cli = Cli::parse();
@@ -58,16 +66,51 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Load repo-root configuration from .odmrc
+fn load_repo_config() -> Option<RepoConfig> {
+    let root = design::git::get_repo_root()?;
+    let config_path = root.join(".odmrc");
+
+    if !config_path.exists() {
+        return None;
+    }
+
+    let contents = std::fs::read_to_string(&config_path).ok()?;
+    toml::from_str(&contents).ok()
+}
+
 /// Apply smart default for docs directory
 pub(crate) fn apply_smart_default(cli: &mut Cli) {
-    if cli.docs_dir == "docs" {
-        if let Some(root) = design::git::get_repo_root() {
-            let smart_default = root.join("crates/design/docs");
-            if smart_default.exists() {
-                cli.docs_dir = smart_default.to_string_lossy().to_string();
-            }
+    // Only apply smart defaults if user didn't override --docs-dir
+    if cli.docs_dir != "docs" {
+        return;
+    }
+
+    // Try to get repo root
+    let Some(root) = design::git::get_repo_root() else {
+        return;
+    };
+
+    // First, check for explicit .odmrc configuration at repo root
+    if let Some(config) = load_repo_config() {
+        if let Some(docs_dir) = config.docs_dir {
+            // Use configured path (relative to repo root)
+            let configured_path = root.join(&docs_dir);
+            cli.docs_dir = configured_path.to_string_lossy().to_string();
+            return;
         }
     }
+
+    // No explicit config, fall back to heuristic:
+    // If crates/design/docs exists OR if crates/design exists (suggesting workspace layout),
+    // use crates/design/docs
+    let workspace_path = root.join("crates/design/docs");
+    let workspace_design = root.join("crates/design");
+
+    if workspace_path.exists() || workspace_design.exists() {
+        cli.docs_dir = workspace_path.to_string_lossy().to_string();
+    }
+    // Otherwise, stick with default "docs"
 }
 
 /// Initialize and configure the state manager
@@ -396,7 +439,7 @@ updated: 2024-01-02
 
     #[test]
     fn test_apply_smart_default_when_default_docs() {
-        // When using default "docs" and in the oxur repo, should apply smart default
+        // When using default "docs", should apply smart default based on repo structure
         let mut cli = Cli {
             docs_dir: "docs".to_string(),
             command: Commands::List {
@@ -413,8 +456,10 @@ updated: 2024-01-02
 
         apply_smart_default(&mut cli);
 
-        // If we're in the oxur repo and crates/design/docs exists, it should be set
-        // Otherwise it stays as "docs"
+        // Behavior depends on environment:
+        // 1. If .odmrc exists with docs_dir, uses that
+        // 2. If crates/design exists, uses crates/design/docs
+        // 3. Otherwise stays as "docs"
         // We can't assert the exact value since it depends on the environment,
         // but we can verify the function runs without panicking
         assert!(cli.docs_dir == "docs" || cli.docs_dir.contains("crates/design/docs"));
