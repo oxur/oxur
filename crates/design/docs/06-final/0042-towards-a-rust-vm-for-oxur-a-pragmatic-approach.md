@@ -1,30 +1,30 @@
 ---
 number: 42
-title: "Towards a Rust VM for Oxur: A Pragmatic Approach"
+title: "Towards a Rust Runtime for Oxur: A Pragmatic Approach"
 author: "Duncan McGreggor"
 component: All
 tags: [change-me]
 created: 2026-01-06
-updated: 2026-01-06
+updated: 2026-01-10
 state: Final
 supersedes: null
 superseded-by: null
-version: 1.0
+version: 1.1
 ---
 
-# Towards a Rust VM for Oxur: A Pragmatic Approach
+# Towards a Rust Runtime for Oxur: A Pragmatic Approach
 
 ## Document Purpose
 
-This brainstorm document explores what a "virtual machine" for Rust-based languages might look like, specifically in the context of Oxur. It synthesizes discussions about:
+This brainstorm document explores what an execution environment (runtime) for Rust-based languages might look like, specifically in the context of Oxur. It synthesizes discussions about:
 
-- Why Rust lacks a VM and what that means for REPL development
-- How the current Oxur REPL architecture (ODD-0038) approximates VM-like capabilities
-- What a true Rust VM might involve and whether it's desirable
-- A pragmatic staged approach from our current architecture toward more VM-like capabilities
+- Why Rust lacks a runtime execution environment and what that means for REPL development
+- How the current Oxur REPL architecture (ODD-0038) approximates runtime capabilities
+- What a true Rust execution environment might involve and whether it's desirable
+- A pragmatic staged approach from our current architecture toward more runtime-like capabilities
 - Comparisons with Erlang/BEAM and what we can learn from that ecosystem
 
-**Context:** This document originated from a conversation about how the Oxur REPL design decisions (temp directories, subprocess execution, file-based state) are essentially simulating capabilities that a VM would provide natively—a "poverty-stricken VM" built from filesystem primitives and OS processes.
+**Context:** This document originated from a conversation about how the Oxur REPL design decisions (temp directories, subprocess execution, file-based state) are essentially simulating capabilities that a runtime would provide natively—a filesystem-based execution environment built from filesystem primitives and OS processes.
 
 **Catalyst:** Robert Virding (co-creator of Erlang and creator of LFE - Lisp Flavored Erlang) joined the Oxur Discord, prompting reflection on how our architecture compares to the BEAM VM that powers Erlang and LFE.
 
@@ -32,10 +32,10 @@ This brainstorm document explores what a "virtual machine" for Rust-based langua
 
 ## Table of Contents
 
-1. [The Core Insight: Why We Need VM-like Capabilities](#1-the-core-insight-why-we-need-vm-like-capabilities)
+1. [The Core Insight: Why We Need Runtime Capabilities](#1-the-core-insight-why-we-need-runtime-capabilities)
 2. [What the BEAM Gives You For Free](#2-what-the-beam-gives-you-for-free)
-3. [Our Current "Filesystem VM" (ODD-0038)](#3-our-current-filesystem-vm-odd-0038)
-4. [What Would a True Rust VM Look Like?](#4-what-would-a-true-rust-vm-look-like)
+3. [Our Current Filesystem-Based Runtime (ODD-0038)](#3-our-current-filesystem-based-runtime-odd-0038)
+4. [What Would a True Rust Execution Environment Look Like?](#4-what-would-a-true-rust-execution-environment-look-like)
 5. [LLVM: VM or Compiler?](#5-llvm-vm-or-compiler)
 6. [A Pragmatic Staged Approach](#6-a-pragmatic-staged-approach)
 7. [The Long-Running Process Alternative](#7-the-long-running-process-alternative)
@@ -45,7 +45,7 @@ This brainstorm document explores what a "virtual machine" for Rust-based langua
 
 ---
 
-## 1. The Core Insight: Why We Need VM-like Capabilities
+## 1. The Core Insight: Why We Need Runtime Capabilities
 
 ### 1.1 The Problem Statement
 
@@ -116,15 +116,15 @@ For Oxur, we've adopted this at the OS process level: the subprocess can crash, 
 
 ---
 
-## 3. Our Current "Filesystem VM" (ODD-0038)
+## 3. Our Current Filesystem-Based Runtime (ODD-0038)
 
 ### 3.1 Architecture Mapping
 
-The ODD-0038 architecture essentially simulates VM capabilities through external mechanisms:
+The ODD-0038 architecture essentially simulates runtime capabilities through external mechanisms:
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                    "FILESYSTEM VM" COMPONENTS                 │
+│              FILESYSTEM-BASED RUNTIME COMPONENTS              │
 ├───────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌─────────────────────┐      ┌─────────────────────┐         │
@@ -170,7 +170,7 @@ The ODD-0038 architecture essentially simulates VM capabilities through external
 
 ### 3.3 What We Gain
 
-This "filesystem VM" approach provides:
+This filesystem-based runtime approach provides:
 
 - ✅ **Reliability:** Proven patterns (evcxr, 6+ years)
 - ✅ **Debuggability:** Standard tools work (gdb, strace, file inspection)
@@ -180,7 +180,7 @@ This "filesystem VM" approach provides:
 
 ### 3.4 What We Lose
 
-Compared to a true VM:
+Compared to a true runtime execution environment:
 
 - ❌ **Latency:** 50-300ms cold compile vs. microseconds for bytecode
 - ❌ **Granularity:** OS process vs. lightweight process
@@ -190,15 +190,15 @@ Compared to a true VM:
 
 ---
 
-## 4. What Would a True Rust VM Look Like?
+## 4. What Would a True Rust Execution Environment Look Like?
 
-### 4.1 Option A: Bytecode VM (JVM/BEAM Style)
+### 4.1 Option A: Bytecode Interpreter (JVM/BEAM Style)
 
 ```
-Rust Source → MIR → Custom Bytecode → VM Interpreter
+Rust Source → MIR → Custom Bytecode → Bytecode Interpreter
                                          ↓
                               ┌──────────────────────┐
-                              │  Rust VM Runtime     │
+                              │  Rust Runtime        │
                               │  - GC or RC          │
                               │  - Hot code reload   │
                               │  - Debugger hooks    │
@@ -207,7 +207,7 @@ Rust Source → MIR → Custom Bytecode → VM Interpreter
                               └──────────────────────┘
 ```
 
-**The fundamental challenge:** Rust's semantics (ownership, borrowing, lifetimes) are *designed* to be resolved at compile time. A bytecode VM would have to either:
+**The fundamental challenge:** Rust's semantics (ownership, borrowing, lifetimes) are *designed* to be resolved at compile time. A bytecode interpreter would have to either:
 
 1. **Lose Rust's guarantees** - Like JVM doesn't enforce Rust-style borrowing
 2. **Carry ownership metadata at runtime** - Massive performance overhead
@@ -217,11 +217,11 @@ This is why **Miri** (Rust's interpreter) exists but is *slow*—it tracks all o
 
 **Verdict:** Possible but would sacrifice much of what makes Rust valuable.
 
-### 4.2 Option B: Native Code VM with Hot Reload
+### 4.2 Option B: Native Code Execution Environment with Hot Reload
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                      Rust Native VM                           │
+│              Rust Native Execution Environment                │
 │                                                               │
 │  ┌─────────────────────────────────────────────────────────┐  │
 │  │                 Address Space Manager                   │  │
@@ -264,13 +264,13 @@ This is why **Miri** (Rust's interpreter) exists but is *slow*—it tracks all o
 
 **Verdict:** We're already doing this, just with external tools rather than a unified runtime.
 
-### 4.3 Option C: Hybrid Bytecode + JIT
+### 4.3 Option C: Hybrid Bytecode Interpreter + JIT
 
 ```
 Oxur Source
      ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Oxur Bytecode VM                             │
+│              Oxur Bytecode Execution Environment                │
 │                                                                 │
 │  ┌───────────────────┐    ┌───────────────────┐                 │
 │  │  Interpreter      │    │  JIT (Cranelift)  │                 │
@@ -413,7 +413,7 @@ Rather than building a full VM, we can incrementally add VM-like capabilities:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Phase 1: Filesystem VM                                         │
+│  Phase 1: Filesystem-Based Runtime                              │
 │                                                                 │
 │  - Subprocess execution (crash isolation, Ctrl-C)              │
 │  - File-based compilation (cargo)                              │
@@ -459,7 +459,11 @@ Rather than building a full VM, we can incrementally add VM-like capabilities:
 │  REPLACE: cargo compilation                                    │
 │  WITH: Cranelift direct codegen                                │
 │                                                                │
-│  Oxur → Core Forms → Rust AST → Cranelift IR → Native          │
+│  Oxur → Core Forms → Oxur AST → syn AST → Cranelift IR → Native│
+│                                                                │
+│  Note: Pipeline follows ODD-0013 6-stage architecture          │
+│        Core Forms → Oxur AST (semantic boundary crossing)      │
+│        Oxur AST → syn AST (de-S-expressioning)                 │
 │                                                                │
 │  Still need subprocess for:                                    │
 │    - Ctrl-C support (native code can't yield)                  │
@@ -470,7 +474,7 @@ Rather than building a full VM, we can incrementally add VM-like capabilities:
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### Phase 4: Cooperative Bytecode VM
+### Phase 4: Cooperative Bytecode Interpreter
 
 **Goal:** True interruptibility, even faster startup
 
@@ -589,8 +593,8 @@ A long-running process approach becomes attractive when:
 
 ### 8.1 Architecture Comparison Matrix
 
-| Aspect | BEAM | ODD-0038 | Cranelift JIT | Custom Bytecode VM |
-|--------|------|----------|---------------|-------------------|
+| Aspect | BEAM | ODD-0038 | Cranelift JIT | Custom Bytecode Interpreter |
+|--------|------|----------|---------------|-----------------------------|
 | **Cold start latency** | ~1ms | 50-300ms | 10-50ms | <1ms |
 | **Warm latency** | ~1ms | 1-5ms | 1-5ms | <1ms |
 | **Interruptibility** | ✅ Native | ✅ Process kill | ❌ Must finish | ✅ Yield points |
@@ -602,7 +606,7 @@ A long-running process approach becomes attractive when:
 
 ### 8.2 When to Use What
 
-**Use ODD-0038 (Filesystem VM) when:**
+**Use ODD-0038 (Filesystem-Based Runtime) when:**
 
 - Starting a new Lisp-on-Rust project
 - Reliability is more important than latency
@@ -615,7 +619,7 @@ A long-running process approach becomes attractive when:
 - You have resources to maintain JIT infrastructure
 - Sub-50ms response is critical
 
-**Use Custom Bytecode VM when:**
+**Use Custom Bytecode Interpreter when:**
 
 - Interruptibility is critical (long-running computations)
 - You need hot code reload
@@ -668,16 +672,16 @@ Focus engineering effort on:
 
 ### 9.3 Long-term (v2.0+)
 
-**Evaluate bytecode VM** based on:
+**Evaluate bytecode interpreter** based on:
 
 - User demand for interruptibility
 - Hot reload requirements
 - Project resources
 
-**Do NOT pursue full runtime** unless:
+**Do NOT pursue full BEAM-like runtime** unless:
 
 - Oxur has significant adoption
-- There's clear demand for BEAM-like features
+- There's clear demand for BEAM-like features (lightweight processes, distribution)
 - Resources exist for multi-year investment
 
 ---
@@ -716,9 +720,29 @@ Focus engineering effort on:
 
 ## Version History
 
+### Version 1.1 (2026-01-10)
+
+Fixed terminology and pipeline architecture issues:
+
+1. **Terminology Updates:**
+   - Changed "Rust VM" to "Rust Runtime" in title
+   - Replaced "VM" with "execution environment (runtime)" throughout for clarity
+   - Kept "VM" terminology for actual VMs (BEAM, JVM, etc.)
+   - Updated "Filesystem VM" to "Filesystem-Based Runtime"
+   - Changed "Bytecode VM" to "Bytecode Interpreter" for precision
+
+2. **Critical Pipeline Fix (Phase 3):**
+   - **Fixed:** `Oxur → Core Forms → Rust AST → Cranelift IR → Native`
+   - **Corrected:** `Oxur → Core Forms → Oxur AST → syn AST → Cranelift IR → Native`
+   - Added note explaining ODD-0013 6-stage architecture adherence
+   - Explicitly shows semantic boundary crossing (Core Forms → Oxur AST)
+   - Shows de-S-expressioning step (Oxur AST → syn AST)
+
+The Oxur AST buffer zone was accidentally omitted from the original pipeline, skipping the critical stages that separate Lisp concepts from Rust concepts. This fix ensures consistency with ODD-0013 compilation architecture.
+
 ### Version 1.0 (2026-01-06)
 
-Initial brainstorm document synthesizing discussion about Rust VM concepts, BEAM comparisons, and staged approach to VM-like capabilities for Oxur.
+Initial brainstorm document synthesizing discussion about Rust runtime concepts, BEAM comparisons, and staged approach to runtime capabilities for Oxur.
 
 ---
 
