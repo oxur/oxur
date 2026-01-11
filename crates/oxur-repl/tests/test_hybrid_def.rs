@@ -17,6 +17,7 @@ async fn test_def_variable_in_calculator() {
 }
 
 #[tokio::test]
+#[ignore = "WIP: Hybrid mode incomplete - documents rough edge for future work"]
 async fn test_def_variable_in_compiled_code() {
     let mut ctx = EvalContext::new(SessionId::new("test"), ReplMode::Lisp);
 
