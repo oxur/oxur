@@ -525,10 +525,8 @@ mod tests {
     #[serial_test::serial]
     fn test_repl_terminal_with_config_emacs() {
         // Create with emacs mode - tests line 91-94
-        let terminal_config = TerminalConfig::builder()
-            .edit_mode(EditMode::Emacs)
-            .color(false)
-            .build();
+        let terminal_config =
+            TerminalConfig::builder().edit_mode(EditMode::Emacs).color(false).build();
         let history_config = HistoryConfig { enabled: false, path: None, max_size: Some(100) };
 
         let result = ReplTerminal::with_config(terminal_config, history_config);
@@ -541,10 +539,8 @@ mod tests {
     #[serial_test::serial]
     fn test_repl_terminal_with_config_vi() {
         // Create with vi mode - tests line 96-102
-        let terminal_config = TerminalConfig::builder()
-            .edit_mode(EditMode::Vi)
-            .color(false)
-            .build();
+        let terminal_config =
+            TerminalConfig::builder().edit_mode(EditMode::Vi).color(false).build();
         let history_config = HistoryConfig { enabled: false, path: None, max_size: Some(100) };
 
         let result = ReplTerminal::with_config(terminal_config, history_config);
@@ -601,8 +597,7 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_repl_terminal_prompt() {
-        let terminal_config =
-            TerminalConfig::builder().prompt("custom> ").color(false).build();
+        let terminal_config = TerminalConfig::builder().prompt("custom> ").color(false).build();
         let history_config = HistoryConfig::default();
 
         let terminal = ReplTerminal::with_config(terminal_config, history_config).unwrap();
@@ -615,10 +610,8 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_repl_terminal_continuation_prompt() {
-        let terminal_config = TerminalConfig::builder()
-            .continuation_prompt(">>> ")
-            .color(false)
-            .build();
+        let terminal_config =
+            TerminalConfig::builder().continuation_prompt(">>> ").color(false).build();
         let history_config = HistoryConfig::default();
 
         let terminal = ReplTerminal::with_config(terminal_config, history_config).unwrap();

@@ -93,5 +93,4 @@ mod tests {
         assert!(output.contains(":field"));
         assert!(output.contains("value"));
     }
-
 }

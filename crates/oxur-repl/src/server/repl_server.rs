@@ -1161,8 +1161,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_with_metrics_full_lifecycle() {
-        let mut server =
-            ReplServer::new("127.0.0.1:0").with_metrics().with_shutdown_timeout(Duration::from_secs(5));
+        let mut server = ReplServer::new("127.0.0.1:0")
+            .with_metrics()
+            .with_shutdown_timeout(Duration::from_secs(5));
         let shutdown_handle = server.shutdown_handle();
 
         let server_task = tokio::spawn(async move { server.start().await });

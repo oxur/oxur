@@ -1267,34 +1267,18 @@ mod tests {
         let collector = EvalMetrics::new("test");
 
         // Test resources command
-        let result = parse_stats_command_with_resources(
-            "(stats resources)",
-            &collector,
-            None,
-            None,
-            false,
-        );
+        let result =
+            parse_stats_command_with_resources("(stats resources)", &collector, None, None, false);
         assert!(result.is_some());
         assert!(result.unwrap().contains("Resource Usage"));
 
         // Test fallback to regular stats
-        let result = parse_stats_command_with_resources(
-            "(stats)",
-            &collector,
-            None,
-            None,
-            false,
-        );
+        let result = parse_stats_command_with_resources("(stats)", &collector, None, None, false);
         assert!(result.is_some());
 
         // Test invalid command
-        let result = parse_stats_command_with_resources(
-            "(stats invalid)",
-            &collector,
-            None,
-            None,
-            false,
-        );
+        let result =
+            parse_stats_command_with_resources("(stats invalid)", &collector, None, None, false);
         assert!(result.is_none());
     }
 
@@ -1498,7 +1482,7 @@ mod tests {
                 name: Some("Main".to_string()),
                 mode: ReplMode::Lisp,
                 eval_count: 42,
-                created_at: now - 3600_000, // 1 hour ago
+                created_at: now - 3600_000,   // 1 hour ago
                 last_active_at: now - 30_000, // 30 seconds ago - "just now"
                 timeout_ms: 300_000,
             },

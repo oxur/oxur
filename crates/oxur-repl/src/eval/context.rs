@@ -346,6 +346,7 @@ impl EvalContext {
     /// Uses tiered execution strategy:
     /// - Tier 1 (Calculator): Simple arithmetic literals only
     /// - Tier 2 (Cached Compilation): Everything else
+    /// - Hybrid: Calculator variables accessible in compiled code
     ///
     /// # Errors
     ///
@@ -362,26 +363,41 @@ impl EvalContext {
         // Reset source map for this evaluation
         self.source_map = oxur_smap::SourceMap::new();
 
-        // Attempt Tier 1 (Calculator mode) first
-        if let Some(result) = self.try_calculator(code) {
-            let duration = start.elapsed();
-            let duration_ms = duration.as_millis() as u64;
+        // Attempt Tier 1 (Calculator mode) first, with error awareness
+        match self.try_calculator_with_errors(code) {
+            Ok(Some(result)) => {
+                // Calculator mode succeeded
+                let duration = start.elapsed();
+                let duration_ms = duration.as_millis() as u64;
 
-            // Record stats
-            self.stats_collector.lock().unwrap().record(ExecutionTier::Calculator, false, duration);
+                // Record stats
+                self.stats_collector.lock().unwrap().record(
+                    ExecutionTier::Calculator,
+                    false,
+                    duration,
+                );
 
-            return Ok(EvalResult {
-                value: result,
-                tier: ExecutionTier::Calculator,
-                cached: false,
-                duration_ms,
-                stdout: None,
-                stderr: None,
-            });
+                return Ok(EvalResult {
+                    value: result,
+                    tier: ExecutionTier::Calculator,
+                    cached: false,
+                    duration_ms,
+                    stdout: None,
+                    stderr: None,
+                });
+            }
+            Err(e) => {
+                // Calculator mode had an actual error (e.g., def syntax error)
+                return Err(e);
+            }
+            Ok(None) => {
+                // Not calculator-eligible, fall through to compilation
+            }
         }
 
-        // Fall through to Tier 2 (Cached Compilation)
-        self.eval_tier2(code, start).await
+        // Fall through to Tier 2/3 (Compilation)
+        // Check if we have def variables that need to be injected
+        self.eval_tier2_with_variables(code, start).await
     }
 
     /// Try to evaluate using Tier 1 (Calculator mode)
@@ -391,10 +407,26 @@ impl EvalContext {
     /// - Sexpr mode: Canonical s-expressions with keywords
     ///
     /// Returns Some(result) if successful, None if not calculator-eligible.
+    ///
+    /// NOTE: Replaced by try_calculator_with_errors but kept for reference
+    #[allow(dead_code)]
     fn try_calculator(&mut self, code: &str) -> Option<String> {
         match self.mode {
             ReplMode::Lisp => self.lisp_eval.try_eval_calculator(code),
             ReplMode::Sexpr => self.sexpr_eval.try_eval_calculator(code),
+        }
+    }
+
+    /// Try calculator mode with error awareness
+    ///
+    /// Returns:
+    /// - `Ok(Some(result))` if evaluation succeeded
+    /// - `Ok(None)` if not calculator-eligible (should fall through to compilation)
+    /// - `Err(error)` if there was an actual error (e.g., def syntax error)
+    fn try_calculator_with_errors(&mut self, code: &str) -> Result<Option<String>> {
+        match self.mode {
+            ReplMode::Lisp => self.lisp_eval.try_eval_with_errors(code),
+            ReplMode::Sexpr => Ok(self.sexpr_eval.try_eval_calculator(code)), // Sexpr mode doesn't have error-aware version yet
         }
     }
 
@@ -403,7 +435,13 @@ impl EvalContext {
     /// Distinguishes between:
     /// - Tier 2 (CachedLoaded): Library already loaded in subprocess, just execute
     /// - Tier 3 (JustInTime): Need to compile and/or load library before executing
-    async fn eval_tier2(&mut self, code: &str, start: Instant) -> Result<EvalResult> {
+    ///
+    /// HYBRID MODE: If def variables exist, they are injected into compiled code
+    async fn eval_tier2_with_variables(
+        &mut self,
+        code: &str,
+        start: Instant,
+    ) -> Result<EvalResult> {
         // Generate cache key (hash of code)
         let cache_key = self.hash_code(code);
 
@@ -618,13 +656,44 @@ impl EvalContext {
 
         // Step 3: Wrap generated Rust code with REPL scaffolding
         // Pass SourceMap for Phase 4 error translation
-        let wrapped_code = self
-            .wrapper
-            .wrap(&cache_key, &rust_source, Some(&self.source_map))
-            .map_err(|e| EvalError::CompilationError {
-                msg: format!("Failed to wrap code: {}", e),
-                pos: SourcePos::repl(1, 1, code.len() as u32),
-            })?;
+        //
+        // HYBRID MODE: If we have def variables, inject them as literals
+        let def_variables = match self.mode {
+            ReplMode::Lisp => self.lisp_eval.get_variables(),
+            ReplMode::Sexpr => vec![], // Sexpr mode doesn't support def yet
+        };
+
+        let wrapped_code = if def_variables.is_empty() {
+            // No def variables, use standard wrapping
+            self.wrapper.wrap(&cache_key, &rust_source, Some(&self.source_map)).map_err(|e| {
+                EvalError::CompilationError {
+                    msg: format!("Failed to wrap code: {}", e),
+                    pos: SourcePos::repl(1, 1, code.len() as u32),
+                }
+            })?
+        } else {
+            // EXPERIMENTAL: Inject def variables as literal declarations
+            // Generate: let varname: type = value;
+            let mut var_decls = String::new();
+            for (name, type_name) in &def_variables {
+                if let Some(value) = match self.mode {
+                    ReplMode::Lisp => self.lisp_eval.get_variable_value(name),
+                    ReplMode::Sexpr => None,
+                } {
+                    var_decls.push_str(&format!("    let {}: {} = {};\n", name, type_name, value));
+                }
+            }
+
+            // Prepend variable declarations to the Rust source
+            let rust_with_vars = format!("{}\n{}", var_decls, rust_source);
+
+            self.wrapper.wrap(&cache_key, &rust_with_vars, Some(&self.source_map)).map_err(|e| {
+                EvalError::CompilationError {
+                    msg: format!("Failed to wrap code: {}", e),
+                    pos: SourcePos::repl(1, 1, code.len() as u32),
+                }
+            })?
+        };
 
         // Step 4: Compile to dynamic library
         let lib_path = compiler
@@ -1251,12 +1320,9 @@ mod tests {
         assert_eq!(vars.len(), 2);
 
         // Check that both variables are present (order may vary)
-        let has_x = vars.iter().any(|(name, ty, mutable)| {
-            name == "x" && ty == "i32" && !mutable
-        });
-        let has_y = vars.iter().any(|(name, ty, mutable)| {
-            name == "y" && ty == "String" && *mutable
-        });
+        let has_x = vars.iter().any(|(name, ty, mutable)| name == "x" && ty == "i32" && !mutable);
+        let has_y =
+            vars.iter().any(|(name, ty, mutable)| name == "y" && ty == "String" && *mutable);
         assert!(has_x);
         assert!(has_y);
     }
@@ -1412,10 +1478,7 @@ mod tests {
 
     #[test]
     fn test_eval_error_debug() {
-        let err = EvalError::SyntaxError {
-            msg: "test".to_string(),
-            pos: SourcePos::repl(1, 1, 1),
-        };
+        let err = EvalError::SyntaxError { msg: "test".to_string(), pos: SourcePos::repl(1, 1, 1) };
 
         let debug_str = format!("{:?}", err);
         assert!(debug_str.contains("SyntaxError"));
