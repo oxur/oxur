@@ -31,35 +31,56 @@ impl Expander {
 
     fn expand_form(&mut self, form: SurfaceForm) -> Result<CoreForm> {
         match form {
-            SurfaceForm::Symbol { name, .. } => {
+            SurfaceForm::Symbol { name, span } => {
                 let id = oxur_smap::new_node_id();
+                let pos = Self::span_to_source_pos(&span);
+                self.source_map.record_surface_node(id, pos);
                 Ok(CoreForm::Symbol { id, name })
             }
-            SurfaceForm::Number { value, .. } => {
+            SurfaceForm::Number { value, span } => {
                 let id = oxur_smap::new_node_id();
+                let pos = Self::span_to_source_pos(&span);
+                self.source_map.record_surface_node(id, pos);
                 Ok(CoreForm::Number { id, value })
             }
-            SurfaceForm::String { value, .. } => {
+            SurfaceForm::String { value, span } => {
                 let id = oxur_smap::new_node_id();
+                let pos = Self::span_to_source_pos(&span);
+                self.source_map.record_surface_node(id, pos);
                 Ok(CoreForm::String { id, value })
             }
-            SurfaceForm::List { elements, .. } => {
+            SurfaceForm::List { elements, span } => {
                 // Check if this is a special form (like deffn)
                 if !elements.is_empty() {
                     if let SurfaceForm::Symbol { ref name, .. } = elements[0] {
                         if name == "deffn" {
-                            return self.expand_deffn(elements);
+                            return self.expand_deffn(elements, span);
                         }
                     }
                 }
 
                 // Otherwise, expand as a regular list
-                self.expand_list(elements)
+                self.expand_list(elements, span)
             }
         }
     }
 
-    fn expand_deffn(&mut self, elements: Vec<SurfaceForm>) -> Result<CoreForm> {
+    /// Convert a Span to SourcePos, using start position for multi-line spans
+    fn span_to_source_pos(span: &oxur_smap::Span) -> oxur_smap::SourcePos {
+        // Use start position and length 1 (exact length not critical for error reporting)
+        oxur_smap::SourcePos::new(
+            span.file.clone(),
+            span.start_line,
+            span.start_column,
+            1, // Length placeholder
+        )
+    }
+
+    fn expand_deffn(
+        &mut self,
+        elements: Vec<SurfaceForm>,
+        span: oxur_smap::Span,
+    ) -> Result<CoreForm> {
         // (deffn name params body...)
         if elements.len() < 4 {
             return Err(crate::Error::Syntax(
@@ -68,6 +89,8 @@ impl Expander {
         }
 
         let id = oxur_smap::new_node_id();
+        let pos = Self::span_to_source_pos(&span);
+        self.source_map.record_surface_node(id, pos);
 
         // Extract function name
         let name = match &elements[1] {
@@ -101,10 +124,16 @@ impl Expander {
         Ok(CoreForm::DefineFunc { id, name, params, body })
     }
 
-    fn expand_list(&mut self, elements: Vec<SurfaceForm>) -> Result<CoreForm> {
+    fn expand_list(
+        &mut self,
+        elements: Vec<SurfaceForm>,
+        span: oxur_smap::Span,
+    ) -> Result<CoreForm> {
         let id = oxur_smap::new_node_id();
-        let mut expanded_elements = Vec::new();
+        let pos = Self::span_to_source_pos(&span);
+        self.source_map.record_surface_node(id, pos);
 
+        let mut expanded_elements = Vec::new();
         for element in elements {
             expanded_elements.push(self.expand_form(element)?);
         }
@@ -252,5 +281,130 @@ mod tests {
         } else {
             panic!("Expected String");
         }
+    }
+
+    #[test]
+    fn test_source_map_symbol() {
+        use crate::parser::Parser;
+
+        let source = "hello";
+        let mut parser = Parser::new(source.to_string());
+        let forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let core_forms = expander.expand(forms).unwrap();
+
+        // Get the NodeId from the CoreForm
+        if let CoreForm::Symbol { id, .. } = &core_forms[0] {
+            // Look up the source position via the SourceMap
+            let source_map = expander.source_map();
+            let pos = source_map.get_surface_position(id);
+
+            assert!(pos.is_some(), "Mapping should be recorded");
+            let pos = pos.unwrap();
+            assert_eq!(pos.line, 1);
+            assert_eq!(pos.column, 1);
+        } else {
+            panic!("Expected Symbol");
+        }
+    }
+
+    #[test]
+    fn test_source_map_number() {
+        use crate::parser::Parser;
+
+        let source = "42";
+        let mut parser = Parser::new(source.to_string());
+        let forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let core_forms = expander.expand(forms).unwrap();
+
+        if let CoreForm::Number { id, .. } = &core_forms[0] {
+            let source_map = expander.source_map();
+            let pos = source_map.get_surface_position(id);
+
+            assert!(pos.is_some());
+            let pos = pos.unwrap();
+            assert_eq!(pos.line, 1);
+            assert_eq!(pos.column, 1);
+        } else {
+            panic!("Expected Number");
+        }
+    }
+
+    #[test]
+    fn test_source_map_list() {
+        use crate::parser::Parser;
+
+        let source = "(+ 1 2)";
+        let mut parser = Parser::new(source.to_string());
+        let forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let core_forms = expander.expand(forms).unwrap();
+
+        if let CoreForm::List { id, elements, .. } = &core_forms[0] {
+            let source_map = expander.source_map();
+
+            // Check list node mapping
+            let list_pos = source_map.get_surface_position(id);
+            assert!(list_pos.is_some());
+            assert_eq!(list_pos.unwrap().line, 1);
+
+            // Check first element ('+' symbol) mapping
+            if let CoreForm::Symbol { id: elem_id, .. } = &elements[0] {
+                let elem_pos = source_map.get_surface_position(elem_id);
+                assert!(elem_pos.is_some());
+                assert_eq!(elem_pos.unwrap().column, 2); // After '('
+            } else {
+                panic!("Expected Symbol");
+            }
+        } else {
+            panic!("Expected List");
+        }
+    }
+
+    #[test]
+    fn test_source_map_deffn() {
+        use crate::parser::Parser;
+
+        let source = "(deffn main () 42)";
+        let mut parser = Parser::new(source.to_string());
+        let forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let core_forms = expander.expand(forms).unwrap();
+
+        if let CoreForm::DefineFunc { id, .. } = &core_forms[0] {
+            let source_map = expander.source_map();
+            let pos = source_map.get_surface_position(id);
+
+            assert!(pos.is_some());
+            assert_eq!(pos.unwrap().line, 1);
+            assert_eq!(pos.unwrap().column, 1);
+        } else {
+            panic!("Expected DefineFunc");
+        }
+    }
+
+    #[test]
+    fn test_source_map_stats() {
+        use crate::parser::Parser;
+
+        let source = "(+ 1 2)"; // 4 nodes: list, +, 1, 2
+        let mut parser = Parser::new(source.to_string());
+        let forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let _core_forms = expander.expand(forms).unwrap();
+
+        let source_map = expander.source_map();
+        let stats = source_map.stats();
+
+        // Should have 4 surface nodes recorded
+        assert_eq!(stats.surface_nodes, 4);
+        assert_eq!(stats.expansions, 0); // No expansion chains yet (Stage 1.7 only)
+        assert_eq!(stats.lowerings, 0); // No lowerings yet
     }
 }
