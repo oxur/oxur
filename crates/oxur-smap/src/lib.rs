@@ -16,13 +16,15 @@
 //! # Example
 //!
 //! ```
-//! use oxur_smap::{SourceMap, new_node_id, SourcePos};
+//! use oxur_smap::{SourceMap, new_node_id, SourcePos, Span};
 //!
 //! let mut map = SourceMap::new();
 //!
-//! // Parser creates surface node
+//! // Parser creates surface node with span
 //! let surface = new_node_id();
-//! let pos = SourcePos::repl(1, 5, 10);
+//! let span = Span::repl(1, 1, 1, 10);
+//! // Convert span to SourcePos for recording
+//! let pos: SourcePos = (&span).into();
 //! map.record_surface_node(surface, pos);
 //!
 //! // Expander creates core node
@@ -36,14 +38,16 @@
 //! // Error translator looks up original position
 //! let original = map.lookup(&rust).unwrap();
 //! assert_eq!(original.line, 1);
-//! assert_eq!(original.column, 5);
+//! assert_eq!(original.column, 1);
 //! ```
 
 mod node_id;
 mod source_map;
 mod source_pos;
+mod span;
 
 // Re-export public API
 pub use node_id::{new_node_id, NodeId, NodeIdGenerator};
 pub use source_map::{LookupStats, SourceMap, SourceMapStats};
 pub use source_pos::SourcePos;
+pub use span::Span;
