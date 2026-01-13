@@ -4,18 +4,31 @@
 //! Handles tokenization, reader, and reader macros.
 
 use crate::Result;
+use oxur_smap::Span;
 
 /// Parser converts Oxur source text into Surface Forms
 pub struct Parser {
-    #[allow(dead_code)]
     source: String,
-    #[allow(dead_code)]
-    position: usize,
+    position: usize,  // Byte offset in source
+    line: usize,      // Current line (1-indexed)
+    column: usize,    // Current column (1-indexed)
+    filename: String, // Source filename (or "<repl>")
 }
 
 impl Parser {
     pub fn new(source: String) -> Self {
-        Self { source, position: 0 }
+        Self {
+            source,
+            position: 0,
+            line: 1,   // 1-indexed
+            column: 1, // 1-indexed
+            filename: "<repl>".to_string(),
+        }
+    }
+
+    /// Create a parser for a named file
+    pub fn new_file(source: String, filename: String) -> Self {
+        Self { source, position: 0, line: 1, column: 1, filename }
     }
 
     /// Parse the source into Surface Forms
@@ -51,6 +64,8 @@ impl Parser {
     }
 
     fn parse_list(&mut self) -> Result<SurfaceForm> {
+        let (start_line, start_column) = self.mark_position();
+
         self.advance(); // consume '('
         let mut elements = Vec::new();
 
@@ -69,10 +84,13 @@ impl Parser {
             elements.push(self.parse_form()?);
         }
 
-        Ok(SurfaceForm::List(elements))
+        let span = self.make_span(start_line, start_column);
+        Ok(SurfaceForm::List { span, elements })
     }
 
     fn parse_string(&mut self) -> Result<SurfaceForm> {
+        let (start_line, start_column) = self.mark_position();
+
         self.advance(); // consume opening '"'
         let start = self.position;
 
@@ -87,10 +105,12 @@ impl Parser {
         let value = self.source[start..self.position].to_string();
         self.advance(); // consume closing '"'
 
-        Ok(SurfaceForm::String(value))
+        let span = self.make_span(start_line, start_column);
+        Ok(SurfaceForm::String { span, value })
     }
 
     fn parse_number(&mut self) -> Result<SurfaceForm> {
+        let (start_line, start_column) = self.mark_position();
         let start = self.position;
 
         if self.current_char() == '-' {
@@ -106,10 +126,12 @@ impl Parser {
             .parse::<i64>()
             .map_err(|_| crate::Error::Syntax(format!("Invalid number: {}", num_str)))?;
 
-        Ok(SurfaceForm::Number(value))
+        let span = self.make_span(start_line, start_column);
+        Ok(SurfaceForm::Number { span, value })
     }
 
     fn parse_symbol(&mut self) -> Result<SurfaceForm> {
+        let (start_line, start_column) = self.mark_position();
         let start = self.position;
 
         while !self.is_at_end() && self.is_symbol_char(self.current_char()) {
@@ -117,7 +139,8 @@ impl Parser {
         }
 
         let name = self.source[start..self.position].to_string();
-        Ok(SurfaceForm::Symbol(name))
+        let span = self.make_span(start_line, start_column);
+        Ok(SurfaceForm::Symbol { span, name })
     }
 
     fn is_symbol_char(&self, ch: char) -> bool {
@@ -129,7 +152,17 @@ impl Parser {
     }
 
     fn advance(&mut self) {
-        self.position += 1;
+        if self.position < self.source.len() {
+            let ch = self.current_char();
+            self.position += 1;
+
+            if ch == '\n' {
+                self.line += 1;
+                self.column = 1;
+            } else {
+                self.column += 1;
+            }
+        }
     }
 
     fn skip_whitespace(&mut self) {
@@ -138,18 +171,56 @@ impl Parser {
         }
     }
 
+    /// Get current position as (line, column) tuple
+    fn current_pos(&self) -> (u32, u32) {
+        (self.line as u32, self.column as u32)
+    }
+
+    /// Mark current position for span tracking
+    fn mark_position(&self) -> (u32, u32) {
+        self.current_pos()
+    }
+
+    /// Create a span from start position to current position
+    fn make_span(&self, start_line: u32, start_column: u32) -> Span {
+        let (end_line, end_column) = self.current_pos();
+        Span::new(self.filename.clone(), start_line, start_column, end_line, end_column)
+    }
+
     fn is_at_end(&self) -> bool {
         self.position >= self.source.len()
     }
 }
 
 /// Surface Forms - parsed S-expressions before macro expansion
+///
+/// Each variant includes a Span tracking its source location for
+/// error reporting and debugging.
 #[derive(Debug, Clone)]
 pub enum SurfaceForm {
-    Symbol(String),
-    Number(i64),
-    String(String),
-    List(Vec<SurfaceForm>),
+    /// A symbol (identifier, operator, etc.)
+    Symbol { span: Span, name: String },
+
+    /// A numeric literal
+    Number { span: Span, value: i64 },
+
+    /// A string literal
+    String { span: Span, value: String },
+
+    /// A list (parenthesized expression)
+    List { span: Span, elements: Vec<SurfaceForm> },
+}
+
+impl SurfaceForm {
+    /// Get the span of this surface form
+    pub fn span(&self) -> &Span {
+        match self {
+            SurfaceForm::Symbol { span, .. } => span,
+            SurfaceForm::Number { span, .. } => span,
+            SurfaceForm::String { span, .. } => span,
+            SurfaceForm::List { span, .. } => span,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -172,36 +243,40 @@ mod tests {
 
     #[test]
     fn test_surface_form_symbol() {
-        let form = SurfaceForm::Symbol("test".to_string());
+        let span = Span::repl(1, 1, 1, 5);
+        let form = SurfaceForm::Symbol { span, name: "test".to_string() };
         match form {
-            SurfaceForm::Symbol(s) => assert_eq!(s, "test"),
+            SurfaceForm::Symbol { name, .. } => assert_eq!(name, "test"),
             _ => panic!("Wrong variant"),
         }
     }
 
     #[test]
     fn test_surface_form_number() {
-        let form = SurfaceForm::Number(42);
+        let span = Span::repl(1, 1, 1, 3);
+        let form = SurfaceForm::Number { span, value: 42 };
         match form {
-            SurfaceForm::Number(n) => assert_eq!(n, 42),
+            SurfaceForm::Number { value, .. } => assert_eq!(value, 42),
             _ => panic!("Wrong variant"),
         }
     }
 
     #[test]
     fn test_surface_form_string() {
-        let form = SurfaceForm::String("hello".to_string());
+        let span = Span::repl(1, 1, 1, 7);
+        let form = SurfaceForm::String { span, value: "hello".to_string() };
         match form {
-            SurfaceForm::String(s) => assert_eq!(s, "hello"),
+            SurfaceForm::String { value, .. } => assert_eq!(value, "hello"),
             _ => panic!("Wrong variant"),
         }
     }
 
     #[test]
     fn test_surface_form_list() {
-        let form = SurfaceForm::List(vec![]);
+        let span = Span::repl(1, 1, 1, 3);
+        let form = SurfaceForm::List { span, elements: vec![] };
         match form {
-            SurfaceForm::List(l) => assert_eq!(l.len(), 0),
+            SurfaceForm::List { elements, .. } => assert_eq!(elements.len(), 0),
             _ => panic!("Wrong variant"),
         }
     }
@@ -218,9 +293,9 @@ mod tests {
         assert_eq!(forms.len(), 1);
 
         // Should be a list starting with 'deffn'
-        if let SurfaceForm::List(elements) = &forms[0] {
+        if let SurfaceForm::List { elements, .. } = &forms[0] {
             assert!(elements.len() >= 3);
-            if let SurfaceForm::Symbol(name) = &elements[0] {
+            if let SurfaceForm::Symbol { name, .. } = &elements[0] {
                 assert_eq!(name, "deffn");
             } else {
                 panic!("Expected Symbol(deffn)");
@@ -239,7 +314,7 @@ mod tests {
         let forms = result.unwrap();
         assert_eq!(forms.len(), 1);
 
-        if let SurfaceForm::List(elements) = &forms[0] {
+        if let SurfaceForm::List { elements, .. } = &forms[0] {
             assert_eq!(elements.len(), 3);
         } else {
             panic!("Expected List");
@@ -255,8 +330,8 @@ mod tests {
         let forms = result.unwrap();
         assert_eq!(forms.len(), 1);
 
-        if let SurfaceForm::String(s) = &forms[0] {
-            assert_eq!(s, "hello");
+        if let SurfaceForm::String { value, .. } = &forms[0] {
+            assert_eq!(value, "hello");
         } else {
             panic!("Expected String");
         }
@@ -271,8 +346,8 @@ mod tests {
         let forms = result.unwrap();
         assert_eq!(forms.len(), 1);
 
-        if let SurfaceForm::Number(n) = &forms[0] {
-            assert_eq!(*n, 42);
+        if let SurfaceForm::Number { value, .. } = &forms[0] {
+            assert_eq!(*value, 42);
         } else {
             panic!("Expected Number");
         }
@@ -287,10 +362,76 @@ mod tests {
         let forms = result.unwrap();
         assert_eq!(forms.len(), 1);
 
-        if let SurfaceForm::Symbol(s) = &forms[0] {
-            assert_eq!(s, "println!");
+        if let SurfaceForm::Symbol { name, .. } = &forms[0] {
+            assert_eq!(name, "println!");
         } else {
             panic!("Expected Symbol");
         }
+    }
+
+    #[test]
+    fn test_span_tracking_symbol() {
+        let mut parser = Parser::new("hello".to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::Symbol { span, name } = &forms[0] {
+            assert_eq!(name, "hello");
+            assert_eq!(span.start_line, 1);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_line, 1);
+            assert_eq!(span.end_column, 6); // After 'o'
+        } else {
+            panic!("Expected Symbol");
+        }
+    }
+
+    #[test]
+    fn test_span_tracking_list() {
+        let mut parser = Parser::new("(+ 1 2)".to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::List { span, elements } = &forms[0] {
+            assert_eq!(elements.len(), 3);
+            assert_eq!(span.start_line, 1);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_line, 1);
+            assert_eq!(span.end_column, 8); // After ')'
+        } else {
+            panic!("Expected List");
+        }
+    }
+
+    #[test]
+    fn test_span_tracking_multiline() {
+        let source = r#"(deffn main ()
+  (println! "test"))"#;
+        let mut parser = Parser::new(source.to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::List { span, .. } = &forms[0] {
+            assert_eq!(span.start_line, 1);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_line, 2);
+            // Should span to end of second line
+            assert!(span.end_line > span.start_line);
+        } else {
+            panic!("Expected List");
+        }
+    }
+
+    #[test]
+    fn test_parser_new_file() {
+        let parser = Parser::new_file("(+ 1 2)".to_string(), "test.oxur".to_string());
+        assert_eq!(parser.filename, "test.oxur");
+        assert_eq!(parser.line, 1);
+        assert_eq!(parser.column, 1);
+    }
+
+    #[test]
+    fn test_current_position() {
+        let parser = Parser::new("hello".to_string());
+        let (line, col) = parser.current_pos();
+        assert_eq!(line, 1);
+        assert_eq!(col, 1);
     }
 }

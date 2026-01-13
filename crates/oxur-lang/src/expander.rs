@@ -31,23 +31,23 @@ impl Expander {
 
     fn expand_form(&mut self, form: SurfaceForm) -> Result<CoreForm> {
         match form {
-            SurfaceForm::Symbol(name) => {
+            SurfaceForm::Symbol { name, .. } => {
                 let id = oxur_smap::new_node_id();
                 Ok(CoreForm::Symbol { id, name })
             }
-            SurfaceForm::Number(value) => {
+            SurfaceForm::Number { value, .. } => {
                 let id = oxur_smap::new_node_id();
                 Ok(CoreForm::Number { id, value })
             }
-            SurfaceForm::String(value) => {
+            SurfaceForm::String { value, .. } => {
                 let id = oxur_smap::new_node_id();
                 Ok(CoreForm::String { id, value })
             }
-            SurfaceForm::List(elements) => {
+            SurfaceForm::List { elements, .. } => {
                 // Check if this is a special form (like deffn)
                 if !elements.is_empty() {
-                    if let SurfaceForm::Symbol(ref first) = elements[0] {
-                        if first == "deffn" {
+                    if let SurfaceForm::Symbol { ref name, .. } = elements[0] {
+                        if name == "deffn" {
                             return self.expand_deffn(elements);
                         }
                     }
@@ -71,17 +71,17 @@ impl Expander {
 
         // Extract function name
         let name = match &elements[1] {
-            SurfaceForm::Symbol(n) => n.clone(),
+            SurfaceForm::Symbol { name, .. } => name.clone(),
             _ => return Err(crate::Error::Syntax("deffn name must be a symbol".to_string())),
         };
 
         // Extract parameters (empty list for now, we'll handle typed params later)
         let params = match &elements[2] {
-            SurfaceForm::List(param_list) => {
+            SurfaceForm::List { elements: param_list, .. } => {
                 let mut params = Vec::new();
                 for param in param_list {
-                    if let SurfaceForm::Symbol(p) = param {
-                        params.push(p.clone());
+                    if let SurfaceForm::Symbol { name, .. } = param {
+                        params.push(name.clone());
                     } else {
                         return Err(crate::Error::Syntax("Parameter must be a symbol".to_string()));
                     }
@@ -208,8 +208,11 @@ mod tests {
 
     #[test]
     fn test_expand_symbol() {
+        use oxur_smap::Span;
+
         let mut expander = Expander::new();
-        let surface = SurfaceForm::Symbol("test".to_string());
+        let span = Span::repl(1, 1, 1, 5);
+        let surface = SurfaceForm::Symbol { span, name: "test".to_string() };
         let result = expander.expand_form(surface).unwrap();
 
         if let CoreForm::Symbol { name, .. } = result {
@@ -221,8 +224,11 @@ mod tests {
 
     #[test]
     fn test_expand_number() {
+        use oxur_smap::Span;
+
         let mut expander = Expander::new();
-        let surface = SurfaceForm::Number(42);
+        let span = Span::repl(1, 1, 1, 3);
+        let surface = SurfaceForm::Number { span, value: 42 };
         let result = expander.expand_form(surface).unwrap();
 
         if let CoreForm::Number { value, .. } = result {
@@ -234,8 +240,11 @@ mod tests {
 
     #[test]
     fn test_expand_string() {
+        use oxur_smap::Span;
+
         let mut expander = Expander::new();
-        let surface = SurfaceForm::String("hello".to_string());
+        let span = Span::repl(1, 1, 1, 7);
+        let surface = SurfaceForm::String { span, value: "hello".to_string() };
         let result = expander.expand_form(surface).unwrap();
 
         if let CoreForm::String { value, .. } = result {
