@@ -8,10 +8,12 @@
 pub mod codegen;
 pub mod compiler;
 pub mod lowering;
+pub mod rustc_diagnostic;
 
 pub use codegen::CodeGenerator;
 pub use compiler::Compiler;
 pub use lowering::Lowerer;
+pub use rustc_diagnostic::{RustcDiagnostic, RustcSpan};
 
 // Re-export oxur-smap types for convenience
 pub use oxur_smap::{new_node_id, NodeId, SourceMap, SourcePos};

@@ -46,13 +46,32 @@ impl Compiler {
     }
 
     fn compile_with_rustc(&self, source: &Path, output: &Path) -> Result<()> {
-        let status = Command::new("rustc").arg(source).arg("-o").arg(output).status()?;
+        let output_result = Command::new("rustc")
+            .arg(source)
+            .arg("-o")
+            .arg(output)
+            .arg("--error-format=json")
+            .output()?;
 
-        if !status.success() {
-            return Err(Error::Compile(format!(
-                "rustc failed with exit code: {:?}",
-                status.code()
-            )));
+        if !output_result.status.success() {
+            // Parse JSON diagnostics from stderr
+            let stderr = String::from_utf8_lossy(&output_result.stderr);
+            let diagnostics =
+                crate::RustcDiagnostic::from_json_lines(&stderr).unwrap_or_else(|_| vec![]);
+
+            // Format error message with file:line:col positions
+            let mut error_msg =
+                format!("rustc failed with exit code: {:?}\n", output_result.status.code());
+
+            for diag in diagnostics.iter().filter(|d| d.is_error()) {
+                if let Some((file, line, col)) = diag.primary_position() {
+                    error_msg.push_str(&format!("  {}:{}:{}: {}\n", file, line, col, diag.message));
+                } else {
+                    error_msg.push_str(&format!("  {}\n", diag.message));
+                }
+            }
+
+            return Err(Error::Compile(error_msg));
         }
 
         Ok(())
