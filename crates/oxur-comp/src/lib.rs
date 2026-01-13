@@ -7,11 +7,13 @@
 
 pub mod codegen;
 pub mod compiler;
+pub mod error_translator;
 pub mod lowering;
 pub mod rustc_diagnostic;
 
 pub use codegen::CodeGenerator;
 pub use compiler::Compiler;
+pub use error_translator::ErrorTranslator;
 pub use lowering::Lowerer;
 pub use rustc_diagnostic::{RustcDiagnostic, RustcSpan};
 

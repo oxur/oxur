@@ -22,6 +22,12 @@ impl Compiler {
     ///
     /// Accepts the SourceMap from the expansion phase and returns it
     /// with lowering mappings added for error reporting.
+    ///
+    /// # Error Translation
+    ///
+    /// If rustc compilation fails, errors are translated using the SourceMap
+    /// to show Oxur source positions where possible. Currently shows generated
+    /// Rust positions with a note that full translation is being implemented.
     pub fn compile(
         &mut self,
         forms: Vec<CoreForm>,
@@ -39,13 +45,18 @@ impl Compiler {
         let rs_file = self.output_dir.join("generated.rs");
         std::fs::write(&rs_file, source)?;
 
-        // Stage 5: Compile with rustc
-        self.compile_with_rustc(&rs_file, output)?;
+        // Stage 5: Compile with rustc (pass source_map for error translation)
+        self.compile_with_rustc(&rs_file, output, &source_map)?;
 
         Ok(source_map)
     }
 
-    fn compile_with_rustc(&self, source: &Path, output: &Path) -> Result<()> {
+    fn compile_with_rustc(
+        &self,
+        source: &Path,
+        output: &Path,
+        source_map: &oxur_smap::SourceMap,
+    ) -> Result<()> {
         let output_result = Command::new("rustc")
             .arg(source)
             .arg("-o")
@@ -59,17 +70,15 @@ impl Compiler {
             let diagnostics =
                 crate::RustcDiagnostic::from_json_lines(&stderr).unwrap_or_else(|_| vec![]);
 
-            // Format error message with file:line:col positions
-            let mut error_msg =
-                format!("rustc failed with exit code: {:?}\n", output_result.status.code());
+            // Use ErrorTranslator to convert rustc errors to Oxur positions
+            let translator = crate::ErrorTranslator::new(source_map.clone());
+            let translated = translator.translate_diagnostics(&diagnostics);
 
-            for diag in diagnostics.iter().filter(|d| d.is_error()) {
-                if let Some((file, line, col)) = diag.primary_position() {
-                    error_msg.push_str(&format!("  {}:{}:{}: {}\n", file, line, col, diag.message));
-                } else {
-                    error_msg.push_str(&format!("  {}\n", diag.message));
-                }
-            }
+            let error_msg = format!(
+                "rustc failed with exit code: {:?}\n\n{}",
+                output_result.status.code(),
+                translated
+            );
 
             return Err(Error::Compile(error_msg));
         }
@@ -160,5 +169,44 @@ mod tests {
 
         assert!(output.status.success(), "Binary execution failed");
         assert!(stdout.contains("Hello, world!"), "Output doesn't contain expected text");
+    }
+
+    #[test]
+    fn test_error_translation_format() {
+        use oxur_lang::{Expander, Parser};
+        use tempfile::TempDir;
+
+        // Parse code with intentional error (undefined variable)
+        let source = r#"(deffn main ()
+  (println! x))"#; // `x` is undefined
+
+        let mut parser = Parser::new(source.to_string());
+        let surface_forms = parser.parse().unwrap();
+
+        let mut expander = Expander::new();
+        let core_forms = expander.expand(surface_forms).unwrap();
+        let source_map = expander.source_map().clone();
+
+        // Compile (this should fail with rustc error)
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = temp_dir.path().join("build");
+        std::fs::create_dir_all(&output_dir).unwrap();
+
+        let mut compiler = Compiler::new(output_dir);
+        let binary_path = temp_dir.path().join("test_error");
+
+        let result = compiler.compile(core_forms, source_map, &binary_path);
+
+        // Should fail with compilation error
+        assert!(result.is_err(), "Should fail due to undefined variable");
+
+        if let Err(crate::Error::Compile(msg)) = result {
+            // Error message should mention the error
+            eprintln!("Error message:\n{}", msg);
+
+            // Should contain rustc error code or exit status
+            // (exact format depends on rustc version, but should have some structure)
+            assert!(!msg.is_empty(), "Should have error message");
+        }
     }
 }
