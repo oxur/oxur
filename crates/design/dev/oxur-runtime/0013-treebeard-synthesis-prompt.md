@@ -9,7 +9,7 @@ You are a senior systems architect specializing in programming language implemen
 ## Input Documents You Will Receive
 
 1. **Treebeard Architecture Research v2** (`treebeard-architecture-v2.md`)
-   - The proposed split architecture (Treebeard as general `syn` interpreter, oxur-vm as thin frontend)
+   - The proposed split architecture (Treebeard as general `syn` interpreter, oxur-runtime as thin frontend)
    - Research findings on tree-walking interpreters, macro expansion, ownership tracking, etc.
    - Preliminary prototyping order and risk assessment
 
@@ -121,7 +121,7 @@ How does Treebeard integrate with Oxur's existing codebase?
    - Current evaluation (25% complete)
    - What's the migration path?
 
-3. **What new code is needed in oxur-vm?**
+3. **What new code is needed in oxur-runtime?**
    - The `OxurFrontend` implementation
    - Macro expansion (the 0% that needs to become 100%)
    - What else?
