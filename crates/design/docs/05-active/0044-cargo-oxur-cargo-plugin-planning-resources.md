@@ -30,8 +30,6 @@ This document provides resources for building `cargo-oxur`, a Cargo subcommand t
 
 ## Part 1: Cargo Plugin Development Resources
 
-[Content unchanged from v0.1 - see original document]
-
 ### Official Documentation
 
 The official Rust documentation on extending Cargo is surprisingly brief:
