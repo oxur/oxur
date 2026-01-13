@@ -9,20 +9,28 @@ use std::process::Command;
 
 /// Compiler orchestrates the full compilation pipeline
 pub struct Compiler {
-    lowerer: Lowerer,
     codegen: CodeGenerator,
     output_dir: PathBuf,
 }
 
 impl Compiler {
     pub fn new(output_dir: PathBuf) -> Self {
-        Self { lowerer: Lowerer::new(), codegen: CodeGenerator::new(), output_dir }
+        Self { codegen: CodeGenerator::new(), output_dir }
     }
 
     /// Compile Core Forms to a binary
-    pub fn compile(&mut self, forms: Vec<CoreForm>, output: &Path) -> Result<()> {
+    ///
+    /// Accepts the SourceMap from the expansion phase and returns it
+    /// with lowering mappings added for error reporting.
+    pub fn compile(
+        &mut self,
+        forms: Vec<CoreForm>,
+        source_map: oxur_smap::SourceMap,
+        output: &Path,
+    ) -> Result<oxur_smap::SourceMap> {
         // Stage 3: Lower to Rust AST
-        let ast = self.lowerer.lower(forms)?;
+        let mut lowerer = Lowerer::new(source_map);
+        let (ast, source_map) = lowerer.lower(forms)?;
 
         // Stage 4: Generate Rust source
         let source = self.codegen.generate(&ast)?;
@@ -34,7 +42,7 @@ impl Compiler {
         // Stage 5: Compile with rustc
         self.compile_with_rustc(&rs_file, output)?;
 
-        Ok(())
+        Ok(source_map)
     }
 
     fn compile_with_rustc(&self, source: &Path, output: &Path) -> Result<()> {
@@ -62,13 +70,6 @@ mod tests {
     }
 
     #[test]
-    fn test_compiler_has_lowerer() {
-        let compiler = Compiler::new(PathBuf::from("/tmp"));
-        // Lowerer is private but we can verify it exists by using the compiler
-        assert_eq!(compiler.output_dir, PathBuf::from("/tmp"));
-    }
-
-    #[test]
     fn test_compiler_has_codegen() {
         let compiler = Compiler::new(PathBuf::from("/tmp"));
         // CodeGenerator is private but we can verify it exists
@@ -92,10 +93,11 @@ mod tests {
 
         let mut compiler = Compiler::new(output_dir.clone());
         let output_path = temp_dir.path().join("test_output");
+        let source_map = oxur_smap::SourceMap::new();
 
         // This will fail because rustc isn't available or the generated code is invalid
         // but we're just testing that the compilation pipeline runs
-        let result = compiler.compile(vec![], &output_path);
+        let result = compiler.compile(vec![], source_map, &output_path);
         // We expect this to error (no rustc or invalid generated code)
         // but the important thing is that it attempts compilation
         assert!(result.is_ok() || result.is_err());
@@ -115,6 +117,7 @@ mod tests {
 
         let mut expander = Expander::new();
         let core_forms = expander.expand(surface_forms).unwrap();
+        let source_map = expander.source_map().clone();
 
         // Compile to binary
         let temp_dir = TempDir::new().unwrap();
@@ -124,7 +127,7 @@ mod tests {
         let mut compiler = Compiler::new(output_dir);
         let binary_path = temp_dir.path().join("hello_world");
 
-        let result = compiler.compile(core_forms, &binary_path);
+        let result = compiler.compile(core_forms, source_map, &binary_path);
         assert!(result.is_ok(), "Compilation failed: {:?}", result.err());
 
         // Verify binary exists

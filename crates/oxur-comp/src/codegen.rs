@@ -68,8 +68,9 @@ mod tests {
         let mut expander = Expander::new();
         let core_forms = expander.expand(surface_forms).unwrap();
 
-        let mut lowerer = Lowerer::new();
-        let file = lowerer.lower(core_forms).unwrap();
+        let source_map = expander.source_map().clone();
+        let mut lowerer = Lowerer::new(source_map);
+        let (file, _source_map) = lowerer.lower(core_forms).unwrap();
 
         // Generate Rust source
         let gen = CodeGenerator::new();

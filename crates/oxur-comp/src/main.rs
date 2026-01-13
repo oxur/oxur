@@ -71,6 +71,7 @@ fn main() -> Result<()> {
     }
     let mut expander = oxur_lang::Expander::new();
     let core_forms = expander.expand(surface_forms)?;
+    let source_map = expander.source_map().clone();
 
     // Compile
     if cli.verbose {
@@ -82,7 +83,7 @@ fn main() -> Result<()> {
     std::fs::create_dir_all(&cli.build_dir)?;
 
     let mut compiler = oxur_comp::Compiler::new(cli.build_dir.clone());
-    compiler.compile(core_forms, &output)?;
+    let _final_source_map = compiler.compile(core_forms, source_map, &output)?;
 
     if cli.verbose {
         println!("Successfully compiled to: {}", output.display());
