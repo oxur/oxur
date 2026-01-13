@@ -632,8 +632,10 @@ impl EvalContext {
         let rust_source = match self.mode {
             ReplMode::Lisp => {
                 // Use a block scope to ensure syn::File (not Send) is dropped before any await
-                let mut lowerer = oxur_comp::lowering::Lowerer::new();
-                let rust_ast =
+                // Create an empty SourceMap for REPL context (no source position tracking)
+                let source_map = oxur_smap::SourceMap::new();
+                let mut lowerer = oxur_comp::lowering::Lowerer::new(source_map);
+                let (rust_ast, _source_map) =
                     lowerer.lower(core_forms).map_err(|e| EvalError::CompilationError {
                         msg: format!("Lowering error: {}", e),
                         pos: SourcePos::repl(1, 1, code.len() as u32),

@@ -87,13 +87,14 @@ fn main() -> Result<()> {
 
             let mut expander = oxur_lang::Expander::new();
             let core_forms = expander.expand(surface_forms)?;
+            let source_map = expander.source_map().clone();
 
             // Compile
             let output = output.unwrap_or_else(|| input.with_extension(""));
             let build_dir = PathBuf::from(".oxur-build");
 
             let mut compiler = oxur_comp::Compiler::new(build_dir);
-            compiler.compile(core_forms, &output)?;
+            compiler.compile(core_forms, source_map, &output)?;
 
             output::success(&format!("Compiled successfully: {}", output.display()));
         }

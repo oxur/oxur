@@ -307,8 +307,10 @@ fn compile_oxur_file(
 
     // We don't actually need a binary, just the Rust source
     // So we'll use the lowering and codegen directly
-    let mut lowerer = oxur_comp::lowering::Lowerer::new();
-    let file = lowerer
+    // Create an empty SourceMap (no source position tracking for cargo-oxur)
+    let source_map = oxur_comp::SourceMap::new();
+    let mut lowerer = oxur_comp::lowering::Lowerer::new(source_map);
+    let (file, _source_map) = lowerer
         .lower(core_forms)
         .with_context(|| format!("Failed to lower {}", oxur_file.display()))?;
 
