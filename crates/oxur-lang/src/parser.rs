@@ -420,6 +420,146 @@ mod tests {
     }
 
     #[test]
+    fn test_span_tracking_number() {
+        let mut parser = Parser::new("42".to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::Number { span, value } = &forms[0] {
+            assert_eq!(*value, 42);
+            assert_eq!(span.start_line, 1);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_line, 1);
+            assert_eq!(span.end_column, 3); // After '2'
+        } else {
+            panic!("Expected Number");
+        }
+    }
+
+    #[test]
+    fn test_span_tracking_string() {
+        let mut parser = Parser::new(r#""hello""#.to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::String { span, value } = &forms[0] {
+            assert_eq!(value, "hello");
+            assert_eq!(span.start_line, 1);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_line, 1);
+            assert_eq!(span.end_column, 8); // After closing '"'
+        } else {
+            panic!("Expected String");
+        }
+    }
+
+    #[test]
+    fn test_span_tracking_negative_number() {
+        let mut parser = Parser::new("-42".to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::Number { span, value } = &forms[0] {
+            assert_eq!(*value, -42);
+            assert_eq!(span.start_line, 1);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_line, 1);
+            assert_eq!(span.end_column, 4); // After '2'
+        } else {
+            panic!("Expected Number");
+        }
+    }
+
+    #[test]
+    fn test_span_tracking_nested_elements() {
+        let mut parser = Parser::new("(+ 1 2)".to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::List { elements, .. } = &forms[0] {
+            // Check operator symbol span
+            if let SurfaceForm::Symbol { span, name } = &elements[0] {
+                assert_eq!(name, "+");
+                assert_eq!(span.start_line, 1);
+                assert_eq!(span.start_column, 2);
+                assert_eq!(span.end_column, 3);
+            } else {
+                panic!("Expected Symbol");
+            }
+
+            // Check first number span
+            if let SurfaceForm::Number { span, value } = &elements[1] {
+                assert_eq!(*value, 1);
+                assert_eq!(span.start_line, 1);
+                assert_eq!(span.start_column, 4);
+                assert_eq!(span.end_column, 5);
+            } else {
+                panic!("Expected Number");
+            }
+
+            // Check second number span
+            if let SurfaceForm::Number { span, value } = &elements[2] {
+                assert_eq!(*value, 2);
+                assert_eq!(span.start_line, 1);
+                assert_eq!(span.start_column, 6);
+                assert_eq!(span.end_column, 7);
+            } else {
+                panic!("Expected Number");
+            }
+        } else {
+            panic!("Expected List");
+        }
+    }
+
+    #[test]
+    fn test_span_tracking_empty_list() {
+        let mut parser = Parser::new("()".to_string());
+        let forms = parser.parse().unwrap();
+
+        if let SurfaceForm::List { span, elements } = &forms[0] {
+            assert_eq!(elements.len(), 0);
+            assert_eq!(span.start_line, 1);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_line, 1);
+            assert_eq!(span.end_column, 3); // After ')'
+        } else {
+            panic!("Expected List");
+        }
+    }
+
+    #[test]
+    fn test_span_tracking_multiple_forms() {
+        let source = "42 \"test\" symbol";
+        let mut parser = Parser::new(source.to_string());
+        let forms = parser.parse().unwrap();
+
+        assert_eq!(forms.len(), 3);
+
+        // First form: number
+        if let SurfaceForm::Number { span, value } = &forms[0] {
+            assert_eq!(*value, 42);
+            assert_eq!(span.start_column, 1);
+            assert_eq!(span.end_column, 3);
+        } else {
+            panic!("Expected Number");
+        }
+
+        // Second form: string
+        if let SurfaceForm::String { span, value } = &forms[1] {
+            assert_eq!(value, "test");
+            assert_eq!(span.start_column, 4);
+            assert_eq!(span.end_column, 10);
+        } else {
+            panic!("Expected String");
+        }
+
+        // Third form: symbol
+        if let SurfaceForm::Symbol { span, name } = &forms[2] {
+            assert_eq!(name, "symbol");
+            assert_eq!(span.start_column, 11);
+            assert_eq!(span.end_column, 17);
+        } else {
+            panic!("Expected Symbol");
+        }
+    }
+
+    #[test]
     fn test_parser_new_file() {
         let parser = Parser::new_file("(+ 1 2)".to_string(), "test.oxur".to_string());
         assert_eq!(parser.filename, "test.oxur");
@@ -433,5 +573,44 @@ mod tests {
         let (line, col) = parser.current_pos();
         assert_eq!(line, 1);
         assert_eq!(col, 1);
+    }
+
+    #[test]
+    fn test_error_unclosed_list() {
+        let mut parser = Parser::new("(+ 1 2".to_string());
+        let result = parser.parse();
+
+        assert!(result.is_err());
+        if let Err(crate::Error::Syntax(msg)) = result {
+            assert_eq!(msg, "Unclosed list");
+        } else {
+            panic!("Expected Syntax error for unclosed list");
+        }
+    }
+
+    #[test]
+    fn test_error_unclosed_string() {
+        let mut parser = Parser::new(r#""hello"#.to_string());
+        let result = parser.parse();
+
+        assert!(result.is_err());
+        if let Err(crate::Error::Syntax(msg)) = result {
+            assert_eq!(msg, "Unclosed string");
+        } else {
+            panic!("Expected Syntax error for unclosed string");
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_number() {
+        let mut parser = Parser::new("-".to_string());
+        let result = parser.parse();
+
+        assert!(result.is_err());
+        if let Err(crate::Error::Syntax(msg)) = result {
+            assert!(msg.contains("Invalid number") || msg.contains("Unexpected end"));
+        } else {
+            panic!("Expected Syntax error for invalid number");
+        }
     }
 }
