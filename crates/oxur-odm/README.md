@@ -1,4 +1,4 @@
-# Oxur Design Documentation Manager
+# ODD Document Manager
 
 A command-line tool for managing design documents with YAML frontmatter, git integration, and automatic indexing.
 
