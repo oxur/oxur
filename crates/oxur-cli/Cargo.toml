@@ -27,9 +27,9 @@ colored = { workspace = true }
 
 
 # For binary (when building the oxur command)
-oxur-lang = { version = "0.1.0", path = "../oxur-lang", optional = true }
-oxur-comp = { version = "0.1.0", path = "../oxur-comp", optional = true }
-oxur-repl = { version = "0.1.0", path = "../oxur-repl", optional = true }
+oxur-lang = { version = "0.2.0", path = "../oxur-lang", optional = true }
+oxur-comp = { version = "0.2.0", path = "../oxur-comp", optional = true }
+oxur-repl = { version = "0.2.0", path = "../oxur-repl", optional = true }
 clap = { workspace = true, optional = true }
 
 # For REPL terminal interface

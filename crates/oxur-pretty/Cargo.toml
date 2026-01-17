@@ -15,7 +15,7 @@ path = "src/main.rs"
 thiserror.workspace = true
 anyhow.workspace = true
 clap.workspace = true
-oxur-cli = { version = "0.1.0", path = "../oxur-cli" }
+oxur-cli = { version = "0.2.0", path = "../oxur-cli" }
 
 [dev-dependencies]
 tempfile.workspace = true

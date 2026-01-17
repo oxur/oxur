@@ -11,20 +11,20 @@ categories = ["compilers", "development-tools"]
 
 [dependencies]
 # Core compiler components
-oxur-lang = { version = "0.1.0", path = "../oxur-lang" }
-oxur-comp = { version = "0.1.0", path = "../oxur-comp" }
+oxur-lang = { version = "0.2.0", path = "../oxur-lang" }
+oxur-comp = { version = "0.2.0", path = "../oxur-comp" }
 
 # AST conversion and manipulation
-oxur-ast = { version = "0.1.0", path = "../oxur-ast" }
+oxur-ast = { version = "0.2.0", path = "../oxur-ast" }
 
 # REPL and interactive development
-oxur-repl = { version = "0.1.0", path = "../oxur-repl" }
+oxur-repl = { version = "0.2.0", path = "../oxur-repl" }
 
 # CLI utilities
-oxur-cli = { version = "0.1.0", path = "../oxur-cli" }
+oxur-cli = { version = "0.2.0", path = "../oxur-cli" }
 
 # Pretty printing
-oxur-pretty = { version = "0.1.0", path = "../oxur-pretty" }
+oxur-pretty = { version = "0.2.0", path = "../oxur-pretty" }
 
 [dev-dependencies]
-oxur-testing = { version = "0.1.0", path = "../oxur-testing" }
+oxur-testing = { version = "0.2.0", path = "../oxur-testing" }

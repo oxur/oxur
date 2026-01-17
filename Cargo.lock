@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-oxur"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -1290,7 +1290,7 @@ dependencies = [
 
 [[package]]
 name = "oxur"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "oxur-ast",
  "oxur-cli",
@@ -1303,7 +1303,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-ast"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1320,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1346,7 +1346,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-comp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1364,7 +1364,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-lang"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "oxur-smap",
@@ -1375,7 +1375,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-odm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1404,7 +1404,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-pretty"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1417,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-repl"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -1451,14 +1451,14 @@ dependencies = [
 
 [[package]]
 name = "oxur-smap"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "criterion",
 ]
 
 [[package]]
 name = "oxur-testing"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "serde",
