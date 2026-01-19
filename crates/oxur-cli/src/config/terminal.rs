@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 
 /// Default ASCII art banner for the REPL
 ///
-/// Embedded from assets/banners/banner0.2.0.txt at compile time.
+/// Embedded from assets/banners/banner0.2.3.txt at compile time.
 /// Contains ANSI color codes and ASCII art.
 ///
 /// Users can override this banner via:
 /// - Config file: `[terminal]` section, `banner` field
 /// - Environment variable: `OXUR_REPL_BANNER`
-const DEFAULT_BANNER: &str = include_str!("../../assets/banners/banner0.2.0.txt");
+const DEFAULT_BANNER: &str = include_str!("../../assets/banners/banner0.2.3.txt");
 
 /// Terminal configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +55,7 @@ impl Default for TerminalConfig {
     }
 }
 
+/// TODO: most of this really belongs in the REPL crate, not in oxur-cli
 impl TerminalConfig {
     /// Create a new builder for TerminalConfig
     pub fn builder() -> TerminalConfigBuilder {
@@ -65,10 +66,10 @@ impl TerminalConfig {
     ///
     /// When colors are enabled and the prompt starts with "oxur",
     /// each letter is colored individually:
-    /// - "o" = bright yellow
-    /// - "x" = regular yellow
-    /// - "u" = bright red
-    /// - "r" = dark red
+    /// - "o" = bright orange
+    /// - "x" = ochre
+    /// - "u" = medium ochre
+    /// - "r" = dark ochre
     /// - "> " = bright green
     pub fn formatted_prompt(&self) -> String {
         if self.color_enabled {
@@ -78,11 +79,11 @@ impl TerminalConfig {
                                               // Color each letter individually using colored crate
                 format!(
                     "{}{}{}{}{}",
-                    "o".bright_yellow().bold(),
-                    "x".bright_yellow(),
-                    "u".yellow(),
-                    "r".red(),
-                    rest.bright_green()
+                    "o".truecolor(240, 120, 45),
+                    "x".truecolor(195, 90, 30),
+                    "u".truecolor(135, 60, 15),
+                    "r".truecolor(105, 45, 15),
+                    rest.truecolor(0, 255, 0),
                 )
             } else {
                 self.prompt.green().to_string()

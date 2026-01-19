@@ -30,9 +30,13 @@ Thumbs.db
 /bin/
 .crates*
 
-# Project specific
+# Images, etc.
 images/logo/cave-painting-*.jpg
-
+crates/*/assets/banners/*.ans
+crates/*/assets/banners/*.utf8ans
+crates/*/assets/banners/*.xb
+crates/*/assets/banners/*.hex
+crates/*/assets/banners/*.png
 # AI
 .claude
 /assets/ai/ai-rust
