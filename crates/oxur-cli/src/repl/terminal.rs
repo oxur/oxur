@@ -35,9 +35,103 @@ fn format_version(version_str: &str) -> String {
     }
 }
 
+/// Calculate the visible width of a string, ignoring ANSI escape codes
+///
+/// This strips all ANSI escape sequences to get the actual displayed width.
+fn visible_width(s: &str) -> usize {
+    // Regular expression to match ANSI escape codes: ESC [ ... m
+    // Also matches true color codes like ESC[38;2;r;g;bm
+    let mut width = 0;
+    let mut chars = s.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' {
+            // Skip the escape sequence
+            if chars.peek() == Some(&'[') {
+                chars.next(); // consume '['
+                              // Skip until we find 'm'
+                for esc_ch in chars.by_ref() {
+                    if esc_ch == 'm' {
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Count regular character
+            width += 1;
+        }
+    }
+
+    width
+}
+
+/// Substitute a placeholder in a line while preserving visual width
+///
+/// This replaces the placeholder with the actual value and adjusts padding
+/// to maintain the same visual column width (accounting for ANSI codes).
+fn substitute_placeholder_in_line(line: &str, placeholder: &str, value: &str) -> String {
+    if !line.contains(placeholder) {
+        return line.to_string();
+    }
+
+    // Calculate the original visible width
+    let original_visible_width = visible_width(line);
+
+    // Do the replacement
+    let result = line.replace(placeholder, value);
+
+    // Calculate new visible width after replacement
+    let new_visible_width = visible_width(&result);
+
+    if new_visible_width == original_visible_width {
+        // Perfect match, no adjustment needed
+        return result;
+    }
+
+    // Find the position where we'll adjust spacing
+    // Strategy: Look for common border characters (║, |, ]) or last ANSI escape sequence
+    let border_pos = result
+        .rfind('\x1b')
+        .or_else(|| result.rfind('║'))
+        .or_else(|| result.rfind('│'))
+        .or_else(|| result.rfind('|'))
+        .or_else(|| result.rfind(']'));
+
+    let (before_border, border_and_after) = if let Some(pos) = border_pos {
+        (&result[..pos], &result[pos..])
+    } else {
+        // No border found - work with entire string
+        (&result[..], "")
+    };
+
+    if new_visible_width < original_visible_width {
+        // Need to add spaces
+        let spaces_needed = original_visible_width - new_visible_width;
+        format!("{}{}{}", before_border, " ".repeat(spaces_needed), border_and_after)
+    } else {
+        // Need to remove spaces (new_visible_width > original_visible_width)
+        let spaces_to_remove = new_visible_width - original_visible_width;
+
+        // Count trailing spaces in before_border
+        let trimmed = before_border.trim_end();
+        let trailing_space_count = before_border.len() - trimmed.len();
+
+        if trailing_space_count >= spaces_to_remove {
+            // We have enough spaces to remove
+            let keep_len = trimmed.len() + (trailing_space_count - spaces_to_remove);
+            format!("{}{}", &before_border[..keep_len], border_and_after)
+        } else {
+            // Not enough trailing spaces - just remove what we have
+            format!("{}{}", trimmed, border_and_after)
+        }
+    }
+}
+
 /// Substitute version placeholders in banner text
 ///
-/// Replaces template placeholders with actual version information:
+/// Replaces template placeholders with actual version information while
+/// preserving the visual column alignment of borders and decorative elements.
+///
 /// - `N.N.N` → Oxur version (e.g., "0.1.0")
 /// - `M.M.M` → Rust version info (e.g., "1.75.0 (82e1608df 2023-12-21)")
 /// - `L.L.L` → Cargo version info (e.g., "1.75.0 (1d8b05cdd 2023-11-20)")
@@ -46,9 +140,18 @@ fn substitute_banner_versions(
     metadata: &oxur_repl::metadata::SystemMetadata,
 ) -> String {
     banner
-        .replace("N.N.N", &metadata.oxur_version)
-        .replace("M.M.M", &format_version(&metadata.rust_version))
-        .replace("L.L.L", &format_version(&metadata.cargo_version))
+        .lines()
+        .map(|line| {
+            let line = substitute_placeholder_in_line(line, "N.N.N", &metadata.oxur_version);
+            let line = substitute_placeholder_in_line(
+                &line,
+                "M.M.M",
+                &format_version(&metadata.rust_version),
+            );
+            substitute_placeholder_in_line(&line, "L.L.L", &format_version(&metadata.cargo_version))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Add Tab keybinding for completion menu
@@ -356,6 +459,76 @@ mod tests {
     }
 
     #[test]
+    fn test_visible_width_plain_text() {
+        assert_eq!(visible_width("Hello"), 5);
+        assert_eq!(visible_width(""), 0);
+        assert_eq!(visible_width("Test 123"), 8);
+    }
+
+    #[test]
+    fn test_visible_width_with_ansi_codes() {
+        // Basic color codes
+        assert_eq!(visible_width("\x1b[31mRed\x1b[0m"), 3); // "Red"
+        assert_eq!(visible_width("\x1b[1;32mGreen\x1b[0m"), 5); // "Green"
+
+        // True color codes (like in the banner)
+        assert_eq!(visible_width("\x1b[38;2;255;0;0mRed\x1b[0m"), 3); // "Red"
+        assert_eq!(visible_width("\x1b[38;2;138;59;13m║\x1b[0m"), 1); // "║"
+    }
+
+    #[test]
+    fn test_visible_width_complex_banner_line() {
+        // Simplified version of actual banner line structure
+        let line = "\x1b[38;2;138;59;13m║\x1b[0m text \x1b[38;2;138;59;13m║\x1b[0m";
+        // Should count: ║ + " text " (6 chars) + ║ = 8
+        assert_eq!(visible_width(line), 8);
+    }
+
+    #[test]
+    fn test_substitute_placeholder_in_line_no_placeholder() {
+        let line = "This is a test line";
+        let result = substitute_placeholder_in_line(line, "N.N.N", "1.2.3");
+        assert_eq!(result, line);
+    }
+
+    #[test]
+    fn test_substitute_placeholder_in_line_simple() {
+        let line = "Version: N.N.N    ║";
+        let result = substitute_placeholder_in_line(line, "N.N.N", "1.2.3");
+        assert_eq!(visible_width(&result), visible_width(line));
+        assert!(result.contains("1.2.3"));
+        assert!(!result.contains("N.N.N"));
+    }
+
+    #[test]
+    fn test_substitute_placeholder_in_line_shorter_value() {
+        let line = "oxur: N.N.N     ║";
+        let result = substitute_placeholder_in_line(line, "N.N.N", "1.0");
+        // "N.N.N" (5 chars) -> "1.0" (3 chars) = need to add 2 spaces
+        assert_eq!(visible_width(&result), visible_width(line));
+        assert!(result.contains("1.0"));
+    }
+
+    #[test]
+    fn test_substitute_placeholder_in_line_longer_value() {
+        let line = "oxur: N.N.N     ║";
+        let result = substitute_placeholder_in_line(line, "N.N.N", "1.0.0-beta");
+        // "N.N.N" (5 chars) -> "1.0.0-beta" (10 chars) = need to remove 5 spaces
+        assert_eq!(visible_width(&result), visible_width(line));
+        assert!(result.contains("1.0.0-beta"));
+    }
+
+    #[test]
+    fn test_substitute_placeholder_in_line_with_ansi() {
+        let line = "\x1b[32moxur: N.N.N\x1b[37m     \x1b[38;2;138;59;13m║\x1b[0m";
+        let result = substitute_placeholder_in_line(line, "N.N.N", "1.2.3");
+        // Visual width should remain the same
+        assert_eq!(visible_width(&result), visible_width(line));
+        assert!(result.contains("1.2.3"));
+        assert!(!result.contains("N.N.N"));
+    }
+
+    #[test]
     fn test_substitute_banner_versions() {
         let banner = "oxur: N.N.N\nrustc: M.M.M\ncargo: L.L.L";
         let metadata = oxur_repl::metadata::SystemMetadata {
@@ -375,6 +548,90 @@ mod tests {
         assert!(result.contains("oxur: 0.1.0"));
         assert!(result.contains("rustc: 1.75.0 (82e1608df 2023-12-21)"));
         assert!(result.contains("cargo: 1.75.0 (1d8b05cdd 2023-11-20)"));
+        assert!(!result.contains("N.N.N"));
+        assert!(!result.contains("M.M.M"));
+        assert!(!result.contains("L.L.L"));
+    }
+
+    #[test]
+    fn test_substitute_banner_versions_preserves_width() {
+        // Test with lines that have borders at specific columns
+        let banner = "║ oxur: N.N.N     ║\n║ rustc: M.M.M    ║\n║ cargo: L.L.L    ║";
+        let metadata = oxur_repl::metadata::SystemMetadata {
+            oxur_version: "0.2.0".to_string(),
+            rust_version: "rustc 1.76.0".to_string(),
+            cargo_version: "cargo 1.76.0".to_string(),
+            os_name: "Test".to_string(),
+            os_version: "1.0".to_string(),
+            arch: "x86_64".to_string(),
+            hostname: "test".to_string(),
+            pid: 1234,
+            cwd: std::path::PathBuf::from("/test"),
+            started_at: std::time::SystemTime::now(),
+        };
+
+        let result = substitute_banner_versions(banner, &metadata);
+        let original_lines: Vec<&str> = banner.lines().collect();
+        let result_lines: Vec<&str> = result.lines().collect();
+
+        // Each line should maintain the same visible width
+        assert_eq!(original_lines.len(), result_lines.len());
+        for (orig, res) in original_lines.iter().zip(result_lines.iter()) {
+            assert_eq!(
+                visible_width(orig),
+                visible_width(res),
+                "Line width mismatch:\nOriginal: {}\nResult: {}",
+                orig,
+                res
+            );
+        }
+    }
+
+    #[test]
+    fn test_substitute_banner_versions_with_real_banner() {
+        // Test with the actual default banner to ensure it works in practice
+        let config = crate::config::TerminalConfig::default();
+        let banner = config.banner.expect("Default banner should exist");
+
+        let metadata = oxur_repl::metadata::SystemMetadata {
+            oxur_version: "0.2.0".to_string(),
+            rust_version: "rustc 1.76.0 (07dca489a 2024-02-04)".to_string(),
+            cargo_version: "cargo 1.76.0 (c84b36747 2024-01-18)".to_string(),
+            os_name: "Test".to_string(),
+            os_version: "1.0".to_string(),
+            arch: "x86_64".to_string(),
+            hostname: "test".to_string(),
+            pid: 1234,
+            cwd: std::path::PathBuf::from("/test"),
+            started_at: std::time::SystemTime::now(),
+        };
+
+        let result = substitute_banner_versions(&banner, &metadata);
+        let original_lines: Vec<&str> = banner.lines().collect();
+        let result_lines: Vec<&str> = result.lines().collect();
+
+        // Check that line count matches
+        assert_eq!(original_lines.len(), result_lines.len());
+
+        // Check that version lines maintain their width
+        for (i, (orig, res)) in original_lines.iter().zip(result_lines.iter()).enumerate() {
+            let orig_width = visible_width(orig);
+            let res_width = visible_width(res);
+            assert_eq!(
+                orig_width,
+                res_width,
+                "Line {} width mismatch (orig={}, res={}):\nOriginal: {}\nResult: {}",
+                i + 1,
+                orig_width,
+                res_width,
+                orig,
+                res
+            );
+        }
+
+        // Verify substitutions happened
+        assert!(result.contains("0.2.0"));
+        assert!(result.contains("1.76.0"));
         assert!(!result.contains("N.N.N"));
         assert!(!result.contains("M.M.M"));
         assert!(!result.contains("L.L.L"));

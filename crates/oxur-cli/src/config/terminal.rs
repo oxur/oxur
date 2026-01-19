@@ -289,12 +289,14 @@ mod tests {
         // Verify banner contains expected elements
         assert!(banner.contains("Welcome to"));
         assert!(banner.contains("oxur:"));
-        assert!(banner.contains("http://oxur.li/"));
+        assert!(banner.contains("https://oxur.ελ/")); // Updated for v0.2.3 banner
+        assert!(banner.contains("https://github.com/oxur/oxur/"));
         assert!(banner.contains("(help)"));
         assert!(banner.contains("(quit)"));
 
         // Verify banner is non-empty and reasonable size
+        // Note: v0.2.3 banner is ~21KB due to extensive ANSI color codes
         assert!(banner.len() > 1000);
-        assert!(banner.len() < 10000);
+        assert!(banner.len() < 30000);
     }
 }
