@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 
 /// Default ASCII art banner for the REPL
 ///
-/// Embedded from assets/banners/banner0.1.0.txt at compile time.
+/// Embedded from assets/banners/banner0.2.0.txt at compile time.
 /// Contains ANSI color codes and ASCII art.
 ///
 /// Users can override this banner via:
 /// - Config file: `[terminal]` section, `banner` field
 /// - Environment variable: `OXUR_REPL_BANNER`
-const DEFAULT_BANNER: &str = include_str!("../../assets/banners/banner0.1.0.txt");
+const DEFAULT_BANNER: &str = include_str!("../../assets/banners/banner0.2.0.txt");
 
 /// Terminal configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
