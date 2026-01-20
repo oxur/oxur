@@ -12,6 +12,7 @@ members = [
     "crates/oxur-smap",
     "crates/oxur-testing",
     "crates/cargo-oxur",
+    "crates/design",
 ]
 
 # Workspace-wide dependencies (shared versions)

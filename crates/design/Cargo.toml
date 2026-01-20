@@ -1,0 +1,21 @@
+[package]
+name = "oxur-design"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Oxur Design Documents (ODDs) - design documentation for the Oxur project"
+readme = "README.md"
+
+# This is a documentation-only crate with no code
+# It exists to:
+# 1. Provide a home for design documents in the workspace
+# 2. Allow documentation to be published to docs.rs if desired
+# 3. Track the design docs as part of the project
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+# No dependencies - this is a docs-only crate

@@ -1363,6 +1363,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxur-design"
+version = "0.2.0"
+
+[[package]]
 name = "oxur-lang"
 version = "0.2.0"
 dependencies = [
