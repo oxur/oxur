@@ -17,6 +17,7 @@ members = [
 
 # Workspace-wide dependencies (shared versions)
 [workspace.dependencies]
+confyg = {version = "0.3" }
 clap = { version = "4.5", features = ["derive", "cargo"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

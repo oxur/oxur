@@ -1,6 +1,6 @@
 [package]
 name = "oxur-odm"
-version.workspace = true
+version = "0.3.0"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -17,6 +17,7 @@ name = "design"
 path = "src/lib.rs"
 
 [dependencies]
+confyg.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
