@@ -567,17 +567,23 @@ fn print_dev_table(
     Ok(())
 }
 
-/// List untracked development documents in crates/design/dev
+/// List untracked development documents from configured dev directory
 fn list_dev_documents(_verbose: bool, limit: Option<usize>) -> Result<()> {
+    // Load config to get dev_directory
+    let config = design::config::Config::load(None)?;
+
     // Determine base path (from CLI invocation point)
     let invocation_dir = env::current_dir()?;
 
-    // Find dev directory (assume we're in repo)
-    let dev_dir = if let Some(repo_root) = design::git::get_repo_root() {
-        repo_root.join("crates/design/dev")
+    // Use configured dev directory
+    let dev_dir = if config.dev_directory.is_relative() {
+        if let Some(repo_root) = design::git::get_repo_root() {
+            repo_root.join(&config.dev_directory)
+        } else {
+            invocation_dir.join(&config.dev_directory)
+        }
     } else {
-        // Fallback: try relative path
-        invocation_dir.join("crates/design/dev")
+        config.dev_directory.clone()
     };
 
     if !dev_dir.exists() {

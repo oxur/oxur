@@ -13,6 +13,9 @@ pub struct Config {
     /// Documentation directory
     pub docs_directory: PathBuf,
 
+    /// Development documents directory
+    pub dev_directory: PathBuf,
+
     /// State file path
     pub state_file: PathBuf,
 
@@ -31,6 +34,7 @@ impl Default for Config {
         Self {
             project_root: PathBuf::from("."),
             docs_directory: PathBuf::from("./design/docs"),
+            dev_directory: PathBuf::from("./docs/dev"),
             state_file: PathBuf::from("./design/docs/.odm/state.json"),
             dustbin_directory: PathBuf::from("./design/docs/.dustbin"),
             preserve_dustbin_structure: true,
@@ -155,6 +159,7 @@ impl Config {
         Ok(legacy.docs_dir.map(|dir| PartialConfig {
             project_root: None,
             docs_directory: Some(PathBuf::from(dir)),
+            dev_directory: None,
             dustbin_directory: None,
             preserve_dustbin_structure: None,
             auto_stage_git: None,
@@ -187,6 +192,9 @@ impl Config {
             self.state_file = val.join(".odm/state.json");
             self.dustbin_directory = val.join(".dustbin");
         }
+        if let Some(val) = other.dev_directory {
+            self.dev_directory = val;
+        }
         if let Some(val) = other.dustbin_directory {
             self.dustbin_directory = val;
         }
@@ -213,6 +221,7 @@ impl Config {
 struct PartialConfig {
     project_root: Option<PathBuf>,
     docs_directory: Option<PathBuf>,
+    dev_directory: Option<PathBuf>,
     dustbin_directory: Option<PathBuf>,
     preserve_dustbin_structure: Option<bool>,
     auto_stage_git: Option<bool>,
@@ -228,6 +237,7 @@ mod tests {
     fn test_default_config() {
         let config = Config::default();
         assert_eq!(config.docs_directory, PathBuf::from("./design/docs"));
+        assert_eq!(config.dev_directory, PathBuf::from("./docs/dev"));
         assert_eq!(config.state_file, PathBuf::from("./design/docs/.odm/state.json"));
         assert!(config.preserve_dustbin_structure);
         assert!(config.auto_stage_git);
@@ -364,6 +374,7 @@ preserve_dustbin_structure = false
         let partial = PartialConfig {
             project_root: None,
             docs_directory: Some(PathBuf::from("/new/docs")),
+            dev_directory: None,
             dustbin_directory: None,
             preserve_dustbin_structure: None,
             auto_stage_git: None,
@@ -382,5 +393,41 @@ preserve_dustbin_structure = false
         let temp = TempDir::new().unwrap();
         let result = Config::load_from_file(temp.path()).unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_dev_directory_from_config() {
+        let temp = TempDir::new().unwrap();
+        let docs_dir = temp.path();
+
+        fs::create_dir_all(docs_dir.join(".odm")).unwrap();
+        fs::write(
+            docs_dir.join(".odm/config.toml"),
+            r#"
+dev_directory = "/custom/dev"
+"#,
+        )
+        .unwrap();
+
+        let config = Config::load(Some(docs_dir.to_str().unwrap())).unwrap();
+        assert_eq!(config.dev_directory, PathBuf::from("/custom/dev"));
+    }
+
+    #[test]
+    fn test_merge_dev_directory() {
+        let mut config = Config::default();
+
+        let partial = PartialConfig {
+            project_root: None,
+            docs_directory: None,
+            dev_directory: Some(PathBuf::from("/new/dev")),
+            dustbin_directory: None,
+            preserve_dustbin_structure: None,
+            auto_stage_git: None,
+        };
+
+        config.merge(partial);
+
+        assert_eq!(config.dev_directory, PathBuf::from("/new/dev"));
     }
 }
