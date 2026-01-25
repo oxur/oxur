@@ -59,10 +59,7 @@ pub fn add_dev_document(
 
     // Step 8: Check for existing file
     if target_path.exists() && !force {
-        anyhow::bail!(
-            "File already exists: {}\nUse --force to overwrite",
-            target_path.display()
-        );
+        anyhow::bail!("File already exists: {}\nUse --force to overwrite", target_path.display());
     }
 
     if target_path.exists() && force {
@@ -227,10 +224,7 @@ mod tests {
 
     #[test]
     fn test_build_target_directory_without_subdir() {
-        let config = Config {
-            dev_directory: PathBuf::from("/dev"),
-            ..Default::default()
-        };
+        let config = Config { dev_directory: PathBuf::from("/dev"), ..Default::default() };
 
         let result = build_target_directory(&config, None).unwrap();
         assert_eq!(result, PathBuf::from("/dev"));
@@ -238,10 +232,7 @@ mod tests {
 
     #[test]
     fn test_build_target_directory_with_subdir() {
-        let config = Config {
-            dev_directory: PathBuf::from("/dev"),
-            ..Default::default()
-        };
+        let config = Config { dev_directory: PathBuf::from("/dev"), ..Default::default() };
 
         let result = build_target_directory(&config, Some("planning")).unwrap();
         assert_eq!(result, PathBuf::from("/dev/planning"));
@@ -249,10 +240,7 @@ mod tests {
 
     #[test]
     fn test_build_target_directory_sanitizes_subdir() {
-        let config = Config {
-            dev_directory: PathBuf::from("/dev"),
-            ..Default::default()
-        };
+        let config = Config { dev_directory: PathBuf::from("/dev"), ..Default::default() };
 
         let result = build_target_directory(&config, Some("../evil")).unwrap();
         assert_eq!(result, PathBuf::from("/dev/---evil"));
