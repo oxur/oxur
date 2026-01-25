@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 use clap::Parser;
+use design::config::Config;
 use design::index::DocumentIndex;
 use design::state::StateManager;
-use serde::Deserialize;
 
 mod cli;
 mod commands;
@@ -12,27 +12,29 @@ mod commands;
 use cli::{Cli, Commands, DebugCommands};
 use commands::*;
 
-/// Repo-root configuration (loaded from .odmrc at git root)
-#[derive(Debug, Deserialize)]
-struct RepoConfig {
-    /// Preferred docs directory path (relative to repo root)
-    docs_dir: Option<String>,
-}
-
 fn main() -> Result<()> {
-    let mut cli = Cli::parse();
+    let cli = Cli::parse();
 
-    // Smart default: If user didn't override --docs-dir, try to use repo-relative path
-    apply_smart_default(&mut cli);
+    // Load configuration (handles odm.toml, .odmrc, and CLI overrides)
+    let docs_dir_override = if cli.docs_dir != "docs" { Some(cli.docs_dir.as_str()) } else { None };
+    let config = match Config::load(docs_dir_override) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            design::errors::print_error("Failed to load configuration", &e);
+            std::process::exit(1);
+        }
+    };
+
+    let docs_dir = config.docs_directory.to_string_lossy().to_string();
 
     // Setup state manager
-    let mut state_mgr = match setup_state_manager(&cli) {
+    let mut state_mgr = match StateManager::new(&config.docs_directory) {
         Ok(mgr) => mgr,
         Err(e) => {
             design::errors::print_error_with_suggestion(
                 "Failed to initialize state manager",
                 &e,
-                &format!("Make sure '{}' exists and contains design documents", cli.docs_dir),
+                &format!("Make sure '{}' exists and contains design documents", docs_dir),
             );
             std::process::exit(1);
         }
@@ -45,13 +47,13 @@ fn main() -> Result<()> {
     }
 
     // Create document index
-    let index = match create_document_index(&state_mgr, &cli.docs_dir) {
+    let index = match create_document_index(&state_mgr, &docs_dir) {
         Ok(idx) => idx,
         Err(e) => {
             design::errors::print_error_with_suggestion(
                 "Failed to load document index",
                 &e,
-                &format!("Make sure '{}' exists and contains design documents", cli.docs_dir),
+                &format!("Make sure '{}' exists and contains design documents", docs_dir),
             );
             std::process::exit(1);
         }
@@ -64,58 +66,6 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Load repo-root configuration from .odmrc
-fn load_repo_config() -> Option<RepoConfig> {
-    let root = design::git::get_repo_root()?;
-    let config_path = root.join(".odmrc");
-
-    if !config_path.exists() {
-        return None;
-    }
-
-    let contents = std::fs::read_to_string(&config_path).ok()?;
-    toml::from_str(&contents).ok()
-}
-
-/// Apply smart default for docs directory
-pub(crate) fn apply_smart_default(cli: &mut Cli) {
-    // Only apply smart defaults if user didn't override --docs-dir
-    if cli.docs_dir != "docs" {
-        return;
-    }
-
-    // Try to get repo root
-    let Some(root) = design::git::get_repo_root() else {
-        return;
-    };
-
-    // First, check for explicit .odmrc configuration at repo root
-    if let Some(config) = load_repo_config() {
-        if let Some(docs_dir) = config.docs_dir {
-            // Use configured path (relative to repo root)
-            let configured_path = root.join(&docs_dir);
-            cli.docs_dir = configured_path.to_string_lossy().to_string();
-            return;
-        }
-    }
-
-    // No explicit config, fall back to heuristic:
-    // If crates/design/docs exists OR if crates/design exists (suggesting workspace layout),
-    // use crates/design/docs
-    let workspace_path = root.join("crates/design/docs");
-    let workspace_design = root.join("crates/design");
-
-    if workspace_path.exists() || workspace_design.exists() {
-        cli.docs_dir = workspace_path.to_string_lossy().to_string();
-    }
-    // Otherwise, stick with default "docs"
-}
-
-/// Initialize and configure the state manager
-pub(crate) fn setup_state_manager(cli: &Cli) -> Result<StateManager> {
-    StateManager::new(&cli.docs_dir)
 }
 
 /// Scan for filesystem changes on startup (unless running scan command explicitly)
@@ -270,23 +220,10 @@ This is a test document.
     }
 
     #[test]
-    fn test_setup_state_manager_success() {
+    fn test_state_manager_creation() {
         let temp = setup_test_docs_dir();
-        let cli = Cli {
-            docs_dir: temp.path().to_str().unwrap().to_string(),
-            command: Commands::List {
-                state: None,
-                verbose: false,
-                removed: false,
-                dev: false,
-                component: None,
-                tags: Vec::new(),
-                limit: 20,
-                all: false,
-            },
-        };
 
-        let result = setup_state_manager(&cli);
+        let result = StateManager::new(temp.path());
         assert!(result.is_ok());
 
         let state_mgr = result.unwrap();
@@ -438,53 +375,13 @@ updated: 2024-01-02
     }
 
     #[test]
-    fn test_apply_smart_default_when_default_docs() {
-        // When using default "docs", should apply smart default based on repo structure
-        let mut cli = Cli {
-            docs_dir: "docs".to_string(),
-            command: Commands::List {
-                state: None,
-                verbose: false,
-                removed: false,
-                dev: false,
-                component: None,
-                tags: Vec::new(),
-                limit: 20,
-                all: false,
-            },
-        };
+    fn test_config_loading() {
+        // Test that Config::load works with a custom docs directory
+        let temp = setup_test_docs_dir();
+        let config = Config::load(Some(temp.path().to_str().unwrap()));
+        assert!(config.is_ok());
 
-        apply_smart_default(&mut cli);
-
-        // Behavior depends on environment:
-        // 1. If .odmrc exists with docs_dir, uses that
-        // 2. If crates/design exists, uses crates/design/docs
-        // 3. Otherwise stays as "docs"
-        // We can't assert the exact value since it depends on the environment,
-        // but we can verify the function runs without panicking
-        assert!(cli.docs_dir == "docs" || cli.docs_dir.contains("crates/design/docs"));
-    }
-
-    #[test]
-    fn test_apply_smart_default_when_custom_path() {
-        // When using a custom path, should not change it
-        let mut cli = Cli {
-            docs_dir: "/custom/path".to_string(),
-            command: Commands::List {
-                state: None,
-                verbose: false,
-                removed: false,
-                dev: false,
-                component: None,
-                tags: Vec::new(),
-                limit: 20,
-                all: false,
-            },
-        };
-
-        apply_smart_default(&mut cli);
-
-        // Should remain unchanged
-        assert_eq!(cli.docs_dir, "/custom/path");
+        let config = config.unwrap();
+        assert_eq!(config.docs_directory.to_str().unwrap(), temp.path().to_str().unwrap());
     }
 }

@@ -1390,7 +1390,7 @@ dependencies = [
 
 [[package]]
 name = "oxur-odm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "assert_cmd",

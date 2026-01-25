@@ -277,21 +277,74 @@ fn show_config(state_mgr: &StateManager) -> Result<()> {
     }
     println!();
 
-    // Configuration sources
+    // Configuration sources (in precedence order)
     println!("{}", "Configuration Sources:".green().bold());
     println!("  1. {} (always present)", "Built-in defaults".dimmed());
 
-    if std::path::PathBuf::from(".odm/config.toml").exists() {
-        println!("  2. {} (if exists)", ".odm/config.toml".cyan());
-    } else {
-        println!("  2. {} (not found)", ".odm/config.toml".dimmed());
+    // Check for odm.toml via confyg search paths
+    let mut config_num = 2;
+
+    // Check current directory
+    let cwd_config = std::path::PathBuf::from("./odm.toml");
+    let cwd_config_canonical = cwd_config.canonicalize().ok();
+
+    if cwd_config.exists() {
+        println!("  {}. {} (found)", config_num, "./odm.toml".cyan());
+        config_num += 1;
     }
+
+    // Check git repo root
+    if let Some(repo_root) = design::git::get_repo_root() {
+        let repo_config = repo_root.join("odm.toml");
+
+        // Only show if different from current directory config
+        let is_different = match (&cwd_config_canonical, repo_config.canonicalize().ok()) {
+            (Some(cwd), Some(repo)) => cwd != &repo,
+            _ => true, // If canonicalization fails, assume they're different
+        };
+
+        if repo_config.exists() && is_different {
+            println!("  {}. {} (found)", config_num, repo_config.display().to_string().cyan());
+            config_num += 1;
+        }
+
+        // Check for legacy .odmrc
+        let legacy_config = repo_root.join(".odmrc");
+        if legacy_config.exists() {
+            println!(
+                "  {}. {} (deprecated, migrate to odm.toml)",
+                config_num,
+                legacy_config.display().to_string().yellow()
+            );
+            config_num += 1;
+        }
+    }
+
+    // Check user config directory
+    if let Ok(home) = std::env::var("HOME") {
+        let user_config = std::path::PathBuf::from(home).join(".config/odm/odm.toml");
+        if user_config.exists() {
+            println!("  {}. {} (found)", config_num, user_config.display().to_string().cyan());
+            config_num += 1;
+        }
+    }
+
+    // Check .odm/config.toml in docs directory
+    let docs_config = std::path::PathBuf::from(&config.docs_directory).join(".odm/config.toml");
+    if docs_config.exists() {
+        println!("  {}. {} (found)", config_num, docs_config.display().to_string().cyan());
+    } else {
+        println!("  {}. {} (not found)", config_num, ".odm/config.toml".dimmed());
+    }
+
     println!();
 
     // Modification help
     println!("{}", "Modify Configuration:".yellow().bold());
-    println!("  Create: {}", ".odm/config.toml".cyan());
-    println!("  Reload: Configuration is read on each command");
+    println!("  Project-wide:  {}", "odm.toml (in repo root)".cyan());
+    println!("  User-wide:     {}", "~/.config/odm/odm.toml".cyan());
+    println!("  Per-docs-dir:  {}", ".odm/config.toml (in docs directory)".cyan());
+    println!("  Reload:        Configuration is read on each command");
     println!();
 
     Ok(())

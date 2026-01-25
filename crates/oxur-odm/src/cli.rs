@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "odm")]
 #[command(about = "An odd document manager", long_about = None)]
+#[command(version)]
 #[command(after_help = "Use 'odm <command> --help' for more information about a command.")]
 pub struct Cli {
     #[command(subcommand)]
