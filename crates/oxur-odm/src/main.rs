@@ -60,7 +60,7 @@ fn main() -> Result<()> {
     };
 
     // Execute command
-    if let Err(e) = execute_command(cli.command, &index, &mut state_mgr) {
+    if let Err(e) = execute_command(cli.command, &index, &mut state_mgr, &config) {
         design::errors::print_error("Command failed", &e);
         std::process::exit(1);
     }
@@ -113,6 +113,7 @@ pub(crate) fn execute_command(
     command: Commands,
     index: &DocumentIndex,
     state_mgr: &mut StateManager,
+    config: &Config,
 ) -> Result<()> {
     match command {
         Commands::List { state, verbose, removed, dev, component, tags, limit, all } => {
@@ -131,8 +132,10 @@ pub(crate) fn execute_command(
         }
         Commands::SyncLocation { path } => sync_location(index, state_mgr, &path),
         Commands::UpdateIndex => update_index(index),
-        Commands::Add { path, state, dry_run, interactive, yes, preview } => {
-            if preview {
+        Commands::Add { path, dev, subdir, force, state, dry_run, interactive, yes, preview } => {
+            if dev {
+                add_dev_document(config, &path, subdir.as_deref(), force, dry_run)
+            } else if preview {
                 preview_add(&path, state_mgr)
             } else {
                 add_document(state_mgr, &path, state.as_deref(), dry_run, interactive, yes)
@@ -334,6 +337,7 @@ updated: 2024-01-02
         let temp = setup_test_docs_dir();
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
+        let config = Config::load(Some(temp.path().to_str().unwrap())).unwrap();
 
         let command = Commands::List {
             state: None,
@@ -346,7 +350,7 @@ updated: 2024-01-02
             all: false,
         };
 
-        let result = execute_command(command, &index, &mut state_mgr);
+        let result = execute_command(command, &index, &mut state_mgr, &config);
         assert!(result.is_ok());
     }
 
@@ -355,10 +359,11 @@ updated: 2024-01-02
         let temp = setup_test_docs_dir();
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
+        let config = Config::load(Some(temp.path().to_str().unwrap())).unwrap();
 
         let command = Commands::Show { number: 1, metadata_only: false };
 
-        let result = execute_command(command, &index, &mut state_mgr);
+        let result = execute_command(command, &index, &mut state_mgr, &config);
         assert!(result.is_ok());
     }
 
@@ -367,10 +372,11 @@ updated: 2024-01-02
         let temp = setup_test_docs_dir();
         let mut state_mgr = StateManager::new(temp.path()).unwrap();
         let index = DocumentIndex::new(temp.path()).unwrap();
+        let config = Config::load(Some(temp.path().to_str().unwrap())).unwrap();
 
         let command = Commands::Show { number: 9999, metadata_only: false };
 
-        let result = execute_command(command, &index, &mut state_mgr);
+        let result = execute_command(command, &index, &mut state_mgr, &config);
         assert!(result.is_err());
     }
 

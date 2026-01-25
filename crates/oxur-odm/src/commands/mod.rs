@@ -1,6 +1,7 @@
 //! Command implementations
 
 pub mod add;
+pub mod add_dev;
 pub mod add_headers;
 pub mod debug;
 pub mod index;
@@ -19,6 +20,7 @@ pub mod update_index;
 pub mod validate;
 
 pub use add::{add_batch, add_document, preview_add};
+pub use add_dev::add_dev_document;
 pub use add_headers::add_headers;
 pub use debug::{
     show_checksums, show_diff, show_document_state, show_orphans, show_state, show_stats,

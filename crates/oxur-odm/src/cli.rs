@@ -167,8 +167,20 @@ pub enum Commands {
         /// Path to document file
         path: String,
 
+        /// Add as development document (no state tracking)
+        #[arg(long)]
+        dev: bool,
+
+        /// Subdirectory within dev_directory (requires --dev)
+        #[arg(long, requires = "dev")]
+        subdir: Option<String>,
+
+        /// Force overwrite existing file (requires --dev)
+        #[arg(short, long, requires = "dev")]
+        force: bool,
+
         /// Initial state for the document (draft, accepted, active, etc.)
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "dev")]
         state: Option<String>,
 
         /// Show what would be done without making changes
@@ -176,7 +188,7 @@ pub enum Commands {
         dry_run: bool,
 
         /// Interactive mode (prompt for metadata)
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "dev")]
         interactive: bool,
 
         /// Auto-yes to prompts (non-interactive with defaults)
@@ -184,7 +196,7 @@ pub enum Commands {
         yes: bool,
 
         /// Show preview without making changes
-        #[arg(long)]
+        #[arg(long, conflicts_with = "dev")]
         preview: bool,
     },
 
