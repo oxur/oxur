@@ -1,16 +1,17 @@
 //! Filename sanitization and normalization
 
 use regex::Regex;
+use std::path::Path;
 use unicode_normalization::UnicodeNormalization;
 
 /// Sanitize a filename to be filesystem-friendly
+///
+/// This function sanitizes characters only — it does NOT strip file extensions.
+/// Callers that need extension removal should use `Path::file_stem()` first.
 pub fn sanitize_filename(name: &str) -> String {
-    // Remove extension if present
-    let stem = if let Some(pos) = name.rfind('.') { &name[..pos] } else { name };
-
     // Remove number prefix if present (we'll add our own)
     let re = Regex::new(r"^\d{4}-").unwrap();
-    let without_number = re.replace(stem, "");
+    let without_number = re.replace(name, "");
 
     // Normalize unicode to NFD form, then collect only ASCII chars
     let normalized: String = without_number.nfd().filter(|c| c.is_ascii()).collect();
@@ -22,21 +23,23 @@ pub fn sanitize_filename(name: &str) -> String {
     result = result.replace(' ', "-");
     result = result.replace('_', "-");
 
-    // Remove special characters (keep alphanumeric and hyphens)
-    let re = Regex::new(r"[^a-z0-9-]").unwrap();
+    // Remove special characters (keep alphanumeric, hyphens, and dots)
+    let re = Regex::new(r"[^a-z0-9.\-]").unwrap();
     result = re.replace_all(&result, "").to_string();
 
-    // Collapse multiple hyphens
+    // Collapse multiple hyphens and multiple dots
     let re = Regex::new(r"-+").unwrap();
     result = re.replace_all(&result, "-").to_string();
+    let re = Regex::new(r"\.+").unwrap();
+    result = re.replace_all(&result, ".").to_string();
 
-    // Trim hyphens from start and end
-    result = result.trim_matches('-').to_string();
+    // Trim hyphens and dots from start and end
+    result = result.trim_matches(&['-', '.'][..]).to_string();
 
     // Enforce maximum length (filesystem limit is usually 255, use 100 for safety)
     if result.len() > 100 {
         result.truncate(100);
-        result = result.trim_matches('-').to_string();
+        result = result.trim_matches(&['-', '.'][..]).to_string();
     }
 
     // Ensure not empty
@@ -60,8 +63,8 @@ pub fn build_filename(number: u32, title: &str) -> String {
 
 /// Extract title-like string from filename
 pub fn filename_to_title(filename: &str) -> String {
-    // Remove extension
-    let stem = if let Some(pos) = filename.rfind('.') { &filename[..pos] } else { filename };
+    // Remove final extension (using stdlib to correctly handle multi-dot names)
+    let stem = Path::new(filename).file_stem().and_then(|s| s.to_str()).unwrap_or(filename);
 
     // Remove number prefix
     let re = Regex::new(r"^\d{4}-").unwrap();
@@ -187,12 +190,41 @@ mod tests {
     }
 
     #[test]
-    fn test_sanitize_with_extension() {
-        // Extension is removed (everything after last dot)
-        assert_eq!(sanitize_filename("my-file.md"), "my-file");
-        assert_eq!(sanitize_filename("test.txt"), "test");
-        // For double extensions, only the last is removed, then dots are removed as special chars
-        assert_eq!(sanitize_filename("file.tar.gz"), "filetar");
+    fn test_sanitize_preserves_dots() {
+        // sanitize_filename does NOT strip extensions — dots are preserved
+        assert_eq!(sanitize_filename("my-file.md"), "my-file.md");
+        assert_eq!(sanitize_filename("test.txt"), "test.txt");
+        assert_eq!(sanitize_filename("file.tar.gz"), "file.tar.gz");
+    }
+
+    #[test]
+    fn test_sanitize_preserves_version_numbers() {
+        assert_eq!(sanitize_filename("Phase 2.3 Title"), "phase-2.3-title");
+        assert_eq!(sanitize_filename("milestone-2.3-feature"), "milestone-2.3-feature");
+    }
+
+    #[test]
+    fn test_sanitize_with_non_extension_dot() {
+        // Dot followed by digits
+        assert_eq!(sanitize_filename("version-1.0"), "version-1.0");
+        // Dot followed by mixed content
+        assert_eq!(sanitize_filename("phase-2.3-google-drive"), "phase-2.3-google-drive");
+    }
+
+    #[test]
+    fn test_build_filename_with_dotted_title() {
+        assert_eq!(
+            build_filename(17, "Phase 2 Milestone 2.3 Google Drive Ingestion"),
+            "0017-phase-2-milestone-2.3-google-drive-ingestion.md"
+        );
+    }
+
+    #[test]
+    fn test_filename_to_title_with_dots() {
+        assert_eq!(
+            filename_to_title("0017-phase-2-milestone-2.3-ingestion.md"),
+            "Phase 2 Milestone 2.3 Ingestion"
+        );
     }
 
     #[test]
@@ -281,16 +313,20 @@ mod property_tests {
         fn sanitize_only_contains_valid_chars(s in "\\PC*") {
             let result = sanitize_filename(&s);
             if result != "untitled" {
-                prop_assert!(result.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
+                prop_assert!(result
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.'));
             }
         }
 
         #[test]
-        fn sanitize_no_leading_or_trailing_hyphens(s in "\\PC*") {
+        fn sanitize_no_leading_or_trailing_hyphens_or_dots(s in "\\PC*") {
             let result = sanitize_filename(&s);
             if result != "untitled" {
                 prop_assert!(!result.starts_with('-'));
                 prop_assert!(!result.ends_with('-'));
+                prop_assert!(!result.starts_with('.'));
+                prop_assert!(!result.ends_with('.'));
             }
         }
 
