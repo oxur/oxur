@@ -252,10 +252,7 @@ mod tests {
     #[test]
     fn test_build_filename_preserves_non_md_dots() {
         // Version numbers in titles should still work
-        assert_eq!(
-            build_filename(17, "Phase 2.3 Feature"),
-            "0017-phase-2.3-feature.md"
-        );
+        assert_eq!(build_filename(17, "Phase 2.3 Feature"), "0017-phase-2.3-feature.md");
     }
 
     #[test]
