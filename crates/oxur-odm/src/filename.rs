@@ -58,7 +58,9 @@ pub fn slugify(s: &str) -> String {
 /// Build filename with number prefix
 pub fn build_filename(number: u32, title: &str) -> String {
     let sanitized = sanitize_filename(title);
-    format!("{:04}-{}.md", number, sanitized)
+    // Strip trailing .md to avoid double extension (e.g., when a title contains "native-image.md")
+    let stem = sanitized.strip_suffix(".md").unwrap_or(&sanitized);
+    format!("{:04}-{}.md", number, stem)
 }
 
 /// Extract title-like string from filename
@@ -232,6 +234,28 @@ mod tests {
         assert_eq!(sanitize_filename("  spaces  everywhere  "), "spaces-everywhere");
         assert_eq!(sanitize_filename("tab\tseparated"), "tabseparated");
         assert_eq!(sanitize_filename("new\nline"), "newline");
+    }
+
+    #[test]
+    fn test_build_filename_strips_md_extension_from_title() {
+        // Title containing ".md" (e.g., from a heading like "Guide — native-image.md")
+        assert_eq!(
+            build_filename(5, "Claude Code Prompt: Guide #04 — `native-image.md`"),
+            "0005-claude-code-prompt-guide-04-native-image.md"
+        );
+        // Direct .md suffix
+        assert_eq!(build_filename(1, "my-file.md"), "0001-my-file.md");
+        // No double .md
+        assert!(!build_filename(1, "test.md").ends_with(".md.md"));
+    }
+
+    #[test]
+    fn test_build_filename_preserves_non_md_dots() {
+        // Version numbers in titles should still work
+        assert_eq!(
+            build_filename(17, "Phase 2.3 Feature"),
+            "0017-phase-2.3-feature.md"
+        );
     }
 
     #[test]
