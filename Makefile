@@ -19,7 +19,7 @@ BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 RUST_VERSION := $(shell rustc --version 2>/dev/null || echo "unknown")
 
 # List of binaries to build and install
-BINARIES := aster cargo-oxur odm oxurfmt oxurc oxur
+BINARIES := aster cargo-oxur oxurfmt oxurc oxur
 
 # Default target
 .DEFAULT_GOAL := help
@@ -249,7 +249,7 @@ push:
 
 # Crates in dependency order (leaf crates first, dependent crates later)
 # Note: oxur-cli has optional deps on oxur-{lang,comp,repl}, so they must come first
-PUBLISH_ORDER := oxur-smap oxur-testing oxur-lang oxur-comp oxur-repl oxur-cli oxur-ast oxur-odm oxur-pretty cargo-oxur oxur
+PUBLISH_ORDER := oxur-smap oxur-testing oxur-lang oxur-comp oxur-repl oxur-cli oxur-ast oxur-pretty cargo-oxur oxur
 
 .PHONY: publish
 publish:

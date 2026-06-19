@@ -41,14 +41,13 @@ Cargo workspace with 12 crates (resolver v2, edition 2021, workspace version 0.2
 | **oxur-pretty** | `oxurfmt` | Configurable S-expression pretty-printer | Active |
 | **oxur-testing** | — | Shared testing infrastructure and utilities | Active |
 | **oxur-cli** | `oxur` | Unified CLI with common I/O, colored output, progress, tables | Active |
-| **oxur-odm** | `odm` | Design document manager with state lifecycle and git integration | Feature complete |
 | **oxur-repl** | `oxur-repl-subprocess` | REPL: protocol, client, server with tiered execution | Early stage |
 | **cargo-oxur** | `cargo-oxur` | Cargo subcommand for building Oxur projects | Early stage |
 | **oxur** | — | Umbrella crate re-exporting oxur-lang, oxur-comp, oxur-ast, etc. | Scaffold |
 | **design** | — | Documentation-only crate housing ODDs | Active |
 
 ### Publish order (dependency resolution)
-`oxur-smap → oxur-testing → oxur-lang → oxur-comp → oxur-repl → oxur-cli → oxur-ast → oxur-odm → oxur-pretty → cargo-oxur → oxur`
+`oxur-smap → oxur-testing → oxur-lang → oxur-comp → oxur-repl → oxur-cli → oxur-ast → oxur-pretty → cargo-oxur → oxur`
 
 ## Build & Development Commands
 
@@ -77,10 +76,11 @@ make format                         # Format all code
 make check                          # Build + lint + test
 make check-all                      # Build + lint + coverage
 
-# Design docs
-./bin/odm list                      # List all ODDs
-./bin/odm show 0003                 # Show specific doc
-./bin/odm new "Title"               # Create new doc
+# Design docs (odm now lives in its own repo: github.com/oxur/odm)
+# Install it with: cargo install oxur-odm
+odm list                            # List all ODDs
+odm show 0003                       # Show specific doc
+odm new "Title"                     # Create new doc
 
 # AST tools
 ./bin/aster to-ast -i file.rs -o file.sexp
@@ -114,7 +114,7 @@ pub enum ParseError {
 ```
 
 ### CLI Output (oxur-cli)
-All Oxur CLIs (aster, odm, oxur) use shared colored output:
+All Oxur CLIs (aster, oxur) use shared colored output:
 ```rust
 use oxur_cli::common::output::{success, error, info, warning};
 ```
@@ -187,7 +187,7 @@ fn test_round_trip_struct() {
 
 ## Before Starting Work
 
-1. Check relevant design docs (`./bin/odm list`, `./bin/odm show <number>`)
+1. Check relevant design docs (`odm list`, `odm show <number>`; install via `cargo install oxur-odm`)
 2. Load Rust skill guides (always `11-anti-patterns.md` first)
 3. Read existing code in the target module
 4. Understand existing test coverage

@@ -10,9 +10,9 @@
 //!
 //! ## Managing Documentation
 //!
-//! The documentation is managed using the `odm` CLI tool from the `oxur-odm` crate.
+//! The documentation is managed using the `odm` CLI tool (`cargo install oxur-odm`).
 //!
-//! See the [oxur-odm crate](../oxur-odm/README.md) for CLI usage.
+//! See the [odm repository](https://github.com/oxur/odm) for CLI usage.
 //!
 //! ## Document Index
 //!
