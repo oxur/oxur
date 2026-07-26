@@ -218,14 +218,12 @@ impl LispEvaluator {
                         current_start = i + 1;
                     }
                 }
-                b' ' | b'\t' | b'\n' => {
-                    if depth == 0 && i > current_start {
-                        let token = input[current_start..i].trim();
-                        if !token.is_empty() {
-                            tokens.push(token.to_string());
-                        }
-                        current_start = i + 1;
+                b' ' | b'\t' | b'\n' if depth == 0 && i > current_start => {
+                    let token = input[current_start..i].trim();
+                    if !token.is_empty() {
+                        tokens.push(token.to_string());
                     }
+                    current_start = i + 1;
                 }
                 _ => {}
             }

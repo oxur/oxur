@@ -1000,8 +1000,8 @@ pub extern "C" fn test() {{
             "children": []
         }"#;
 
-        let diag1: RustcDiagnostic = serde_json::from_str(&error1_json).unwrap();
-        let diag2: RustcDiagnostic = serde_json::from_str(&error2_json).unwrap();
+        let diag1: RustcDiagnostic = serde_json::from_str(error1_json).unwrap();
+        let diag2: RustcDiagnostic = serde_json::from_str(error2_json).unwrap();
 
         let oxur_diag1 = translator.translate_diagnostic(&diag1).unwrap();
         let oxur_diag2 = translator.translate_diagnostic(&diag2).unwrap();

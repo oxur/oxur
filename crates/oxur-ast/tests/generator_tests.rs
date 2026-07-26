@@ -124,6 +124,9 @@ fn test_generate_span_with_ctxt() {
 #[test]
 fn test_generator_default() {
     let gen1 = Generator::new();
+    // This test's purpose is to exercise the `Default` impl itself, so the
+    // clippy-suggested `Generator` literal would defeat the test.
+    #[allow(clippy::default_constructed_unit_structs)]
     let gen2 = Generator::default();
 
     // Both should be able to generate the same output

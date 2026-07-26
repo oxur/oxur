@@ -157,15 +157,13 @@ mod tests {
 
     #[test]
     fn test_validate_zero_max_width() {
-        let mut config = FormatConfig::default();
-        config.max_width = 0;
+        let config = FormatConfig { max_width: 0, ..Default::default() };
         assert!(matches!(config.validate(), Err(FormatterError::InvalidConfig { .. })));
     }
 
     #[test]
     fn test_validate_zero_tab_spaces() {
-        let mut config = FormatConfig::default();
-        config.tab_spaces = 0;
+        let config = FormatConfig { tab_spaces: 0, ..Default::default() };
         assert!(matches!(config.validate(), Err(FormatterError::InvalidConfig { .. })));
     }
 

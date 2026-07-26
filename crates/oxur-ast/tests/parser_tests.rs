@@ -155,7 +155,7 @@ fn test_parse_deeply_nested_list() {
     match sexp {
         SExp::List(l) => {
             // This is a Crate with deeply nested blocks
-            assert!(l.elements.len() > 0);
+            assert!(!l.elements.is_empty());
             match &l.elements[0] {
                 SExp::Symbol(s) => assert_eq!(s.value, "Crate"),
                 _ => panic!("Expected Crate symbol"),
@@ -333,7 +333,7 @@ fn test_parse_real_world_example() {
     let sexp = Parser::parse_str(input).unwrap();
     match sexp {
         SExp::List(l) => {
-            assert!(l.elements.len() > 0);
+            assert!(!l.elements.is_empty());
             match &l.elements[0] {
                 SExp::Symbol(s) => assert_eq!(s.value, "Fn"),
                 _ => panic!("Expected Symbol"),
@@ -370,7 +370,7 @@ fn test_parse_empty_crate_fixture() {
     let sexp = parse_fixture("crate/empty.sexp");
     match sexp {
         SExp::List(l) => {
-            assert!(l.elements.len() >= 1);
+            assert!(!l.elements.is_empty());
             match &l.elements[0] {
                 SExp::Symbol(s) => assert_eq!(s.value, "Crate"),
                 _ => panic!("Expected Crate symbol"),
@@ -385,7 +385,7 @@ fn test_parse_nested_block_fixture() {
     let sexp = parse_fixture("block/nested.sexp");
     match sexp {
         SExp::List(l) => {
-            assert!(l.elements.len() >= 1);
+            assert!(!l.elements.is_empty());
             match &l.elements[0] {
                 SExp::Symbol(s) => assert_eq!(s.value, "Block"),
                 _ => panic!("Expected Block symbol"),

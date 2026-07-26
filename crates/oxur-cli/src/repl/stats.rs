@@ -1482,7 +1482,7 @@ mod tests {
                 name: Some("Main".to_string()),
                 mode: ReplMode::Lisp,
                 eval_count: 42,
-                created_at: now - 3600_000,   // 1 hour ago
+                created_at: now - 3_600_000,  // 1 hour ago
                 last_active_at: now - 30_000, // 30 seconds ago - "just now"
                 timeout_ms: 300_000,
             },
@@ -1491,7 +1491,7 @@ mod tests {
                 name: None, // No name - tests the "-" fallback
                 mode: ReplMode::Sexpr,
                 eval_count: 10,
-                created_at: now - 7200_000,
+                created_at: now - 7_200_000,
                 last_active_at: now - 120_000, // 2 min ago
                 timeout_ms: 300_000,
             },
@@ -1500,8 +1500,8 @@ mod tests {
                 name: Some("Old".to_string()),
                 mode: ReplMode::Lisp,
                 eval_count: 5,
-                created_at: now - 172800_000,
-                last_active_at: now - 7200_000, // 2 hr ago
+                created_at: now - 172_800_000,
+                last_active_at: now - 7_200_000, // 2 hr ago
                 timeout_ms: 300_000,
             },
             oxur_repl::server::SessionInfo {
@@ -1509,8 +1509,8 @@ mod tests {
                 name: Some("Very Old".to_string()),
                 mode: ReplMode::Lisp,
                 eval_count: 1,
-                created_at: now - 259200_000,
-                last_active_at: now - 172800_000, // 2 days ago
+                created_at: now - 259_200_000,
+                last_active_at: now - 172_800_000, // 2 days ago
                 timeout_ms: 300_000,
             },
         ];

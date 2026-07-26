@@ -215,13 +215,11 @@ fn test_all_valid_test_data_parses() {
     for category in &["simple", "intermediate", "complex"] {
         let dir = test_data.join("examples").join(category);
         if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.extension().and_then(|s| s.to_str()) == Some("sexp") {
-                        parse_test_file(&path).unwrap();
-                        total_count += 1;
-                    }
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("sexp") {
+                    parse_test_file(&path).unwrap();
+                    total_count += 1;
                 }
             }
         }
@@ -231,13 +229,11 @@ fn test_all_valid_test_data_parses() {
     for category in &["crate", "item", "expr", "stmt", "block"] {
         let dir = test_data.join("fixtures").join(category);
         if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.extension().and_then(|s| s.to_str()) == Some("sexp") {
-                        parse_test_file(&path).unwrap();
-                        total_count += 1;
-                    }
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("sexp") {
+                    parse_test_file(&path).unwrap();
+                    total_count += 1;
                 }
             }
         }

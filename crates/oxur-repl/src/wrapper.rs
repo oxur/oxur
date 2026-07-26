@@ -668,7 +668,7 @@ mod tests {
         let vars = wrapper.extract_variables(user_code);
 
         // Should infer i32 type
-        assert!(vars.len() >= 1);
+        assert!(!vars.is_empty());
         // Type inference should detect integer literal
         let has_x = vars.iter().any(|(name, _ty)| name == "x");
         assert!(has_x, "Should extract variable 'x'");

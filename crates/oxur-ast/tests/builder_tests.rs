@@ -35,9 +35,8 @@ fn test_build_item() {
     let mut builder = AstBuilder::new();
     let item = builder.build_item(&sexp).unwrap();
 
-    match &item.ident {
-        ident => assert_eq!(ident.name, "foo"),
-    }
+    let ident = &item.ident;
+    assert_eq!(ident.name, "foo")
 }
 
 // Note: build_visibility, build_ident, build_span are private methods,
