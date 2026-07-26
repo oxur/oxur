@@ -7,7 +7,7 @@
 //! ## Basic Usage
 //!
 //! ```no_run
-//! use oxur_cli::table::{OxurTable, Tabled};
+//! use oxur_term::table::{OxurTable, Tabled};
 //!
 //! #[derive(Tabled)]
 //! struct Employee {
@@ -31,7 +31,7 @@
 //! ## With Title and Footer
 //!
 //! ```no_run
-//! use oxur_cli::table::{OxurTable, Tabled};
+//! use oxur_term::table::{OxurTable, Tabled};
 //!
 //! #[derive(Tabled)]
 //! struct Row {
@@ -88,7 +88,7 @@ impl<T: Tabled> OxurTable<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use oxur_cli::table::{OxurTable, Tabled};
+    /// use oxur_term::table::{OxurTable, Tabled};
     ///
     /// #[derive(Tabled)]
     /// struct Row {
@@ -116,7 +116,7 @@ impl<T: Tabled> OxurTable<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use oxur_cli::table::{OxurTable, Tabled};
+    /// use oxur_term::table::{OxurTable, Tabled};
     ///
     /// #[derive(Tabled)]
     /// struct Row { name: String }
@@ -138,7 +138,7 @@ impl<T: Tabled> OxurTable<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use oxur_cli::table::{OxurTable, Tabled};
+    /// use oxur_term::table::{OxurTable, Tabled};
     ///
     /// #[derive(Tabled)]
     /// struct Row { name: String }
@@ -158,7 +158,7 @@ impl<T: Tabled> OxurTable<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use oxur_cli::table::{OxurTable, Tabled};
+    /// use oxur_term::table::{OxurTable, Tabled};
     ///
     /// #[derive(Tabled)]
     /// struct Row {

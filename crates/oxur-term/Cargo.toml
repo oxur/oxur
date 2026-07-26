@@ -1,0 +1,21 @@
+[package]
+name = "oxur-term"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Themed terminal tables and CLI output helpers for Oxur (tabled + colored)"
+readme = "README.md"
+keywords = ["table", "terminal", "cli", "tabled", "theme"]
+categories = ["command-line-interface"]
+
+[dependencies]
+tabled = { workspace = true }
+colored = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -7,7 +7,7 @@
 //! # Example: Cell-Specific Coloring
 //!
 //! ```no_run
-//! use oxur_cli::table::{helpers, TableStyleConfig, Builder, TabledColor, Tabled};
+//! use oxur_term::table::{helpers, TableStyleConfig, Builder, TabledColor, Tabled};
 //!
 //! #[derive(Tabled)]
 //! struct Row {
@@ -50,7 +50,7 @@ use super::config::{parse_bg_color, TableStyleConfig};
 /// # Example
 ///
 /// ```no_run
-/// use oxur_cli::table::{helpers, TableStyleConfig};
+/// use oxur_term::table::{helpers, TableStyleConfig};
 ///
 /// let theme = TableStyleConfig::default();
 /// let row_bg_colors = helpers::parse_row_bg_colors(&theme);
@@ -74,7 +74,7 @@ pub fn parse_row_bg_colors(theme: &TableStyleConfig) -> Vec<TabledColor> {
 /// # Example
 ///
 /// ```no_run
-/// use oxur_cli::table::{helpers, TableStyleConfig};
+/// use oxur_term::table::{helpers, TableStyleConfig};
 ///
 /// let theme = TableStyleConfig::default();
 /// let row_bg_colors = helpers::parse_row_bg_colors(&theme);
@@ -110,7 +110,7 @@ pub fn get_data_row_bg_color(data_row_index: usize, row_bg_colors: &[TabledColor
 /// # Example
 ///
 /// ```no_run
-/// use oxur_cli::table::{helpers, TableStyleConfig, Builder, TabledColor, Tabled};
+/// use oxur_term::table::{helpers, TableStyleConfig, Builder, TabledColor, Tabled};
 ///
 /// #[derive(Tabled)]
 /// struct Row { col: String }
@@ -167,7 +167,7 @@ pub fn apply_cell_color(
 /// # Example
 ///
 /// ```no_run
-/// use oxur_cli::table::helpers;
+/// use oxur_term::table::helpers;
 ///
 /// let color = helpers::state_to_fg_color("active");
 /// assert!(color.is_some());
@@ -203,7 +203,7 @@ pub fn state_to_fg_color(state: &str) -> Option<TabledColor> {
 /// # Example
 ///
 /// ```no_run
-/// use oxur_cli::table::helpers;
+/// use oxur_term::table::helpers;
 /// use tabled::settings::Color as TabledColor;
 ///
 /// let deleted = helpers::deleted_to_fg_color(true);

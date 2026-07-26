@@ -1164,6 +1164,7 @@ dependencies = [
  "oxur-comp",
  "oxur-lang",
  "oxur-repl",
+ "oxur-term",
  "reedline",
  "serde",
  "serial_test",
@@ -1260,6 +1261,18 @@ name = "oxur-smap"
 version = "0.2.0"
 dependencies = [
  "criterion",
+]
+
+[[package]]
+name = "oxur-term"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "colored",
+ "serde",
+ "tabled",
+ "tempfile",
+ "toml 0.8.23",
 ]
 
 [[package]]

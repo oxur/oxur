@@ -19,6 +19,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # For library utilities
+oxur-term = { version = "0.2.0", path = "../oxur-term" }
 tabled = "0.17"
 serde = { workspace = true }
 toml = { workspace = true }

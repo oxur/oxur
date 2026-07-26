@@ -14,7 +14,7 @@ use std::path::Path;
 ///
 /// ```no_run
 /// use std::path::PathBuf;
-/// use oxur_cli::common::io::read_input;
+/// use oxur_term::common::io::read_input;
 ///
 /// // Read from file
 /// let content = read_input(&PathBuf::from("input.txt"))?;
@@ -39,7 +39,7 @@ pub fn read_input(path: &Path) -> Result<String> {
 ///
 /// ```no_run
 /// use std::path::PathBuf;
-/// use oxur_cli::common::io::write_output;
+/// use oxur_term::common::io::write_output;
 ///
 /// // Write to file
 /// write_output("content", Some(&PathBuf::from("output.txt")))?;
@@ -75,7 +75,7 @@ pub fn write_output(content: &str, path: Option<&Path>) -> Result<()> {
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::io::write_stderr;
+/// use oxur_term::common::io::write_stderr;
 ///
 /// write_stderr("Processing file...")?;
 /// # Ok::<(), anyhow::Error>(())

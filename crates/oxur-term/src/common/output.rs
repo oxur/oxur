@@ -10,7 +10,7 @@ use colored::*;
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::output::success;
+/// use oxur_term::common::output::success;
 ///
 /// success("Operation completed successfully");
 /// // Output: ✓ Operation completed successfully (in green)
@@ -24,7 +24,7 @@ pub fn success(msg: &str) {
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::output::error;
+/// use oxur_term::common::output::error;
 ///
 /// error("Failed to open file");
 /// // Output: Error: Failed to open file (in red, to stderr)
@@ -38,7 +38,7 @@ pub fn error(msg: &str) {
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::output::error_with_context;
+/// use oxur_term::common::output::error_with_context;
 ///
 /// error_with_context("Failed to parse file", "Check the file format");
 /// // Output:
@@ -55,7 +55,7 @@ pub fn error_with_context(msg: &str, context: &str) {
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::output::info;
+/// use oxur_term::common::output::info;
 ///
 /// info("Processing 5 files...");
 /// // Output: → Processing 5 files... (in cyan)
@@ -69,7 +69,7 @@ pub fn info(msg: &str) {
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::output::warning;
+/// use oxur_term::common::output::warning;
 ///
 /// warning("File already exists, skipping");
 /// // Output: Warning: File already exists, skipping (in yellow)
@@ -83,7 +83,7 @@ pub fn warning(msg: &str) {
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::output::step;
+/// use oxur_term::common::output::step;
 ///
 /// step(1, "Parsing input");
 /// // Output: 1. Parsing input...
@@ -97,7 +97,7 @@ pub fn step(num: usize, msg: &str) {
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::output::{step, step_done};
+/// use oxur_term::common::output::{step, step_done};
 ///
 /// step(1, "Parsing input");
 /// // ... do work ...

@@ -2,10 +2,10 @@
 //!
 //! This crate provides two things:
 //!
-//! 1. **Library**: Common utilities for building Oxur CLI tools
-//!    - File I/O helpers (stdin/stdout/file handling)
-//!    - Colored terminal output (success, error, info, warnings)
-//!    - Progress tracking for long-running operations
+//! 1. **Library**: CLI infrastructure for building Oxur CLI tools, plus
+//!    re-exports of [`oxur_term::common`] (file I/O, colored output, progress
+//!    tracking) and [`oxur_term::table`] (themed table rendering) for
+//!    backwards compatibility.
 //!
 //! 2. **Binary**: The unified `oxur` command-line tool
 //!
@@ -65,9 +65,10 @@
 //! # }
 //! ```
 
-pub mod common;
 pub mod config;
-pub mod table;
+
+pub use oxur_term::common;
+pub use oxur_term::table;
 
 // Args module requires clap (part of binary feature)
 #[cfg(feature = "binary")]

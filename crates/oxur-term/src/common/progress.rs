@@ -13,7 +13,7 @@ use colored::*;
 /// # Examples
 ///
 /// ```no_run
-/// use oxur_cli::common::progress::ProgressTracker;
+/// use oxur_term::common::progress::ProgressTracker;
 ///
 /// # fn main() -> anyhow::Result<()> {
 /// let mut progress = ProgressTracker::new(true); // verbose mode

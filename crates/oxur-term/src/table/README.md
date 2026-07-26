@@ -1,6 +1,6 @@
 # table
 
-Styled table rendering for Oxur tools with the warm orange "Oxur" theme. In late 2025 this module was in its own crate but as oxur-cli started to take shape, oxur-table was moved to the oxur-cli/src/trable.
+Styled table rendering for Oxur tools with the warm orange "Oxur" theme. See the crate-level [README](../../README.md) for the full `oxur-term` overview (this module plus `common`).
 
 ## Overview
 
@@ -18,7 +18,7 @@ Styled table rendering for Oxur tools with the warm orange "Oxur" theme. In late
 ## Quick Start
 
 ```rust
-use oxur_cli::table::{OxurTable, Tabled};
+use oxur_term::table::{OxurTable, Tabled};
 use colored::*;
 
 #[derive(Tabled)]
