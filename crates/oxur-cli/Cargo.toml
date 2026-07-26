@@ -19,7 +19,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # For library utilities
-oxur-term = { version = "0.2.0", path = "../oxur-term" }
+oxur-term = { version = "0.2.1", path = "../oxur-term" }
 tabled = "0.17"
 serde = { workspace = true }
 toml = { workspace = true }
@@ -31,9 +31,9 @@ dirs = "5.0"
 
 
 # For binary (when building the oxur command)
-oxur-lang = { version = "0.2.0", path = "../oxur-lang", optional = true }
-oxur-comp = { version = "0.2.0", path = "../oxur-comp", optional = true }
-oxur-repl = { version = "0.2.0", path = "../oxur-repl", optional = true }
+oxur-lang = { version = "0.2.1", path = "../oxur-lang", optional = true }
+oxur-comp = { version = "0.2.1", path = "../oxur-comp", optional = true }
+oxur-repl = { version = "0.2.1", path = "../oxur-repl", optional = true }
 clap = { workspace = true, optional = true }
 
 # For REPL terminal interface

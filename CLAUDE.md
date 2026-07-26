@@ -25,7 +25,7 @@ Additional AI docs: `assets/ai/CLAUDE-CODE-COVERAGE.md` (testing guide), `assets
 
 ## Workspace Structure
 
-Cargo workspace with 12 crates (resolver v2, edition 2021, workspace version 0.2.0):
+Cargo workspace with 12 crates (resolver v2, edition 2021, workspace version 0.2.1):
 
 ### Compilation Pipeline
 | Crate | Binary | Purpose | Status |

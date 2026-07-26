@@ -232,6 +232,7 @@ pub fn take_result() -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn test_variable_store_basic() {
@@ -387,6 +388,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_global_store() {
         init_global_store();
 
@@ -405,6 +407,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_global_store_multiple_accesses() {
         init_global_store();
 

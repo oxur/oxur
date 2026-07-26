@@ -8,9 +8,9 @@ repository.workspace = true
 description = "Oxur REPL: protocol, client, and server with tiered execution"
 
 [dependencies]
-oxur-smap = { version = "0.2.0", path = "../oxur-smap" }
-oxur-lang = { version = "0.2.0", path = "../oxur-lang" }
-oxur-comp = { version = "0.2.0", path = "../oxur-comp" }
+oxur-smap = { version = "0.2.1", path = "../oxur-smap" }
+oxur-lang = { version = "0.2.1", path = "../oxur-lang" }
+oxur-comp = { version = "0.2.1", path = "../oxur-comp" }
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -40,7 +40,7 @@ metrics-process = "2.1"          # Process-level metrics (memory, CPU, FDs)
 [dev-dependencies]
 anyhow.workspace = true
 tokio = { version = "1.0", features = ["rt", "macros", "time"] }
-oxur-testing = { version = "0.2.0", path = "../oxur-testing" }
+oxur-testing = { version = "0.2.1", path = "../oxur-testing" }
 tempfile.workspace = true
 criterion.workspace = true
 serial_test.workspace = true

@@ -48,7 +48,7 @@ tabled = "0.17"
 
 # Package metadata shared by all crates
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Duncan McGreggor <duncan@example.com>"]
 license = "MIT OR Apache-2.0"

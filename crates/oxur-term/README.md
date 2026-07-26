@@ -26,7 +26,7 @@ for backwards compatibility with existing consumers.
 
 ```toml
 [dependencies]
-oxur-term = { version = "0.2.0", path = "../oxur-term" }
+oxur-term = { version = "0.2.1", path = "../oxur-term" }
 ```
 
 ## Styled Tables
